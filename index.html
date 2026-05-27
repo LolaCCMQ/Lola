@@ -764,8 +764,12 @@ function renderTaskList(list) {
           ${ataTag}
         </div>
         ${t.obs?`<div class="task-obs">💬 ${t.obs}</div>`:""}
-        <textarea class="task-obs-input" id="obs-${t.id}" placeholder="Adicionar observação..." onblur="saveObs(${t.id})">${t.obs||""}</textarea>
-        <button class="obs-btn" onclick="toggleObs(${t.id})">✏️ ${t.obs?"Editar":"Adicionar"} observação</button>
+        <div id="obs-wrap-${t.id}" style="display:none;margin-top:5px">
+          <textarea class="task-obs-input" id="obs-${t.id}" placeholder="Adicionar observação..." style="display:block;margin-bottom:5px">${t.obs||""}</textarea>
+          <button class="btn btn-primary btn-sm" onclick="saveObs(${t.id})">💾 Salvar</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('obs-wrap-${t.id}').style.display='none'">Cancelar</button>
+        </div>
+        <button class="obs-btn" onclick="document.getElementById('obs-wrap-${t.id}').style.display=document.getElementById('obs-wrap-${t.id}').style.display==='none'?'block':'none'">✏️ ${t.obs?"Editar":"Adicionar"} observação</button>
       </div>
     </div>`;
   }).join("");
@@ -788,11 +792,20 @@ function toggleObs(id) {
 
 async function saveObs(id) {
   const el=document.getElementById("obs-"+id); if(!el)return;
+  const obs=el.value.trim();
   const t=tasks.find(t=>t.id===id); if(!t)return;
-  t.obs=el.value.trim(); el.style.display="none";
+  t.obs=obs;
+  try { 
+    await salvarObsDB(id, obs); 
+    setSyncOk(true); 
+    showToast("✓ Observação salva!");
+  } catch(e){ setSyncOk(false); showToast("Erro ao salvar observação."); }
+  const wrap=document.getElementById("obs-wrap-"+id); if(wrap) wrap.style.display="none";
   renderAll();
   if(currentTab==="pessoas") renderPessoas();
-  try { await salvarObsDB(id, t.obs); setSyncOk(true); } catch(e){ setSyncOk(false); }
+  if(!document.getElementById("tab-detalhe").classList.contains("hidden")) {
+    abrirAta(t.ata_id);
+  }
 }
 
 // ═══════════════════════════════════════
@@ -1039,8 +1052,15 @@ async function salvarConfig(){
 function parseResponsaveis(r) {
   if (!r) return [];
   if (Array.isArray(r)) return r;
-  try { const p = JSON.parse(r); return Array.isArray(p) ? p : [r]; }
-  catch { return r ? [r] : []; }
+  if (typeof r === "string") {
+    const trimmed = r.trim();
+    if (trimmed.startsWith("[")) {
+      try { const p = JSON.parse(trimmed); return Array.isArray(p) ? p : [trimmed]; }
+      catch { return trimmed ? [trimmed] : []; }
+    }
+    return trimmed ? [trimmed] : [];
+  }
+  return [];
 }
 
 // ── EDITAR ATA ──
