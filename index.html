@@ -396,13 +396,23 @@
       </div>
       <div class="form-group">
         <label>Responsáveis</label>
-        <div class="resp-selector" id="ntChips"></div>
+        <div class="resp-selector" id="ntChips" style="min-height:36px;padding:4px 0">
+          <span style="color:var(--muted);font-size:.82rem">Carregando...</span>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Vincular a uma ata (opcional)</label>
-        <select id="ntAta">
-          <option value="">Tarefa avulsa</option>
-        </select>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="form-group" style="flex:1;min-width:140px">
+          <label>Categoria</label>
+          <select id="ntCategoria">
+            <option value="">Sem categoria</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1;min-width:140px">
+          <label>Vincular a uma ata (opcional)</label>
+          <select id="ntAta">
+            <option value="">Tarefa avulsa</option>
+          </select>
+        </div>
       </div>
       <div style="display:flex;gap:9px;margin-top:6px">
         <button class="btn btn-primary" onclick="salvarNovaTarefa()">Salvar Tarefa</button>
@@ -1221,16 +1231,28 @@ function podeEditarObs() {
 }
 
 function initNovaTarefaTab() {
-  // Render chips
+  // Render pessoa chips
   const chips = document.getElementById("ntChips");
-  if(chips) chips.innerHTML = TEAM.map(u => {
-    const av = u.photo
-      ? `<div class="chip-av"><img src="${u.photo}" alt=""></div>`
-      : `<div class="chip-av" style="background:${u.color}">${initials(u.name)}</div>`;
-    return `<button type="button" class="resp-chip" data-uid="${u.id}"
-      style="border-color:${u.color};color:${u.color}"
-      onclick="toggleChip(this,'${u.color}')">${av}${u.name}</button>`;
-  }).join("");
+  if(chips) {
+    if(TEAM.length === 0) {
+      chips.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Nenhum membro configurado.</span>';
+    } else {
+      chips.innerHTML = TEAM.map(u => {
+        const av = u.photo
+          ? `<div class="chip-av"><img src="${u.photo}" alt=""></div>`
+          : `<div class="chip-av" style="background:${u.color}">${initials(u.name)}</div>`;
+        return `<button type="button" class="resp-chip" data-uid="${u.id}"
+          style="border-color:${u.color};color:${u.color}"
+          onclick="toggleChip(this,'${u.color}')">${av}${u.name}</button>`;
+      }).join("");
+    }
+  }
+  // Render categoria select
+  const catSel = document.getElementById("ntCategoria");
+  if(catSel) {
+    catSel.innerHTML = '<option value="">Sem categoria</option>' +
+      CATEGORIAS.map(c=>`<option value="${c}">${c}</option>`).join("");
+  }
   // Render atas select
   const sel = document.getElementById("ntAta");
   if(sel) {
@@ -1247,16 +1269,18 @@ async function salvarNovaTarefa() {
   if(!texto){ showToast("Escreva a descrição da tarefa."); return; }
   const resps = [...document.querySelectorAll("#ntChips .resp-chip.selected")].map(b=>b.dataset.uid);
   const ataId = document.getElementById("ntAta")?.value;
+  const categoria = document.getElementById("ntCategoria")?.value||"";
   showToast("Salvando...");
   try {
     let ataFinal;
     if(ataId) {
       ataFinal = atas.find(a=>a.id===parseInt(ataId));
     } else {
-      // Use or create ata avulsa geral
-      ataFinal = atas.find(a=>a.avulsa&&a.title==="Tarefas Avulsas");
+      // Use or create ata avulsa, considerando categoria
+      const catLabel = categoria||"Avulsa";
+      ataFinal = atas.find(a=>a.avulsa&&a.categoria===catLabel);
       if(!ataFinal){
-        ataFinal = await criarAta("Tarefas Avulsas","","",true,"");
+        ataFinal = await criarAta("Tarefas Avulsas","","",true,catLabel);
         atas.push(ataFinal);
       }
     }
@@ -1264,7 +1288,9 @@ async function salvarNovaTarefa() {
     tasks.push(nt);
     setSyncOk(true);
     showToast("✓ Tarefa criada!");
-    switchTab("todas");
+    // Navigate to minhas tarefas if current user is one of the responsáveis
+    if(currentUser && resps.includes(currentUser.id)) switchTab("minhas");
+    else switchTab("todas");
   } catch(e){ showToast("Erro ao salvar tarefa."); setSyncOk(false); }
 }
 
