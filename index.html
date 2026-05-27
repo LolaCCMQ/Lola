@@ -228,6 +228,9 @@
   .resp-chip .chip-av{width:18px;height:18px;border-radius:50%;overflow:hidden;
     display:flex;align-items:center;justify-content:center;font-size:.52rem;font-weight:700;color:#fff;flex-shrink:0;}
   .resp-chip .chip-av img{width:100%;height:100%;object-fit:cover;}
+  .tag-cat{background:#EDE9FE;color:#5B21B6;}
+  .edit-modal{background:#fff;border-radius:20px;padding:28px 24px;width:560px;
+    max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.18);}
   .hidden{display:none!important;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc;display:inline-block;margin-left:6px;transition:background .3s;}
   .sync-dot.ok{background:var(--green);}
@@ -274,9 +277,42 @@
 </nav>
 
 <main>
+  <!-- MODAL EDITAR ATA -->
+  <div class="modal-bg" id="editAtaModal">
+    <div class="edit-modal">
+      <h2 style="font-family:'Playfair Display',serif;color:var(--vinho-deep);margin-bottom:18px">Editar Ata</h2>
+      <input type="hidden" id="editAtaId">
+      <div class="form-group">
+        <label>Título</label>
+        <input type="text" id="editAtaTitle">
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="form-group" style="flex:1;min-width:130px">
+          <label>Data</label>
+          <input type="date" id="editAtaData">
+        </div>
+        <div class="form-group" style="flex:1;min-width:130px">
+          <label>Categoria</label>
+          <select id="editAtaCategoria">
+            <option value="">Sem categoria</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Conteúdo</label>
+        <textarea id="editAtaConteudo" style="min-height:150px"></textarea>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:4px">
+        <button class="btn btn-primary" onclick="salvarEdicaoAta()">💾 Salvar alterações</button>
+        <button class="btn btn-ghost" onclick="fecharEditModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ATAS -->
   <div id="tab-atas">
     <div class="section-header"><h2>Atas de Reunião</h2></div>
+    <div id="filtroCategoria" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px"></div>
     <div id="listAtas"></div>
   </div>
 
@@ -307,9 +343,17 @@
         <label>Título da reunião</label>
         <input type="text" id="novaTitle" placeholder="Ex: Reunião semanal de liderança">
       </div>
-      <div class="form-group">
-        <label>Data</label>
-        <input type="date" id="novaData">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="form-group" style="flex:1;min-width:140px">
+          <label>Data</label>
+          <input type="date" id="novaData">
+        </div>
+        <div class="form-group" style="flex:1;min-width:140px">
+          <label>Categoria</label>
+          <select id="novaCategoria">
+            <option value="">Sem categoria</option>
+          </select>
+        </div>
       </div>
       <div class="form-group">
         <label>Conteúdo da ata</label>
@@ -350,6 +394,12 @@
       <p style="font-size:.81rem;color:var(--muted);margin-bottom:14px">Edite nomes, cargos, cores e fotos de perfil.</p>
       <div id="memberRows"></div>
       <button class="add-member-btn" onclick="addMemberRow()">＋ Adicionar membro</button>
+    </div>
+    <div class="config-section">
+      <div class="config-section-title">🏷️ Categorias de ata</div>
+      <p style="font-size:.81rem;color:var(--muted);margin-bottom:14px">Ex: RH, Cozinha, Salão, Eventos...</p>
+      <div id="catRows"></div>
+      <button class="add-member-btn" onclick="addCatRow()">＋ Adicionar categoria</button>
     </div>
     <div class="config-save-bar">
       <button class="btn btn-primary" onclick="salvarConfig()">💾 Salvar</button>
@@ -410,12 +460,14 @@ const DEFAULT_TEAM = [
 ];
 
 let TEAM = [...DEFAULT_TEAM];
+let CATEGORIAS = ["Geral","RH","Cozinha","Salão","Eventos","Compras","Manutenção"];
 let currentUser = null;
 let atas = [], tasks = [];
 let currentTab = "atas", detalheFrom = "atas";
-let taskRowCounter = 0, configMembers = [];
+let taskRowCounter = 0, configMembers = [], configCats = [];
 let pessoaSelecionada = null;
 let memberIdCounter = 100;
+let filtroAtivo = null;
 
 // ═══════════════════════════════════════
 // INIT — SETUP BANCO
@@ -448,21 +500,28 @@ function setSyncOk(ok) {
 // CONFIG (time) no banco
 // ═══════════════════════════════════════
 async function loadConfig() {
-  const rows = await api.get("lola_config", "key=eq.team&select=value");
-  if (rows && rows.length > 0) {
-    TEAM = JSON.parse(rows[0].value);
-  } else {
-    // Salvar team padrão
-    await api.post("lola_config", { key: "team", value: JSON.stringify(DEFAULT_TEAM) });
-    TEAM = [...DEFAULT_TEAM];
-  }
-  // Restaurar usuário
+  const rows = await api.get("lola_config", "select=key,value");
+  const byKey = {};
+  (rows||[]).forEach(r => byKey[r.key] = r.value);
+
+  if (byKey.team) { TEAM = JSON.parse(byKey.team); }
+  else { await api.post("lola_config", { key: "team", value: JSON.stringify(DEFAULT_TEAM) }); TEAM = [...DEFAULT_TEAM]; }
+
+  if (byKey.categorias) { CATEGORIAS = JSON.parse(byKey.categorias); }
+  else { await api.post("lola_config", { key: "categorias", value: JSON.stringify(CATEGORIAS) }); }
+
   const uid = localStorage.getItem("lola_user");
   if (uid) { currentUser = TEAM.find(u => u.id === uid) || null; updateHeaderUser(); }
 }
 
 async function saveConfig() {
-  await api.patch("lola_config", { value: JSON.stringify(TEAM) }, "key=eq.team");
+  // upsert team
+  const existing = await api.get("lola_config","select=key");
+  const keys = (existing||[]).map(r=>r.key);
+  if (keys.includes("team")) await api.patch("lola_config", { value: JSON.stringify(TEAM) }, "key=eq.team");
+  else await api.post("lola_config", { key:"team", value: JSON.stringify(TEAM) });
+  if (keys.includes("categorias")) await api.patch("lola_config", { value: JSON.stringify(CATEGORIAS) }, "key=eq.categorias");
+  else await api.post("lola_config", { key:"categorias", value: JSON.stringify(CATEGORIAS) });
 }
 
 // ═══════════════════════════════════════
@@ -472,8 +531,8 @@ async function loadAtas() {
   atas = await api.get("lola_atas", "select=*&order=created_at.desc");
 }
 
-async function criarAta(title, date, conteudo, avulsa) {
-  const rows = await api.post("lola_atas", { title, date, conteudo, avulsa: avulsa || false });
+async function criarAta(title, date, conteudo, avulsa, categoria) {
+  const rows = await api.post("lola_atas", { title, date, conteudo, avulsa: avulsa||false, categoria: categoria||"" });
   return rows[0];
 }
 
@@ -575,6 +634,7 @@ function switchTabNova() {
   document.getElementById("novaTitle").value="";
   document.getElementById("novaData").value=new Date().toISOString().slice(0,10);
   document.getElementById("novaConteudo").value="";
+  populateCatSelects();
   addTaskRow(); switchTab("nova");
 }
 
@@ -591,20 +651,45 @@ function updateBadges() {
 
 function renderAtas() {
   const el = document.getElementById("listAtas");
-  const ataNormais = atas.filter(a => !a.avulsa);
+  const filtroEl = document.getElementById("filtroCategoria");
+
+  // Render filtro
+  if (filtroEl) {
+    const cats = ["Todas", ...CATEGORIAS];
+    filtroEl.innerHTML = cats.map(c => {
+      const ativo = (c === "Todas" && !filtroAtivo) || filtroAtivo === c;
+      return `<button onclick="setFiltro('${c}')"
+        style="padding:5px 14px;border-radius:20px;border:2px solid var(--vinho-muted);
+        background:${ativo?"var(--vinho)":"#fff"};color:${ativo?"#fff":"var(--vinho)"};
+        font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s">
+        ${c}</button>`;
+    }).join("");
+  }
+
+  let ataNormais = atas.filter(a => !a.avulsa);
+  if (filtroAtivo) ataNormais = ataNormais.filter(a => a.categoria === filtroAtivo);
+
   if (!ataNormais.length) { el.innerHTML='<div class="empty"><div class="icon">📄</div><p>Nenhuma ata ainda.<br>Clique em <strong>+ Nova Ata</strong>.</p></div>'; return; }
   el.innerHTML = ataNormais.map(a => {
     const at=tasks.filter(t=>t.ata_id===a.id), fe=at.filter(t=>t.done).length, ok=at.length>0&&fe===at.length;
-    return `<div class="card" style="cursor:pointer" onclick="abrirAta(${a.id})">
+    const catTag = a.categoria ? `<span class="tag tag-cat">🏷️ ${a.categoria}</span>` : "";
+    return `<div class="card">
       <div class="card-meta"><span class="card-date">📅 ${fmtDate(a.date)}</span>
-        <span class="status-pill ${ok?"status-done":"status-open"}">${ok?"✓ Concluída":"Em andamento"}</span></div>
+        <span class="status-pill ${ok?"status-done":"status-open"}">${ok?"✓ Concluída":"Em andamento"}</span>
+        ${catTag}</div>
       <div class="card-title">${a.title}</div>
       <div class="card-excerpt">${a.conteudo||""}</div>
       <div class="card-actions">
-        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();abrirAta(${a.id})">Ver detalhes</button>
+        <button class="btn btn-ghost btn-sm" onclick="abrirAta(${a.id})">Ver detalhes</button>
+        <button class="btn btn-ghost btn-sm" onclick="abrirEditModal(${a.id})">✏️ Editar</button>
         <span class="task-count">📌 ${at.length} tarefa${at.length!==1?"s":""} · ${fe} feita${fe!==1?"s":""}</span>
       </div></div>`;
   }).join("");
+}
+
+function setFiltro(cat) {
+  filtroAtivo = cat === "Todas" ? null : cat;
+  renderAtas();
 }
 
 function abrirAta(id) {
@@ -616,8 +701,9 @@ function abrirAta(id) {
     <div class="detail-body">${ata.conteudo||""}</div>
     <div class="tasks-header">📌 Tarefas desta reunião</div>
     <div>${renderTaskList(at)}</div>
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-      <button class="btn btn-danger btn-sm" onclick="excluirAta(${id})">🗑 Excluir esta ata</button>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="abrirEditModal(${id})">✏️ Editar ata</button>
+      <button class="btn btn-danger btn-sm" onclick="excluirAta(${id})">🗑 Excluir</button>
     </div>`;
   ALL_TABS.forEach(t=>document.getElementById("tab-"+t).classList.add("hidden"));
   document.getElementById("tab-detalhe").classList.remove("hidden");
@@ -747,10 +833,11 @@ async function salvarAta() {
   const title=document.getElementById("novaTitle").value.trim();
   const date=document.getElementById("novaData").value;
   const conteudo=document.getElementById("novaConteudo").value.trim();
+  const categoria=document.getElementById("novaCategoria")?.value||"";
   if (!title||!date){alert("Preencha o título e a data.");return;}
   showToast("Salvando ata...");
   try {
-    const novaAta = await criarAta(title, date, conteudo, false);
+    const novaAta = await criarAta(title, date, conteudo, false, categoria);
     atas.unshift(novaAta);
     const rows = document.querySelectorAll("#taskRows .task-builder-row");
     for (const row of rows) {
@@ -879,7 +966,13 @@ async function gerarTarefasAI() {
 // ═══════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════
-function renderConfigTab(){configMembers=TEAM.map(u=>({...u}));renderMemberRows();}
+function renderConfigTab(){
+  configMembers=TEAM.map(u=>({...u}));
+  configCats=[...CATEGORIAS];
+  renderMemberRows();
+  renderCatRows();
+  populateCatSelects();
+}
 function renderMemberRows(){
   document.getElementById("memberRows").innerHTML=configMembers.map((u,i)=>`
     <div class="member-row" id="mrow-${i}">
@@ -902,12 +995,39 @@ function addMemberRow(){
   renderMemberRows(); setTimeout(()=>{const rows=document.querySelectorAll(".member-row");rows[rows.length-1]?.querySelector("input[type=text]")?.focus();},50);
 }
 function removeMember(i){if(configMembers.length<=1){alert("Precisa ter ao menos um membro.");return;}if(!confirm(`Remover "${configMembers[i].name||"este membro"}"?`))return;configMembers.splice(i,1);renderMemberRows();}
+function renderCatRows(){
+  const el = document.getElementById("catRows"); if(!el) return;
+  el.innerHTML = configCats.map((c,i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;margin-bottom:7px">
+      <span style="font-size:1rem">🏷️</span>
+      <input type="text" value="${c}" oninput="configCats[${i}]=this.value"
+        style="flex:1;margin:0;font-size:.86rem;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--cream);font-family:inherit;color:var(--ink)">
+      <button onclick="configCats.splice(${i},1);renderCatRows()" style="background:none;border:none;font-size:.95rem;color:var(--muted);cursor:pointer;padding:5px 6px;border-radius:6px">🗑</button>
+    </div>`).join("");
+}
+
+function addCatRow(){
+  configCats.push("");
+  renderCatRows();
+  setTimeout(()=>{
+    const inputs=document.querySelectorAll("#catRows input");
+    inputs[inputs.length-1]?.focus();
+  },50);
+}
+
 async function salvarConfig(){
   const v=configMembers.filter(m=>m.name.trim());if(!v.length){alert("Adicione ao menos um membro.");return;}
   v.forEach(m=>{m.name=m.name.trim();m.role=m.role.trim();});TEAM=v;
+  CATEGORIAS=configCats.map(c=>c.trim()).filter(Boolean);
   if(currentUser&&!TEAM.find(u=>u.id===currentUser.id)){currentUser=null;}
   showToast("Salvando...");
-  try { await saveConfig(); setSyncOk(true); const msg=document.getElementById("savedMsg"); msg.classList.add("show"); setTimeout(()=>msg.classList.remove("show"),2500); renderAll(); }
+  try {
+    await saveConfig();
+    populateCatSelects();
+    setSyncOk(true);
+    const msg=document.getElementById("savedMsg"); msg.classList.add("show"); setTimeout(()=>msg.classList.remove("show"),2500);
+    renderAll();
+  }
   catch(e){ showToast("Erro ao salvar configurações."); setSyncOk(false); }
 }
 
@@ -916,6 +1036,54 @@ function parseResponsaveis(r) {
   if (Array.isArray(r)) return r;
   try { const p = JSON.parse(r); return Array.isArray(p) ? p : [r]; }
   catch { return r ? [r] : []; }
+}
+
+// ── EDITAR ATA ──
+function populateCatSelects() {
+  ["novaCategoria","editAtaCategoria"].forEach(id => {
+    const el = document.getElementById(id); if(!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">Sem categoria</option>' +
+      CATEGORIAS.map(c=>`<option value="${c}" ${c===cur?"selected":""}>${c}</option>`).join("");
+  });
+}
+
+function abrirEditModal(ataId) {
+  const ata = atas.find(a=>a.id===ataId); if(!ata) return;
+  document.getElementById("editAtaId").value = ataId;
+  document.getElementById("editAtaTitle").value = ata.title;
+  document.getElementById("editAtaData").value = (ata.date||"").split("T")[0];
+  document.getElementById("editAtaConteudo").value = ata.conteudo||"";
+  populateCatSelects();
+  document.getElementById("editAtaCategoria").value = ata.categoria||"";
+  document.getElementById("editAtaModal").classList.add("open");
+}
+
+function fecharEditModal() {
+  document.getElementById("editAtaModal").classList.remove("open");
+}
+
+async function salvarEdicaoAta() {
+  const id = parseInt(document.getElementById("editAtaId").value);
+  const title = document.getElementById("editAtaTitle").value.trim();
+  const date = document.getElementById("editAtaData").value;
+  const conteudo = document.getElementById("editAtaConteudo").value.trim();
+  const categoria = document.getElementById("editAtaCategoria").value;
+  if (!title||!date){alert("Preencha o título e a data.");return;}
+  showToast("Salvando...");
+  try {
+    await api.patch("lola_atas", {title,date,conteudo,categoria}, `id=eq.${id}`);
+    const ata = atas.find(a=>a.id===id);
+    if(ata){ata.title=title;ata.date=date;ata.conteudo=conteudo;ata.categoria=categoria;}
+    fecharEditModal(); renderAll(); setSyncOk(true); showToast("✓ Ata atualizada!");
+  } catch(e){ showToast("Erro ao salvar."); setSyncOk(false); }
+}
+
+// ── OBS PARA TODOS ──
+function podeEditarObs() {
+  // Admins podem editar obs de qualquer tarefa
+  const ADMINS = ["bianca","mahara"];
+  return currentUser && ADMINS.includes(currentUser.id);
 }
 
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
