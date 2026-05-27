@@ -529,6 +529,8 @@ async function initDB() {
   }
   document.getElementById("loadingOverlay").style.display = "none";
   renderAll();
+  // Re-init nova tarefa tab if it's currently active
+  if(currentTab === "novatarefa") initNovaTarefaTab();
   setTimeout(() => { if (!currentUser) openUserModal(); }, 400);
 }
 
@@ -668,6 +670,11 @@ function switchTab(tab) {
   document.querySelectorAll(".tab").forEach(el => el.classList.toggle("active", el.dataset.tab===tab));
   if (tab==="config") renderConfigTab();
   if (tab==="pessoas") renderPessoas();
+  if (tab==="novatarefa") {
+    initNovaTarefaTab();
+    // Retry after DB loads if team/categorias still empty
+    setTimeout(() => { if(currentTab==="novatarefa") initNovaTarefaTab(); }, 1000);
+  }
   renderAll();
 }
 function switchTabNova() {
@@ -1235,7 +1242,7 @@ function initNovaTarefaTab() {
   const chips = document.getElementById("ntChips");
   if(chips) {
     if(TEAM.length === 0) {
-      chips.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Nenhum membro configurado.</span>';
+      chips.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Aguardando dados... <button class="btn btn-ghost btn-sm" onclick="initNovaTarefaTab()" style="margin-left:8px">🔄 Recarregar</button></span>';
     } else {
       chips.innerHTML = TEAM.map(u => {
         const av = u.photo
