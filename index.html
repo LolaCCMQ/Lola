@@ -273,6 +273,7 @@
   <button class="tab" data-tab="pessoas" onclick="switchTab('pessoas')">👤 Por Pessoa</button>
   <button class="tab" data-tab="todas" onclick="switchTab('todas')">📋 Todas <span class="badge" id="bTodas">0</span></button>
   <button class="tab" data-tab="nova" onclick="switchTabNova()">＋ Nova Ata</button>
+  <button class="tab" data-tab="novatarefa" onclick="switchTab('novatarefa')">＋ Nova Tarefa</button>
   <button class="tab" data-tab="config" onclick="switchTab('config')">⚙️ Config</button>
 </nav>
 
@@ -380,6 +381,31 @@
       </div>
       <div style="display:flex;gap:9px;margin-top:6px">
         <button class="btn btn-primary" onclick="salvarAta()">Salvar Ata</button>
+        <button class="btn btn-ghost" onclick="switchTab('atas')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOVA TAREFA -->
+  <div id="tab-novatarefa" class="hidden">
+    <div class="section-header"><h2>＋ Nova Tarefa</h2></div>
+    <div class="card">
+      <div class="form-group">
+        <label>Descrição da tarefa</label>
+        <input type="text" id="ntTexto" placeholder="Descrever a tarefa...">
+      </div>
+      <div class="form-group">
+        <label>Responsáveis</label>
+        <div class="resp-selector" id="ntChips"></div>
+      </div>
+      <div class="form-group">
+        <label>Vincular a uma ata (opcional)</label>
+        <select id="ntAta">
+          <option value="">Tarefa avulsa</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:6px">
+        <button class="btn btn-primary" onclick="salvarNovaTarefa()">Salvar Tarefa</button>
         <button class="btn btn-ghost" onclick="switchTab('atas')">Cancelar</button>
       </div>
     </div>
@@ -625,7 +651,7 @@ function initials(n) { return n.split(" ").map(w=>w[0]).slice(0,2).join("").toUp
 // ═══════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════
-const ALL_TABS = ["atas","minhas","pessoas","todas","nova","detalhe","config"];
+const ALL_TABS = ["atas","minhas","pessoas","todas","nova","novatarefa","detalhe","config"];
 function switchTab(tab) {
   currentTab = tab;
   ALL_TABS.forEach(t => document.getElementById("tab-"+t).classList.toggle("hidden", t!==tab));
@@ -763,13 +789,13 @@ function renderTaskList(list) {
           ${pessoasTags}
           ${ataTag}
         </div>
-        ${t.obs?`<div class="task-obs">💬 ${t.obs}</div>`:""}
+        <div id="obs-display-${t.id}" class="task-obs" style="${t.obs?'':`display:none`}">💬 ${t.obs||""}</div>
         <div id="obs-wrap-${t.id}" style="display:none;margin-top:5px">
           <textarea class="task-obs-input" id="obs-${t.id}" placeholder="Adicionar observação..." style="display:block;margin-bottom:5px">${t.obs||""}</textarea>
           <button class="btn btn-primary btn-sm" onclick="saveObs(${t.id})">💾 Salvar</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('obs-wrap-${t.id}').style.display='none'">Cancelar</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleObsWrap(${t.id})">Cancelar</button>
         </div>
-        <button class="obs-btn" onclick="document.getElementById('obs-wrap-${t.id}').style.display=document.getElementById('obs-wrap-${t.id}').style.display==='none'?'block':'none'">✏️ ${t.obs?"Editar":"Adicionar"} observação</button>
+        <button id="obs-btn-${t.id}" class="obs-btn" onclick="toggleObsWrap(${t.id})">✏️ ${t.obs?"Editar":"Adicionar"} observação</button>
       </div>
     </div>`;
   }).join("");
@@ -799,12 +825,27 @@ async function saveObs(id) {
     await salvarObsDB(id, obs); 
     setSyncOk(true); 
     showToast("✓ Observação salva!");
+    // Update display in place without full re-render
+    const wrap=document.getElementById("obs-wrap-"+id); 
+    if(wrap) wrap.style.display="none";
+    const obsDisplay=document.getElementById("obs-display-"+id);
+    if(obsDisplay) {
+      if(obs) { obsDisplay.style.display="block"; obsDisplay.textContent="💬 "+obs; }
+      else { obsDisplay.style.display="none"; }
+    }
+    const obsBtn=document.getElementById("obs-btn-"+id);
+    if(obsBtn) obsBtn.textContent = (obs?"✏️ Editar":"✏️ Adicionar")+" observação";
   } catch(e){ setSyncOk(false); showToast("Erro ao salvar observação."); }
-  const wrap=document.getElementById("obs-wrap-"+id); if(wrap) wrap.style.display="none";
-  renderAll();
-  if(currentTab==="pessoas") renderPessoas();
-  if(!document.getElementById("tab-detalhe").classList.contains("hidden")) {
-    abrirAta(t.ata_id);
+}
+
+function toggleObsWrap(id) {
+  const wrap=document.getElementById("obs-wrap-"+id);
+  if(!wrap) return;
+  const isHidden = wrap.style.display==="none"||wrap.style.display==="";
+  wrap.style.display = isHidden?"block":"none";
+  if(isHidden) {
+    const ta=document.getElementById("obs-"+id);
+    if(ta) ta.focus();
   }
 }
 
@@ -1177,6 +1218,54 @@ function podeEditarObs() {
   // Admins podem editar obs de qualquer tarefa
   const ADMINS = ["bianca","mahara"];
   return currentUser && ADMINS.includes(currentUser.id);
+}
+
+function initNovaTarefaTab() {
+  // Render chips
+  const chips = document.getElementById("ntChips");
+  if(chips) chips.innerHTML = TEAM.map(u => {
+    const av = u.photo
+      ? `<div class="chip-av"><img src="${u.photo}" alt=""></div>`
+      : `<div class="chip-av" style="background:${u.color}">${initials(u.name)}</div>`;
+    return `<button type="button" class="resp-chip" data-uid="${u.id}"
+      style="border-color:${u.color};color:${u.color}"
+      onclick="toggleChip(this,'${u.color}')">${av}${u.name}</button>`;
+  }).join("");
+  // Render atas select
+  const sel = document.getElementById("ntAta");
+  if(sel) {
+    sel.innerHTML = '<option value="">Tarefa avulsa</option>' +
+      atas.filter(a=>!a.avulsa).map(a=>`<option value="${a.id}">${a.title} (${fmtDate(a.date)})</option>`).join("");
+  }
+  // Clear fields
+  const txt = document.getElementById("ntTexto");
+  if(txt) txt.value = "";
+}
+
+async function salvarNovaTarefa() {
+  const texto = document.getElementById("ntTexto")?.value.trim();
+  if(!texto){ showToast("Escreva a descrição da tarefa."); return; }
+  const resps = [...document.querySelectorAll("#ntChips .resp-chip.selected")].map(b=>b.dataset.uid);
+  const ataId = document.getElementById("ntAta")?.value;
+  showToast("Salvando...");
+  try {
+    let ataFinal;
+    if(ataId) {
+      ataFinal = atas.find(a=>a.id===parseInt(ataId));
+    } else {
+      // Use or create ata avulsa geral
+      ataFinal = atas.find(a=>a.avulsa&&a.title==="Tarefas Avulsas");
+      if(!ataFinal){
+        ataFinal = await criarAta("Tarefas Avulsas","","",true,"");
+        atas.push(ataFinal);
+      }
+    }
+    const nt = await criarTask(ataFinal.id, texto, JSON.stringify(resps));
+    tasks.push(nt);
+    setSyncOk(true);
+    showToast("✓ Tarefa criada!");
+    switchTab("todas");
+  } catch(e){ showToast("Erro ao salvar tarefa."); setSyncOk(false); }
 }
 
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
