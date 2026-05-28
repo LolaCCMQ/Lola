@@ -813,6 +813,10 @@ function renderTaskList(list) {
           <button class="btn btn-ghost btn-sm" onclick="toggleObsWrap(${t.id})">Cancelar</button>
         </div>
         <button id="obs-btn-${t.id}" class="obs-btn" onclick="toggleObsWrap(${t.id})">✏️ ${t.obs?"Editar":"Adicionar"} observação</button>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar tarefa</button>
+          <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
+        </div>
       </div>
     </div>`;
   }).join("");
@@ -1301,10 +1305,90 @@ async function salvarNovaTarefa() {
   } catch(e){ showToast("Erro ao salvar tarefa."); setSyncOk(false); }
 }
 
+// ── EDITAR / DELETAR TAREFA ──
+function abrirEditTarefa(id) {
+  const t = tasks.find(t=>t.id===id); if(!t) return;
+  document.getElementById("etId").value = id;
+  document.getElementById("etTexto").value = t.texto;
+  const resps = parseResponsaveis(t.responsavel);
+  // Render chips
+  const chips = document.getElementById("etChips");
+  chips.innerHTML = TEAM.map(u => {
+    const sel = resps.includes(u.id);
+    const av = u.photo
+      ? `<div class="chip-av"><img src="${u.photo}" alt=""></div>`
+      : `<div class="chip-av" style="background:${u.color}">${initials(u.name)}</div>`;
+    return `<button type="button" class="resp-chip ${sel?"selected":""}" data-uid="${u.id}"
+      style="border-color:${u.color};${sel?`background:${u.color};`:`color:${u.color};`}"
+      onclick="toggleChip(this,'${u.color}')">${av}${u.name}</button>`;
+  }).join("");
+  const em = document.getElementById("editTaskModal");
+  em.classList.remove("hidden"); em.classList.add("open");
+}
+
+function fecharEditTaskModal() {
+  const em = document.getElementById("editTaskModal");
+  em.classList.remove("open"); em.classList.add("hidden");
+}
+
+async function salvarEdicaoTarefa() {
+  const id = parseInt(document.getElementById("etId").value);
+  const texto = document.getElementById("etTexto").value.trim();
+  if(!texto){ showToast("Escreva a descrição."); return; }
+  const resps = [...document.querySelectorAll("#etChips .resp-chip.selected")].map(b=>b.dataset.uid);
+  showToast("Salvando...");
+  try {
+    await api.patch("lola_tasks", {texto, responsavel: JSON.stringify(resps)}, `id=eq.${id}`);
+    const t = tasks.find(t=>t.id===id);
+    if(t){ t.texto=texto; t.responsavel=JSON.stringify(resps); }
+    fecharEditTaskModal();
+    renderAll();
+    if(currentTab==="pessoas") renderPessoas();
+    if(!document.getElementById("tab-detalhe").classList.contains("hidden")) abrirAta(t?.ata_id);
+    setSyncOk(true); showToast("✓ Tarefa atualizada!");
+  } catch(e){ showToast("Erro ao salvar."); setSyncOk(false); }
+}
+
+async function deletarTarefa(id) {
+  if(!confirm("Deletar esta tarefa?")) return;
+  showToast("Deletando...");
+  try {
+    await deletarTaskDB(id);
+    tasks = tasks.filter(t=>t.id!==id);
+    renderAll();
+    if(currentTab==="pessoas") renderPessoas();
+    if(!document.getElementById("tab-detalhe").classList.contains("hidden")) {
+      const ataId = tasks.find(t=>t.id===id)?.ata_id;
+      if(ataId) abrirAta(ataId);
+    }
+    setSyncOk(true); showToast("✓ Tarefa deletada!");
+  } catch(e){ showToast("Erro ao deletar."); setSyncOk(false); }
+}
+
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
 
 // INIT
 initDB();
 </script>
+<!-- MODAL EDITAR TAREFA -->
+<div class="modal-bg hidden" id="editTaskModal">
+  <div class="modal" style="width:500px;max-width:96vw">
+    <h2 style="font-family:'Playfair Display',serif;color:var(--vinho-deep);margin-bottom:18px">🖊 Editar Tarefa</h2>
+    <input type="hidden" id="etId">
+    <div class="form-group">
+      <label>Descrição</label>
+      <input type="text" id="etTexto">
+    </div>
+    <div class="form-group">
+      <label>Responsáveis</label>
+      <div class="resp-selector" id="etChips"></div>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:14px">
+      <button class="btn btn-primary" onclick="salvarEdicaoTarefa()">💾 Salvar</button>
+      <button class="btn btn-ghost" onclick="fecharEditTaskModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
