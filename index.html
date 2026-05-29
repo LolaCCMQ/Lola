@@ -819,11 +819,11 @@ function renderTaskList(list) {
           ${ataTag}
         </div>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-          <button class="obs-btn" data-tid="${t.id}" onclick="toggleComentarios(parseInt(this.dataset.tid))" style="color:var(--vinho)">💬 Comentários</button>
-          <button class="obs-btn" data-tid="${t.id}" onclick="abrirEditTarefa(parseInt(this.dataset.tid))" style="color:var(--vinho)">🖊 Editar</button>
-          <button class="obs-btn" data-tid="${t.id}" onclick="deletarTarefa(parseInt(this.dataset.tid))" style="color:#C0392B">🗑 Deletar</button>
+          <button class="obs-btn" id="comt-btn-${t.id}" onclick="abrirComentarios(${t.id})" style="color:var(--vinho)">💬 Comentários</button>
+          <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar</button>
+          <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
-        <div id="comt-wrap-${t.id}" style="display:none"></div>
+        <div id="comt-wrap-${t.id}" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:8px"></div>
       </div>
     </div>`;
   }).join("");
@@ -1391,21 +1391,23 @@ function renderComentarios(taskId) {
   return html;
 }
 
-async function toggleComentarios(taskId) {
-  const wrap = document.getElementById("comt-wrap-"+taskId);
-  if(!wrap) return;
-  const isHidden = wrap.style.display === "none" || wrap.style.display === "";
-  if(isHidden) {
-    wrap.style.display = "block";
-    if(!comentarios[taskId]) {
-      wrap.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:6px 0">Carregando...</div>';
-      await carregarComentarios(taskId);
-      wrap.innerHTML = renderComentarios(taskId);
-    }
-  } else {
+function abrirComentarios(taskId) {
+  var wrap = document.getElementById("comt-wrap-"+taskId);
+  if(!wrap) { alert("Elemento não encontrado: comt-wrap-"+taskId); return; }
+  if(wrap.style.display === "block") {
     wrap.style.display = "none";
+    return;
   }
+  wrap.style.display = "block";
+  wrap.innerHTML = "<div style='color:var(--muted);font-size:.8rem;padding:6px 0'>Carregando...</div>";
+  carregarComentarios(taskId).then(function() {
+    wrap.innerHTML = renderComentarios(taskId);
+  }).catch(function(e) {
+    wrap.innerHTML = "<div style='color:red;font-size:.8rem'>Erro: "+e+"</div>";
+  });
 }
+
+async function toggleComentarios(taskId) { abrirComentarios(taskId); }
 
 async function enviarComentario(taskId) {
   const input = document.getElementById("comt-input-"+taskId);
