@@ -1367,23 +1367,28 @@ async function adicionarComentario(taskId, texto) {
 
 function renderComentarios(taskId) {
   const lista = comentarios[taskId] || [];
-  const items = lista.map(c => {
-    const hora = new Date(c.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-    const pessoa = TEAM.find(u=>u.id===c.autor_id);
-    const cor = pessoa?.color || "#A8272A";
-    return `<div class="comentario-item">
-      <div class="comentario-autor" style="color:${cor}">${c.autor_nome}<span class="comentario-hora">${hora}</span></div>
-      <div class="comentario-texto">${formatText(c.texto)}</div>
-    </div>`;
-  }).join("");
-  return `<div class="comentarios-wrap">
-    ${lista.length ? items : '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Nenhum comentário ainda.</div>'}
-    ${currentUser ? `
-    <div class="comentario-input-wrap">
-      <textarea id="comt-input-${taskId}" placeholder="Adicionar comentário..." rows="1"></textarea>
-      <button class="btn btn-primary btn-sm" onclick="enviarComentario(${taskId})">Enviar</button>
-    </div>` : ''}
-  </div>`;
+  let html = '<div class="comentarios-wrap">';
+  if(lista.length === 0) {
+    html += '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Nenhum comentário ainda.</div>';
+  } else {
+    lista.forEach(function(c) {
+      const hora = new Date(c.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+      const pessoa = TEAM.find(function(u){return u.id===c.autor_id;});
+      const cor = pessoa ? pessoa.color : "#A8272A";
+      html += '<div class="comentario-item">';
+      html += '<div class="comentario-autor" style="color:' + cor + '">' + c.autor_nome + '<span class="comentario-hora">' + hora + '</span></div>';
+      html += '<div class="comentario-texto">' + formatText(c.texto) + '</div>';
+      html += '</div>';
+    });
+  }
+  if(currentUser) {
+    html += '<div class="comentario-input-wrap">';
+    html += '<textarea id="comt-input-' + taskId + '" placeholder="Adicionar comentário..." rows="1"></textarea>';
+    html += '<button class="btn btn-primary btn-sm" onclick="enviarComentario(' + taskId + ')">Enviar</button>';
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 async function toggleComentarios(taskId) {
