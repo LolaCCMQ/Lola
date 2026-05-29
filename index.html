@@ -799,6 +799,20 @@ function renderTodas() {
   }).join("");
 }
 
+function formatText(text) {
+  if(!text) return "";
+  // Escape HTML first
+  let s = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  // Bold: **text**
+  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // Clickable links
+  s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--vinho);text-decoration:underline;word-break:break-all">$1</a>');
+  // Line breaks
+  s = s.replace(/\n/g,"<br>");
+  return s;
+}
+
+
 // ── COMENTÁRIOS ──
 async function carregarComentarios(taskId) {
   try {
@@ -850,15 +864,18 @@ function renderComentarios(taskId) {
 }
 
 function abrirComentarios(taskId) {
+  console.log("abrirComentarios called with:", taskId);
   const wrap = document.getElementById("comt-wrap-"+taskId);
-  if(!wrap) return;
+  console.log("wrap element:", wrap);
+  if(!wrap) { console.error("wrap not found for id:", taskId); return; }
   if(wrap.style.display === "block") { wrap.style.display = "none"; return; }
   wrap.style.display = "block";
   wrap.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:6px 0">Carregando...</div>';
   carregarComentarios(taskId).then(function() {
     wrap.innerHTML = renderComentarios(taskId);
   }).catch(function(e) {
-    wrap.innerHTML = '<div style="color:red;font-size:.8rem">Erro ao carregar.</div>';
+    console.error("Error loading comentarios:", e);
+    wrap.innerHTML = '<div style="color:red;font-size:.8rem">Erro: '+e+'</div>';
   });
 }
 
@@ -1464,18 +1481,6 @@ async function enviarComentario(taskId) {
   finally { if(input) input.disabled = false; }
 }
 
-function formatText(text) {
-  if(!text) return "";
-  // Escape HTML first
-  let s = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  // Bold: **text**
-  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  // Clickable links
-  s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--vinho);text-decoration:underline;word-break:break-all">$1</a>');
-  // Line breaks
-  s = s.replace(/\n/g,"<br>");
-  return s;
-}
 
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
 
