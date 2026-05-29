@@ -799,6 +799,83 @@ function renderTodas() {
   }).join("");
 }
 
+// ── COMENTÁRIOS ──
+async function carregarComentarios(taskId) {
+  try {
+    const rows = await api.get("lola_comentarios", "task_id=eq."+taskId+"&order=created_at.asc");
+    comentarios[taskId] = rows || [];
+    return comentarios[taskId];
+  } catch(e) { return []; }
+}
+
+async function adicionarComentario(taskId, texto) {
+  if(!currentUser){ showToast("Selecione seu nome primeiro."); return; }
+  if(!texto.trim()) return;
+  const row = await api.post("lola_comentarios", {
+    task_id: taskId,
+    autor_id: currentUser.id,
+    autor_nome: currentUser.name,
+    texto: texto.trim()
+  });
+  if(!comentarios[taskId]) comentarios[taskId] = [];
+  comentarios[taskId].push(row[0]);
+  return row[0];
+}
+
+function renderComentarios(taskId) {
+  const lista = comentarios[taskId] || [];
+  let out = '<div class="comentarios-wrap">';
+  if(lista.length === 0) {
+    out += '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Nenhum comentário ainda.</div>';
+  } else {
+    for(let i=0;i<lista.length;i++) {
+      const c = lista[i];
+      const hora = new Date(c.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+      const pessoa = TEAM.filter(function(u){return u.id===c.autor_id;})[0];
+      const cor = pessoa ? pessoa.color : "#A8272A";
+      out += '<div class="comentario-item">';
+      out += '<div class="comentario-autor" style="color:'+cor+'">'+c.autor_nome+'<span class="comentario-hora"> '+hora+'</span></div>';
+      out += '<div class="comentario-texto">'+formatText(c.texto)+'</div>';
+      out += '</div>';
+    }
+  }
+  if(currentUser) {
+    out += '<div class="comentario-input-wrap">';
+    out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1"></textarea>';
+    out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
+    out += '</div>';
+  }
+  out += '</div>';
+  return out;
+}
+
+function abrirComentarios(taskId) {
+  const wrap = document.getElementById("comt-wrap-"+taskId);
+  if(!wrap) return;
+  if(wrap.style.display === "block") { wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  wrap.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:6px 0">Carregando...</div>';
+  carregarComentarios(taskId).then(function() {
+    wrap.innerHTML = renderComentarios(taskId);
+  }).catch(function(e) {
+    wrap.innerHTML = '<div style="color:red;font-size:.8rem">Erro ao carregar.</div>';
+  });
+}
+
+async function enviarComt(taskId) {
+  const input = document.getElementById("ci"+taskId);
+  if(!input || !input.value.trim()) return;
+  const texto = input.value.trim();
+  input.value = ""; input.disabled = true;
+  try {
+    await adicionarComentario(taskId, texto);
+    const wrap = document.getElementById("comt-wrap-"+taskId);
+    if(wrap) wrap.innerHTML = renderComentarios(taskId);
+    setSyncOk(true);
+  } catch(e) { showToast("Erro ao enviar."); setSyncOk(false); }
+  finally { if(input) input.disabled = false; }
+}
+
 function renderTaskList(list) {
   if (!list.length) return '<div style="color:var(--muted);font-size:.83rem;padding:7px 0">Nenhuma tarefa.</div>';
   return list.map(t => {
@@ -1342,28 +1419,7 @@ async function deletarTarefa(id) {
   } catch(e){ showToast("Erro ao deletar."); setSyncOk(false); }
 }
 
-// ── COMENTÁRIOS API ──
-async function carregarComentarios(taskId) {
-  try {
-    const rows = await api.get("lola_comentarios", `task_id=eq.${taskId}&order=created_at.asc`);
-    comentarios[taskId] = rows || [];
-    return comentarios[taskId];
-  } catch(e) { return []; }
-}
-
-async function adicionarComentario(taskId, texto) {
-  if(!currentUser){ showToast("Selecione seu nome primeiro."); return; }
-  if(!texto.trim()) return;
-  const row = await api.post("lola_comentarios", {
-    task_id: taskId,
-    autor_id: currentUser.id,
-    autor_nome: currentUser.name,
-    texto: texto.trim()
-  });
-  if(!comentarios[taskId]) comentarios[taskId] = [];
-  comentarios[taskId].push(row[0]);
-  return row[0];
-}
+// api functions moved above
 
 function renderComentarios(taskId) {
   const lista = comentarios[taskId] || [];
@@ -1391,23 +1447,7 @@ function renderComentarios(taskId) {
   return html;
 }
 
-function abrirComentarios(taskId) {
-  var wrap = document.getElementById("comt-wrap-"+taskId);
-  if(!wrap) { alert("Elemento não encontrado: comt-wrap-"+taskId); return; }
-  if(wrap.style.display === "block") {
-    wrap.style.display = "none";
-    return;
-  }
-  wrap.style.display = "block";
-  wrap.innerHTML = "<div style='color:var(--muted);font-size:.8rem;padding:6px 0'>Carregando...</div>";
-  carregarComentarios(taskId).then(function() {
-    wrap.innerHTML = renderComentarios(taskId);
-  }).catch(function(e) {
-    wrap.innerHTML = "<div style='color:red;font-size:.8rem'>Erro: "+e+"</div>";
-  });
-}
-
-async function toggleComentarios(taskId) { abrirComentarios(taskId); }
+// comentarios functions moved above
 
 async function enviarComentario(taskId) {
   const input = document.getElementById("comt-input-"+taskId);
