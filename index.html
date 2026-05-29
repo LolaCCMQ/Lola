@@ -864,18 +864,42 @@ function renderComentarios(taskId) {
 }
 
 function abrirComentarios(taskId) {
-  console.log("abrirComentarios called with:", taskId);
   const wrap = document.getElementById("comt-wrap-"+taskId);
-  console.log("wrap element:", wrap);
-  if(!wrap) { console.error("wrap not found for id:", taskId); return; }
+  if(!wrap) return;
   if(wrap.style.display === "block") { wrap.style.display = "none"; return; }
   wrap.style.display = "block";
-  wrap.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:6px 0">Carregando...</div>';
+  // Show input immediately, load existing comments
+  wrap.innerHTML = '<div style="padding:8px 0">'
+    + '<div id="comt-list-'+taskId+'" style="margin-bottom:8px"><div style="color:var(--muted);font-size:.78rem">Carregando comentários...</div></div>'
+    + (currentUser ? '<div style="display:flex;gap:6px;align-items:flex-end">'
+      + '<textarea id="ci'+taskId+'" placeholder="Escreva um comentário..." rows="2" style="flex:1;font-family:inherit;font-size:.83rem;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>'
+      + '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>'
+      + '</div>' : '')
+    + '</div>';
+  // Load comments into the list div
   carregarComentarios(taskId).then(function() {
-    wrap.innerHTML = renderComentarios(taskId);
+    const listEl = document.getElementById("comt-list-"+taskId);
+    if(!listEl) return;
+    const lista = comentarios[taskId] || [];
+    if(lista.length === 0) {
+      listEl.innerHTML = '<div style="color:var(--muted);font-size:.78rem;font-style:italic">Nenhum comentário ainda.</div>';
+    } else {
+      let out = '';
+      for(let i=0;i<lista.length;i++) {
+        const c = lista[i];
+        const hora = new Date(c.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+        const pessoa = TEAM.filter(function(u){return u.id===c.autor_id;})[0];
+        const cor = pessoa ? pessoa.color : "#A8272A";
+        out += '<div style="background:var(--vinho-pale);border-radius:8px;padding:7px 10px;margin-bottom:6px;border-left:3px solid var(--vinho-light)">';
+        out += '<div style="font-size:.72rem;font-weight:700;color:'+cor+'">'+c.autor_nome+'<span style="color:var(--muted);font-weight:400;margin-left:6px">'+hora+'</span></div>';
+        out += '<div style="font-size:.82rem;color:var(--ink);line-height:1.4;margin-top:2px">'+formatText(c.texto)+'</div>';
+        out += '</div>';
+      }
+      listEl.innerHTML = out;
+    }
   }).catch(function(e) {
-    console.error("Error loading comentarios:", e);
-    wrap.innerHTML = '<div style="color:red;font-size:.8rem">Erro: '+e+'</div>';
+    const listEl = document.getElementById("comt-list-"+taskId);
+    if(listEl) listEl.innerHTML = '<div style="color:red;font-size:.78rem">Erro ao carregar comentários.</div>';
   });
 }
 
@@ -885,10 +909,21 @@ async function enviarComt(taskId) {
   const texto = input.value.trim();
   input.value = ""; input.disabled = true;
   try {
-    await adicionarComentario(taskId, texto);
-    const wrap = document.getElementById("comt-wrap-"+taskId);
-    if(wrap) wrap.innerHTML = renderComentarios(taskId);
-    setSyncOk(true);
+    const c = await adicionarComentario(taskId, texto);
+    // Add new comment to list immediately
+    const listEl = document.getElementById("comt-list-"+taskId);
+    if(listEl && c) {
+      const hora = new Date(c.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+      const cor = currentUser ? currentUser.color : "#A8272A";
+      const novoComt = '<div style="background:var(--vinho-pale);border-radius:8px;padding:7px 10px;margin-bottom:6px;border-left:3px solid var(--vinho-light)">'
+        + '<div style="font-size:.72rem;font-weight:700;color:'+cor+'">'+c.autor_nome+'<span style="color:var(--muted);font-weight:400;margin-left:6px">'+hora+'</span></div>'
+        + '<div style="font-size:.82rem;color:var(--ink);line-height:1.4;margin-top:2px">'+formatText(c.texto)+'</div>'
+        + '</div>';
+      // Remove "nenhum comentário" message if present
+      if(listEl.innerHTML.includes("Nenhum comentário")) listEl.innerHTML = '';
+      listEl.innerHTML += novoComt;
+    }
+    setSyncOk(true); showToast("✓ Comentário enviado!");
   } catch(e) { showToast("Erro ao enviar."); setSyncOk(false); }
   finally { if(input) input.disabled = false; }
 }
