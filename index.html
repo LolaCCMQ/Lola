@@ -103,8 +103,10 @@
 
   /* CARDS */
   .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;
-    margin-bottom:12px;border:1.5px solid var(--border);transition:box-shadow .2s,border-color .2s;}
+    margin-bottom:12px;border:1.5px solid var(--border);transition:box-shadow .2s,border-color .2s,opacity .2s;}
   .card:hover{box-shadow:0 6px 24px rgba(168,39,42,0.12);border-color:var(--vinho-muted);}
+  .card.concluida{opacity:.5;filter:grayscale(30%);}
+  .card.concluida:hover{opacity:.75;filter:grayscale(0%);}
   .card-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
   .card-date{font-size:.75rem;color:var(--muted);background:var(--warm);padding:3px 9px;border-radius:20px;}
   .card-title{font-family:'Playfair Display',serif;font-size:1.08rem;color:var(--vinho-deep);margin-bottom:5px;}
@@ -174,7 +176,7 @@
   .detail-back:hover{color:var(--vinho-deep);}
   .detail-title{font-family:'Playfair Display',serif;font-size:1.55rem;color:var(--vinho-deep);margin-bottom:9px;line-height:1.2;}
   .detail-body{font-size:.88rem;line-height:1.75;color:#3a1515;background:#fff;border-radius:12px;
-    padding:18px 20px;margin-bottom:20px;white-space:pre-wrap;border:1.5px solid var(--border);}
+    padding:18px 20px;margin-bottom:20px;border:1.5px solid var(--border);}
   .tasks-header{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--vinho-deep);margin-bottom:12px;}
 
   /* PESSOAS */
@@ -231,6 +233,15 @@
   .tag-cat{background:#EDE9FE;color:#5B21B6;}
   .edit-modal{background:#fff;border-radius:20px;padding:28px 24px;width:580px;
     max-width:96vw;height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.18);}
+  /* COMENTÁRIOS */
+  .comentarios-wrap{margin-top:8px;border-top:1px solid var(--border);padding-top:8px;}
+  .comentario-item{background:var(--vinho-pale);border-radius:8px;padding:7px 10px;margin-bottom:6px;border-left:3px solid var(--vinho-light);}
+  .comentario-autor{font-size:.72rem;font-weight:700;color:var(--vinho-deep);margin-bottom:2px;}
+  .comentario-hora{font-size:.68rem;color:var(--muted);margin-left:6px;font-weight:400;}
+  .comentario-texto{font-size:.82rem;color:var(--ink);line-height:1.4;}
+  .comentario-input-wrap{display:flex;gap:6px;margin-top:8px;align-items:flex-end;}
+  .comentario-input-wrap textarea{flex:1;min-height:36px;max-height:80px;font-size:.82rem;padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;resize:vertical;font-family:inherit;background:#fff;color:var(--ink);}
+  .comentario-input-wrap textarea:focus{outline:none;border-color:var(--vinho);}
   .hidden{display:none!important;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc;display:inline-block;margin-left:6px;transition:background .3s;}
   .sync-dot.ok{background:var(--green);}
@@ -362,7 +373,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Conteúdo da ata</label>
+        <label>Conteúdo da ata <span style="font-size:.7rem;color:var(--muted);font-weight:400;text-transform:none">— use **texto** para negrito</span></label>
         <textarea id="novaConteudo" placeholder="Cole ou escreva aqui o conteúdo da ata..."></textarea>
         <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <button class="btn btn-ai btn-sm" onclick="gerarTarefasAI()">
@@ -391,7 +402,7 @@
     <div class="section-header"><h2>＋ Nova Tarefa</h2></div>
     <div class="card">
       <div class="form-group">
-        <label>Descrição da tarefa</label>
+        <label>Descrição da tarefa <span style="font-size:.7rem;color:var(--muted);font-weight:400;text-transform:none">— use **texto** para negrito</span></label>
         <input type="text" id="ntTexto" placeholder="Descrever a tarefa...">
       </div>
       <div class="form-group">
@@ -507,6 +518,7 @@ let atas = [], tasks = [];
 let currentTab = "atas", detalheFrom = "atas";
 let taskRowCounter = 0, configMembers = [], configCats = [];
 let pessoaSelecionada = null;
+let comentarios = {}; // keyed by task_id
 let memberIdCounter = 100;
 let filtroAtivo = null;
 
@@ -721,12 +733,12 @@ function renderAtas() {
   el.innerHTML = ataNormais.map(a => {
     const at=tasks.filter(t=>t.ata_id===a.id), fe=at.filter(t=>t.done).length, ok=at.length>0&&fe===at.length;
     const catTag = a.categoria ? `<span class="tag tag-cat">🏷️ ${a.categoria}</span>` : "";
-    return `<div class="card">
+    return `<div class="card ${ok?"concluida":""}">
       <div class="card-meta"><span class="card-date">📅 ${fmtDate(a.date)}</span>
         <span class="status-pill ${ok?"status-done":"status-open"}">${ok?"✓ Concluída":"Em andamento"}</span>
         ${catTag}</div>
       <div class="card-title">${a.title}</div>
-      <div class="card-excerpt">${a.conteudo||""}</div>
+      <div class="card-excerpt">${formatText(a.conteudo||"")}</div>
       <div class="card-actions">
         <button class="btn btn-ghost btn-sm" onclick="abrirAta(${a.id})">Ver detalhes</button>
         <button class="btn btn-ghost btn-sm" onclick="abrirEditModal(${a.id})">✏️ Editar</button>
@@ -746,7 +758,7 @@ function abrirAta(id) {
   document.getElementById("detalheContent").innerHTML=`
     <div style="margin-bottom:6px"><span class="card-date">📅 ${fmtDate(ata.date)}</span></div>
     <div class="detail-title">${ata.title}</div>
-    <div class="detail-body">${ata.conteudo||""}</div>
+    <div class="detail-body">${formatText(ata.conteudo||"")}</div>
     <div class="tasks-header">📌 Tarefas desta reunião</div>
     <div>${renderTaskList(at)}</div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
@@ -801,22 +813,17 @@ function renderTaskList(list) {
     return`<div class="task-item ${t.done?"done":""}">
       <div class="task-check ${t.done?"checked":""}" onclick="toggleTask(${t.id},${!t.done})"></div>
       <div class="task-body">
-        <div class="task-text">${t.texto}</div>
+        <div class="task-text">${formatText(t.texto)}</div>
         <div class="task-tags">
           ${pessoasTags}
           ${ataTag}
         </div>
-        <div id="obs-display-${t.id}" class="task-obs" style="${t.obs?'':`display:none`}">💬 ${t.obs||""}</div>
-        <div id="obs-wrap-${t.id}" style="display:none;margin-top:5px">
-          <textarea class="task-obs-input" id="obs-${t.id}" placeholder="Adicionar observação..." style="display:block;margin-bottom:5px">${t.obs||""}</textarea>
-          <button class="btn btn-primary btn-sm" onclick="saveObs(${t.id})">💾 Salvar</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleObsWrap(${t.id})">Cancelar</button>
-        </div>
-        <button id="obs-btn-${t.id}" class="obs-btn" onclick="toggleObsWrap(${t.id})">✏️ ${t.obs?"Editar":"Adicionar"} observação</button>
-        <div style="display:flex;gap:6px;margin-top:6px">
-          <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar tarefa</button>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <button class="obs-btn" onclick="toggleComentarios(${t.id})" style="color:var(--vinho)">💬 Comentários</button>
+          <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar</button>
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
+        <div id="comt-wrap-${t.id}" style="display:none"></div>
       </div>
     </div>`;
   }).join("");
@@ -837,38 +844,8 @@ function toggleObs(id) {
   if(el.style.display==="block") el.focus();
 }
 
-async function saveObs(id) {
-  const el=document.getElementById("obs-"+id); if(!el)return;
-  const obs=el.value.trim();
-  const t=tasks.find(t=>t.id===id); if(!t)return;
-  t.obs=obs;
-  try { 
-    await salvarObsDB(id, obs); 
-    setSyncOk(true); 
-    showToast("✓ Observação salva!");
-    // Update display in place without full re-render
-    const wrap=document.getElementById("obs-wrap-"+id); 
-    if(wrap) wrap.style.display="none";
-    const obsDisplay=document.getElementById("obs-display-"+id);
-    if(obsDisplay) {
-      if(obs) { obsDisplay.style.display="block"; obsDisplay.textContent="💬 "+obs; }
-      else { obsDisplay.style.display="none"; }
-    }
-    const obsBtn=document.getElementById("obs-btn-"+id);
-    if(obsBtn) obsBtn.textContent = (obs?"✏️ Editar":"✏️ Adicionar")+" observação";
-  } catch(e){ setSyncOk(false); showToast("Erro ao salvar observação."); }
-}
-
-function toggleObsWrap(id) {
-  const wrap=document.getElementById("obs-wrap-"+id);
-  if(!wrap) return;
-  const isHidden = wrap.style.display==="none"||wrap.style.display==="";
-  wrap.style.display = isHidden?"block":"none";
-  if(isHidden) {
-    const ta=document.getElementById("obs-"+id);
-    if(ta) ta.focus();
-  }
-}
+async function saveObs(id) { /* migrado para comentários */ }
+function toggleObsWrap(id) { toggleComentarios(id); }
 
 // ═══════════════════════════════════════
 // NOVA ATA
@@ -1363,6 +1340,94 @@ async function deletarTarefa(id) {
     }
     setSyncOk(true); showToast("✓ Tarefa deletada!");
   } catch(e){ showToast("Erro ao deletar."); setSyncOk(false); }
+}
+
+// ── COMENTÁRIOS API ──
+async function carregarComentarios(taskId) {
+  try {
+    const rows = await api.get("lola_comentarios", `task_id=eq.${taskId}&order=created_at.asc`);
+    comentarios[taskId] = rows || [];
+    return comentarios[taskId];
+  } catch(e) { return []; }
+}
+
+async function adicionarComentario(taskId, texto) {
+  if(!currentUser){ showToast("Selecione seu nome primeiro."); return; }
+  if(!texto.trim()) return;
+  const row = await api.post("lola_comentarios", {
+    task_id: taskId,
+    autor_id: currentUser.id,
+    autor_nome: currentUser.name,
+    texto: texto.trim()
+  });
+  if(!comentarios[taskId]) comentarios[taskId] = [];
+  comentarios[taskId].push(row[0]);
+  return row[0];
+}
+
+function renderComentarios(taskId) {
+  const lista = comentarios[taskId] || [];
+  const items = lista.map(c => {
+    const hora = new Date(c.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+    const pessoa = TEAM.find(u=>u.id===c.autor_id);
+    const cor = pessoa?.color || "#A8272A";
+    return `<div class="comentario-item">
+      <div class="comentario-autor" style="color:${cor}">${c.autor_nome}<span class="comentario-hora">${hora}</span></div>
+      <div class="comentario-texto">${formatText(c.texto)}</div>
+    </div>`;
+  }).join("");
+  return `<div class="comentarios-wrap">
+    ${lista.length ? items : '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Nenhum comentário ainda.</div>'}
+    ${currentUser ? `
+    <div class="comentario-input-wrap">
+      <textarea id="comt-input-${taskId}" placeholder="Adicionar comentário..." rows="1"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="enviarComentario(${taskId})">Enviar</button>
+    </div>` : ''}
+  </div>`;
+}
+
+async function toggleComentarios(taskId) {
+  const wrap = document.getElementById("comt-wrap-"+taskId);
+  if(!wrap) return;
+  const isHidden = wrap.style.display === "none" || wrap.style.display === "";
+  if(isHidden) {
+    wrap.style.display = "block";
+    if(!comentarios[taskId]) {
+      wrap.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:6px 0">Carregando...</div>';
+      await carregarComentarios(taskId);
+      wrap.innerHTML = renderComentarios(taskId);
+    }
+  } else {
+    wrap.style.display = "none";
+  }
+}
+
+async function enviarComentario(taskId) {
+  const input = document.getElementById("comt-input-"+taskId);
+  if(!input || !input.value.trim()) return;
+  const texto = input.value.trim();
+  input.value = "";
+  input.disabled = true;
+  try {
+    await adicionarComentario(taskId, texto);
+    const wrap = document.getElementById("comt-wrap-"+taskId);
+    if(wrap) wrap.innerHTML = renderComentarios(taskId);
+    setSyncOk(true);
+  } catch(e) { showToast("Erro ao enviar comentário."); setSyncOk(false); }
+  finally { if(input) input.disabled = false; }
+}
+
+function formatText(text) {
+  if(!text) return "";
+  // Escape HTML first
+  let s = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  // Bold: **text**
+  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // Clickable links
+  s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--vinho);text-decoration:underline;word-break:break-all">$1</a>');
+  // Line breaks
+  s = s.replace(/\n/g,"<br>");
+  return s;
 }
 
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
