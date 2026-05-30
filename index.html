@@ -940,13 +940,22 @@ function abrirFormComt(taskId) {
 }
 
 function toggleWrap(taskId) {
+  taskId = parseInt(taskId);
   const wrap = document.getElementById("comt-wrap-"+taskId);
   if(!wrap) return;
-  wrap.style.display = wrap.style.display === "block" ? "none" : "block";
   if(wrap.style.display === "block") {
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "block";
+  // Render comments
+  if(!wrap.innerHTML || wrap.innerHTML.trim() === "") {
+    wrap.innerHTML = renderComentariosInline(taskId);
+  }
+  setTimeout(function(){
     const ta = document.getElementById("ci"+taskId);
     if(ta) ta.focus();
-  }
+  }, 50);
 }
 
 function abrirComentarios(taskId) {
@@ -1027,16 +1036,9 @@ function renderTaskList(list) {
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
         <div style="margin-top:4px">
-          ${(()=>{
-            const cnt = comentarios[t.id] ? comentarios[t.id].length : 0;
-            const label = cnt > 0 ? "💬 "+cnt+" comentário"+(cnt>1?"s":"") : "💬 Adicionar comentário";
-            const color = cnt > 0 ? "var(--vinho)" : "var(--muted)";
-            return "<button class=\"obs-btn\" style=\"color:"+color+"\" onclick=\"toggleWrap("+t.id+")\">"+label+"</button>";
-          })()}
+          <button class="obs-btn" style="color:var(--muted)" data-taskid="${t.id}" onclick="toggleWrap(this.dataset.taskid)">💬 Comentários</button>
         </div>
-        <div id="comt-wrap-${t.id}" style="display:none;margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
-          ${renderComentariosInline(t.id)}
-        </div>
+        <div id="comt-wrap-${t.id}" style="display:none;margin-top:6px;border-top:1px solid var(--border);padding-top:6px"></div>
       </div>
     </div>`;
   }).join("");
