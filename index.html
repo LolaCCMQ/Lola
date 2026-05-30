@@ -962,12 +962,29 @@ function abrirFormComt(taskId) {
   if(form) { form.style.display = "block"; document.getElementById("ci"+taskId)?.focus(); }
 }
 
-function toggleWrap(taskId) {
+function toggleWrap(taskId, btn) {
   try {
     taskId = parseInt(taskId);
-    const wrap = document.getElementById("comt-wrap-"+taskId);
-    if(!wrap) { alert("Erro: wrap não encontrado para id="+taskId); return; }
-    const isVisible = wrap.style.display !== "none" && wrap.style.display !== "";
+    // Find wrap relative to the button that was clicked (avoids duplicate ID issue)
+    var wrap = btn ? btn.parentElement.nextElementSibling : null;
+    // Fallback: try to find among visible elements only
+    if(!wrap || !wrap.id || !wrap.id.startsWith("comt-wrap-")) {
+      var allWraps = document.querySelectorAll("#comt-wrap-"+taskId);
+      // Pick the one that is in a visible parent
+      wrap = null;
+      for(var i=0; i<allWraps.length; i++) {
+        var el = allWraps[i];
+        var parent = el.parentElement;
+        var visible = true;
+        while(parent && parent !== document.body) {
+          if(getComputedStyle(parent).display === "none") { visible = false; break; }
+          parent = parent.parentElement;
+        }
+        if(visible) { wrap = el; break; }
+      }
+    }
+    if(!wrap) return;
+    var isVisible = wrap.style.display !== "none" && wrap.style.display !== "";
     if(isVisible) { wrap.style.display = "none"; return; }
     wrap.style.display = "block";
     wrap.style.marginTop = "6px";
@@ -977,11 +994,20 @@ function toggleWrap(taskId) {
       wrap.innerHTML = renderComentariosInline(taskId);
     }
     setTimeout(function(){
-      const ta = document.getElementById("ci"+taskId);
-      if(ta) ta.focus();
+      var allInputs = document.querySelectorAll("#ci"+taskId);
+      for(var i=0; i<allInputs.length; i++) {
+        var inp = allInputs[i];
+        var p = inp.parentElement;
+        var vis = true;
+        while(p && p !== document.body) {
+          if(getComputedStyle(p).display === "none") { vis = false; break; }
+          p = p.parentElement;
+        }
+        if(vis) { inp.focus(); break; }
+      }
     }, 50);
   } catch(err) {
-    alert("Erro em toggleWrap: " + err.message);
+    console.error("toggleWrap error:", err);
   }
 }
 
@@ -1069,7 +1095,7 @@ function renderTaskList(list) {
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
         <div style="margin-top:4px">
-          <button class="obs-btn" style="color:var(--muted)" onclick="toggleWrap(${t.id})">💬 Adicionar comentário</button>
+          <button class="obs-btn" style="color:var(--muted)" onclick="toggleWrap(${t.id},this)">💬 Adicionar comentário</button>
         </div>
         <div id="comt-wrap-${t.id}" style="${(comentarios[t.id]&&comentarios[t.id].length>0)
           ? 'margin-top:6px;border-top:1px solid var(--border);padding-top:6px'
