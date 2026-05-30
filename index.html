@@ -557,6 +557,19 @@ async function initDB() {
   // Re-init nova tarefa tab if it's currently active
   if(currentTab === "novatarefa") initNovaTarefaTab();
   setTimeout(() => { if (!currentUser) openUserModal(); }, 400);
+  // Event delegation for comment buttons
+  document.addEventListener("click", function(e) {
+    var btn = e.target.closest("[data-action='comentarios']");
+    if(btn) {
+      e.stopPropagation();
+      toggleWrap(parseInt(btn.dataset.taskid));
+    }
+    var envBtn = e.target.closest("[data-action='enviarcomt']");
+    if(envBtn) {
+      e.stopPropagation();
+      enviarComt(parseInt(envBtn.dataset.taskid));
+    }
+  });
 }
 
 function setSyncOk(ok) {
@@ -899,7 +912,7 @@ function renderComentarios(taskId) {
   if(currentUser) {
     out += '<div class="comentario-input-wrap">';
     out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
-    out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
+    out += '<button class="btn btn-primary btn-sm" data-action="enviarcomt" data-taskid="'+taskId+'">Enviar</button>';
     out += '</div>';
   }
   out += '</div>';
@@ -929,7 +942,7 @@ function renderComentariosInline(taskId) {
   }
   out += '<div style="display:flex;gap:6px;align-items:center;margin-top:4px">';
   out += '<textarea id="ci'+taskId+'" placeholder="Responder..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
-  out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
+  out += '<button class="btn btn-primary btn-sm" data-action="enviarcomt" data-taskid="'+taskId+'">Enviar</button>';
   out += '</div>';
   return out;
 }
@@ -1036,7 +1049,7 @@ function renderTaskList(list) {
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
         <div style="margin-top:4px">
-          <button class="obs-btn" style="color:var(--muted)" data-taskid="${t.id}" onclick="toggleWrap(this.dataset.taskid)">💬 Comentários</button>
+          <button class="obs-btn" style="color:var(--muted)" data-taskid="${t.id}" data-action="comentarios">💬 Comentários</button>
         </div>
         <div id="comt-wrap-${t.id}" style="display:none;margin-top:6px;border-top:1px solid var(--border);padding-top:6px"></div>
       </div>
