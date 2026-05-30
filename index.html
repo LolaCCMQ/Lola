@@ -557,19 +557,23 @@ async function initDB() {
   // Re-init nova tarefa tab if it's currently active
   if(currentTab === "novatarefa") initNovaTarefaTab();
   setTimeout(() => { if (!currentUser) openUserModal(); }, 400);
-  // Event delegation for comment buttons
-  document.addEventListener("click", function(e) {
-    var btn = e.target.closest("[data-action='comentarios']");
-    if(btn) {
-      e.stopPropagation();
-      toggleWrap(parseInt(btn.dataset.taskid));
-    }
-    var envBtn = e.target.closest("[data-action='enviarcomt']");
-    if(envBtn) {
-      e.stopPropagation();
-      enviarComt(parseInt(envBtn.dataset.taskid));
-    }
-  });
+  // Event delegation for comment buttons - attach to multiple containers
+  function setupComtDelegation(container) {
+    container.addEventListener("click", function(e) {
+      var btn = e.target.closest("[data-action='comentarios']");
+      if(btn) {
+        toggleWrap(parseInt(btn.dataset.taskid));
+        return;
+      }
+      var envBtn = e.target.closest("[data-action='enviarcomt']");
+      if(envBtn) {
+        enviarComt(parseInt(envBtn.dataset.taskid));
+        return;
+      }
+    });
+  }
+  // Attach to document (catches everything)
+  setupComtDelegation(document);
 }
 
 function setSyncOk(ok) {
@@ -823,6 +827,15 @@ function abrirAta(id) {
   // Populate docs list after DOM is ready
   var docsListEl = document.getElementById("docs-list-"+id);
   if(docsListEl) docsListEl.innerHTML = renderDocsInline(id);
+  // Attach click handlers directly to comment buttons in this ata
+  setTimeout(function() {
+    document.querySelectorAll("[data-action='comentarios']").forEach(function(btn) {
+      btn.onclick = function() { toggleWrap(parseInt(this.dataset.taskid)); };
+    });
+    document.querySelectorAll("[data-action='enviarcomt']").forEach(function(btn) {
+      btn.onclick = function() { enviarComt(parseInt(this.dataset.taskid)); };
+    });
+  }, 100);
 }
 function voltarDetalhe(){switchTab(detalheFrom||"atas");}
 
@@ -956,12 +969,17 @@ function toggleWrap(taskId) {
   taskId = parseInt(taskId);
   const wrap = document.getElementById("comt-wrap-"+taskId);
   if(!wrap) return;
-  if(wrap.style.display === "block") {
+  // Toggle visibility
+  const isVisible = wrap.style.display !== "none" && wrap.style.display !== "";
+  if(isVisible) {
     wrap.style.display = "none";
     return;
   }
   wrap.style.display = "block";
-  // Render comments
+  wrap.style.marginTop = "6px";
+  wrap.style.borderTop = "1px solid var(--border)";
+  wrap.style.paddingTop = "6px";
+  // Render if empty
   if(!wrap.innerHTML || wrap.innerHTML.trim() === "") {
     wrap.innerHTML = renderComentariosInline(taskId);
   }
@@ -1019,7 +1037,13 @@ async function enviarComt(taskId) {
   try {
     await adicionarComentario(taskId, texto);
     const wrap = document.getElementById("comt-wrap-"+taskId);
-    if(wrap) wrap.innerHTML = renderComentariosInline(taskId);
+    if(wrap) {
+      wrap.style.display = "block";
+      wrap.innerHTML = renderComentariosInline(taskId);
+    }
+    // Also update the toggle button label
+    const btn = document.querySelector("[data-action='comentarios'][data-taskid='"+taskId+"']");
+    if(btn) { btn.style.color = "var(--vinho)"; btn.textContent = "💬 "+comentarios[taskId].length+" comentário"+(comentarios[taskId].length>1?"s":""); }
     setSyncOk(true); showToast("✓ Comentário enviado!");
   } catch(e) { showToast("Erro ao enviar."); setSyncOk(false); }
   finally { if(input) input.disabled = false; }
@@ -1049,9 +1073,11 @@ function renderTaskList(list) {
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
         <div style="margin-top:4px">
-          <button class="obs-btn" style="color:var(--muted)" data-taskid="${t.id}" data-action="comentarios">💬 Comentários</button>
+          <button class="obs-btn" style="color:var(--muted)" data-taskid="${t.id}" data-action="comentarios">💬 Adicionar comentário</button>
         </div>
-        <div id="comt-wrap-${t.id}" style="display:none;margin-top:6px;border-top:1px solid var(--border);padding-top:6px"></div>
+        <div id="comt-wrap-${t.id}" style="${(comentarios[t.id]&&comentarios[t.id].length>0)?'margin-top:6px;border-top:1px solid var(--border);padding-top:6px':'display:none'}">
+          ${(comentarios[t.id]&&comentarios[t.id].length>0)?renderComentariosInline(t.id):''}
+        </div>
       </div>
     </div>`;
   }).join("");
