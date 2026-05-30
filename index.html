@@ -908,15 +908,12 @@ function renderComentarios(taskId) {
 
 function renderComentariosInline(taskId) {
   const lista = comentarios[taskId] || [];
-  // Se não tem comentários: só botão discreto
+  // Se não tem comentários: mostra só o campo
   if(lista.length === 0) {
-    return '<button class="obs-btn" style="color:var(--muted);margin-top:4px" onclick="abrirFormComt('+taskId+')">'
-      + '💬 Adicionar comentário</button>'
-      + '<div id="form-comt-'+taskId+'" style="display:none;margin-top:6px">'
-      + '<div style="display:flex;gap:6px;align-items:center">'
+    return '<div style="display:flex;gap:6px;align-items:center">'
       + '<textarea id="ci'+taskId+'" placeholder="Escrever comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>'
       + '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>'
-      + '</div></div>';
+      + '</div>';
   }
   // Se tem comentários: mostra todos + campo de resposta
   let out = '';
@@ -940,6 +937,16 @@ function renderComentariosInline(taskId) {
 function abrirFormComt(taskId) {
   const form = document.getElementById("form-comt-"+taskId);
   if(form) { form.style.display = "block"; document.getElementById("ci"+taskId)?.focus(); }
+}
+
+function toggleWrap(taskId) {
+  const wrap = document.getElementById("comt-wrap-"+taskId);
+  if(!wrap) return;
+  wrap.style.display = wrap.style.display === "block" ? "none" : "block";
+  if(wrap.style.display === "block") {
+    const ta = document.getElementById("ci"+taskId);
+    if(ta) ta.focus();
+  }
 }
 
 function abrirComentarios(taskId) {
@@ -1019,7 +1026,15 @@ function renderTaskList(list) {
           <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar</button>
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
-        <div id="comt-wrap-${t.id}" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
+        <div style="margin-top:4px">
+          ${(comentarios[t.id]&&comentarios[t.id].length>0)
+            ? '<button class="obs-btn" style="color:var(--vinho)" onclick="toggleWrap('+t.id+')">'
+              + '💬 '+comentarios[t.id].length+' comentário'+(comentarios[t.id].length>1?'s':'')+'</button>'
+            : '<button class="obs-btn" style="color:var(--muted)" onclick="toggleWrap('+t.id+')">'
+              + '💬 Adicionar comentário</button>'
+          }
+        </div>
+        <div id="comt-wrap-${t.id}" style="display:none;margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
           ${renderComentariosInline(t.id)}
         </div>
       </div>
