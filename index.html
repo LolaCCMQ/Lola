@@ -827,11 +827,8 @@ function abrirAta(id) {
   // Populate docs list after DOM is ready
   var docsListEl = document.getElementById("docs-list-"+id);
   if(docsListEl) docsListEl.innerHTML = renderDocsInline(id);
-  // Attach click handlers directly to comment buttons in this ata
+  // Attach enviar handlers after render
   setTimeout(function() {
-    document.querySelectorAll("[data-action='comentarios']").forEach(function(btn) {
-      btn.onclick = function() { toggleWrap(parseInt(this.dataset.taskid)); };
-    });
     document.querySelectorAll("[data-action='enviarcomt']").forEach(function(btn) {
       btn.onclick = function() { enviarComt(parseInt(this.dataset.taskid)); };
     });
@@ -925,7 +922,7 @@ function renderComentarios(taskId) {
   if(currentUser) {
     out += '<div class="comentario-input-wrap">';
     out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
-    out += '<button class="btn btn-primary btn-sm" data-action="enviarcomt" data-taskid="'+taskId+'">Enviar</button>';
+    out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
     out += '</div>';
   }
   out += '</div>';
@@ -955,7 +952,7 @@ function renderComentariosInline(taskId) {
   }
   out += '<div style="display:flex;gap:6px;align-items:center;margin-top:4px">';
   out += '<textarea id="ci'+taskId+'" placeholder="Responder..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
-  out += '<button class="btn btn-primary btn-sm" data-action="enviarcomt" data-taskid="'+taskId+'">Enviar</button>';
+  out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
   out += '</div>';
   return out;
 }
@@ -1073,10 +1070,12 @@ function renderTaskList(list) {
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
         <div style="margin-top:4px">
-          <button class="obs-btn" style="color:var(--muted)" data-taskid="${t.id}" data-action="comentarios">💬 Adicionar comentário</button>
+          <button class="obs-btn" style="color:var(--muted)" onclick="toggleWrap(${t.id})">💬 Adicionar comentário</button>
         </div>
-        <div id="comt-wrap-${t.id}" style="${(comentarios[t.id]&&comentarios[t.id].length>0)?'margin-top:6px;border-top:1px solid var(--border);padding-top:6px':'display:none'}">
-          ${(comentarios[t.id]&&comentarios[t.id].length>0)?renderComentariosInline(t.id):''}
+        <div id="comt-wrap-${t.id}" style="${(comentarios[t.id]&&comentarios[t.id].length>0)
+          ? 'margin-top:6px;border-top:1px solid var(--border);padding-top:6px'
+          : 'display:none'}">
+          ${(comentarios[t.id]&&comentarios[t.id].length>0) ? renderComentariosInline(t.id) : ''}
         </div>
       </div>
     </div>`;
