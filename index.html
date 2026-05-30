@@ -963,27 +963,26 @@ function abrirFormComt(taskId) {
 }
 
 function toggleWrap(taskId) {
-  taskId = parseInt(taskId);
-  const wrap = document.getElementById("comt-wrap-"+taskId);
-  if(!wrap) return;
-  // Toggle visibility
-  const isVisible = wrap.style.display !== "none" && wrap.style.display !== "";
-  if(isVisible) {
-    wrap.style.display = "none";
-    return;
+  try {
+    taskId = parseInt(taskId);
+    const wrap = document.getElementById("comt-wrap-"+taskId);
+    if(!wrap) { alert("Erro: wrap não encontrado para id="+taskId); return; }
+    const isVisible = wrap.style.display !== "none" && wrap.style.display !== "";
+    if(isVisible) { wrap.style.display = "none"; return; }
+    wrap.style.display = "block";
+    wrap.style.marginTop = "6px";
+    wrap.style.borderTop = "1px solid var(--border)";
+    wrap.style.paddingTop = "6px";
+    if(!wrap.innerHTML || wrap.innerHTML.trim() === "") {
+      wrap.innerHTML = renderComentariosInline(taskId);
+    }
+    setTimeout(function(){
+      const ta = document.getElementById("ci"+taskId);
+      if(ta) ta.focus();
+    }, 50);
+  } catch(err) {
+    alert("Erro em toggleWrap: " + err.message);
   }
-  wrap.style.display = "block";
-  wrap.style.marginTop = "6px";
-  wrap.style.borderTop = "1px solid var(--border)";
-  wrap.style.paddingTop = "6px";
-  // Render if empty
-  if(!wrap.innerHTML || wrap.innerHTML.trim() === "") {
-    wrap.innerHTML = renderComentariosInline(taskId);
-  }
-  setTimeout(function(){
-    const ta = document.getElementById("ci"+taskId);
-    if(ta) ta.focus();
-  }, 50);
 }
 
 function abrirComentarios(taskId) {
