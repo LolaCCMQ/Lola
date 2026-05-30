@@ -601,6 +601,15 @@ async function deletarAta(id) {
 // ═══════════════════════════════════════
 async function loadTasks() {
   tasks = await api.get("lola_tasks", "select=*&order=created_at.asc");
+  // Load all comments at once
+  try {
+    const allComents = await api.get("lola_comentarios", "select=*&order=created_at.asc");
+    comentarios = {};
+    (allComents||[]).forEach(function(c) {
+      if(!comentarios[c.task_id]) comentarios[c.task_id] = [];
+      comentarios[c.task_id].push(c);
+    });
+  } catch(e) { console.log("Comentarios load error:", e); }
 }
 
 async function criarTask(ataId, texto, responsavel) {
@@ -863,6 +872,26 @@ function renderComentarios(taskId) {
   return out;
 }
 
+function renderComentariosInline(taskId) {
+  const lista = comentarios[taskId] || [];
+  let out = '';
+  for(let i=0;i<lista.length;i++) {
+    const c = lista[i];
+    const hora = new Date(c.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+    const pessoa = TEAM.filter(function(u){return u.id===c.autor_id;})[0];
+    const cor = pessoa ? pessoa.color : "#A8272A";
+    out += '<div style="background:var(--vinho-pale);border-radius:8px;padding:6px 10px;margin-bottom:5px;border-left:3px solid var(--vinho-light)">';
+    out += '<div style="font-size:.7rem;font-weight:700;color:'+cor+'">'+c.autor_nome+'<span style="color:var(--muted);font-weight:400;margin-left:5px">'+hora+'</span></div>';
+    out += '<div style="font-size:.81rem;color:var(--ink);line-height:1.4;margin-top:2px">'+formatText(c.texto)+'</div>';
+    out += '</div>';
+  }
+  out += '<div style="display:flex;gap:6px;align-items:flex-end;margin-top:6px">';
+  out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
+  out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
+  out += '</div>';
+  return out;
+}
+
 function abrirComentarios(taskId) {
   const wrap = document.getElementById("comt-wrap-"+taskId);
   if(!wrap) return;
@@ -909,20 +938,10 @@ async function enviarComt(taskId) {
   const texto = input.value.trim();
   input.value = ""; input.disabled = true;
   try {
-    const c = await adicionarComentario(taskId, texto);
-    // Add new comment to list immediately
-    const listEl = document.getElementById("comt-list-"+taskId);
-    if(listEl && c) {
-      const hora = new Date(c.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-      const cor = currentUser ? currentUser.color : "#A8272A";
-      const novoComt = '<div style="background:var(--vinho-pale);border-radius:8px;padding:7px 10px;margin-bottom:6px;border-left:3px solid var(--vinho-light)">'
-        + '<div style="font-size:.72rem;font-weight:700;color:'+cor+'">'+c.autor_nome+'<span style="color:var(--muted);font-weight:400;margin-left:6px">'+hora+'</span></div>'
-        + '<div style="font-size:.82rem;color:var(--ink);line-height:1.4;margin-top:2px">'+formatText(c.texto)+'</div>'
-        + '</div>';
-      // Remove "nenhum comentário" message if present
-      if(listEl.innerHTML.includes("Nenhum comentário")) listEl.innerHTML = '';
-      listEl.innerHTML += novoComt;
-    }
+    await adicionarComentario(taskId, texto);
+    // Re-render just the comment wrap for this task
+    const wrap = document.getElementById("comt-wrap-"+taskId);
+    if(wrap) wrap.innerHTML = renderComentariosInline(taskId);
     setSyncOk(true); showToast("✓ Comentário enviado!");
   } catch(e) { showToast("Erro ao enviar."); setSyncOk(false); }
   finally { if(input) input.disabled = false; }
@@ -948,11 +967,12 @@ function renderTaskList(list) {
           ${ataTag}
         </div>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-          <button class="obs-btn" id="comt-btn-${t.id}" onclick="abrirComentarios(${t.id})" style="color:var(--vinho)">💬 Comentários</button>
           <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar</button>
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
-        <div id="comt-wrap-${t.id}" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:8px"></div>
+        <div id="comt-wrap-${t.id}" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          ${renderComentariosInline(t.id)}
+        </div>
       </div>
     </div>`;
   }).join("");
