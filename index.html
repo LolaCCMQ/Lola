@@ -908,6 +908,17 @@ function renderComentarios(taskId) {
 
 function renderComentariosInline(taskId) {
   const lista = comentarios[taskId] || [];
+  // Se não tem comentários: só botão discreto
+  if(lista.length === 0) {
+    return '<button class="obs-btn" style="color:var(--muted);margin-top:4px" onclick="abrirFormComt('+taskId+')">'
+      + '💬 Adicionar comentário</button>'
+      + '<div id="form-comt-'+taskId+'" style="display:none;margin-top:6px">'
+      + '<div style="display:flex;gap:6px;align-items:center">'
+      + '<textarea id="ci'+taskId+'" placeholder="Escrever comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>'
+      + '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>'
+      + '</div></div>';
+  }
+  // Se tem comentários: mostra todos + campo de resposta
   let out = '';
   for(let i=0;i<lista.length;i++) {
     const c = lista[i];
@@ -919,11 +930,16 @@ function renderComentariosInline(taskId) {
     out += '<div style="font-size:.81rem;color:var(--ink);line-height:1.4;margin-top:2px">'+formatText(c.texto)+'</div>';
     out += '</div>';
   }
-  out += '<div style="display:flex;gap:6px;align-items:center;margin-top:5px">';
-  out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
+  out += '<div style="display:flex;gap:6px;align-items:center;margin-top:4px">';
+  out += '<textarea id="ci'+taskId+'" placeholder="Responder..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
   out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
   out += '</div>';
   return out;
+}
+
+function abrirFormComt(taskId) {
+  const form = document.getElementById("form-comt-"+taskId);
+  if(form) { form.style.display = "block"; document.getElementById("ci"+taskId)?.focus(); }
 }
 
 function abrirComentarios(taskId) {
@@ -973,7 +989,6 @@ async function enviarComt(taskId) {
   input.value = ""; input.disabled = true;
   try {
     await adicionarComentario(taskId, texto);
-    // Re-render just the comment wrap for this task
     const wrap = document.getElementById("comt-wrap-"+taskId);
     if(wrap) wrap.innerHTML = renderComentariosInline(taskId);
     setSyncOk(true); showToast("✓ Comentário enviado!");
