@@ -242,6 +242,18 @@
   .comentario-input-wrap{display:flex;gap:6px;margin-top:8px;align-items:flex-end;}
   .comentario-input-wrap textarea{flex:1;min-height:36px;max-height:80px;font-size:.82rem;padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;resize:vertical;font-family:inherit;background:#fff;color:var(--ink);}
   .comentario-input-wrap textarea:focus{outline:none;border-color:var(--vinho);}
+  /* DOCUMENTOS */
+  .docs-section{margin-top:14px;padding-top:12px;border-top:1.5px solid var(--border);}
+  .docs-title{font-size:.75rem;font-weight:700;color:var(--vinho-deep);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .doc-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--cream);border-radius:8px;margin-bottom:5px;border:1px solid var(--border);}
+  .doc-icon{font-size:1rem;flex-shrink:0;}
+  .doc-info{flex:1;min-width:0;}
+  .doc-titulo{font-size:.83rem;font-weight:600;color:var(--vinho-deep);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .doc-url{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .doc-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:2px 4px;border-radius:4px;flex-shrink:0;}
+  .doc-remove:hover{color:#C0392B;}
+  .add-link-form{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+  .add-link-form input{flex:1;min-width:120px;margin:0;font-size:.83rem;padding:6px 10px;}
   .hidden{display:none!important;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc;display:inline-block;margin-left:6px;transition:background .3s;}
   .sync-dot.ok{background:var(--green);}
@@ -519,6 +531,7 @@ let currentTab = "atas", detalheFrom = "atas";
 let taskRowCounter = 0, configMembers = [], configCats = [];
 let pessoaSelecionada = null;
 let comentarios = {}; // keyed by task_id
+let linksAta = {}; // keyed by ata_id
 let memberIdCounter = 100;
 let filtroAtivo = null;
 
@@ -610,6 +623,15 @@ async function loadTasks() {
       comentarios[c.task_id].push(c);
     });
   } catch(e) { console.log("Comentarios load error:", e); }
+  // Load all links
+  try {
+    const allLinks = await api.get("lola_links", "select=*&order=created_at.asc");
+    linksAta = {};
+    (allLinks||[]).forEach(function(l) {
+      if(!linksAta[l.ata_id]) linksAta[l.ata_id] = [];
+      linksAta[l.ata_id].push(l);
+    });
+  } catch(e) { console.log("Links load error:", e); }
 }
 
 async function criarTask(ataId, texto, responsavel) {
@@ -770,12 +792,24 @@ function abrirAta(id) {
     <div class="detail-body">${formatText(ata.conteudo||"")}</div>
     <div class="tasks-header">📌 Tarefas desta reunião</div>
     <div>${renderTaskList(at)}</div>
+    <div class="docs-section" id="docs-section-${id}">
+      <div class="docs-title">📎 Documentos relacionados</div>
+      <div id="docs-list-${id}"></div>
+      <div class="add-link-form" style="margin-top:8px">
+        <input type="text" id="doc-titulo-${id}" placeholder="Nome do documento" style="min-width:140px">
+        <input type="text" id="doc-url-${id}" placeholder="https://..." style="min-width:180px">
+        <button class="btn btn-primary btn-sm" onclick="adicionarLink(${id})">＋ Adicionar</button>
+      </div>
+    </div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="abrirEditModal(${id})">✏️ Editar ata</button>
       <button class="btn btn-danger btn-sm" onclick="excluirAta(${id})">🗑 Excluir</button>
     </div>`;
   ALL_TABS.forEach(t=>document.getElementById("tab-"+t).classList.add("hidden"));
   document.getElementById("tab-detalhe").classList.remove("hidden");
+  // Populate docs list after DOM is ready
+  var docsListEl = document.getElementById("docs-list-"+id);
+  if(docsListEl) docsListEl.innerHTML = renderDocsInline(id);
 }
 function voltarDetalhe(){switchTab(detalheFrom||"atas");}
 
@@ -864,7 +898,7 @@ function renderComentarios(taskId) {
   }
   if(currentUser) {
     out += '<div class="comentario-input-wrap">';
-    out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1"></textarea>';
+    out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
     out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
     out += '</div>';
   }
@@ -885,8 +919,8 @@ function renderComentariosInline(taskId) {
     out += '<div style="font-size:.81rem;color:var(--ink);line-height:1.4;margin-top:2px">'+formatText(c.texto)+'</div>';
     out += '</div>';
   }
-  out += '<div style="display:flex;gap:6px;align-items:flex-end;margin-top:6px">';
-  out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
+  out += '<div style="display:flex;gap:6px;align-items:center;margin-top:5px">';
+  out += '<textarea id="ci'+taskId+'" placeholder="Adicionar comentário..." rows="1" style="flex:1;font-family:inherit;font-size:.81rem;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;resize:none;background:#fff;color:var(--ink)"></textarea>';
   out += '<button class="btn btn-primary btn-sm" onclick="enviarComt('+taskId+')">Enviar</button>';
   out += '</div>';
   return out;
@@ -970,7 +1004,7 @@ function renderTaskList(list) {
           <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar</button>
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
-        <div id="comt-wrap-${t.id}" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+        <div id="comt-wrap-${t.id}" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
           ${renderComentariosInline(t.id)}
         </div>
       </div>
@@ -1536,6 +1570,73 @@ async function enviarComentario(taskId) {
   finally { if(input) input.disabled = false; }
 }
 
+
+// ── DOCUMENTOS / LINKS ──
+function getLinkIcon(url) {
+  url = url.toLowerCase();
+  if(url.includes('docs.google.com/spreadsheet')) return '📊';
+  if(url.includes('docs.google.com/document')) return '📝';
+  if(url.includes('docs.google.com/presentation')) return '📑';
+  if(url.includes('drive.google.com')) return '📁';
+  if(url.includes('figma.com')) return '🎨';
+  if(url.includes('notion.so')) return '📓';
+  if(url.includes('youtube.com') || url.includes('youtu.be')) return '▶️';
+  if(url.includes('.pdf')) return '📄';
+  if(url.includes('.jpg')||url.includes('.png')||url.includes('.jpeg')||url.includes('.gif')) return '🖼️';
+  return '🔗';
+}
+
+function renderDocsInline(ataId) {
+  const lista = linksAta[ataId] || [];
+  if(lista.length === 0) return '<div style="font-size:.78rem;color:var(--muted);font-style:italic;margin-bottom:4px">Nenhum documento ainda.</div>';
+  let out = '';
+  for(let i=0;i<lista.length;i++) {
+    const l = lista[i];
+    out += '<div class="doc-item">';
+    out += '<span class="doc-icon">'+getLinkIcon(l.url)+'</span>';
+    out += '<div class="doc-info">';
+    out += '<div class="doc-titulo"><a href="'+l.url+'" target="_blank" rel="noopener noreferrer" style="color:var(--vinho-deep);text-decoration:none">'+l.titulo+'</a></div>';
+    out += '<div class="doc-url">'+l.url.slice(0,60)+(l.url.length>60?"...":"")+'</div>';
+    out += '</div>';
+    out += '<button class="doc-remove" onclick="removerLink('+l.id+','+ataId+')" title="Remover">×</button>';
+    out += '</div>';
+  }
+  return out;
+}
+
+async function adicionarLink(ataId) {
+  const tituloEl = document.getElementById("doc-titulo-"+ataId);
+  const urlEl = document.getElementById("doc-url-"+ataId);
+  if(!tituloEl || !urlEl) return;
+  const titulo = tituloEl.value.trim();
+  let url = urlEl.value.trim();
+  if(!titulo || !url) { showToast("Preencha o nome e o link."); return; }
+  if(!url.startsWith("http")) url = "https://"+url;
+  showToast("Salvando...");
+  try {
+    const rows = await api.post("lola_links", {
+      ata_id: ataId, titulo, url,
+      criado_por: currentUser ? currentUser.name : ""
+    });
+    if(!linksAta[ataId]) linksAta[ataId] = [];
+    linksAta[ataId].push(rows[0]);
+    tituloEl.value = ""; urlEl.value = "";
+    const listEl = document.getElementById("docs-list-"+ataId);
+    if(listEl) listEl.innerHTML = renderDocsInline(ataId);
+    setSyncOk(true); showToast("✓ Link adicionado!");
+  } catch(e) { showToast("Erro ao salvar link."); setSyncOk(false); }
+}
+
+async function removerLink(linkId, ataId) {
+  if(!confirm("Remover este documento?")) return;
+  try {
+    await api.delete("lola_links", "id=eq."+linkId);
+    if(linksAta[ataId]) linksAta[ataId] = linksAta[ataId].filter(function(l){return l.id!==linkId;});
+    const listEl = document.getElementById("docs-list-"+ataId);
+    if(listEl) listEl.innerHTML = renderDocsInline(ataId);
+    setSyncOk(true); showToast("✓ Removido!");
+  } catch(e) { showToast("Erro ao remover."); setSyncOk(false); }
+}
 
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
 
