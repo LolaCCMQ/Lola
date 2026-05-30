@@ -790,8 +790,6 @@ function abrirAta(id) {
     <div style="margin-bottom:6px"><span class="card-date">📅 ${fmtDate(ata.date)}</span></div>
     <div class="detail-title">${ata.title}</div>
     <div class="detail-body">${formatText(ata.conteudo||"")}</div>
-    <div class="tasks-header">📌 Tarefas desta reunião</div>
-    <div>${renderTaskList(at)}</div>
     <div class="docs-section" id="docs-section-${id}">
       <div class="docs-title">📎 Documentos relacionados</div>
       <div id="docs-list-${id}"></div>
@@ -801,6 +799,8 @@ function abrirAta(id) {
         <button class="btn btn-primary btn-sm" onclick="adicionarLink(${id})">＋ Adicionar</button>
       </div>
     </div>
+    <div class="tasks-header" style="margin-top:18px">📌 Tarefas desta reunião</div>
+    <div>${renderTaskList(at)}</div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="abrirEditModal(${id})">✏️ Editar ata</button>
       <button class="btn btn-danger btn-sm" onclick="excluirAta(${id})">🗑 Excluir</button>
