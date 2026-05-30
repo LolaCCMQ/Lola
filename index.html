@@ -1027,12 +1027,12 @@ function renderTaskList(list) {
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
         </div>
         <div style="margin-top:4px">
-          ${(comentarios[t.id]&&comentarios[t.id].length>0)
-            ? '<button class="obs-btn" style="color:var(--vinho)" onclick="toggleWrap('+t.id+')">'
-              + '💬 '+comentarios[t.id].length+' comentário'+(comentarios[t.id].length>1?'s':'')+'</button>'
-            : '<button class="obs-btn" style="color:var(--muted)" onclick="toggleWrap('+t.id+')">'
-              + '💬 Adicionar comentário</button>'
-          }
+          ${(()=>{
+            const cnt = comentarios[t.id] ? comentarios[t.id].length : 0;
+            const label = cnt > 0 ? "💬 "+cnt+" comentário"+(cnt>1?"s":"") : "💬 Adicionar comentário";
+            const color = cnt > 0 ? "var(--vinho)" : "var(--muted)";
+            return "<button class=\"obs-btn\" style=\"color:"+color+"\" onclick=\"toggleWrap("+t.id+")\">"+label+"</button>";
+          })()}
         </div>
         <div id="comt-wrap-${t.id}" style="display:none;margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
           ${renderComentariosInline(t.id)}
