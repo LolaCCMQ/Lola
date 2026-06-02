@@ -617,7 +617,11 @@ async function loadAtas() {
 }
 
 async function criarAta(title, date, conteudo, avulsa, categoria) {
-  const rows = await api.post("lola_atas", { title, date, conteudo, avulsa: avulsa||false, categoria: categoria||"" });
+  const rows = await api.post("lola_atas", {
+    title, date, conteudo, avulsa: avulsa||false, categoria: categoria||"",
+    autor_nome: currentUser ? currentUser.name : "",
+    autor_id: currentUser ? currentUser.id : ""
+  });
   return rows[0];
 }
 
@@ -784,7 +788,9 @@ function renderAtas() {
     return `<div class="card ${ok?"concluida":""}">
       <div class="card-meta"><span class="card-date">📅 ${fmtDate(a.date)}</span>
         <span class="status-pill ${ok?"status-done":"status-open"}">${ok?"✓ Concluída":"Em andamento"}</span>
-        ${catTag}</div>
+        ${catTag}
+        ${a.autor_nome ? `<span style="font-size:.72rem;color:var(--muted)">por ${a.autor_nome}</span>` : ""}
+      </div>
       <div class="card-title">${a.title}</div>
       <div class="card-excerpt">${formatText(a.conteudo||"")}</div>
       <div class="card-actions">
@@ -804,7 +810,10 @@ function abrirAta(id) {
   detalheFrom = currentTab==="detalhe"?"atas":currentTab;
   const ata=atas.find(a=>a.id===id), at=tasks.filter(t=>t.ata_id===id);
   document.getElementById("detalheContent").innerHTML=`
-    <div style="margin-bottom:6px"><span class="card-date">📅 ${fmtDate(ata.date)}</span></div>
+    <div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="card-date">📅 ${fmtDate(ata.date)}</span>
+      ${ata.autor_nome ? `<span style="font-size:.78rem;color:var(--muted)">Publicado por <strong style="color:var(--vinho-deep)">${ata.autor_nome}</strong></span>` : ""}
+    </div>
     <div class="detail-title">${ata.title}</div>
     <div class="detail-body">${formatText(ata.conteudo||"")}</div>
     <div class="docs-section" id="docs-section-${id}">
