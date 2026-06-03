@@ -259,6 +259,14 @@
   .prazo-ok{background:#D1FAE5;color:#065F46;}
   .prazo-hoje{background:#FEF3CD;color:#7D5A00;}
   .prazo-vencido{background:#FEE2E2;color:#C0392B;}
+  /* STATUS */
+  .status-select{font-size:.72rem;font-weight:600;border:none;border-radius:20px;padding:3px 8px;cursor:pointer;font-family:inherit;outline:none;-webkit-appearance:none;}
+  .status-a_fazer{background:#F2EDE8;color:#9A7070;}
+  .status-em_andamento{background:#D6EAF8;color:#1A5276;}
+  .status-em_orcamento{background:#FEF3CD;color:#7D5A00;}
+  .status-aguardando{background:#FDEBD0;color:#7D3C00;}
+  .status-concluida{background:#D1FAE5;color:#065F46;}
+  .criado-por{font-size:.7rem;color:var(--muted);margin-top:2px;}
   .hidden{display:none!important;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc;display:inline-block;margin-left:6px;transition:background .3s;}
   .sync-dot.ok{background:var(--green);}
@@ -352,7 +360,16 @@
 
   <!-- MINHAS -->
   <div id="tab-minhas" class="hidden">
-    <div class="section-header"><h2>Minhas Tarefas</h2></div>
+    <div class="section-header"><h2>Minhas Tarefas</h2>
+      <select id="filtroStatus" onchange="renderMinhas()" style="font-size:.8rem;padding:6px 12px;border:1.5px solid var(--border);border-radius:8px;background:#fff;font-family:inherit;color:var(--ink)">
+        <option value="">Todos os status</option>
+        <option value="a_fazer">⚪ A fazer</option>
+        <option value="em_andamento">🔵 Em andamento</option>
+        <option value="em_orcamento">🟡 Em orçamento</option>
+        <option value="aguardando">🟠 Aguard. aprovação</option>
+        <option value="concluida">🟢 Concluída</option>
+      </select>
+    </div>
     <div id="listMinhas"></div>
   </div>
 
@@ -574,15 +591,22 @@ async function initDB() {
   // Re-init nova tarefa tab if it's currently active
   if(currentTab === "novatarefa") initNovaTarefaTab();
   setTimeout(() => { if (!currentUser) openUserModal(); }, 400);
-  // Auto-refresh every 30 seconds to sync between devices
+  // Auto-refresh every 60 seconds - only if tab is visible
   setInterval(async function() {
+    if(document.hidden) return; // Don't refresh if tab not visible
     try {
-      await loadAtas();
-      await loadTasks();
-      renderAll();
+      const novasAtas = await api.get("lola_atas", "select=*&order=created_at.desc");
+      const novasTasks = await api.get("lola_tasks", "select=*&order=created_at.asc");
+      // Only re-render if data changed
+      if(JSON.stringify(novasAtas) !== JSON.stringify(atas) || 
+         JSON.stringify(novasTasks) !== JSON.stringify(tasks)) {
+        atas = novasAtas;
+        tasks = novasTasks;
+        renderAll();
+      }
       setSyncOk(true);
     } catch(e) { setSyncOk(false); }
-  }, 30000);
+  }, 60000);
   // Event delegation for comment buttons - attach to multiple containers
   function setupComtDelegation(container) {
     container.addEventListener("click", function(e) {
@@ -687,7 +711,12 @@ async function loadTasks() {
 }
 
 async function criarTask(ataId, texto, responsavel, prazo) {
-  const rows = await api.post("lola_tasks", { ata_id: ataId, texto, responsavel, done: false, obs: "", prazo: prazo||"" });
+  const rows = await api.post("lola_tasks", {
+    ata_id: ataId, texto, responsavel, done: false, obs: "", prazo: prazo||"",
+    status: "a_fazer",
+    criado_por_nome: currentUser ? currentUser.name : "",
+    criado_por_id: currentUser ? currentUser.id : ""
+  });
   return rows[0];
 }
 
@@ -887,7 +916,9 @@ async function excluirAta(id) {
 function renderMinhas() {
   const el=document.getElementById("listMinhas");
   if (!currentUser){el.innerHTML='<div class="empty"><div class="icon">👤</div><p>Selecione seu nome no topo.</p></div>';return;}
-  const mine=tasks.filter(t=>parseResponsaveis(t.responsavel).includes(currentUser.id));
+  const filtroSt = document.getElementById("filtroStatus")?.value||"";
+  let mine=tasks.filter(t=>parseResponsaveis(t.responsavel).includes(currentUser.id));
+  if(filtroSt) mine = mine.filter(t=>(t.status||"a_fazer")===filtroSt);
   if (!mine.length){el.innerHTML=`<div class="empty"><div class="icon">🎉</div><p>Nenhuma tarefa para ${currentUser.name}!</p></div>`;return;}
   const open=mine.filter(t=>!t.done), done=mine.filter(t=>t.done);
   el.innerHTML=(open.length?renderTaskList(open):"")+(done.length?`<div style="margin-top:18px;color:var(--muted);font-size:.76rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px">Concluídas</div>${renderTaskList(done)}`:"");
@@ -1125,7 +1156,17 @@ function renderTaskList(list) {
     return`<div class="task-item ${t.done?"done":""}">
       <div class="task-check ${t.done?"checked":""}" onclick="toggleTask(${t.id},${!t.done})"></div>
       <div class="task-body">
-        <div class="task-text">${formatText(t.texto)}</div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+          <div class="task-text" style="margin-bottom:0;flex:1">${formatText(t.texto)}</div>
+          <select class="status-select status-${t.status||'a_fazer'}" onchange="alterarStatus(${t.id},this.value,this)" style="flex-shrink:0">
+            <option value="a_fazer" ${(t.status||'a_fazer')==='a_fazer'?'selected':''}>⚪ A fazer</option>
+            <option value="em_andamento" ${t.status==='em_andamento'?'selected':''}>🔵 Em andamento</option>
+            <option value="em_orcamento" ${t.status==='em_orcamento'?'selected':''}>🟡 Em orçamento</option>
+            <option value="aguardando" ${t.status==='aguardando'?'selected':''}>🟠 Aguard. aprovação</option>
+            <option value="concluida" ${t.status==='concluida'?'selected':''}>🟢 Concluída</option>
+          </select>
+        </div>
+        ${t.criado_por_nome ? `<div class="criado-por">criado por ${t.criado_por_nome}</div>` : ""}
         <div class="task-tags">
           ${pessoasTags}
           ${ataTag}
@@ -1653,6 +1694,7 @@ async function salvarEdicaoTarefa() {
     await api.patch("lola_tasks", {texto, responsavel: JSON.stringify(resps), prazo}, `id=eq.${id}`);
     const t = tasks.find(t=>t.id===id);
     if(t){ t.texto=texto; t.responsavel=JSON.stringify(resps); t.prazo=prazo; }
+    // Preserve status - don't overwrite
     fecharEditTaskModal();
     renderAll();
     if(currentTab==="pessoas") renderPessoas();
@@ -1866,6 +1908,41 @@ async function salvarRecorrentes() {
       const row = await api.post("lola_recorrentes",{ texto:r.texto.trim(), responsavel:r.responsavel||"", dia_do_mes:r.dia_do_mes||1, ativo:true });
       recorrentes.push(row[0]);
     } catch(e) { console.log("Erro ao salvar recorrente:", e); }
+  }
+}
+
+// ── STATUS ──
+const STATUS_CLASSES = {
+  a_fazer: 'status-a_fazer',
+  em_andamento: 'status-em_andamento',
+  em_orcamento: 'status-em_orcamento',
+  aguardando: 'status-aguardando',
+  concluida: 'status-concluida'
+};
+
+async function alterarStatus(taskId, novoStatus, selectEl) {
+  const t = tasks.find(t=>t.id===taskId); if(!t) return;
+  const statusAntigo = t.status;
+  t.status = novoStatus;
+  // Update select class immediately
+  if(selectEl) {
+    selectEl.className = "status-select status-"+novoStatus;
+  }
+  // If concluida, also mark as done
+  if(novoStatus === "concluida" && !t.done) {
+    t.done = true;
+    try { await toggleTaskDB(taskId, true); } catch(e){}
+  } else if(novoStatus !== "concluida" && t.done && statusAntigo === "concluida") {
+    t.done = false;
+    try { await toggleTaskDB(taskId, false); } catch(e){}
+  }
+  try {
+    await api.patch("lola_tasks", { status: novoStatus, done: t.done }, "id=eq."+taskId);
+    setSyncOk(true);
+  } catch(e) { 
+    t.status = statusAntigo; 
+    setSyncOk(false); 
+    showToast("Erro ao atualizar status.");
   }
 }
 
