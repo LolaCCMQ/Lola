@@ -254,6 +254,11 @@
   .doc-remove:hover{color:#C0392B;}
   .add-link-form{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
   .add-link-form input{flex:1;min-width:120px;margin:0;font-size:.83rem;padding:6px 10px;}
+  /* PRAZO */
+  .prazo-tag{font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:3px;}
+  .prazo-ok{background:#D1FAE5;color:#065F46;}
+  .prazo-hoje{background:#FEF3CD;color:#7D5A00;}
+  .prazo-vencido{background:#FEE2E2;color:#C0392B;}
   .hidden{display:none!important;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc;display:inline-block;margin-left:6px;transition:background .3s;}
   .sync-dot.ok{background:var(--green);}
@@ -425,6 +430,10 @@
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div class="form-group" style="flex:1;min-width:140px">
+          <label>Prazo</label>
+          <input type="date" id="ntPrazo">
+        </div>
+        <div class="form-group" style="flex:1;min-width:140px">
           <label>Categoria</label>
           <select id="ntCategoria">
             <option value="">Sem categoria</option>
@@ -464,6 +473,12 @@
       <p style="font-size:.81rem;color:var(--muted);margin-bottom:14px">Ex: RH, Cozinha, Salão, Eventos...</p>
       <div id="catRows"></div>
       <button class="add-member-btn" onclick="addCatRow()">＋ Adicionar categoria</button>
+    </div>
+    <div class="config-section">
+      <div class="config-section-title">🔁 Tarefas recorrentes mensais</div>
+      <p style="font-size:.81rem;color:var(--muted);margin-bottom:14px">Tarefas que se repetem todo mês. Aparecem automaticamente na aba <strong>Todas as Tarefas</strong> no dia configurado.</p>
+      <div id="recRows"></div>
+      <button class="add-member-btn" onclick="addRecRow()">＋ Adicionar tarefa recorrente</button>
     </div>
     <div class="config-save-bar">
       <button class="btn btn-primary" onclick="salvarConfig()">💾 Salvar</button>
@@ -531,6 +546,8 @@ let currentTab = "atas", detalheFrom = "atas";
 let taskRowCounter = 0, configMembers = [], configCats = [];
 let pessoaSelecionada = null;
 let comentarios = {}; // keyed by task_id
+let recorrentes = [];
+let configRecs = [];
 let linksAta = {}; // keyed by ata_id
 let memberIdCounter = 100;
 let filtroAtivo = null;
@@ -557,6 +574,15 @@ async function initDB() {
   // Re-init nova tarefa tab if it's currently active
   if(currentTab === "novatarefa") initNovaTarefaTab();
   setTimeout(() => { if (!currentUser) openUserModal(); }, 400);
+  // Auto-refresh every 30 seconds to sync between devices
+  setInterval(async function() {
+    try {
+      await loadAtas();
+      await loadTasks();
+      renderAll();
+      setSyncOk(true);
+    } catch(e) { setSyncOk(false); }
+  }, 30000);
   // Event delegation for comment buttons - attach to multiple containers
   function setupComtDelegation(container) {
     container.addEventListener("click", function(e) {
@@ -644,6 +670,11 @@ async function loadTasks() {
       comentarios[c.task_id].push(c);
     });
   } catch(e) { console.log("Comentarios load error:", e); }
+  // Load recorrentes
+  try {
+    recorrentes = await api.get("lola_recorrentes", "select=*&ativo=eq.true&order=dia_do_mes.asc") || [];
+    await verificarRecorrentes();
+  } catch(e) { console.log("Recorrentes load error:", e); }
   // Load all links
   try {
     const allLinks = await api.get("lola_links", "select=*&order=created_at.asc");
@@ -655,8 +686,8 @@ async function loadTasks() {
   } catch(e) { console.log("Links load error:", e); }
 }
 
-async function criarTask(ataId, texto, responsavel) {
-  const rows = await api.post("lola_tasks", { ata_id: ataId, texto, responsavel, done: false, obs: "" });
+async function criarTask(ataId, texto, responsavel, prazo) {
+  const rows = await api.post("lola_tasks", { ata_id: ataId, texto, responsavel, done: false, obs: "", prazo: prazo||"" });
   return rows[0];
 }
 
@@ -1098,6 +1129,13 @@ function renderTaskList(list) {
         <div class="task-tags">
           ${pessoasTags}
           ${ataTag}
+          ${t.prazo ? (()=>{
+            const hoje = new Date().toISOString().slice(0,10);
+            const diff = Math.ceil((new Date(t.prazo)-new Date(hoje))/(1000*60*60*24));
+            const cls = diff < 0 ? 'prazo-vencido' : diff === 0 ? 'prazo-hoje' : 'prazo-ok';
+            const label = diff < 0 ? '⚠️ Vencido' : diff === 0 ? '⏰ Hoje' : '📅 '+fmtDate(t.prazo);
+            return '<span class="prazo-tag '+cls+'">'+label+'</span>';
+          })() : ''}
         </div>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
           <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar</button>
@@ -1137,7 +1175,7 @@ function toggleObsWrap(id) { toggleComentarios(id); }
 // ═══════════════════════════════════════
 // NOVA ATA
 // ═══════════════════════════════════════
-function addTaskRow(texto="", responsaveis=[]) {
+function addTaskRow(texto="", responsaveis=[], prazo="") {
   // responsaveis can be array or legacy string
   if (typeof responsaveis === "string") responsaveis = responsaveis ? [responsaveis] : [];
   const id = taskRowCounter++;
@@ -1145,8 +1183,12 @@ function addTaskRow(texto="", responsaveis=[]) {
   div.className = "task-builder-row"; div.id = "tr-"+id;
   div.style.cssText = "flex-direction:column;align-items:stretch;gap:8px;padding:10px;background:#fff;border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px;";
   div.innerHTML = `
-    <div style="display:flex;gap:7px;align-items:center">
-      <input type="text" placeholder="Descrever a tarefa..." value="${texto.replace(/"/g,"&quot;")}" style="flex:1;margin:0;font-size:.86rem;padding:8px 11px;">
+    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+      <input type="text" placeholder="Descrever a tarefa..." value="${texto.replace(/"/g,"&quot;")}" style="flex:1;min-width:160px;margin:0;font-size:.86rem;padding:8px 11px;">
+      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+        <span style="font-size:.72rem;font-weight:600;color:var(--muted)">Prazo</span>
+        <input type="date" value="${prazo}" style="font-size:.82rem;padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;background:#fff;font-family:inherit;color:var(--ink)">
+      </div>
       <button class="remove-task" onclick="this.closest('.task-builder-row').remove()">×</button>
     </div>
     <div style="font-size:.7rem;font-weight:600;color:var(--vinho-deep);text-transform:uppercase;letter-spacing:.07em">Responsáveis</div>
@@ -1313,8 +1355,10 @@ async function gerarTarefasAI() {
 function renderConfigTab(){
   configMembers=TEAM.map(u=>({...u}));
   configCats=[...CATEGORIAS];
+  configRecs=recorrentes.map(function(r){return Object.assign({},r);});
   renderMemberRows();
   renderCatRows();
+  renderRecRows();
   populateCatSelects();
 }
 function renderMemberRows(){
@@ -1367,6 +1411,7 @@ async function salvarConfig(){
   showToast("Salvando...");
   try {
     await saveConfig();
+    await salvarRecorrentes();
     populateCatSelects();
     setSyncOk(true);
     const msg=document.getElementById("savedMsg"); msg.classList.add("show"); setTimeout(()=>msg.classList.remove("show"),2500);
@@ -1545,6 +1590,7 @@ async function salvarNovaTarefa() {
   const resps = [...document.querySelectorAll("#ntChips .resp-chip.selected")].map(b=>b.dataset.uid);
   const ataId = document.getElementById("ntAta")?.value;
   const categoria = document.getElementById("ntCategoria")?.value||"";
+  const prazo = document.getElementById("ntPrazo")?.value||"";
   showToast("Salvando...");
   try {
     let ataFinal;
@@ -1559,7 +1605,7 @@ async function salvarNovaTarefa() {
         atas.push(ataFinal);
       }
     }
-    const nt = await criarTask(ataFinal.id, texto, JSON.stringify(resps));
+    const nt = await criarTask(ataFinal.id, texto, JSON.stringify(resps), prazo);
     tasks.push(nt);
     setSyncOk(true);
     showToast("✓ Tarefa criada!");
@@ -1574,6 +1620,7 @@ function abrirEditTarefa(id) {
   const t = tasks.find(t=>t.id===id); if(!t) return;
   document.getElementById("etId").value = id;
   document.getElementById("etTexto").value = t.texto;
+  document.getElementById("etPrazo").value = t.prazo||"";
   const resps = parseResponsaveis(t.responsavel);
   // Render chips
   const chips = document.getElementById("etChips");
@@ -1600,11 +1647,12 @@ async function salvarEdicaoTarefa() {
   const texto = document.getElementById("etTexto").value.trim();
   if(!texto){ showToast("Escreva a descrição."); return; }
   const resps = [...document.querySelectorAll("#etChips .resp-chip.selected")].map(b=>b.dataset.uid);
+  const prazo = document.getElementById("etPrazo")?.value||"";
   showToast("Salvando...");
   try {
-    await api.patch("lola_tasks", {texto, responsavel: JSON.stringify(resps)}, `id=eq.${id}`);
+    await api.patch("lola_tasks", {texto, responsavel: JSON.stringify(resps), prazo}, `id=eq.${id}`);
     const t = tasks.find(t=>t.id===id);
-    if(t){ t.texto=texto; t.responsavel=JSON.stringify(resps); }
+    if(t){ t.texto=texto; t.responsavel=JSON.stringify(resps); t.prazo=prazo; }
     fecharEditTaskModal();
     renderAll();
     if(currentTab==="pessoas") renderPessoas();
@@ -1742,6 +1790,85 @@ async function removerLink(linkId, ataId) {
   } catch(e) { showToast("Erro ao remover."); setSyncOk(false); }
 }
 
+// ── TAREFAS RECORRENTES ──
+async function verificarRecorrentes() {
+  if(!recorrentes.length) return;
+  const hoje = new Date();
+  const diaHoje = hoje.getDate();
+  const mesAno = hoje.getFullYear()+"-"+(hoje.getMonth()+1).toString().padStart(2,"0");
+  
+  for(const rec of recorrentes) {
+    if(rec.dia_do_mes !== diaHoje) continue;
+    // Check if already created this month
+    const jaExiste = tasks.some(function(t) {
+      return t.texto === rec.texto && 
+             t.responsavel === rec.responsavel &&
+             t.created_at && t.created_at.startsWith(mesAno);
+    });
+    if(jaExiste) continue;
+    // Create the recurring task
+    try {
+      let ataRec = atas.find(function(a){ return a.avulsa && a.titulo === "Tarefas Recorrentes"; });
+      if(!ataRec) {
+        ataRec = await criarAta("Tarefas Recorrentes","","",true,"Recorrente");
+        atas.push(ataRec);
+      }
+      const nt = await criarTask(ataRec.id, rec.texto, rec.responsavel, "");
+      tasks.push(nt);
+    } catch(e) { console.log("Erro ao criar tarefa recorrente:", e); }
+  }
+}
+
+function renderRecRows() {
+  const el = document.getElementById("recRows"); if(!el) return;
+  if(!configRecs.length) {
+    el.innerHTML = '<div style="font-size:.82rem;color:var(--muted);margin-bottom:10px;font-style:italic">Nenhuma tarefa recorrente ainda.</div>';
+    return;
+  }
+  el.innerHTML = configRecs.map(function(r, i) {
+    return '<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;flex-wrap:wrap">' +
+      '<div style="display:flex;align-items:center;gap:6px;flex:1;min-width:200px">' +
+        '<input type="text" placeholder="Descrição da tarefa..." value="'+r.texto+'" oninput="configRecs['+i+'].texto=this.value" style="flex:1;margin:0;font-size:.85rem;padding:7px 10px">' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px">' +
+        '<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">Todo dia</span>' +
+        '<input type="number" min="1" max="28" value="'+r.dia_do_mes+'" oninput="configRecs['+i+'].dia_do_mes=parseInt(this.value)" style="width:52px;margin:0;font-size:.85rem;padding:7px 9px;text-align:center">' +
+        '<span style="font-size:.75rem;color:var(--muted)">do mês</span>' +
+      '</div>' +
+      '<select onchange="configRecs['+i+'].responsavel=this.value" style="font-size:.83rem;padding:7px 10px;flex-shrink:0">' +
+        '<option value="">Responsável</option>' +
+        TEAM.map(function(u){ return '<option value="'+u.id+'" '+(u.id===r.responsavel?'selected':'')+'>'+u.name+'</option>'; }).join("") +
+      '</select>' +
+      '<button onclick="removerRec('+i+')" style="background:none;border:none;font-size:.95rem;color:var(--muted);cursor:pointer;padding:5px 6px;border-radius:6px">🗑</button>' +
+    '</div>';
+  }).join("");
+}
+
+function addRecRow() {
+  configRecs.push({ texto:"", dia_do_mes:1, responsavel:"", ativo:true });
+  renderRecRows();
+  setTimeout(function(){ document.querySelectorAll("#recRows input[type=text]").forEach(function(el,i,arr){ if(i===arr.length-1) el.focus(); }); }, 50);
+}
+
+function removerRec(i) {
+  configRecs.splice(i,1);
+  renderRecRows();
+}
+
+async function salvarRecorrentes() {
+  // Delete all and re-insert
+  try {
+    await api.delete("lola_recorrentes","ativo=eq.true");
+  } catch(e) {}
+  for(const r of configRecs) {
+    if(!r.texto.trim()) continue;
+    try {
+      const row = await api.post("lola_recorrentes",{ texto:r.texto.trim(), responsavel:r.responsavel||"", dia_do_mes:r.dia_do_mes||1, ativo:true });
+      recorrentes.push(row[0]);
+    } catch(e) { console.log("Erro ao salvar recorrente:", e); }
+  }
+}
+
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
 
 // INIT
@@ -1755,6 +1882,10 @@ initDB();
     <div class="form-group">
       <label>Descrição</label>
       <input type="text" id="etTexto">
+    </div>
+    <div class="form-group">
+      <label>Prazo</label>
+      <input type="date" id="etPrazo">
     </div>
     <div class="form-group">
       <label>Responsáveis</label>
