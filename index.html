@@ -1156,17 +1156,17 @@ function renderTaskList(list) {
     return`<div class="task-item ${t.done?"done":""}">
       <div class="task-check ${t.done?"checked":""}" onclick="toggleTask(${t.id},${!t.done})"></div>
       <div class="task-body">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
-          <div class="task-text" style="margin-bottom:0;flex:1">${formatText(t.texto)}</div>
-          <select class="status-select status-${t.status||'a_fazer'}" onchange="alterarStatus(${t.id},this.value,this)" style="flex-shrink:0">
+        <div class="task-text">${formatText(t.texto)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+          <select class="status-select status-${t.status||'a_fazer'}" onchange="alterarStatus(${t.id},this.value,this)">
             <option value="a_fazer" ${(t.status||'a_fazer')==='a_fazer'?'selected':''}>⚪ A fazer</option>
             <option value="em_andamento" ${t.status==='em_andamento'?'selected':''}>🔵 Em andamento</option>
             <option value="em_orcamento" ${t.status==='em_orcamento'?'selected':''}>🟡 Em orçamento</option>
             <option value="aguardando" ${t.status==='aguardando'?'selected':''}>🟠 Aguard. aprovação</option>
             <option value="concluida" ${t.status==='concluida'?'selected':''}>🟢 Concluída</option>
           </select>
+          ${t.criado_por_nome ? `<span class="criado-por">criado por ${t.criado_por_nome}</span>` : ""}
         </div>
-        ${t.criado_por_nome ? `<div class="criado-por">criado por ${t.criado_por_nome}</div>` : ""}
         <div class="task-tags">
           ${pessoasTags}
           ${ataTag}
