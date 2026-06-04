@@ -858,7 +858,8 @@ function renderAtas() {
   if (filtroAtivo) ataNormais = ataNormais.filter(a => a.categoria === filtroAtivo);
 
   if (!ataNormais.length) { el.innerHTML='<div class="empty"><div class="icon">📄</div><p>Nenhuma ata ainda.<br>Clique em <strong>+ Nova Ata</strong>.</p></div>'; return; }
-  el.innerHTML = ataNormais.map(a => {
+
+  function cardHtml(a) {
     const at=tasks.filter(t=>t.ata_id===a.id), fe=at.filter(t=>t.done).length, ok=at.length>0&&fe===at.length;
     const catTag = a.categoria ? `<span class="tag tag-cat">🏷️ ${a.categoria}</span>` : "";
     return `<div class="card ${ok?"concluida":""}">
@@ -874,7 +875,29 @@ function renderAtas() {
         <button class="btn btn-ghost btn-sm" onclick="abrirEditModal(${a.id})">✏️ Editar</button>
         <span class="task-count">📌 ${at.length} tarefa${at.length!==1?"s":""} · ${fe} feita${fe!==1?"s":""}</span>
       </div></div>`;
-  }).join("");
+  }
+
+  const emAndamento = ataNormais.filter(a => {
+    const at=tasks.filter(t=>t.ata_id===a.id);
+    return !(at.length>0 && at.filter(t=>t.done).length===at.length);
+  });
+  const concluidas = ataNormais.filter(a => {
+    const at=tasks.filter(t=>t.ata_id===a.id);
+    return at.length>0 && at.filter(t=>t.done).length===at.length;
+  });
+
+  let out = emAndamento.map(cardHtml).join("");
+
+  if (concluidas.length) {
+    out += `<div style="margin:20px 0 12px;display:flex;align-items:center;gap:10px">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <span style="font-size:.76rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">✓ Concluídas (${concluidas.length})</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>`;
+    out += concluidas.map(cardHtml).join("");
+  }
+
+  el.innerHTML = out;
 }
 
 function setFiltro(cat) {
@@ -1872,8 +1895,13 @@ async function verificarRecorrentes() {
         atas.push(ataRec);
       }
       const resp = rec.responsavel ? JSON.stringify([rec.responsavel]) : JSON.stringify([]);
-      const nt = await criarTask(ataRec.id, rec.texto, resp, "");
-      tasks.push(nt);
+      const dia = rec.dia_do_mes || 1;
+      const rows = await api.post("lola_tasks", {
+        ata_id: ataRec.id, texto: rec.texto, responsavel: resp,
+        done: false, obs: "🔁 Tarefa recorrente — todo dia "+dia+" do mês",
+        prazo: "", status: "a_fazer", criado_por_nome: "Sistema", criado_por_id: ""
+      });
+      tasks.push(rows[0]);
     } catch(e) { console.log("Erro ao criar tarefa recorrente:", e); }
   }
 }
@@ -2028,25 +2056,6 @@ async function salvarRecorrentesTab() {
     var msg = document.getElementById("savedMsgRec");
     if(msg){ msg.classList.add("show"); setTimeout(function(){ msg.classList.remove("show"); }, 2500); }
     showToast("✓ Tarefas recorrentes salvas!");
-    // Ask if user wants to create tasks now
-    if(recorrentes.length > 0 && confirm("Deseja criar as tarefas agora para os responsáveis?")) {
-      for(var j=0; j<recorrentes.length; j++) {
-        var rec = recorrentes[j];
-        if(!rec.responsavel) continue;
-        try {
-          var ataRec = atas.find(function(a){ return a.avulsa && a.title === "Tarefas Recorrentes"; });
-          if(!ataRec) {
-            ataRec = await criarAta("Tarefas Recorrentes","","",true,"Recorrente");
-            atas.push(ataRec);
-          }
-          var resp = JSON.stringify([rec.responsavel]);
-          var nt = await criarTask(ataRec.id, rec.texto.trim(), resp, "");
-          tasks.push(nt);
-        } catch(e) { console.log("Erro:", e); }
-      }
-      renderAll();
-      showToast("✓ Tarefas criadas!");
-    }
   } catch(e){ showToast("Erro ao salvar."); setSyncOk(false); }
 }
 
@@ -2063,11 +2072,26 @@ async function criarRecAgoraTab(i) {
       atas.push(ataRec);
     }
     const resp = JSON.stringify([r.responsavel]);
-    const nt = await criarTask(ataRec.id, r.texto.trim(), resp, "");
+    const dia = r.dia_do_mes || 1;
+    const obsRec = "🔁 Tarefa recorrente — todo dia "+dia+" do mês";
+    // Create task with obs noting it's recurrent
+    const rows = await api.post("lola_tasks", {
+      ata_id: ataRec.id,
+      texto: r.texto.trim(),
+      responsavel: resp,
+      done: false,
+      obs: obsRec,
+      prazo: "",
+      status: "a_fazer",
+      criado_por_nome: currentUser ? currentUser.name : "",
+      criado_por_id: currentUser ? currentUser.id : ""
+    });
+    const nt = rows[0];
     tasks.push(nt);
     renderAll();
     setSyncOk(true);
-    showToast("✓ Tarefa criada para "+TEAM.find(function(u){return u.id===r.responsavel;})?.name+"!");
+    const nomePessoa = TEAM.find(function(u){return u.id===r.responsavel;})?.name || "";
+    showToast("✓ Tarefa criada para "+nomePessoa+"!");
   } catch(e) { showToast("Erro ao criar tarefa."); setSyncOk(false); }
 }
 
