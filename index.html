@@ -310,6 +310,7 @@
   <button class="tab" data-tab="todas" onclick="switchTab('todas')">📋 Todas <span class="badge" id="bTodas">0</span></button>
   <button class="tab" data-tab="nova" onclick="switchTabNova()">＋ Nova Ata</button>
   <button class="tab" data-tab="novatarefa" onclick="switchTab('novatarefa')">＋ Nova Tarefa</button>
+  <button class="tab" data-tab="recorrente" onclick="switchTab('recorrente')">🔁 Recorrente</button>
   <button class="tab" data-tab="config" onclick="switchTab('config')">⚙️ Config</button>
 </nav>
 
@@ -466,6 +467,21 @@
       <div style="display:flex;gap:9px;margin-top:6px">
         <button class="btn btn-primary" onclick="salvarNovaTarefa()">Salvar Tarefa</button>
         <button class="btn btn-ghost" onclick="switchTab('atas')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECORRENTE -->
+  <div id="tab-recorrente" class="hidden">
+    <div class="section-header"><h2>🔁 Tarefas Recorrentes</h2></div>
+    <div class="card">
+      <p style="font-size:.84rem;color:var(--muted);margin-bottom:16px">Tarefas que aparecem automaticamente todo mês no dia configurado.</p>
+      <div id="recRowsTab"></div>
+      <button class="add-task-btn" style="margin-top:4px" onclick="addRecRowTab()">＋ Adicionar tarefa recorrente</button>
+      <div style="display:flex;gap:9px;margin-top:16px">
+        <button class="btn btn-primary" onclick="salvarRecorrentesTab()">💾 Salvar</button>
+        <button class="btn btn-ghost" onclick="switchTab('atas')">Cancelar</button>
+        <span class="saved-msg" id="savedMsgRec">✓ Salvo!</span>
       </div>
     </div>
   </div>
@@ -787,7 +803,7 @@ function initials(n) { return n.split(" ").map(w=>w[0]).slice(0,2).join("").toUp
 // ═══════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════
-const ALL_TABS = ["atas","minhas","pessoas","todas","nova","novatarefa","detalhe","config"];
+const ALL_TABS = ["atas","minhas","pessoas","todas","nova","novatarefa","recorrente","detalhe","config"];
 function switchTab(tab) {
   currentTab = tab;
   ALL_TABS.forEach(t => document.getElementById("tab-"+t).classList.toggle("hidden", t!==tab));
@@ -1944,6 +1960,73 @@ async function alterarStatus(taskId, novoStatus, selectEl) {
     setSyncOk(false); 
     showToast("Erro ao atualizar status.");
   }
+}
+
+// ── ABA RECORRENTES ──
+function initRecorrenteTab() {
+  var tabRecs = recorrentes.map(function(r){ return Object.assign({},r); });
+  window._tabRecs = tabRecs;
+  renderRecRowsTab();
+}
+
+function renderRecRowsTab() {
+  const el = document.getElementById("recRowsTab"); if(!el) return;
+  const tabRecs = window._tabRecs || [];
+  if(!tabRecs.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:.83rem;font-style:italic;margin-bottom:10px">Nenhuma tarefa recorrente ainda.</div>';
+    return;
+  }
+  el.innerHTML = tabRecs.map(function(r,i) {
+    return '<div style="display:flex;align-items:center;gap:8px;background:var(--cream);border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;flex-wrap:wrap">' +
+      '<input type="text" placeholder="Descrição da tarefa..." value="'+r.texto+'" oninput="window._tabRecs['+i+'].texto=this.value" style="flex:1;min-width:180px;margin:0;font-size:.85rem;padding:7px 10px">' +
+      '<div style="display:flex;align-items:center;gap:5px;flex-shrink:0">' +
+        '<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">Todo dia</span>' +
+        '<input type="number" min="1" max="28" value="'+r.dia_do_mes+'" oninput="window._tabRecs['+i+'].dia_do_mes=parseInt(this.value)" style="width:52px;margin:0;font-size:.85rem;padding:7px 9px;text-align:center">' +
+        '<span style="font-size:.75rem;color:var(--muted)">do mês</span>' +
+      '</div>' +
+      '<select onchange="window._tabRecs['+i+'].responsavel=this.value" style="font-size:.83rem;padding:7px 10px;flex-shrink:0;border:1.5px solid var(--border);border-radius:8px;background:#fff;font-family:inherit">' +
+        '<option value="">Responsável</option>' +
+        TEAM.map(function(u){ return '<option value="'+u.id+'" '+(u.id===r.responsavel?'selected':'')+'>'+u.name+'</option>'; }).join("") +
+      '</select>' +
+      '<button onclick="removeRecTab('+i+')" style="background:none;border:none;font-size:.95rem;color:var(--muted);cursor:pointer;padding:5px 6px;border-radius:6px">🗑</button>' +
+    '</div>';
+  }).join("");
+}
+
+function addRecRowTab() {
+  if(!window._tabRecs) window._tabRecs = [];
+  window._tabRecs.push({ texto:"", dia_do_mes:1, responsavel:"", ativo:true });
+  renderRecRowsTab();
+  setTimeout(function(){ 
+    var inputs = document.querySelectorAll("#recRowsTab input[type=text]");
+    if(inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+function removeRecTab(i) {
+  window._tabRecs.splice(i,1);
+  renderRecRowsTab();
+}
+
+async function salvarRecorrentesTab() {
+  const tabRecs = (window._tabRecs || []).filter(function(r){ return r.texto.trim(); });
+  showToast("Salvando...");
+  try {
+    // Delete all existing and re-insert
+    try { await api.delete("lola_recorrentes","id=gt.0"); } catch(e){}
+    recorrentes = [];
+    for(var i=0;i<tabRecs.length;i++) {
+      var r = tabRecs[i];
+      var row = await api.post("lola_recorrentes",{ texto:r.texto.trim(), responsavel:r.responsavel||"", dia_do_mes:r.dia_do_mes||1, ativo:true });
+      recorrentes.push(row[0]);
+    }
+    // Update config too
+    configRecs = recorrentes.map(function(r){ return Object.assign({},r); });
+    setSyncOk(true);
+    var msg = document.getElementById("savedMsgRec");
+    if(msg){ msg.classList.add("show"); setTimeout(function(){ msg.classList.remove("show"); }, 2500); }
+    showToast("✓ Tarefas recorrentes salvas!");
+  } catch(e){ showToast("Erro ao salvar."); setSyncOk(false); }
 }
 
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
