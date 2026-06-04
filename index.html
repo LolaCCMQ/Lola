@@ -1871,7 +1871,8 @@ async function verificarRecorrentes() {
         ataRec = await criarAta("Tarefas Recorrentes","","",true,"Recorrente");
         atas.push(ataRec);
       }
-      const nt = await criarTask(ataRec.id, rec.texto, rec.responsavel, "");
+      const resp = rec.responsavel ? JSON.stringify([rec.responsavel]) : JSON.stringify([]);
+      const nt = await criarTask(ataRec.id, rec.texto, resp, "");
       tasks.push(nt);
     } catch(e) { console.log("Erro ao criar tarefa recorrente:", e); }
   }
@@ -1988,7 +1989,8 @@ function renderRecRowsTab() {
         '<option value="">Responsável</option>' +
         TEAM.map(function(u){ return '<option value="'+u.id+'" '+(u.id===r.responsavel?'selected':'')+'>'+u.name+'</option>'; }).join("") +
       '</select>' +
-      '<button onclick="removeRecTab('+i+')" style="background:none;border:none;font-size:.95rem;color:var(--muted);cursor:pointer;padding:5px 6px;border-radius:6px">🗑</button>' +
+      '<button onclick="removeRecTab('+i+')" style="background:none;border:none;font-size:.95rem;color:var(--muted);cursor:pointer;padding:5px 6px;border-radius:6px" title="Remover">🗑</button>' +
+      '<button onclick="criarRecAgoraTab('+i+')" style="background:var(--vinho-pale);border:1.5px solid var(--vinho-muted);border-radius:7px;font-size:.72rem;font-weight:600;color:var(--vinho);cursor:pointer;padding:4px 9px;white-space:nowrap;font-family:inherit" title="Criar esta tarefa agora, sem esperar o dia configurado">▶ Criar agora</button>' +
     '</div>';
   }).join("");
 }
@@ -2027,6 +2029,27 @@ async function salvarRecorrentesTab() {
     if(msg){ msg.classList.add("show"); setTimeout(function(){ msg.classList.remove("show"); }, 2500); }
     showToast("✓ Tarefas recorrentes salvas!");
   } catch(e){ showToast("Erro ao salvar."); setSyncOk(false); }
+}
+
+async function criarRecAgoraTab(i) {
+  const tabRecs = window._tabRecs || [];
+  const r = tabRecs[i];
+  if(!r || !r.texto.trim()) { showToast("Preencha a descrição primeiro."); return; }
+  if(!r.responsavel) { showToast("Selecione um responsável."); return; }
+  showToast("Criando tarefa...");
+  try {
+    let ataRec = atas.find(function(a){ return a.avulsa && a.title === "Tarefas Recorrentes"; });
+    if(!ataRec) {
+      ataRec = await criarAta("Tarefas Recorrentes","","",true,"Recorrente");
+      atas.push(ataRec);
+    }
+    const resp = JSON.stringify([r.responsavel]);
+    const nt = await criarTask(ataRec.id, r.texto.trim(), resp, "");
+    tasks.push(nt);
+    renderAll();
+    setSyncOk(true);
+    showToast("✓ Tarefa criada para "+TEAM.find(function(u){return u.id===r.responsavel;})?.name+"!");
+  } catch(e) { showToast("Erro ao criar tarefa."); setSyncOk(false); }
 }
 
 function fmtDate(d){if(!d)return"";try{const[y,m,day]=d.split("T")[0].split("-");return`${day}/${m}/${y}`;}catch{return d;}}
