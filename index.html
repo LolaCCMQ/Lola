@@ -2028,6 +2028,25 @@ async function salvarRecorrentesTab() {
     var msg = document.getElementById("savedMsgRec");
     if(msg){ msg.classList.add("show"); setTimeout(function(){ msg.classList.remove("show"); }, 2500); }
     showToast("✓ Tarefas recorrentes salvas!");
+    // Ask if user wants to create tasks now
+    if(recorrentes.length > 0 && confirm("Deseja criar as tarefas agora para os responsáveis?")) {
+      for(var j=0; j<recorrentes.length; j++) {
+        var rec = recorrentes[j];
+        if(!rec.responsavel) continue;
+        try {
+          var ataRec = atas.find(function(a){ return a.avulsa && a.title === "Tarefas Recorrentes"; });
+          if(!ataRec) {
+            ataRec = await criarAta("Tarefas Recorrentes","","",true,"Recorrente");
+            atas.push(ataRec);
+          }
+          var resp = JSON.stringify([rec.responsavel]);
+          var nt = await criarTask(ataRec.id, rec.texto.trim(), resp, "");
+          tasks.push(nt);
+        } catch(e) { console.log("Erro:", e); }
+      }
+      renderAll();
+      showToast("✓ Tarefas criadas!");
+    }
   } catch(e){ showToast("Erro ao salvar."); setSyncOk(false); }
 }
 
