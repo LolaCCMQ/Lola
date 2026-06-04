@@ -475,7 +475,8 @@
   <div id="tab-recorrente" class="hidden">
     <div class="section-header"><h2>🔁 Tarefas Recorrentes</h2></div>
     <div class="card">
-      <p style="font-size:.84rem;color:var(--muted);margin-bottom:16px">Tarefas que aparecem automaticamente todo mês no dia configurado.</p>
+      <p style="font-size:.84rem;color:var(--muted);margin-bottom:16px">Tarefas que aparecem automaticamente todo mês no dia configurado.<br>
+        Use <strong>▶ Criar agora</strong> para criar a tarefa imediatamente. Use <strong>💾 Salvar configuração</strong> para guardar a lista de recorrentes.</p>
       <div id="recRowsTab"></div>
       <button class="add-task-btn" style="margin-top:4px" onclick="addRecRowTab()">＋ Adicionar tarefa recorrente</button>
       <div style="display:flex;gap:9px;margin-top:16px">
@@ -1209,6 +1210,7 @@ function renderTaskList(list) {
         <div class="task-tags">
           ${pessoasTags}
           ${ataTag}
+          ${(t.obs && t.obs.startsWith("🔁")) ? `<span class="tag" style="background:#EDE9FE;color:#5B21B6;text-transform:none;font-size:.73rem">${t.obs}</span>` : ""}
           ${t.prazo ? (()=>{
             const hoje = new Date().toISOString().slice(0,10);
             const diff = Math.ceil((new Date(t.prazo)-new Date(hoje))/(1000*60*60*24));
