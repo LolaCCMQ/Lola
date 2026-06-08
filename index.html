@@ -1723,10 +1723,23 @@ function renderTodas() {
   if (!tasks.length){el.innerHTML='<div class="empty"><div class="icon">📋</div><p>Nenhuma tarefa ainda.</p></div>';return;}
   const byAta={};
   tasks.forEach(t=>{if(!byAta[t.ata_id])byAta[t.ata_id]=[];byAta[t.ata_id].push(t);});
+  function lastActivity(t){
+    const comts=comentarios[t.id]||[];
+    const lastC=comts.length?comts[comts.length-1].created_at:null;
+    const updAt=t.updated_at||t.created_at||'';
+    return(lastC&&lastC>updAt)?lastC:updAt;
+  }
+  function sortTasks(list){
+    const pending=list.filter(t=>t.status!=='concluida'&&!t.done)
+      .sort((a,b)=>lastActivity(b).localeCompare(lastActivity(a)));
+    const done=list.filter(t=>t.status==='concluida'||t.done)
+      .sort((a,b)=>lastActivity(b).localeCompare(lastActivity(a)));
+    return[...pending,...done];
+  }
   el.innerHTML=Object.keys(byAta).map(aid=>{
     const ata=atas.find(a=>a.id===parseInt(aid));if(!ata)return"";
     const label=ata.avulsa?"📌 Tarefas Avulsas":`📅 ${ata.title} — ${fmtDate(ata.date)}`;
-    return`<div style="margin-bottom:6px;font-family:'Playfair Display',serif;font-size:.9rem;color:var(--vinho)">${label}</div>${renderTaskList(byAta[aid])}<div style="height:12px"></div>`;
+    return`<div style="margin-bottom:6px;font-family:'Playfair Display',serif;font-size:.9rem;color:var(--vinho)">${label}</div>${renderTaskList(sortTasks(byAta[aid]))}<div style="height:12px"></div>`;
   }).join("");
 }
 
@@ -1985,6 +1998,17 @@ function renderTaskList(list) {
           : 'display:none'}">
           ${(comentarios[t.id]&&comentarios[t.id].length>0) ? renderComentariosInline(t.id) : ''}
         </div>
+        ${(()=>{
+          const comts=comentarios[t.id]||[];
+          const lastC=comts.length?comts[comts.length-1]:null;
+          const updAt=t.updated_at||t.created_at;
+          const isLastComt=lastC&&lastC.created_at>updAt;
+          const dt=new Date(isLastComt?lastC.created_at:updAt);
+          const label=isLastComt
+            ?`💬 ${lastC.autor_nome} · ${dt.toLocaleDateString('pt-BR')}`
+            :`📅 ${dt.toLocaleDateString('pt-BR')}`;
+          return `<div style="font-size:.68rem;color:var(--muted);margin-top:5px;padding-top:4px">${label}</div>`;
+        })()}
       </div>
     </div>`;
   }).join("");
