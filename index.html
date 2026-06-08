@@ -1127,6 +1127,17 @@ function switchModule(mod){
     }
     if(typeof showScreen==='function')showScreen('screen-login');
   }
+  if(mod==='tarefas'&&window.__portalUser){
+    // Injeta o usuário logado no portal diretamente no módulo Tarefas,
+    // sem precisar esperar o loadConfig (que pode demorar).
+    const pu=window.__portalUser;
+    if(!currentUser||currentUser.id!==pu.id){
+      // Tenta achar no TEAM (pode já estar carregado); caso contrário usa dados do portal
+      const teamMatch=(typeof TEAM!=='undefined')&&TEAM.find(function(u){return u.name===pu.name;});
+      currentUser=teamMatch||{id:pu.id,name:pu.name,photo:'',setor:'',role:pu.role};
+      if(typeof updateHeaderUser==='function')updateHeaderUser();
+    }
+  }
   if(mod==='home')loadDashboard();
 }
 
