@@ -99,7 +99,7 @@
   .ext-tag { font-size:0.58rem; background:var(--vinho); color:white; padding:1px 4px; border-radius:3px; text-transform:uppercase; }
 
   /* TAREFAS MODULE */
-  #module-tarefas.active { position:relative; overflow:hidden; }
+  #module-tarefas.active { position:relative; display:flex; flex-direction:column; overflow:hidden; }
 
   /* DIARIO MODULE */
   #module-diario.active { overflow-y:auto; }
@@ -197,7 +197,7 @@
   #module-tarefas .user-btn .info span {font-size:.74rem;color:var(--muted);}
 
   /* TABS */
-  #module-tarefas nav.tabs {display:flex;background:var(--vinho-pale);border-bottom:2px solid var(--vinho-muted);overflow-x:auto;scrollbar-width:none;}
+  #module-tarefas nav.tabs {display:flex;background:var(--vinho-pale);border-bottom:2px solid var(--vinho-muted);overflow-x:auto;scrollbar-width:none;flex-shrink:0;position:sticky;top:0;z-index:10;}
   #module-tarefas nav.tabs::-webkit-scrollbar {display:none;}
   #module-tarefas .tab {padding:11px 16px;border:none;background:transparent;font-family:inherit;
     font-size:.82rem;font-weight:500;color:var(--muted);cursor:pointer;
@@ -209,7 +209,7 @@
     border-radius:8px;padding:0 4px;margin-left:4px;}
 
   /* MAIN */
-  #module-tarefas main {padding:20px 24px;width:100%;}
+  #module-tarefas main {padding:20px 24px;width:100%;flex:1;overflow-y:auto;}
   #module-tarefas .section-header {display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
   #module-tarefas .section-header h2 {font-family:'Playfair Display',serif;font-size:1.35rem;color:var(--vinho-deep);}
 
