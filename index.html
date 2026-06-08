@@ -1747,7 +1747,12 @@ function renderTodas() {
       .sort((a,b)=>lastActivity(b).localeCompare(lastActivity(a)));
     return[...pending,...done];
   }
-  el.innerHTML=Object.keys(byAta).map(aid=>{
+  // Atas com pendentes primeiro, atas 100% concluidas por ultimo
+  const ataIds=Object.keys(byAta);
+  const atasComPendentes=ataIds.filter(aid=>byAta[aid].some(t=>t.status!=='concluida'&&!t.done));
+  const atasConcluidas=ataIds.filter(aid=>byAta[aid].every(t=>t.status==='concluida'||t.done));
+  const ordenadas=[...atasComPendentes,...atasConcluidas];
+  el.innerHTML=ordenadas.map(aid=>{
     const ata=atas.find(a=>a.id===parseInt(aid));if(!ata)return"";
     const label=ata.avulsa?"📌 Tarefas Avulsas":`📅 ${ata.title} — ${fmtDate(ata.date)}`;
     return`<div style="margin-bottom:6px;font-family:'Playfair Display',serif;font-size:.9rem;color:var(--vinho)">${label}</div>${renderTaskList(sortTasks(byAta[aid]))}<div style="height:12px"></div>`;
@@ -3016,7 +3021,8 @@ function doLogin() {
 
 function showScreen(id) {
   document.querySelectorAll('#module-diario .screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  const el=document.querySelector('#module-diario #'+id);
+  if(el)el.classList.add('active');
   window.scrollTo(0,0);
 }
 
