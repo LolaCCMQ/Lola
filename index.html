@@ -2974,7 +2974,7 @@ async function dbFetchAll() {
   return await res.json();
 }
 
-function showToast(msg, duration=2500) {
+function dgShowToast(msg, duration=2500) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
@@ -3093,7 +3093,7 @@ async function saveChecklist() {
   };
   try {
     await dbInsert(record);
-    showToast('✅ Registro salvo!');
+    dgShowToast('✅ Registro salvo!');
     showScreen('screen-login'); // topbar handled by portal
   } catch(e) {
     alert('Erro ao salvar: ' + e.message);
@@ -3229,7 +3229,7 @@ function getWeekRange(offset) {
   return {start,end};
 }
 
-function fmtDate(dt){ return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`; }
+function dgFmtDate(dt){ return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`; }
 
 async function goReuniao() {
   showScreen('screen-reuniao'); __diario_renderTopbar_disabled('reuniao');
@@ -3247,7 +3247,7 @@ function changeWeek(dir){ currentWeekOffset+=dir; goReuniao(); }
 
 function renderReuniao(){
   const {start,end}=getWeekRange(currentWeekOffset);
-  document.getElementById('week-label').textContent=`${fmtDate(start)} – ${fmtDate(end)}`;
+  document.getElementById('week-label').textContent=`${dgFmtDate(start)} – ${dgFmtDate(end)}`;
   const obsRecords=allRecords.filter(r=>r.obs&&r.obs.trim());
   const byDay={};
   allRecords.forEach(r=>{ if(!byDay[r.date_key]) byDay[r.date_key]=[]; byDay[r.date_key].push(r); });
