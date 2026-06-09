@@ -687,10 +687,12 @@
         <a class="nav-item" href="https://drive.google.com/file/d/1gw6i5pNNsn6693sCXCwV3mYXwdN6NOO7/view" target="_blank"><span class="ni">📄</span><span class="nl">Ficha Admissional</span><span class="na">↗</span></a>
         <a class="nav-item" href="https://docs.google.com/presentation/d/1jlRfMKjxwoiwye5fQfNH7EoChdtaOljT/edit" target="_blank"><span class="ni">⚠️</span><span class="nl">Alergênicos</span><span class="na">↗</span></a>
       </div>
+      <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="dashboard" onclick="openEstoque('dashboard')"><span class="ni">📊</span><span class="nl">Dashboard</span></button><button class="nav-item nav-estoque" data-page="insumos" onclick="openEstoque('insumos')"><span class="ni">🧂</span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" onclick="openEstoque('preproducoes')"><span class="ni">🍳</span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" onclick="openEstoque('fichas')"><span class="ni">📒</span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="contagem" onclick="openEstoque('contagem')"><span class="ni">📦</span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" onclick="openEstoque('saidas')"><span class="ni">📤</span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" onclick="openEstoque('fornecedores')"><span class="ni">🚚</span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" onclick="openEstoque('pedidos')"><span class="ni">🛒</span><span class="nl">Pedidos à Central</span></button></div>
     </nav>
     <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
 
     <main class="portal-content">
+      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
 
       <div class="module-panel active" id="module-home">
   <div class="home-wrap">
@@ -3303,5 +3305,6 @@ function renderReuniao(){
 // topbar handled by portal
 
 </script>
+<script>(function(){function revealEstoque(){try{var role=window.__portalUser&&window.__portalUser.role;var s=document.getElementById('sb-estoque');if(s)s.style.display=(['admin','gerente','compras'].indexOf(role)>=0)?'':'none';}catch(e){}}window.openEstoque=function(page){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-estoque');if(panel)panel.classList.add('active');var btn=document.querySelector('.nav-estoque[data-page="'+page+'"]');if(btn)btn.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Estoque';var f=document.getElementById('estoqueFrame');if(f){if(!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/LolaEstoque/?embed=1&page='+page;}else{try{f.contentWindow.postMessage({type:'lola-nav',page:page},'*');}catch(e){}}}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};if(typeof switchModule==='function'){var _s=switchModule;switchModule=function(){try{document.querySelectorAll('.nav-estoque').forEach(function(n){n.classList.remove('active');});}catch(e){}return _s.apply(this,arguments);};}if(typeof startPortal==='function'){var _o=startPortal;startPortal=function(){var r2=_o.apply(this,arguments);revealEstoque();return r2;};}revealEstoque();setTimeout(revealEstoque,1000);})();</script>
 </body>
 </html>
