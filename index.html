@@ -2955,7 +2955,7 @@ async function dbInsert(record) {
   }
 }
 
-async function dbFetch(dateFrom, dateTo) {
+async function dgDbFetch(dateFrom, dateTo) {
   let url = `${SUPABASE_URL}/rest/v1/${TABLE}?order=date_key.desc,created_at.desc`;
   if (dateFrom) url += `&date_key=gte.${dateFrom}`;
   if (dateTo) url += `&date_key=lte.${dateTo}`;
@@ -3238,7 +3238,7 @@ async function goReuniao() {
   const from=start.toISOString().split('T')[0];
   const to=end.toISOString().split('T')[0];
   try {
-    allRecords=await dbFetch(from,to);
+    allRecords=await dgDbFetch(from,to);
   } catch(e){ allRecords=[]; }
   renderReuniao();
 }
