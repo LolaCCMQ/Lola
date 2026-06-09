@@ -1175,7 +1175,7 @@ async function loadDashboard(){
     taskEl.innerHTML='<div class="dash-card-loading">Carregando...</div>';
     try{
       const tasks=await dbFetch('lola_tasks',
-        'select=id,texto,status,prazo,ata_id&status=neq.concluida&order=created_at.asc'
+        'select=id,texto,status,prazo,ata_id,responsavel&status=neq.concluida&order=created_at.asc'
       );
       // Filter by responsavel containing current user name
       const mine=tasks.filter(t=>{
@@ -1218,20 +1218,22 @@ async function loadDashboard(){
   if(pedEl&&userCan('gerente')){
     pedEl.innerHTML='<div class="dash-card-loading">Carregando...</div>';
     try{
-      const peds=await dbFetch('lola_pedidos_fornecedor',
-        'select=id,fornecedor_nome,status,data_pedido&status=neq.Recebido&order=created_at.desc&limit=6'
+      const peds=await dbFetch('lola_pedidos',
+        'select=id,numero_pedido,unidade,destinatario,status,data_pedido&status=not.in.(recebido_completo,cancelado)&order=created_at.desc&limit=6'
       );
       if(pedCount)pedCount.textContent=peds.length;
       if(peds.length===0){
         pedEl.innerHTML='<div class="dash-card-empty">Nenhum pedido em aberto.</div>';
       } else {
         pedEl.innerHTML=peds.map(p=>{
-          const data=p.data_pedido?new Date(p.data_pedido).toLocaleDateString('pt-BR'):'';
-          const badgeClass={'Rascunho':'badge-rascunho','Enviado':'badge-enviado','Recebido':'badge-recebido'}[p.status]||'badge-rascunho';
+          const data=p.data_pedido?new Date(p.data_pedido+'T00:00:00').toLocaleDateString('pt-BR'):'';
+          const STATUS_PED={em_producao:'Em produção',enviado:'Enviado',aguardando:'Aguardando',recebido_parcial:'Receb. parcial'};
+          const stLabel=STATUS_PED[p.status]||p.status;
+          const nome='Pedido #'+(p.numero_pedido||p.id)+(p.destinatario?(' · '+p.destinatario):(p.unidade?(' · '+String(p.unidade).toUpperCase()):''));
           return `<div class="dash-pedido">
-            <div class="dash-pedido-nome">${p.fornecedor_nome||'Fornecedor'}</div>
+            <div class="dash-pedido-nome">${nome}</div>
             <div class="dash-pedido-data">${data}</div>
-            <span class="status-badge ${badgeClass}">${p.status}</span>
+            <span class="status-badge badge-enviado">${stLabel}</span>
           </div>`;
         }).join('');
       }
@@ -2927,7 +2929,7 @@ const DIAS_FULL = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quin
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CLIMA_LABELS = { ensolarado:'☀️ Ensolarado', nublado:'☁️ Nublado', chuvoso:'🌧️ Chuvoso', temporal:'⛈️ Temporal', muito_frio:'🥶 Muito frio', muito_calor:'🥵 Muito calor', muito_vento:'💨 Muito vento', garoa:'🌦️ Garoa' };
 
-let currentUser='', currentTurno='', currentSection='', currentDateKey='', currentDateLabel='';
+let dgUser='', currentTurno='', currentSection='', currentDateKey='', currentDateLabel='';
 let checked={ abertura:{}, troca:{}, fechamento:{} };
 let calYear=new Date().getFullYear(), calMonth=new Date().getMonth(), allRecords=[];
 let currentWeekOffset=0;
@@ -3012,7 +3014,7 @@ function doLogin() {
   if(!nome){alert('Informe seu nome.');return;}
   if(!currentTurno){alert('Selecione o turno.');return;}
   if(!clima){alert('Selecione o clima.');return;}
-  currentUser=window.__portalUser?.name || nome; currentDateKey=dataVal;
+  dgUser=window.__portalUser?.name || nome; currentDateKey=dataVal;
   const [y,m,d]=dataVal.split('-');
   const dt=new Date(+y,+m-1,+d);
   currentDateLabel=`${DIAS_FULL[dt.getDay()]}, ${d}/${m}/${y}`;
@@ -3078,7 +3080,7 @@ async function saveChecklist() {
   secoes.forEach(s=>{ totais[s]={done:Object.values(checked[s]).filter(Boolean).length,total:CHECKLISTS[s].length}; });
   const record={
     id: Date.now().toString(),
-    gerente: currentUser,
+    gerente: dgUser,
     turno: currentTurno,
     clima,
     data: currentDateLabel,
