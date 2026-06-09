@@ -2996,7 +2996,8 @@ function updateDow() {
 }
 
 function __diario_renderTopbar_disabled(active) {
-  document.getElementById('topbar-nav').innerHTML = [
+  var _tn=document.getElementById('topbar-nav'); if(!_tn) return;
+  _tn.innerHTML = [
     {id:'checklist', label:'Checklist', fn:"showScreen('screen-login'); __diario_renderTopbar_disabled('checklist');"},
     {id:'historico', label:'Histórico', fn:"goHistorico();"},
     {id:'reuniao', label:'Reunião', fn:"goReuniao();"}
@@ -3306,6 +3307,6 @@ function renderReuniao(){
 // topbar handled by portal
 
 </script>
-<script>(function(){function revealEstoque(){try{var role=window.__portalUser&&window.__portalUser.role;var s=document.getElementById('sb-estoque');if(s)s.style.display=(['admin','gerente','compras'].indexOf(role)>=0)?'':'none';}catch(e){}}window.openEstoque=function(page){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-estoque');if(panel)panel.classList.add('active');var btn=document.querySelector('.nav-estoque[data-page="'+page+'"]');if(btn)btn.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Estoque';var f=document.getElementById('estoqueFrame');if(f){if(!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/LolaEstoque/?embed=1&page='+page;}else{try{f.contentWindow.postMessage({type:'lola-nav',page:page},'*');}catch(e){}}}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};if(typeof switchModule==='function'){var _s=switchModule;switchModule=function(){try{document.querySelectorAll('.nav-estoque').forEach(function(n){n.classList.remove('active');});}catch(e){}return _s.apply(this,arguments);};}if(typeof startPortal==='function'){var _o=startPortal;startPortal=function(){var r2=_o.apply(this,arguments);revealEstoque();return r2;};}revealEstoque();setTimeout(revealEstoque,1000);})();</script>
+<script>(function(){function revealEstoque(){try{var role=window.__portalUser&&window.__portalUser.role;var s=document.getElementById('sb-estoque');if(s)s.style.display=(['admin','gerente','compras'].indexOf(role)>=0)?'':'none';}catch(e){}}window.openEstoque=function(page){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-estoque');if(panel)panel.classList.add('active');var btn=document.querySelector('.nav-estoque[data-page="'+page+'"]');if(btn)btn.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Estoque';var f=document.getElementById('estoqueFrame');if(f){if(!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/LolaEstoque/?embed=1&page='+page;}else{try{f.contentWindow.postMessage({type:'lola-nav',page:page},'*');}catch(e){}}}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};if(typeof switchModule==='function'){var _s=switchModule;switchModule=function(){try{document.querySelectorAll('.nav-estoque').forEach(function(n){n.classList.remove('active');});}catch(e){}return _s.apply(this,arguments);};}if(typeof startPortal==='function'){var _o=startPortal;startPortal=function(){var r2=_o.apply(this,arguments);revealEstoque();return r2;};}revealEstoque();setInterval(revealEstoque,500);})();</script>
 </body>
 </html>
