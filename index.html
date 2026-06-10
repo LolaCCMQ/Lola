@@ -3320,6 +3320,7 @@ function updateDow() {
   el.style.color = (dow===0||dow===1) ? '#c0392b' : 'var(--red)';
 }
 
+function renderTopbar(active){ try{ __diario_renderTopbar_disabled(active); }catch(e){} }
 function __diario_renderTopbar_disabled(active) {
   var _tn=document.getElementById('topbar-nav'); if(!_tn) return;
   _tn.innerHTML = [
@@ -3349,7 +3350,7 @@ function doLogin() {
   currentDateLabel=`${DIAS_FULL[dt.getDay()]}, ${d}/${m}/${y}`;
   checked={abertura:{},troca:{},fechamento:{}};
   currentSection=SECOES_POR_TURNO[currentTurno][0];
-  document.getElementById('topbar-user-icon').textContent=nome.charAt(0).toUpperCase();
+  var _tui=document.getElementById('topbar-user-icon'); if(_tui) _tui.textContent=nome.charAt(0).toUpperCase();
   document.getElementById('checklist-info-box').innerHTML=`
     <div>
       <div style="font-size:14px;font-weight:500;">${currentDateLabel}</div>
