@@ -829,7 +829,12 @@
     <input type="hidden" id="editAtaId">
     <div class="form-group">
       <label>Título</label>
-      <input type="text" id="editAtaTitle">
+      <input type="text" id="editAtaTitle" oninput="onAtaTextInput('editAta')">
+    </div>
+    <div id="editAtaSugestoes" class="sug-box" style="display:none"></div>
+    <div class="form-group">
+      <label>Assunto / tema</label>
+      <input type="text" id="editAtaAssunto" list="assuntosList" placeholder="Ex: Câmara fria, Cardápio, Fornecedor X...">
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <div class="form-group" style="flex:1;min-width:130px">
@@ -903,7 +908,12 @@
     <div class="card">
       <div class="form-group">
         <label>Título da reunião</label>
-        <input type="text" id="novaTitle" placeholder="Ex: Reunião semanal de liderança">
+        <input type="text" id="novaTitle" placeholder="Ex: Reunião semanal de liderança" oninput="onAtaTextInput('nova')">
+      </div>
+      <div id="novaSugestoes" class="sug-box" style="display:none"></div>
+      <div class="form-group">
+        <label>Assunto / tema <span style="font-size:.7rem;color:var(--muted);font-weight:400;text-transform:none">— conecta reuniões do mesmo tema</span></label>
+        <input type="text" id="novaAssunto" list="assuntosList" placeholder="Ex: Câmara fria, Cardápio, Fornecedor X...">
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div class="form-group" style="flex:1;min-width:140px">
@@ -1752,9 +1762,9 @@ async function loadAtas() {
   atas = await api.get("lola_atas", "select=*&order=created_at.desc");
 }
 
-async function criarAta(title, date, conteudo, avulsa, categoria) {
+async function criarAta(title, date, conteudo, avulsa, categoria, assunto) {
   const rows = await api.post("lola_atas", {
-    title, date, conteudo, avulsa: avulsa||false, categoria: categoria||"",
+    title, date, conteudo, avulsa: avulsa||false, categoria: categoria||"", assunto: assunto||"",
     autor_nome: currentUser ? currentUser.name : "",
     autor_id: currentUser ? currentUser.id : ""
   });
@@ -1825,7 +1835,7 @@ function buscarSimilares(texto, excludeId){
   });
   (atas||[]).forEach(function(a){
     if(a.avulsa) return;
-    var hay=_norm((a.title||'')+' '+(a.conteudo||'')); var sc=0;
+    var hay=_norm((a.title||'')+' '+(a.conteudo||'')+' '+(a.assunto||'')); var sc=0;
     toks.forEach(function(w){ if(hay.indexOf(w)>=0) sc++; });
     if(sc>0) out.push({kind:'ata',id:a.id,score:sc,a:a});
   });
@@ -1895,6 +1905,22 @@ function relsOf(t){
 }
 function filtrarAssunto(a){ window.__filtroAssunto=a; switchTab('todas'); }
 function limparFiltroAssunto(){ window.__filtroAssunto=null; renderTodas(); }
+function onAtaTextInput(prefix){ clearTimeout(window.__asugT); window.__asugT=setTimeout(function(){ renderAtaSugestoes(prefix); },250); }
+function renderAtaSugestoes(prefix){
+  var box=document.getElementById(prefix+'Sugestoes'); if(!box) return;
+  var tEl=document.getElementById(prefix+'Title'), aEl=document.getElementById(prefix+'Assunto');
+  var txt=((tEl?tEl.value:'')+' '+(aEl?aEl.value:'')).trim();
+  var curAta=null; if(prefix==='editAta'){ var v=document.getElementById('editAtaId').value; curAta=v?parseInt(v):null; }
+  var res=(txt.length>=3)?buscarSimilares(txt,null).filter(function(r){return !(r.kind==='ata'&&r.id===curAta);}):[];
+  if(!res.length){ box.style.display='none'; box.innerHTML=''; return; }
+  var stMap={a_fazer:'A fazer',em_andamento:'Em andamento',em_orcamento:'Em orçamento',aguardando:'Aguard. aprovação',concluida:'Concluída'};
+  var h='<div class="sug-head">🔎 Já falamos disso? Abra a reunião/tarefa do mesmo assunto:</div>';
+  res.forEach(function(r){
+    if(r.kind==='ata'){ var a=r.a; h+='<div class="sug-item"><div class="sug-txt">📄 '+_esc((a.title||'').slice(0,60))+'<span class="sug-sub">'+_esc(fmtDate(a.date))+(a.assunto?' · 🏷 '+_esc(a.assunto):'')+'</span></div><div class="sug-acts"><button type="button" onclick="irAta('+a.id+')">Abrir ata</button></div></div>'; }
+    else { var t=r.t; var ata=atas.find(function(x){return x.id===t.ata_id;}); var sub=(ata?(ata.avulsa?'Avulsa':_esc(ata.title)):'')+' · '+(stMap[t.status||'a_fazer']||''); h+='<div class="sug-item"><div class="sug-txt">📋 '+_esc((t.texto||'').slice(0,60))+'<span class="sug-sub">'+sub+'</span></div><div class="sug-acts"><button type="button" onclick="irTask('+t.id+')">Abrir</button></div></div>'; }
+  });
+  box.innerHTML=h; box.style.display='block';
+}
 async function toggleTaskDB(id, done) {
 
   await api.patch("lola_tasks", { done }, `id=eq.${id}`);
@@ -1983,6 +2009,9 @@ function switchTabNova() {
   document.getElementById("novaTitle").value="";
   document.getElementById("novaData").value=new Date().toISOString().slice(0,10);
   document.getElementById("novaConteudo").value="";
+  var _na=document.getElementById("novaAssunto"); if(_na)_na.value="";
+  var _ns=document.getElementById("novaSugestoes"); if(_ns){_ns.style.display='none';_ns.innerHTML='';}
+  if(typeof popularAssuntos==='function') popularAssuntos();
   populateCatSelects();
   addTaskRow(); switchTab("nova");
 }
@@ -2107,11 +2136,13 @@ function renderAtas() {
   function cardHtml(a) {
     const at=tasks.filter(t=>t.ata_id===a.id), fe=at.filter(t=>t.done).length, ok=at.length>0&&fe===at.length;
     const catTag = a.categoria ? `<span class="tag tag-cat">🏷️ ${a.categoria}</span>` : "";
+    const assTag = a.assunto ? `<span class="tag tag-assunto" onclick="event.stopPropagation();filtrarAssunto('${_escA(a.assunto)}')">🏷 ${_esc(a.assunto)}</span>` : "";
     const chips = hashtagChips((a.title||"")+" "+(a.conteudo||""));
     return `<div class="card ${ok?"concluida":""}" onclick="abrirAta(${a.id})" style="cursor:pointer">
       <div class="card-meta"><span class="card-date">📅 ${fmtDate(a.date)}</span>
         <span class="status-pill ${ok?"status-done":"status-open"}">${ok?"✓ Concluída":"Em andamento"}</span>
         ${catTag}
+        ${assTag}
         ${a.autor_nome ? `<span style="font-size:.72rem;color:var(--muted)">por ${a.autor_nome}</span>` : ""}
       </div>
       <div class="card-title">${q?highlight(a.title,q):a.title}</div>
@@ -2658,10 +2689,11 @@ async function salvarAta() {
   const date=document.getElementById("novaData").value;
   const conteudo=document.getElementById("novaConteudo").value.trim();
   const categoria=document.getElementById("novaCategoria")?.value||"";
+  const assunto=document.getElementById("novaAssunto")?.value.trim()||"";
   if (!title||!date){alert("Preencha o título e a data.");return;}
   showToast("Salvando ata...");
   try {
-    const novaAta = await criarAta(title, date, conteudo, false, categoria);
+    const novaAta = await criarAta(title, date, conteudo, false, categoria, assunto);
     atas.unshift(novaAta);
     const rows = document.querySelectorAll("#taskRows .task-builder-row");
     for (const row of rows) {
@@ -2890,6 +2922,9 @@ function abrirEditModal(ataId) {
   document.getElementById("editAtaConteudo").value = ata.conteudo||"";
   populateCatSelects();
   document.getElementById("editAtaCategoria").value = ata.categoria||"";
+  var _aa=document.getElementById("editAtaAssunto"); if(_aa)_aa.value=ata.assunto||"";
+  var _as=document.getElementById("editAtaSugestoes"); if(_as){_as.style.display='none';_as.innerHTML='';}
+  if(typeof popularAssuntos==='function') popularAssuntos();
   // Render existing tasks for this ata
   const ataTasks = tasks.filter(t => t.ata_id === ataId);
   const container = document.getElementById("editTaskRows");
@@ -2950,13 +2985,14 @@ async function salvarEdicaoAta() {
   const date = document.getElementById("editAtaData").value;
   const conteudo = document.getElementById("editAtaConteudo").value.trim();
   const categoria = document.getElementById("editAtaCategoria").value;
+  const assunto = document.getElementById("editAtaAssunto")?.value.trim()||"";
   if (!title||!date){alert("Preencha o título e a data.");return;}
   showToast("Salvando...");
   try {
     // Save ata
-    await api.patch("lola_atas", {title,date,conteudo,categoria}, `id=eq.${id}`);
+    await api.patch("lola_atas", {title,date,conteudo,categoria,assunto}, `id=eq.${id}`);
     const ata = atas.find(a=>a.id===id);
-    if(ata){ata.title=title;ata.date=date;ata.conteudo=conteudo;ata.categoria=categoria;}
+    if(ata){ata.title=title;ata.date=date;ata.conteudo=conteudo;ata.categoria=categoria;ata.assunto=assunto;}
 
     // Save new/updated tasks
     const rows = document.querySelectorAll("#editTaskRows .task-builder-row");
