@@ -676,6 +676,7 @@
         <span class="sb-label">Aplicativos</span>
         <button class="nav-item" data-mod="tarefas" onclick="switchModule('tarefas')"><span class="ni">📋</span><span class="nl">Reuniões & Tarefas</span></button>
         <button class="nav-item" data-mod="diario" onclick="switchModule('diario')"><span class="ni">📓</span><span class="nl">Diário de Gerentes</span></button>
+        <button class="nav-item" data-mod="compras" onclick="switchModule('compras')"><span class="ni">🛒</span><span class="nl">Lista de Compras</span></button>
         
         
       </div>
@@ -710,6 +711,7 @@
       <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-manutencoes"><iframe id="manutFrame" title="Manutenções" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-usuarios"></div>
+      <div class="module-panel" id="module-compras"></div>
 
       <div class="module-panel active" id="module-home">
   <div class="home-wrap">
@@ -1181,7 +1183,7 @@ function switchModule(mod){
   if(panel)panel.classList.add('active');
   const btn=document.querySelector('.nav-item[data-mod="'+mod+'"]');
   if(btn)btn.classList.add('active');
-  const NAMES={home:'',tarefas:'Reuniões & Tarefas',diario:'Diário de Gerentes',usuarios:'Usuários'};
+  const NAMES={home:'',tarefas:'Reuniões & Tarefas',diario:'Diário de Gerentes',usuarios:'Usuários',compras:'Lista de Compras'};
   document.getElementById('phModname').textContent=NAMES[mod]||'';
   closeSidebar();
   if(mod==='diario'&&window.__portalUser){
@@ -1206,6 +1208,7 @@ function switchModule(mod){
     }
   }
   if(mod==='usuarios' && typeof renderUsuarios==='function') renderUsuarios();
+  if(mod==='compras' && typeof renderCompras==='function') renderCompras();
   if(mod==='home'){['dashTasks','dashPedidos','dashEquip','dashRevisar','dashMargem'].forEach(function(id){var e=document.getElementById(id);if(e)e.dataset.loaded='';});loadDashboard();}
 }
 
@@ -1407,6 +1410,72 @@ async function admAddUser(){
   const h=await sha256hex(senha);
   try{ await adminRpc('portal_admin_create_user',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_name:nome,p_password_hash:h,p_role:papel}); renderUsuarios(); }
   catch(e){ if(er) er.textContent='Erro: '+e.message; }
+}
+
+function _escC(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+async function comprasWrite(method, body, params){
+  return fetch(`${PORTAL_URL}/rest/v1/lola_lista_compras${params||''}`,{
+    method:method,
+    headers:{'Content-Type':'application/json','apikey':PORTAL_KEY,'Authorization':'Bearer '+PORTAL_KEY,'Prefer':'return=representation'},
+    body:body?JSON.stringify(body):undefined
+  });
+}
+function _rowCompra(i){
+  return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1.5px solid var(--border);border-radius:10px;margin-bottom:7px'+(i.comprado?';opacity:.6':'')+'">'
+    +'<input type="checkbox" '+(i.comprado?'checked':'')+' onchange="toggleCompra('+i.id+',this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:var(--vinho);flex-shrink:0">'
+    +'<div style="flex:1;min-width:0"><div style="font-size:.9rem;font-weight:600'+(i.comprado?';text-decoration:line-through;color:var(--muted)':'')+'">'+_escC(i.item)+(i.quantidade?' <span style="font-weight:400;color:var(--muted)">· '+_escC(i.quantidade)+'</span>':'')+'</div><div style="font-size:.7rem;color:var(--muted)">'+(i.adicionado_por?('por '+_escC(i.adicionado_por)):'')+(i.comprado&&i.comprado_por?(' · comprado por '+_escC(i.comprado_por)):'')+'</div></div>'
+    +'<button onclick="delCompra('+i.id+')" title="Remover" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem">🗑</button>'
+    +'</div>';
+}
+async function renderCompras(){
+  const panel=document.getElementById('module-compras'); if(!panel) return;
+  panel.style.overflowY='auto';
+  panel.innerHTML='<div style="padding:22px 26px;color:var(--muted)">Carregando…</div>';
+  let itens=[];
+  try{ itens=await dbFetch('lola_lista_compras','select=id,item,quantidade,adicionado_por,comprado,comprado_por,created_at&order=created_at.asc'); }
+  catch(e){ panel.innerHTML='<div style="padding:24px;color:var(--muted)">Não foi possível carregar a lista.</div>'; return; }
+  const aComprar=(itens||[]).filter(i=>!i.comprado), comprados=(itens||[]).filter(i=>i.comprado);
+  const sec='font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:14px 0 8px';
+  let html='<div style="padding:22px 26px;max-width:680px">';
+  html+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:4px">Lista de Compras</h2>';
+  html+='<p style="color:var(--muted);font-size:.84rem;margin-bottom:16px">O caderninho da equipe — todos podem adicionar e marcar como comprado.</p>';
+  html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">';
+  html+='<input id="lcItem" placeholder="O que precisa comprar?" onkeydown="if(event.key===\'Enter\')addCompra()" style="flex:2;min-width:150px;font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;background:#fff;color:var(--ink)">';
+  html+='<input id="lcQtd" placeholder="Qtd (opcional)" onkeydown="if(event.key===\'Enter\')addCompra()" style="flex:1;min-width:100px;font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;background:#fff;color:var(--ink)">';
+  html+='<button onclick="addCompra()" style="background:var(--vinho);color:#fff;border:none;border-radius:9px;padding:10px 18px;font-weight:600;cursor:pointer;font-family:inherit">＋ Adicionar</button>';
+  html+='</div>';
+  html+='<div style="'+sec+'">A comprar ('+aComprar.length+')</div>';
+  html+= aComprar.length ? aComprar.map(_rowCompra).join('') : '<div style="color:var(--muted);font-size:.85rem;padding:6px 0 10px">Nada na lista por enquanto. 🎉</div>';
+  if(comprados.length){
+    html+='<div style="'+sec+'">Comprados ('+comprados.length+')</div>';
+    html+=comprados.map(_rowCompra).join('');
+    html+='<button onclick="limparComprados()" style="margin-top:8px;background:var(--warm);border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:.78rem;cursor:pointer;font-family:inherit;color:var(--muted)">Limpar comprados</button>';
+  }
+  html+='</div>';
+  panel.innerHTML=html;
+}
+async function addCompra(){
+  const it=document.getElementById('lcItem'), qt=document.getElementById('lcQtd');
+  if(!it) return;
+  const item=(it.value||'').trim(); if(!item) return;
+  const quantidade=(qt&&qt.value||'').trim();
+  const por=(window.__portalUser&&window.__portalUser.name)||'';
+  try{ await comprasWrite('POST',{item:item,quantidade:quantidade,adicionado_por:por,comprado:false}); renderCompras(); }
+  catch(e){ alert('Erro ao adicionar.'); }
+}
+async function toggleCompra(id, comprado){
+  const por=comprado?((window.__portalUser&&window.__portalUser.name)||''):null;
+  try{ await comprasWrite('PATCH',{comprado:comprado,comprado_por:por},'?id=eq.'+id); renderCompras(); }
+  catch(e){ alert('Erro ao atualizar.'); }
+}
+async function delCompra(id){
+  try{ await comprasWrite('DELETE',null,'?id=eq.'+id); renderCompras(); }
+  catch(e){ alert('Erro ao remover.'); }
+}
+async function limparComprados(){
+  if(!confirm('Remover todos os itens já comprados da lista?')) return;
+  try{ await comprasWrite('DELETE',null,'?comprado=eq.true'); renderCompras(); }
+  catch(e){ alert('Erro ao limpar.'); }
 }
 
 function startPortal(){
