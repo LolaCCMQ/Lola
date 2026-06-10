@@ -786,6 +786,7 @@
   <button class="tab" data-tab="minhas" onclick="switchTab('minhas')">✅ Minhas <span class="badge" id="bMinhas">0</span></button>
   <button class="tab" data-tab="pessoas" onclick="switchTab('pessoas')">👤 Por Pessoa</button>
   <button class="tab" data-tab="todas" onclick="switchTab('todas')">📋 Todas <span class="badge" id="bTodas">0</span></button>
+  <button class="tab" data-tab="busca" onclick="switchTab('busca')">🔍 Busca</button>
   <button class="tab" data-tab="nova" onclick="switchTabNova()">＋ Nova Ata</button>
   <button class="tab" data-tab="novatarefa" onclick="switchTab('novatarefa')">＋ Nova Tarefa</button>
   <button class="tab" data-tab="recorrente" onclick="switchTab('recorrente')">🔁 Recorrente</button>
@@ -863,6 +864,14 @@
   <div id="tab-todas" class="hidden">
     <div class="section-header"><h2>Todas as Tarefas</h2></div>
     <div id="listTodas"></div>
+  </div>
+
+  <!-- BUSCA -->
+  <div id="tab-busca" class="hidden">
+    <div class="section-header"><h2>Busca</h2></div>
+    <input id="buscaInput" type="text" placeholder="Buscar por palavra, título ou etiqueta… (ex.: Copa do Mundo)" oninput="renderBusca()" style="width:100%;font-family:inherit;font-size:.92rem;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:8px;background:#fff;color:var(--ink)">
+    <div id="buscaCats" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <div id="buscaResultados"></div>
   </div>
 
   <!-- NOVA ATA -->
@@ -1619,13 +1628,14 @@ function initials(n) { return n.split(" ").map(w=>w[0]).slice(0,2).join("").toUp
 // ═══════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════
-const ALL_TABS = ["atas","minhas","pessoas","todas","nova","novatarefa","recorrente","detalhe","config"];
+const ALL_TABS = ["atas","minhas","pessoas","todas","busca","nova","novatarefa","recorrente","detalhe","config"];
 function switchTab(tab) {
   currentTab = tab;
   ALL_TABS.forEach(t => document.getElementById("tab-"+t).classList.toggle("hidden", t!==tab));
   document.querySelectorAll(".tab").forEach(el => el.classList.toggle("active", el.dataset.tab===tab));
   if (tab==="config") renderConfigTab();
   if (tab==="pessoas") renderPessoas();
+  if (tab==="busca") { renderBusca(); setTimeout(function(){var bi=document.getElementById("buscaInput"); if(bi) bi.focus();},50); }
   if (tab==="novatarefa") {
     initNovaTarefaTab();
     // Retry after DB loads if team/categorias still empty
@@ -1653,6 +1663,71 @@ function updateBadges() {
   document.getElementById("bTodas").textContent = tasks.filter(t=>!t.done).length;
 }
 
+function extractHashtags(text){
+  if(!text) return [];
+  var m = String(text).match(/#[0-9A-Za-zÀ-ÿ_]+/g);
+  if(!m) return [];
+  var seen={}, out=[];
+  m.forEach(function(h){ var k=h.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(h); } });
+  return out;
+}
+function hashtagChips(text){
+  var tags=extractHashtags(text);
+  if(!tags.length) return "";
+  return tags.map(function(h){
+    return '<span onclick="event.stopPropagation(); buscarPor(\''+h+'\')" style="cursor:pointer;font-size:.67rem;font-weight:600;padding:2px 8px;border-radius:20px;background:#EDE9FE;color:#5B21B6;display:inline-block;margin-right:3px">'+h+'</span>';
+  }).join("");
+}
+function buscarPor(termo){ var inp=document.getElementById("buscaInput"); if(inp){ inp.value=termo; } if(typeof switchTab==="function"&&currentTab!=="busca"){ switchTab("busca"); } renderBusca(); }
+function renderBusca() {
+  var inp = document.getElementById("buscaInput");
+  var raw = inp ? inp.value.trim() : "";
+  var q = raw.toLowerCase();
+  var catsEl = document.getElementById("buscaCats");
+  if (catsEl) {
+    var catHtml = (CATEGORIAS||[]).map(function(c){
+      return '<button onclick="buscarPor(\''+c+'\')" style="padding:5px 12px;border-radius:20px;border:2px solid var(--vinho-muted);background:#fff;color:var(--vinho);font-family:inherit;font-size:.76rem;font-weight:600;cursor:pointer">🏷️ '+c+'</button>';
+    }).join("");
+    var hseen={}, horder=[];
+    function _coll(txt){ extractHashtags(txt).forEach(function(h){ var k=h.toLowerCase(); if(!hseen[k]){ hseen[k]=h; horder.push(k); } }); }
+    (atas||[]).forEach(function(a){ _coll((a.title||"")+" "+(a.conteudo||"")); });
+    (tasks||[]).forEach(function(tk){ _coll(tk.texto); });
+    var tagHtml = horder.map(function(k){ var h=hseen[k]; return '<span onclick="buscarPor(\''+h+'\')" style="cursor:pointer;font-size:.72rem;font-weight:600;padding:5px 11px;border-radius:20px;background:#EDE9FE;color:#5B21B6">'+h+'</span>'; }).join("");
+    catsEl.innerHTML = catHtml + tagHtml;
+  }
+  var el = document.getElementById("buscaResultados");
+  if (!el) return;
+  if (!q) { el.innerHTML = '<div class="empty"><div class="icon">🔍</div><p>Digite uma palavra, título ou etiqueta para buscar em todas as atas e tarefas.</p></div>'; return; }
+  function norm(s){ return (s==null?"":String(s)).toLowerCase(); }
+  function ataMatch(a){ return norm(a.title).indexOf(q)>=0 || norm(a.conteudo).indexOf(q)>=0 || norm(a.categoria).indexOf(q)>=0 || norm(a.autor_nome).indexOf(q)>=0; }
+  var atasMatch = (atas||[]).filter(function(a){ return !a.avulsa && ataMatch(a); });
+  function taskMatch(tk){
+    if (norm(tk.texto).indexOf(q)>=0) return true;
+    try { var r=parseResponsaveis(tk.responsavel); var nm=r.map(function(id){var u=(TEAM||[]).find(function(x){return x.id===id;}); return u?norm(u.name):"";}).join(" "); if (nm.indexOf(q)>=0) return true; } catch(e){}
+    var pa=(atas||[]).find(function(a){return a.id===tk.ata_id;});
+    if (pa && ataMatch(pa)) return true;
+    return false;
+  }
+  var tasksMatch = (tasks||[]).filter(taskMatch);
+  var html = '<div style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Resultados para \"<strong>'+raw+'</strong>\": '+atasMatch.length+' ata(s) · '+tasksMatch.length+' tarefa(s)</div>';
+  html += '<div class="tasks-header" style="margin-top:6px">📄 Atas ('+atasMatch.length+')</div>';
+  if (atasMatch.length) {
+    html += atasMatch.map(function(a){
+      var catTag = a.categoria ? '<span class="tag tag-cat">🏷️ '+a.categoria+'</span>' : "";
+      var at = (tasks||[]).filter(function(t){return t.ata_id===a.id;});
+      return '<div class="card" onclick="abrirAta('+a.id+')" style="cursor:pointer">'
+        + '<div class="card-meta"><span class="card-date">📅 '+fmtDate(a.date)+'</span>'+catTag+(a.autor_nome?'<span style="font-size:.72rem;color:var(--muted)">por '+a.autor_nome+'</span>':"")+'</div>'
+        + '<div class="card-title">'+a.title+'</div>'
+        + '<div class="card-excerpt">'+formatText(a.conteudo||"")+'</div>'
+        + '<div style="margin:4px 0 2px">'+hashtagChips((a.title||"")+" "+(a.conteudo||""))+'</div>'
+        + '<div class="card-actions"><span class="task-count">📌 '+at.length+' tarefa'+(at.length!==1?"s":"")+'</span></div>'
+        + '</div>';
+    }).join("");
+  } else { html += '<div style="color:var(--muted);font-size:.83rem;padding:7px 0 14px">Nenhuma ata encontrada.</div>'; }
+  html += '<div class="tasks-header" style="margin-top:18px">📌 Tarefas ('+tasksMatch.length+')</div>';
+  html += tasksMatch.length ? renderTaskList(tasksMatch) : '<div style="color:var(--muted);font-size:.83rem;padding:7px 0">Nenhuma tarefa encontrada.</div>';
+  el.innerHTML = html;
+}
 function renderAtas() {
   const el = document.getElementById("listAtas");
   const filtroEl = document.getElementById("filtroCategoria");
@@ -1686,6 +1761,7 @@ function renderAtas() {
       </div>
       <div class="card-title">${a.title}</div>
       <div class="card-excerpt">${formatText(a.conteudo||"")}</div>
+      <div style="margin:4px 0 2px">${hashtagChips((a.title||"")+" "+(a.conteudo||""))}</div>
       <div class="card-actions">
         <button class="btn btn-ghost btn-sm" onclick="abrirAta(${a.id})">Ver detalhes</button>
         <button class="btn btn-ghost btn-sm" onclick="abrirEditModal(${a.id})">✏️ Editar</button>
@@ -2043,6 +2119,7 @@ function renderTaskList(list) {
         <div class="task-tags">
           ${pessoasTags}
           ${ataTag}
+          ${hashtagChips(t.texto)}
           ${(t.obs && t.obs.startsWith("🔁")) ? `<span class="tag" style="background:#EDE9FE;color:#5B21B6;text-transform:none;font-size:.73rem">${t.obs}</span>` : ""}
           ${t.prazo ? (()=>{
             const hoje = new Date().toISOString().slice(0,10);
