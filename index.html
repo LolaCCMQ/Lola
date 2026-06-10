@@ -792,6 +792,14 @@
 
     </div>
 
+    <!-- Bloquinho pessoal -->
+    <div class="dash-card" id="notepadCard" style="margin-top:18px">
+      <div class="dash-card-header">
+        <div class="dash-card-title"><span class="icon">📝</span> Meu bloquinho <span id="notepadStatus" style="font-size:.68rem;color:var(--muted);font-weight:400;margin-left:6px"></span></div>
+      </div>
+      <textarea id="notepadText" placeholder="Suas anotações pessoais — só você vê. Salva sozinho." oninput="notepadOnInput()" style="width:100%;min-height:130px;resize:vertical;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-family:inherit;font-size:.9rem;color:var(--ink);background:#fffdf7;line-height:1.55;box-sizing:border-box"></textarea>
+    </div>
+
     <!-- Acesso rápido -->
     <div style="margin-top:20px;">
       <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:10px;">Acesso rápido</div>
@@ -1290,6 +1298,43 @@ async function loadDashboard(){
   loadDashTasks();
   loadDashCompras();
   if(userCan('gerente')){ loadDashPedidos(); loadDashEquip(); loadDashRevisar(); loadDashMargem(); }
+  notepadLoad();
+}
+function _notepadUid(){ var u=window.__portalUser||currentUser; return u?u.id:null; }
+async function notepadLoad(){
+  var ta=document.getElementById('notepadText'); if(!ta) return;
+  var st=document.getElementById('notepadStatus');
+  var uid=_notepadUid();
+  if(!uid){ ta.value=''; ta.disabled=true; ta.placeholder='Selecione seu nome no topo para usar o bloquinho.'; if(st)st.textContent=''; return; }
+  if(ta.dataset.loadedfor===uid) return;
+  ta.disabled=false; ta.placeholder='Suas anotações pessoais — só você vê. Salva sozinho.';
+  try{
+    var rows=await api.get('lola_notas','user_id=eq.'+encodeURIComponent(uid)+'&select=conteudo');
+    ta.value=(rows&&rows[0])?(rows[0].conteudo||''):'';
+    window.__notepadExists=!!(rows&&rows[0]);
+    ta.dataset.loadedfor=uid;
+  }catch(e){ window.__notepadExists=false; }
+}
+function notepadOnInput(){
+  clearTimeout(window.__npT);
+  var st=document.getElementById('notepadStatus'); if(st)st.textContent='editando…';
+  window.__npT=setTimeout(notepadSave,800);
+}
+async function notepadSave(){
+  var uid=_notepadUid(); if(!uid) return;
+  var ta=document.getElementById('notepadText'); if(!ta) return;
+  var st=document.getElementById('notepadStatus'); if(st)st.textContent='salvando…';
+  var conteudo=ta.value;
+  try{
+    if(window.__notepadExists){
+      await api.patch('lola_notas',{conteudo:conteudo,updated_at:new Date().toISOString()},'user_id=eq.'+encodeURIComponent(uid));
+    } else {
+      try{ await api.post('lola_notas',{user_id:uid,conteudo:conteudo}); }
+      catch(e2){ await api.patch('lola_notas',{conteudo:conteudo,updated_at:new Date().toISOString()},'user_id=eq.'+encodeURIComponent(uid)); }
+      window.__notepadExists=true;
+    }
+    if(st){ st.textContent='✓ salvo'; setTimeout(function(){ if(st&&st.textContent==='✓ salvo')st.textContent=''; },1600); }
+  }catch(e){ if(st)st.textContent='erro ao salvar'; }
 }
 
 async function loadDashTasks(){
