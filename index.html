@@ -829,9 +829,8 @@
     <input type="hidden" id="editAtaId">
     <div class="form-group">
       <label>Título</label>
-      <input type="text" id="editAtaTitle" oninput="onAtaTextInput('editAta')">
+      <input type="text" id="editAtaTitle">
     </div>
-    <div id="editAtaSugestoes" class="sug-box" style="display:none"></div>
     <div class="form-group">
       <label>Assunto / tema</label>
       <input type="text" id="editAtaAssunto" list="assuntosList" placeholder="Ex: Câmara fria, Cardápio, Fornecedor X...">
@@ -850,7 +849,8 @@
     </div>
     <div class="form-group">
       <label>Conteúdo</label>
-      <textarea id="editAtaConteudo" style="min-height:90px"></textarea>
+      <textarea id="editAtaConteudo" style="min-height:90px" oninput="onAtaTextInput('editAta')"></textarea>
+      <div id="editAtaSugestoes" class="sug-box" style="display:none;margin-top:8px"></div>
     </div>
     <div style="margin-top:16px;padding-top:14px;border-top:2px solid var(--vinho-pale)">
       <div style="font-size:.73rem;font-weight:600;color:var(--vinho-deep);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">📌 Tarefas desta ata</div>
@@ -908,9 +908,8 @@
     <div class="card">
       <div class="form-group">
         <label>Título da reunião</label>
-        <input type="text" id="novaTitle" placeholder="Ex: Reunião semanal de liderança" oninput="onAtaTextInput('nova')">
+        <input type="text" id="novaTitle" placeholder="Ex: Reunião semanal de liderança">
       </div>
-      <div id="novaSugestoes" class="sug-box" style="display:none"></div>
       <div class="form-group">
         <label>Assunto / tema <span style="font-size:.7rem;color:var(--muted);font-weight:400;text-transform:none">— conecta reuniões do mesmo tema</span></label>
         <input type="text" id="novaAssunto" list="assuntosList" placeholder="Ex: Câmara fria, Cardápio, Fornecedor X...">
@@ -929,7 +928,8 @@
       </div>
       <div class="form-group">
         <label>Conteúdo da ata <span style="font-size:.7rem;color:var(--muted);font-weight:400;text-transform:none">— use **texto** para negrito</span></label>
-        <textarea id="novaConteudo" placeholder="Cole ou escreva aqui o conteúdo da ata..."></textarea>
+        <textarea id="novaConteudo" placeholder="Cole ou escreva aqui o conteúdo da ata..." oninput="onAtaTextInput('nova')"></textarea>
+        <div id="novaSugestoes" class="sug-box" style="display:none;margin-top:8px"></div>
         <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <button class="btn btn-ai btn-sm" onclick="gerarTarefasAI()">
             <span id="aiSpinner" class="hidden"><span class="spinner"></span></span>
@@ -1835,7 +1835,7 @@ function buscarSimilares(texto, excludeId){
   });
   (atas||[]).forEach(function(a){
     if(a.avulsa) return;
-    var hay=_norm((a.title||'')+' '+(a.conteudo||'')+' '+(a.assunto||'')); var sc=0;
+    var hay=_norm((a.conteudo||'')+' '+(a.assunto||'')); var sc=0;
     toks.forEach(function(w){ if(hay.indexOf(w)>=0) sc++; });
     if(sc>0) out.push({kind:'ata',id:a.id,score:sc,a:a});
   });
@@ -1908,8 +1908,8 @@ function limparFiltroAssunto(){ window.__filtroAssunto=null; renderTodas(); }
 function onAtaTextInput(prefix){ clearTimeout(window.__asugT); window.__asugT=setTimeout(function(){ renderAtaSugestoes(prefix); },250); }
 function renderAtaSugestoes(prefix){
   var box=document.getElementById(prefix+'Sugestoes'); if(!box) return;
-  var tEl=document.getElementById(prefix+'Title'), aEl=document.getElementById(prefix+'Assunto');
-  var txt=((tEl?tEl.value:'')+' '+(aEl?aEl.value:'')).trim();
+  var cEl=document.getElementById(prefix+'Conteudo'), aEl=document.getElementById(prefix+'Assunto');
+  var txt=((cEl?cEl.value:'')+' '+(aEl?aEl.value:'')).trim();
   var curAta=null; if(prefix==='editAta'){ var v=document.getElementById('editAtaId').value; curAta=v?parseInt(v):null; }
   var res=(txt.length>=3)?buscarSimilares(txt,null).filter(function(r){return !(r.kind==='ata'&&r.id===curAta);}):[];
   if(!res.length){ box.style.display='none'; box.innerHTML=''; return; }
