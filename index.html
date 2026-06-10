@@ -124,6 +124,7 @@
     .sidebar { position:fixed; left:0; top:56px; bottom:0; transform:translateX(-100%); width:240px; transition:transform 0.25s; z-index:100; }
     .sidebar.open { transform:translateX(0); box-shadow:4px 0 24px rgba(0,0,0,0.18); }
     .ph-hamburger { display:block; }
+    .ph-modname { display:none; }
     .sb-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.28); z-index:99; }
     .sb-overlay.show { display:block; }
     .home-wrap { padding:14px 16px; }
@@ -678,6 +679,10 @@
         
         <a class="nav-item" href="https://lolaccmq.github.io/Lola-Manutencoes/" target="_blank"><span class="ni">🔧</span><span class="nl">Manutenções</span><span class="na">↗</span></a>
       </div>
+      <div class="sb-section" data-minrole="admin" style="display:none">
+        <span class="sb-label">Administração</span>
+        <button class="nav-item" data-mod="usuarios" data-minrole="admin" onclick="switchModule('usuarios')"><span class="ni">👥</span><span class="nl">Usuários</span></button>
+      </div>
       <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" onclick="openEstoque('insumos')"><span class="ni">🧂</span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" onclick="openEstoque('preproducoes')"><span class="ni">🍳</span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" onclick="openEstoque('fichas')"><span class="ni">📒</span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="contagem" onclick="openEstoque('contagem')"><span class="ni">📦</span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" onclick="openEstoque('saidas')"><span class="ni">📤</span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" onclick="openEstoque('fornecedores')"><span class="ni">🚚</span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" onclick="openEstoque('pedidos')"><span class="ni">🛒</span><span class="nl">Pedidos à Central</span></button></div>
       <div class="sb-divider"></div>
       <div class="sb-section">
@@ -695,6 +700,7 @@
 
     <main class="portal-content">
       <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
+      <div class="module-panel" id="module-usuarios"></div>
 
       <div class="module-panel active" id="module-home">
   <div class="home-wrap">
@@ -1154,7 +1160,7 @@ function switchModule(mod){
   if(panel)panel.classList.add('active');
   const btn=document.querySelector('.nav-item[data-mod="'+mod+'"]');
   if(btn)btn.classList.add('active');
-  const NAMES={home:'',tarefas:'Reuniões & Tarefas',diario:'Diário de Gerentes'};
+  const NAMES={home:'',tarefas:'Reuniões & Tarefas',diario:'Diário de Gerentes',usuarios:'Usuários'};
   document.getElementById('phModname').textContent=NAMES[mod]||'';
   closeSidebar();
   if(mod==='diario'&&window.__portalUser){
@@ -1178,6 +1184,7 @@ function switchModule(mod){
       if(typeof updateHeaderUser==='function')updateHeaderUser();
     }
   }
+  if(mod==='usuarios' && typeof renderUsuarios==='function') renderUsuarios();
   if(mod==='home'){['dashTasks','dashPedidos','dashEquip','dashRevisar','dashMargem'].forEach(function(id){var e=document.getElementById(id);if(e)e.dataset.loaded='';});loadDashboard();}
 }
 
@@ -1288,6 +1295,97 @@ async function loadDashMargem(){
     else { el.innerHTML=baixas.slice(0,8).map(b=>`<div class="dash-equip"><div class="dash-equip-icon">📉</div><div class="dash-equip-info"><div class="dash-equip-nome">${b.nome}</div><div class="dash-equip-setor">Margem ${b.margem}%</div></div><span class="prob-badge">${b.margem}%</span></div>`).join(''); }
     el.dataset.loaded='1';
   }catch(e){ el.innerHTML='<div class="dash-card-empty">Não foi possível carregar agora.</div>'; }
+}
+
+// ═══ ADMIN: USUÁRIOS ═══
+let __adminHash = null;
+async function adminRpc(fn, args){
+  const res = await fetch(`${PORTAL_URL}/rest/v1/rpc/${fn}`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':PORTAL_KEY,'Authorization':'Bearer '+PORTAL_KEY},
+    body: JSON.stringify(args||{})
+  });
+  let data=null; try{ data=await res.json(); }catch(e){}
+  if(!res.ok){ throw new Error((data&&(data.message||data.error))||('Erro '+res.status)); }
+  return data;
+}
+const ADM_ROLES=[['admin','Admin — vê tudo'],['gerente','Gerente'],['eventos','Eventos'],['compras','Compras'],['funcionario','Funcionário']];
+function admRoleSelect(id, cur){
+  return '<select onchange="admSetRole(\''+id+'\',this.value)" style="font-size:.8rem;padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;background:#fff;color:var(--ink)">'+
+    ADM_ROLES.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===cur?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+}
+async function renderUsuarios(){
+  const panel=document.getElementById('module-usuarios');
+  if(!panel) return;
+  panel.style.overflowY='auto';
+  const u=window.__portalUser;
+  if(!u || u.role!=='admin'){ panel.innerHTML='<div style="padding:28px;color:var(--muted)">Acesso restrito a administradores.</div>'; return; }
+  if(!__adminHash){
+    panel.innerHTML='<div style="padding:28px 26px;max-width:420px">'
+      +'<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.4rem;margin-bottom:6px">Usuários</h2>'
+      +'<p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Confirme sua senha de administrador para continuar.</p>'
+      +'<input type="password" id="admPass" placeholder="Sua senha" onkeydown="if(event.key===\'Enter\')confirmAdmin()" style="width:100%;font-family:inherit;font-size:.95rem;border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;background:#fff;color:var(--ink);margin-bottom:10px">'
+      +'<button onclick="confirmAdmin()" style="background:var(--vinho);color:#fff;border:none;border-radius:9px;padding:10px 18px;font-weight:600;cursor:pointer;font-family:inherit">Entrar</button>'
+      +'<div id="admErr" style="color:var(--vinho);font-size:.82rem;margin-top:8px"></div></div>';
+    return;
+  }
+  panel.innerHTML='<div style="padding:24px 26px;color:var(--muted)">Carregando usuários…</div>';
+  let users;
+  try{ users=await adminRpc('portal_admin_list_users',{p_admin_name:u.name,p_admin_hash:__adminHash}); }
+  catch(e){ __adminHash=null; renderUsuarios(); return; }
+  const RL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Compras',funcionario:'Funcionário'};
+  let html='<div style="padding:22px 26px;max-width:780px">';
+  html+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:4px">Usuários</h2>';
+  html+='<p style="color:var(--muted);font-size:.84rem;margin-bottom:18px">Cadastre pessoas, defina o papel (o que cada uma acessa), troque senhas e ative/desative.</p>';
+  html+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:20px">';
+  html+='<div style="font-weight:600;font-size:.9rem;margin-bottom:10px">➕ Novo usuário</div>';
+  html+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  html+='<input id="nuNome" placeholder="Nome" style="flex:1;min-width:120px;font-family:inherit;font-size:.86rem;border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;background:#fff;color:var(--ink)">';
+  html+='<input id="nuSenha" type="password" placeholder="Senha inicial" style="flex:1;min-width:120px;font-family:inherit;font-size:.86rem;border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;background:#fff;color:var(--ink)">';
+  html+='<select id="nuPapel" style="font-family:inherit;font-size:.86rem;border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;background:#fff;color:var(--ink)">'+ADM_ROLES.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>';}).join('')+'</select>';
+  html+='<button onclick="admAddUser()" style="background:var(--vinho);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-family:inherit">Adicionar</button>';
+  html+='</div><div id="nuErr" style="color:var(--vinho);font-size:.8rem;margin-top:6px"></div></div>';
+  html+=(users||[]).map(function(p){
+    var nameJs=String(p.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return '<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:11px 16px;margin-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      +'<div style="flex:1;min-width:130px"><div style="font-weight:600;font-size:.92rem">'+p.name+(p.active?'':' <span style="font-size:.7rem;color:var(--muted)">(inativo)</span>')+'</div><div style="font-size:.72rem;color:var(--muted)">'+(RL[p.role]||p.role)+'</div></div>'
+      +admRoleSelect(p.id,p.role)
+      +'<button onclick="admReset(\''+p.id+'\',\''+nameJs+'\')" style="background:var(--warm);border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:.78rem;cursor:pointer;font-family:inherit">🔑 Senha</button>'
+      +'<button onclick="admToggleActive(\''+p.id+'\','+(p.active?'false':'true')+')" style="background:'+(p.active?'#FEE2E2':'#D1FAE5')+';color:'+(p.active?'#C0392B':'#065F46')+';border:none;border-radius:8px;padding:7px 11px;font-size:.78rem;cursor:pointer;font-family:inherit">'+(p.active?'Desativar':'Ativar')+'</button>'
+      +'</div>';
+  }).join('');
+  html+='</div>';
+  panel.innerHTML=html;
+}
+async function confirmAdmin(){
+  const el=document.getElementById('admPass'); if(!el||!el.value) return;
+  const h=await sha256hex(el.value);
+  try{ await adminRpc('portal_admin_list_users',{p_admin_name:window.__portalUser.name,p_admin_hash:h}); __adminHash=h; renderUsuarios(); }
+  catch(e){ const er=document.getElementById('admErr'); if(er) er.textContent='Senha incorreta.'; }
+}
+async function admSetRole(id, role){
+  try{ await adminRpc('portal_admin_update_user',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_id:id,p_role:role,p_active:null}); if(typeof showToast==='function')showToast('✓ Papel atualizado'); }
+  catch(e){ alert('Erro: '+e.message); renderUsuarios(); }
+}
+async function admToggleActive(id, active){
+  try{ await adminRpc('portal_admin_update_user',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_id:id,p_role:null,p_active:active}); renderUsuarios(); }
+  catch(e){ alert('Erro: '+e.message); }
+}
+async function admReset(id, name){
+  const np=prompt('Nova senha para '+name+':'); if(!np) return;
+  const h=await sha256hex(np);
+  try{ await adminRpc('portal_admin_reset_password',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_id:id,p_new_hash:h}); alert('Senha de '+name+' atualizada.'); }
+  catch(e){ alert('Erro: '+e.message); }
+}
+async function admAddUser(){
+  const nome=(document.getElementById('nuNome')||{}).value||'';
+  const senha=(document.getElementById('nuSenha')||{}).value||'';
+  const papel=(document.getElementById('nuPapel')||{}).value||'funcionario';
+  const er=document.getElementById('nuErr'); if(er) er.textContent='';
+  if(!nome.trim()||!senha.trim()){ if(er) er.textContent='Preencha nome e senha.'; return; }
+  const h=await sha256hex(senha);
+  try{ await adminRpc('portal_admin_create_user',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_name:nome,p_password_hash:h,p_role:papel}); renderUsuarios(); }
+  catch(e){ if(er) er.textContent='Erro: '+e.message; }
 }
 
 function startPortal(){
@@ -1671,7 +1769,7 @@ function extractHashtags(text){
   var m = String(text).match(/#[0-9A-Za-zÀ-ÿ_]+/g);
   if(!m) return [];
   var seen={}, out=[];
-  m.forEach(function(h){ var k=h.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(h); } });
+  m.forEach(function(h){ if(!/[A-Za-zÀ-ÿ]/.test(h)) return; var k=h.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(h); } });
   return out;
 }
 function hashtagChips(text){
