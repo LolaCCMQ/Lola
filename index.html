@@ -1159,6 +1159,18 @@ async function portalLogin(){
   }catch(e){err.textContent='Erro de conexão.';btn.disabled=false;btn.textContent='Entrar';}
 }
 
+async function loadLoginNames(){
+  try{
+    const res=await fetch(`${PORTAL_URL}/rest/v1/rpc/portal_login_names`,{method:'POST',headers:{'Content-Type':'application/json','apikey':PORTAL_KEY,'Authorization':'Bearer '+PORTAL_KEY},body:'{}'});
+    const data=await res.json();
+    if(Array.isArray(data)&&data.length){
+      const sel=document.getElementById('loginName'); if(!sel) return;
+      const cur=sel.value;
+      sel.innerHTML='<option value="">Selecione...</option>'+data.map(function(u){return '<option value="'+u.name+'">'+u.name+'</option>';}).join('');
+      if(cur) sel.value=cur;
+    }
+  }catch(e){}
+}
 function portalLogout(){localStorage.removeItem('lola_session');window.__portalUser=null;location.reload();}
 function userCan(r){return(ROLE_LEVEL[window.__portalUser?.role]||0)>=(ROLE_LEVEL[r]||0);}
 
@@ -1438,6 +1450,7 @@ window.addEventListener('DOMContentLoaded',function(){
   }catch(e){localStorage.removeItem('lola_session');}
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')portalLogin();});
+  loadLoginNames();
 });
 </script>
 <script>/* TAREFAS */
