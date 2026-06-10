@@ -786,7 +786,6 @@
   <button class="tab" data-tab="minhas" onclick="switchTab('minhas')">✅ Minhas <span class="badge" id="bMinhas">0</span></button>
   <button class="tab" data-tab="pessoas" onclick="switchTab('pessoas')">👤 Por Pessoa</button>
   <button class="tab" data-tab="todas" onclick="switchTab('todas')">📋 Todas <span class="badge" id="bTodas">0</span></button>
-  <button class="tab" data-tab="busca" onclick="switchTab('busca')">🔍 Busca</button>
   <button class="tab" data-tab="nova" onclick="switchTabNova()">＋ Nova Ata</button>
   <button class="tab" data-tab="novatarefa" onclick="switchTab('novatarefa')">＋ Nova Tarefa</button>
   <button class="tab" data-tab="recorrente" onclick="switchTab('recorrente')">🔁 Recorrente</button>
@@ -834,7 +833,9 @@
   <!-- ATAS -->
   <div id="tab-atas">
     <div class="section-header"><h2>Atas de Reunião</h2></div>
-    <div id="filtroCategoria" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <input id="ataBusca" type="text" placeholder="🔍 Buscar por palavra, título, #hashtag ou etiqueta…" oninput="renderAtas()" style="width:100%;font-family:inherit;font-size:1rem;border:2px solid var(--vinho-muted);border-radius:12px;padding:12px 16px;margin-bottom:12px;background:#fff;color:var(--ink)">
+    <div id="filtroCategoria" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div id="ataHashtags" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
     <div id="listAtas"></div>
   </div>
 
@@ -864,14 +865,6 @@
   <div id="tab-todas" class="hidden">
     <div class="section-header"><h2>Todas as Tarefas</h2></div>
     <div id="listTodas"></div>
-  </div>
-
-  <!-- BUSCA -->
-  <div id="tab-busca" class="hidden">
-    <div class="section-header"><h2>Busca</h2></div>
-    <input id="buscaInput" type="text" placeholder="Buscar por palavra, título ou etiqueta… (ex.: Copa do Mundo)" oninput="renderBusca()" style="width:100%;font-family:inherit;font-size:.92rem;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:8px;background:#fff;color:var(--ink)">
-    <div id="buscaCats" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px"></div>
-    <div id="buscaResultados"></div>
   </div>
 
   <!-- NOVA ATA -->
@@ -1628,14 +1621,13 @@ function initials(n) { return n.split(" ").map(w=>w[0]).slice(0,2).join("").toUp
 // ═══════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════
-const ALL_TABS = ["atas","minhas","pessoas","todas","busca","nova","novatarefa","recorrente","detalhe","config"];
+const ALL_TABS = ["atas","minhas","pessoas","todas","nova","novatarefa","recorrente","detalhe","config"];
 function switchTab(tab) {
   currentTab = tab;
   ALL_TABS.forEach(t => document.getElementById("tab-"+t).classList.toggle("hidden", t!==tab));
   document.querySelectorAll(".tab").forEach(el => el.classList.toggle("active", el.dataset.tab===tab));
   if (tab==="config") renderConfigTab();
   if (tab==="pessoas") renderPessoas();
-  if (tab==="busca") { renderBusca(); setTimeout(function(){var bi=document.getElementById("buscaInput"); if(bi) bi.focus();},50); }
   if (tab==="novatarefa") {
     initNovaTarefaTab();
     // Retry after DB loads if team/categorias still empty
@@ -1678,7 +1670,7 @@ function hashtagChips(text){
     return '<span onclick="event.stopPropagation(); buscarPor(\''+h+'\')" style="cursor:pointer;font-size:.67rem;font-weight:600;padding:2px 8px;border-radius:20px;background:#EDE9FE;color:#5B21B6;display:inline-block;margin-right:3px">'+h+'</span>';
   }).join("");
 }
-function buscarPor(termo){ var inp=document.getElementById("buscaInput"); if(inp){ inp.value=termo; } if(typeof switchTab==="function"&&currentTab!=="busca"){ switchTab("busca"); } renderBusca(); }
+function buscarPor(termo){ try{ if(typeof switchTab==="function" && currentTab!=="atas") switchTab("atas"); var inp=document.getElementById("ataBusca"); if(inp){ inp.value=termo; } renderAtas(); if(inp){ inp.scrollIntoView({behavior:"smooth",block:"center"}); } }catch(e){} }
 function renderBusca() {
   var inp = document.getElementById("buscaInput");
   var raw = inp ? inp.value.trim() : "";
@@ -1731,29 +1723,38 @@ function renderBusca() {
 function renderAtas() {
   const el = document.getElementById("listAtas");
   const filtroEl = document.getElementById("filtroCategoria");
+  const hashEl = document.getElementById("ataHashtags");
+  const buscaInp = document.getElementById("ataBusca");
+  const q = buscaInp ? buscaInp.value.trim().toLowerCase() : "";
 
-  // Render filtro
   if (filtroEl) {
     const cats = ["Todas", ...CATEGORIAS];
     filtroEl.innerHTML = cats.map(c => {
       const ativo = (c === "Todas" && !filtroAtivo) || filtroAtivo === c;
-      return `<button onclick="setFiltro('${c}')"
-        style="padding:5px 14px;border-radius:20px;border:2px solid var(--vinho-muted);
-        background:${ativo?"var(--vinho)":"#fff"};color:${ativo?"#fff":"var(--vinho)"};
-        font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s">
-        ${c}</button>`;
+      return `<button onclick="setFiltro('${c}')" style="padding:5px 14px;border-radius:20px;border:2px solid var(--vinho-muted);background:${ativo?"var(--vinho)":"#fff"};color:${ativo?"#fff":"var(--vinho)"};font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s">${c}</button>`;
     }).join("");
   }
 
-  let ataNormais = atas.filter(a => !a.avulsa);
-  if (filtroAtivo) ataNormais = ataNormais.filter(a => a.categoria === filtroAtivo);
+  if (hashEl) {
+    const hseen={}, horder=[];
+    const _coll = (txt)=>{ extractHashtags(txt).forEach(h=>{ const k=h.toLowerCase(); if(!hseen[k]){ hseen[k]=h; horder.push(k); } }); };
+    (atas||[]).forEach(a=>{ if(!a.avulsa) _coll((a.title||"")+" "+(a.conteudo||"")); });
+    (tasks||[]).forEach(tk=>{ _coll(tk.texto); });
+    hashEl.innerHTML = horder.map(k=>{ const h=hseen[k]; const on=(q===h.toLowerCase()); return `<span onclick="buscarPor('${h}')" style="cursor:pointer;font-size:.72rem;font-weight:600;padding:5px 11px;border-radius:20px;background:${on?"#5B21B6":"#EDE9FE"};color:${on?"#fff":"#5B21B6"}">${h}</span>`; }).join("");
+  }
 
-  if (!ataNormais.length) { el.innerHTML='<div class="empty"><div class="icon">📄</div><p>Nenhuma ata ainda.<br>Clique em <strong>+ Nova Ata</strong>.</p></div>'; return; }
+  const norm = s => (s==null?"":String(s)).toLowerCase();
+  const ataMatch = a => norm(a.title).indexOf(q)>=0 || norm(a.conteudo).indexOf(q)>=0 || norm(a.categoria).indexOf(q)>=0 || norm(a.autor_nome).indexOf(q)>=0;
+
+  let lista = (atas||[]).filter(a => !a.avulsa);
+  if (filtroAtivo) lista = lista.filter(a => a.categoria === filtroAtivo);
+  if (q) lista = lista.filter(ataMatch);
 
   function cardHtml(a) {
     const at=tasks.filter(t=>t.ata_id===a.id), fe=at.filter(t=>t.done).length, ok=at.length>0&&fe===at.length;
     const catTag = a.categoria ? `<span class="tag tag-cat">🏷️ ${a.categoria}</span>` : "";
-    return `<div class="card ${ok?"concluida":""}">
+    const chips = hashtagChips((a.title||"")+" "+(a.conteudo||""));
+    return `<div class="card ${ok?"concluida":""}" onclick="abrirAta(${a.id})" style="cursor:pointer">
       <div class="card-meta"><span class="card-date">📅 ${fmtDate(a.date)}</span>
         <span class="status-pill ${ok?"status-done":"status-open"}">${ok?"✓ Concluída":"Em andamento"}</span>
         ${catTag}
@@ -1761,37 +1762,38 @@ function renderAtas() {
       </div>
       <div class="card-title">${a.title}</div>
       <div class="card-excerpt">${formatText(a.conteudo||"")}</div>
-      <div style="margin:4px 0 2px">${hashtagChips((a.title||"")+" "+(a.conteudo||""))}</div>
-      <div class="card-actions">
-        <button class="btn btn-ghost btn-sm" onclick="abrirAta(${a.id})">Ver detalhes</button>
-        <button class="btn btn-ghost btn-sm" onclick="abrirEditModal(${a.id})">✏️ Editar</button>
-        <span class="task-count">📌 ${at.length} tarefa${at.length!==1?"s":""} · ${fe} feita${fe!==1?"s":""}</span>
-      </div></div>`;
-  }
-
-  const emAndamento = ataNormais.filter(a => {
-    const at=tasks.filter(t=>t.ata_id===a.id);
-    return !(at.length>0 && at.filter(t=>t.done).length===at.length);
-  });
-  const concluidas = ataNormais.filter(a => {
-    const at=tasks.filter(t=>t.ata_id===a.id);
-    return at.length>0 && at.filter(t=>t.done).length===at.length;
-  });
-
-  let out = emAndamento.map(cardHtml).join("");
-
-  if (concluidas.length) {
-    out += `<div style="margin:20px 0 12px;display:flex;align-items:center;gap:10px">
-      <div style="flex:1;height:1px;background:var(--border)"></div>
-      <span style="font-size:.76rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">✓ Concluídas (${concluidas.length})</span>
-      <div style="flex:1;height:1px;background:var(--border)"></div>
+      ${chips?`<div style="margin:6px 0 2px">${chips}</div>`:""}
+      <div class="card-actions"><span class="task-count">📌 ${at.length} tarefa${at.length!==1?"s":""}${at.length?` · ${fe} feita${fe!==1?"s":""}`:""}</span></div>
     </div>`;
-    out += concluidas.map(cardHtml).join("");
   }
 
+  let out = "";
+  if (q) {
+    const taskMatch = (tk)=>{
+      if (norm(tk.texto).indexOf(q)>=0) return true;
+      try { const r=parseResponsaveis(tk.responsavel); const nm=r.map(id=>{const u=(TEAM||[]).find(x=>x.id===id); return u?norm(u.name):"";}).join(" "); if (nm.indexOf(q)>=0) return true; } catch(e){}
+      const pa=(atas||[]).find(a=>a.id===tk.ata_id);
+      if (pa && ataMatch(pa)) return true;
+      return false;
+    };
+    const tasksMatch=(tasks||[]).filter(taskMatch);
+    out += `<div style="font-size:.8rem;color:var(--muted);margin-bottom:10px">${lista.length} ata(s) · ${tasksMatch.length} tarefa(s) para "<strong>${buscaInp.value.trim()}</strong>"</div>`;
+    out += `<div class="tasks-header">📄 Atas (${lista.length})</div>`;
+    out += lista.length ? lista.map(cardHtml).join("") : '<div style="color:var(--muted);font-size:.83rem;padding:7px 0 14px">Nenhuma ata encontrada.</div>';
+    out += `<div class="tasks-header" style="margin-top:18px">📌 Tarefas (${tasksMatch.length})</div>`;
+    out += tasksMatch.length ? renderTaskList(tasksMatch) : '<div style="color:var(--muted);font-size:.83rem;padding:7px 0">Nenhuma tarefa encontrada.</div>';
+  } else {
+    if (!lista.length) { el.innerHTML='<div class="empty"><div class="icon">📄</div><p>Nenhuma ata ainda.<br>Clique em <strong>+ Nova Ata</strong>.</p></div>'; return; }
+    const emAndamento = lista.filter(a => { const at=tasks.filter(t=>t.ata_id===a.id); return !(at.length>0 && at.filter(t=>t.done).length===at.length); });
+    const concluidas = lista.filter(a => { const at=tasks.filter(t=>t.ata_id===a.id); return at.length>0 && at.filter(t=>t.done).length===at.length; });
+    out = emAndamento.map(cardHtml).join("");
+    if (concluidas.length) {
+      out += `<div style="margin:20px 0 12px;display:flex;align-items:center;gap:10px"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:.76rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">✓ Concluídas (${concluidas.length})</span><div style="flex:1;height:1px;background:var(--border)"></div></div>`;
+      out += concluidas.map(cardHtml).join("");
+    }
+  }
   el.innerHTML = out;
 }
-
 function setFiltro(cat) {
   filtroAtivo = cat === "Todas" ? null : cat;
   renderAtas();
