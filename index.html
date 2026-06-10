@@ -1583,12 +1583,16 @@ function admMenuPanel(p){
 function admToggleMenu(id){ var el=document.getElementById('menu-'+id); if(el)el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none'; }
 async function admSaveMenu(id){
   var box=document.getElementById('menu-'+id); if(!box) return;
+  var btn=box.querySelector('button');
   var arr=[].slice.call(box.querySelectorAll('input[type=checkbox]')).filter(function(c){return c.checked;}).map(function(c){return c.getAttribute('data-k');});
+  if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
   try{
     await adminRpc('portal_admin_set_menu',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_id:id,p_menu:arr});
     if(typeof showToast==='function')showToast('✓ Acesso salvo');
+    if(btn){ btn.textContent='✓ Acesso salvo!'; btn.style.background='#1d6b43'; }
     if(window.__portalUser && window.__portalUser.id===id){ window.__portalUser.menu_acesso=arr; try{localStorage.setItem('lola_session',JSON.stringify(window.__portalUser));}catch(e){} if(typeof applyMenuPerms==='function')applyMenuPerms(); }
-  }catch(e){ alert('Erro: '+e.message); }
+    setTimeout(function(){ if(btn){ btn.textContent='Salvar acesso'; btn.style.background='var(--vinho)'; btn.disabled=false; } },2200);
+  }catch(e){ if(btn){ btn.textContent='Salvar acesso'; btn.disabled=false; } alert('Erro ao salvar: '+e.message); }
 }
 
 function _escC(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
