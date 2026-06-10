@@ -674,9 +674,9 @@
       </div>
       <div class="sb-section">
         <span class="sb-label">Aplicativos</span>
-        <button class="nav-item" data-mod="tarefas" onclick="switchModule('tarefas')"><span class="ni">📋</span><span class="nl">Reuniões & Tarefas</span></button>
-        <button class="nav-item" data-mod="diario" onclick="switchModule('diario')"><span class="ni">📓</span><span class="nl">Diário de Gerentes</span></button>
-        <button class="nav-item" data-mod="compras" onclick="switchModule('compras')"><span class="ni">🛒</span><span class="nl">Lista de Compras</span></button>
+        <button class="nav-item" data-mod="tarefas" data-menu="tarefas" onclick="switchModule('tarefas')"><span class="ni">📋</span><span class="nl">Reuniões & Tarefas</span></button>
+        <button class="nav-item" data-mod="diario" data-menu="diario" onclick="switchModule('diario')"><span class="ni">📓</span><span class="nl">Diário de Gerentes</span></button>
+        <button class="nav-item" data-mod="compras" data-menu="compras" onclick="switchModule('compras')"><span class="ni">🛒</span><span class="nl">Lista de Compras</span></button>
         
         
       </div>
@@ -685,8 +685,8 @@
         <button class="nav-item" data-mod="usuarios" data-minrole="admin" onclick="switchModule('usuarios')"><span class="ni">👥</span><span class="nl">Usuários</span></button>
         <button class="nav-item nav-fin" data-minrole="admin" onclick="openFinanceiro()"><span class="ni">💰</span><span class="nl">Financeiro</span></button>
       </div>
-      <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" onclick="openEstoque('insumos')"><span class="ni">🧂</span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" onclick="openEstoque('preproducoes')"><span class="ni">🍳</span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" onclick="openEstoque('fichas')"><span class="ni">📒</span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="contagem" onclick="openEstoque('contagem')"><span class="ni">📦</span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" onclick="openEstoque('saidas')"><span class="ni">📤</span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" onclick="openEstoque('fornecedores')"><span class="ni">🚚</span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" onclick="openEstoque('pedidos')"><span class="ni">🛒</span><span class="nl">Pedidos à Central</span></button></div>
-      <div class="sb-section">
+      <div class="sb-section" id="sb-estoque" data-menu="estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" onclick="openEstoque('insumos')"><span class="ni">🧂</span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" onclick="openEstoque('preproducoes')"><span class="ni">🍳</span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" onclick="openEstoque('fichas')"><span class="ni">📒</span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="contagem" onclick="openEstoque('contagem')"><span class="ni">📦</span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" onclick="openEstoque('saidas')"><span class="ni">📤</span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" onclick="openEstoque('fornecedores')"><span class="ni">🚚</span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" onclick="openEstoque('pedidos')"><span class="ni">🛒</span><span class="nl">Pedidos à Central</span></button></div>
+      <div class="sb-section" data-menu="manutencoes">
         <span class="sb-label">Manutenções</span>
         <button class="nav-item nav-manut" data-page="painel" onclick="openManutencoes('painel')"><span class="ni">📊</span><span class="nl">Painel</span></button>
         <button class="nav-item nav-manut" data-page="equip" onclick="openManutencoes('equip')"><span class="ni">🔧</span><span class="nl">Equipamentos</span></button>
@@ -1201,6 +1201,20 @@ const PORTAL_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const ROLE_LEVEL={admin:5,gerente:4,eventos:3,compras:3,funcionario:1};
 const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Compras',funcionario:'Funcionário'};
 window.__portalUser=null;
+var CFG_MENU=['tarefas','diario','compras','estoque','manutencoes'];
+var MENU_LABELS={tarefas:'Reuniões & Tarefas',diario:'Diário de Gerentes',compras:'Lista de Compras',estoque:'Estoque',manutencoes:'Manutenções'};
+function defaultMenu(role){ if(role==='admin')return CFG_MENU.slice(); if(role==='gerente'||role==='compras')return ['tarefas','diario','compras','estoque','manutencoes']; return ['tarefas','diario','compras']; }
+function applyMenuPerms(){
+  var u=window.__portalUser; if(!u) return;
+  var isAdmin=(u.role==='admin'); var perms=u.menu_acesso;
+  if(isAdmin){ document.querySelectorAll('[data-menu]').forEach(function(el){el.style.display='';}); if(typeof revealEstoque==='function')revealEstoque(); return; }
+  if(!Array.isArray(perms)) return;
+  document.querySelectorAll('[data-menu]').forEach(function(el){
+    var k=el.getAttribute('data-menu'); if(CFG_MENU.indexOf(k)<0) return;
+    el.style.display=(perms.indexOf(k)>=0)?'':'none';
+  });
+  if(typeof revealEstoque==='function')revealEstoque();
+}
 
 async function sha256hex(msg){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(msg));
@@ -1490,11 +1504,15 @@ async function renderUsuarios(){
   html+='</div><div id="nuErr" style="color:var(--vinho);font-size:.8rem;margin-top:6px"></div></div>';
   html+=(users||[]).map(function(p){
     var nameJs=String(p.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return '<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:11px 16px;margin-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    return '<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:11px 16px;margin-bottom:9px">'
+      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
       +'<div style="flex:1;min-width:130px"><div style="font-weight:600;font-size:.92rem">'+p.name+(p.active?'':' <span style="font-size:.7rem;color:var(--muted)">(inativo)</span>')+'</div><div style="font-size:.72rem;color:var(--muted)">'+(RL[p.role]||p.role)+'</div></div>'
       +admRoleSelect(p.id,p.role)
       +'<button onclick="admReset(\''+p.id+'\',\''+nameJs+'\')" style="background:var(--warm);border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:.78rem;cursor:pointer;font-family:inherit">🔑 Senha</button>'
+      +(p.role==='admin'?'':'<button onclick="admToggleMenu(\''+p.id+'\')" style="background:#e7eefc;color:#23508a;border:none;border-radius:8px;padding:7px 11px;font-size:.78rem;cursor:pointer;font-family:inherit">🧩 Acesso</button>')
       +'<button onclick="admToggleActive(\''+p.id+'\','+(p.active?'false':'true')+')" style="background:'+(p.active?'#FEE2E2':'#D1FAE5')+';color:'+(p.active?'#C0392B':'#065F46')+';border:none;border-radius:8px;padding:7px 11px;font-size:.78rem;cursor:pointer;font-family:inherit">'+(p.active?'Desativar':'Ativar')+'</button>'
+      +'</div>'
+      +(p.role==='admin'?'':admMenuPanel(p))
       +'</div>';
   }).join('');
   html+='</div>';
@@ -1529,6 +1547,28 @@ async function admAddUser(){
   const h=await sha256hex(senha);
   try{ await adminRpc('portal_admin_create_user',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_name:nome,p_password_hash:h,p_role:papel}); renderUsuarios(); }
   catch(e){ if(er) er.textContent='Erro: '+e.message; }
+}
+function admMenuPanel(p){
+  var cur=Array.isArray(p.menu_acesso)?p.menu_acesso:defaultMenu(p.role);
+  var boxes=CFG_MENU.map(function(k){
+    var ck=cur.indexOf(k)>=0?' checked':'';
+    return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:.83rem;margin:3px 14px 3px 0;cursor:pointer"><input type="checkbox" data-k="'+k+'"'+ck+'> '+_escC(MENU_LABELS[k])+'</label>';
+  }).join('');
+  return '<div id="menu-'+p.id+'" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">'
+    +'<div style="font-size:.76rem;color:var(--muted);margin-bottom:6px">O que esta pessoa vê no menu da esquerda:</div>'
+    +'<div>'+boxes+'</div>'
+    +'<button onclick="admSaveMenu(\''+p.id+'\')" style="margin-top:8px;background:var(--vinho);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit">Salvar acesso</button>'
+    +'</div>';
+}
+function admToggleMenu(id){ var el=document.getElementById('menu-'+id); if(el)el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none'; }
+async function admSaveMenu(id){
+  var box=document.getElementById('menu-'+id); if(!box) return;
+  var arr=[].slice.call(box.querySelectorAll('input[type=checkbox]')).filter(function(c){return c.checked;}).map(function(c){return c.getAttribute('data-k');});
+  try{
+    await adminRpc('portal_admin_set_menu',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_id:id,p_menu:arr});
+    if(typeof showToast==='function')showToast('✓ Acesso salvo');
+    if(window.__portalUser && window.__portalUser.id===id){ window.__portalUser.menu_acesso=arr; try{localStorage.setItem('lola_session',JSON.stringify(window.__portalUser));}catch(e){} if(typeof applyMenuPerms==='function')applyMenuPerms(); }
+  }catch(e){ alert('Erro: '+e.message); }
 }
 
 function _escC(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -1609,6 +1649,7 @@ function startPortal(){
   document.querySelectorAll('[data-minrole]').forEach(el=>{
     el.style.display=userCan(el.getAttribute('data-minrole'))?'':'none';
   });
+  if(typeof applyMenuPerms==='function')applyMenuPerms();
   try{
     if(typeof TEAM!=='undefined'){
       const match=TEAM.find(t=>t.name===u.name);
@@ -3961,7 +4002,7 @@ function renderReuniao(){
 // topbar handled by portal
 
 </script>
-<script>(function(){function revealEstoque(){try{var role=window.__portalUser&&window.__portalUser.role;var s=document.getElementById('sb-estoque');if(s)s.style.display=(['admin','gerente','compras'].indexOf(role)>=0)?'':'none';}catch(e){}}window.openTaskFromDash=function(ataId,taskId){try{switchModule('tarefas');function coerce(v){return(typeof v==='string'&&/^[0-9]+$/.test(v))?parseInt(v,10):v;}function hi(){try{if(taskId){var el=document.getElementById('task-item-'+taskId);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});var oc=el.style.backgroundColor;el.style.transition='background-color .4s';el.style.backgroundColor='#FEF3CD';setTimeout(function(){el.style.backgroundColor=oc||'';},2400);}}}catch(e){}}var aid=coerce(ataId);var tries=0;function go(){tries++;try{var ready=(typeof atas!=='undefined'&&Array.isArray(atas)&&atas.length>0&&typeof tasks!=='undefined'&&Array.isArray(tasks));if(aid){if(ready&&atas.some(function(a){return a.id===aid;})){if(typeof abrirAta==='function')abrirAta(aid);setTimeout(hi,300);return;}}else{if(ready){if(typeof switchTab==='function')switchTab('minhas');setTimeout(hi,300);return;}}}catch(e){}if(tries<20){setTimeout(go,300);}else{setTimeout(hi,300);}}go();}catch(e){}};window.openEstoque=function(page){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-estoque');if(panel)panel.classList.add('active');var btn=document.querySelector('.nav-estoque[data-page="'+page+'"]');if(btn)btn.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Estoque';var f=document.getElementById('estoqueFrame');if(f){if(!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/LolaEstoque/?embed=1&page='+page;}else{try{f.contentWindow.postMessage({type:'lola-nav',page:page},'*');}catch(e){}}}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};window.openManutencoes=function(page){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-manutencoes');if(panel)panel.classList.add('active');var btn=document.querySelector('.nav-manut[data-page="'+page+'"]');if(btn)btn.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Manutenções';var f=document.getElementById('manutFrame');if(f){if(!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/Lola-Manutencoes/?embed=1&page='+page;}else{try{f.contentWindow.postMessage({type:'lola-nav',page:page},'*');}catch(e){}}}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};window.openFinanceiro=function(){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-financeiro');if(panel)panel.classList.add('active');var b=document.querySelector('.nav-fin');if(b)b.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Financeiro';var f=document.getElementById('finFrame');if(f&&!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/LolaFinanceiro/?embed=1&t='+Date.now();}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};if(typeof switchModule==='function'){var _s=switchModule;switchModule=function(){try{document.querySelectorAll('.nav-estoque,.nav-manut,.nav-fin').forEach(function(n){n.classList.remove('active');});}catch(e){}return _s.apply(this,arguments);};}if(typeof startPortal==='function'){var _o=startPortal;startPortal=function(){var r2=_o.apply(this,arguments);revealEstoque();return r2;};}revealEstoque();setInterval(revealEstoque,500);})();</script>
+<script>(function(){function revealEstoque(){try{var u=window.__portalUser||{};var role=u.role;var perms=u.menu_acesso;var show;if(role==='admin')show=true;else if(Array.isArray(perms))show=(perms.indexOf('estoque')>=0);else show=(['admin','gerente','compras'].indexOf(role)>=0);var s=document.getElementById('sb-estoque');if(s)s.style.display=show?'':'none';}catch(e){}}window.openTaskFromDash=function(ataId,taskId){try{switchModule('tarefas');function coerce(v){return(typeof v==='string'&&/^[0-9]+$/.test(v))?parseInt(v,10):v;}function hi(){try{if(taskId){var el=document.getElementById('task-item-'+taskId);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});var oc=el.style.backgroundColor;el.style.transition='background-color .4s';el.style.backgroundColor='#FEF3CD';setTimeout(function(){el.style.backgroundColor=oc||'';},2400);}}}catch(e){}}var aid=coerce(ataId);var tries=0;function go(){tries++;try{var ready=(typeof atas!=='undefined'&&Array.isArray(atas)&&atas.length>0&&typeof tasks!=='undefined'&&Array.isArray(tasks));if(aid){if(ready&&atas.some(function(a){return a.id===aid;})){if(typeof abrirAta==='function')abrirAta(aid);setTimeout(hi,300);return;}}else{if(ready){if(typeof switchTab==='function')switchTab('minhas');setTimeout(hi,300);return;}}}catch(e){}if(tries<20){setTimeout(go,300);}else{setTimeout(hi,300);}}go();}catch(e){}};window.openEstoque=function(page){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-estoque');if(panel)panel.classList.add('active');var btn=document.querySelector('.nav-estoque[data-page="'+page+'"]');if(btn)btn.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Estoque';var f=document.getElementById('estoqueFrame');if(f){if(!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/LolaEstoque/?embed=1&page='+page;}else{try{f.contentWindow.postMessage({type:'lola-nav',page:page},'*');}catch(e){}}}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};window.openManutencoes=function(page){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-manutencoes');if(panel)panel.classList.add('active');var btn=document.querySelector('.nav-manut[data-page="'+page+'"]');if(btn)btn.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Manutenções';var f=document.getElementById('manutFrame');if(f){if(!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/Lola-Manutencoes/?embed=1&page='+page;}else{try{f.contentWindow.postMessage({type:'lola-nav',page:page},'*');}catch(e){}}}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};window.openFinanceiro=function(){try{document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});var panel=document.getElementById('module-financeiro');if(panel)panel.classList.add('active');var b=document.querySelector('.nav-fin');if(b)b.classList.add('active');var ph=document.getElementById('phModname');if(ph)ph.textContent='Financeiro';var f=document.getElementById('finFrame');if(f&&!f.dataset.loaded){f.dataset.loaded='1';f.src='https://lolaccmq.github.io/LolaFinanceiro/?embed=1&t='+Date.now();}if(typeof closeSidebar==='function')closeSidebar();}catch(e){}};if(typeof switchModule==='function'){var _s=switchModule;switchModule=function(){try{document.querySelectorAll('.nav-estoque,.nav-manut,.nav-fin').forEach(function(n){n.classList.remove('active');});}catch(e){}return _s.apply(this,arguments);};}if(typeof startPortal==='function'){var _o=startPortal;startPortal=function(){var r2=_o.apply(this,arguments);revealEstoque();return r2;};}revealEstoque();setInterval(revealEstoque,500);})();</script>
 <script>
 /* Vigia independente da tela inicial: garante que o dashboard carregue ao abrir,
    mesmo que algo falhe no startPortal (corrige cards presos em "Carregando"). */
