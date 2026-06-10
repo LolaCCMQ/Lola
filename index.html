@@ -733,6 +733,17 @@
         </div>
       </div>
 
+      <!-- Lista de Compras (todos) -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-card-title"><span class="icon">🛒</span> Lista de Compras <span class="dash-card-count" id="dashComprasCount">—</span></div>
+          <button class="dash-card-link" onclick="switchModule('compras')">Abrir →</button>
+        </div>
+        <div class="dash-card-body" id="dashCompras">
+          <div class="dash-card-loading">Carregando...</div>
+        </div>
+      </div>
+
       <!-- Pedidos em aberto (gerente+) -->
       <div class="dash-card" id="dashPedidosCard" data-minrole="gerente">
         <div class="dash-card-header">
@@ -1209,7 +1220,7 @@ function switchModule(mod){
   }
   if(mod==='usuarios' && typeof renderUsuarios==='function') renderUsuarios();
   if(mod==='compras' && typeof renderCompras==='function') renderCompras();
-  if(mod==='home'){['dashTasks','dashPedidos','dashEquip','dashRevisar','dashMargem'].forEach(function(id){var e=document.getElementById(id);if(e)e.dataset.loaded='';});loadDashboard();}
+  if(mod==='home'){['dashTasks','dashCompras','dashPedidos','dashEquip','dashRevisar','dashMargem'].forEach(function(id){var e=document.getElementById(id);if(e)e.dataset.loaded='';});loadDashboard();}
 }
 
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sbOverlay').classList.add('show');}
@@ -1228,6 +1239,7 @@ async function loadDashboard(){
   const greetEl=document.getElementById('homeGreet');
   if(greetEl){ const fn=(u.name||'').trim().split(/\s+/)[0]||''; greetEl.textContent=fn?('Olá, '+fn+'!'):'Olá!'; }
   loadDashTasks();
+  loadDashCompras();
   if(userCan('gerente')){ loadDashPedidos(); loadDashEquip(); loadDashRevisar(); loadDashMargem(); }
 }
 
@@ -1261,7 +1273,20 @@ async function loadDashTasks(){
   }catch(e){ taskEl.innerHTML='<div class="dash-card-empty">Não foi possível carregar agora.</div>'; }
 }
 
+async function loadDashCompras(){
+  const el=document.getElementById('dashCompras'); const cnt=document.getElementById('dashComprasCount');
+  if(!el||el.dataset.loaded==='1') return;
+  try{
+    const itens=await dbFetch('lola_lista_compras','select=id,item,quantidade,comprado&order=created_at.asc');
+    const aComprar=(itens||[]).filter(function(i){return !i.comprado;});
+    if(cnt)cnt.textContent=aComprar.length;
+    if(aComprar.length===0){ el.innerHTML='<div class="dash-card-empty">✅ Lista vazia.</div>'; }
+    else{ el.innerHTML=aComprar.slice(0,8).map(function(i){ return '<div class="dash-task" onclick="switchModule(\'compras\')" style="cursor:pointer"><div class="dash-task-dot" style="background:#e0a020"></div><div class="dash-task-info"><div class="dash-task-text">'+(typeof _escC==='function'?_escC(i.item):i.item)+(i.quantidade?(' · '+(typeof _escC==='function'?_escC(i.quantidade):i.quantidade)):'')+'</div></div></div>'; }).join(''); }
+    el.dataset.loaded='1';
+  }catch(e){ el.innerHTML='<div class="dash-card-empty">Não foi possível carregar.</div>'; }
+}
 async function loadDashPedidos(){
+
   const pedEl=document.getElementById('dashPedidos'); const pedCount=document.getElementById('dashPedidosCount');
   if(!pedEl||pedEl.dataset.loaded==='1') return;
   try{
@@ -1501,7 +1526,7 @@ function startPortal(){
   switchModule('home');
   // Watchdog: re-executa os loaders enquanto algum card ainda nao carregou (corrige cards presos em Carregando)
   (function(){
-    var ids=['dashTasks','dashPedidos','dashEquip','dashRevisar','dashMargem'];
+    var ids=['dashTasks','dashCompras','dashPedidos','dashEquip','dashRevisar','dashMargem'];
     var n=0;
     var iv=setInterval(function(){
       n++;
@@ -1963,7 +1988,7 @@ function renderAtas() {
       <div class="card-title">${q?highlight(a.title,q):a.title}</div>
       <div class="card-excerpt">${q?highlight(formatText(a.conteudo||""),q):formatText(a.conteudo||"")}</div>
       ${chips?`<div style="margin:6px 0 2px">${chips}</div>`:""}
-      <div class="card-actions"><span class="task-count">📌 ${at.length} tarefa${at.length!==1?"s":""}${at.length?` · ${fe} feita${fe!==1?"s":""}`:""}</span></div>
+      <div class="card-actions"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();abrirEditModal(${a.id})">✏️ Editar</button><span class="task-count" style="margin-left:auto">📌 ${at.length} tarefa${at.length!==1?"s":""}${at.length?` · ${fe} feita${fe!==1?"s":""}`:""}</span></div>
     </div>`;
   }
 
