@@ -948,7 +948,16 @@
     <div class="card">
       <div class="form-group">
         <label>Descrição da tarefa <span style="font-size:.7rem;color:var(--muted);font-weight:400;text-transform:none">— use **texto** para negrito</span></label>
-        <input type="text" id="ntTexto" placeholder="Descrever a tarefa...">
+        <input type="text" id="ntTexto" placeholder="Descrever a tarefa..." oninput="onTaskTextInput('nt')">
+      </div>
+      <div id="ntSugestoes" class="sug-box" style="display:none"></div>
+      <div class="form-group">
+        <label>Assunto / tema</label>
+        <input type="text" id="ntAssunto" list="assuntosList" placeholder="Ex: Câmara fria, Cardápio, Fornecedor X...">
+      </div>
+      <div id="ntRelWrap" class="form-group" style="display:none">
+        <label>🔗 Ligada a</label>
+        <div id="ntRelChips"></div>
       </div>
       <div class="form-group">
         <label>Responsáveis</label>
@@ -1031,13 +1040,41 @@
     </div>
   </div>
 </main><!-- MODAL EDITAR TAREFA -->
+<datalist id="assuntosList"></datalist>
+<style>
+.sug-box{background:#fff7ed;border:1.5px solid #f0c89a;border-radius:10px;padding:8px 10px;margin:-4px 0 12px}
+.sug-head{font-size:.76rem;font-weight:600;color:#9a5b1a;margin-bottom:6px}
+.sug-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed #f0c89a;flex-wrap:wrap}
+.sug-item:first-of-type{border-top:none}
+.sug-txt{font-size:.82rem;color:var(--ink);flex:1;min-width:150px}
+.sug-sub{display:block;font-size:.68rem;color:var(--muted)}
+.sug-acts{display:flex;gap:6px}
+.sug-acts button{font-size:.72rem;padding:3px 9px;border-radius:7px;border:1.5px solid #c98;background:#fff;color:var(--vinho);cursor:pointer}
+.sug-acts button.lig{border-color:#9fd3b4;color:#1d6b43;background:#eef9f1;cursor:default}
+.tag-assunto{background:#e7eefc;color:#23508a;cursor:pointer}
+.rel-chip{display:inline-block;background:#eef2f7;color:#33506f;border-radius:7px;padding:2px 8px;font-size:.74rem;margin:2px 4px 2px 0}
+.rel-chip b{cursor:pointer;color:#a33;margin-left:3px}
+.rel-line{font-size:.74rem;color:var(--muted);margin-top:4px}
+.rel-line a{color:var(--vinho);text-decoration:underline;cursor:pointer}
+.assunto-banner{background:#e7eefc;color:#23508a;border-radius:9px;padding:7px 12px;margin-bottom:12px;font-size:.86rem}
+.assunto-banner button{margin-left:8px;border:none;background:#23508a;color:#fff;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:.74rem}
+</style>
 <div class="modal-bg hidden" id="editTaskModal">
   <div class="modal" style="width:500px;max-width:96vw">
     <h2 id="etModalTitle" style="font-family:'Playfair Display',serif;color:var(--vinho-deep);margin-bottom:18px">🖊 Editar Tarefa</h2>
     <input type="hidden" id="etId">
     <div class="form-group">
       <label>Descrição</label>
-      <input type="text" id="etTexto">
+      <input type="text" id="etTexto" oninput="onTaskTextInput('et')">
+    </div>
+    <div id="etSugestoes" class="sug-box" style="display:none"></div>
+    <div class="form-group">
+      <label>Assunto / tema <span style="font-size:.7rem;color:var(--muted);font-weight:400;text-transform:none">— agrupa tarefas do mesmo tema</span></label>
+      <input type="text" id="etAssunto" list="assuntosList" placeholder="Ex: Câmara fria, Cardápio, Fornecedor X...">
+    </div>
+    <div id="etRelWrap" class="form-group" style="display:none">
+      <label>🔗 Ligada a</label>
+      <div id="etRelChips"></div>
     </div>
     <div class="form-group">
       <label>Prazo</label>
@@ -1759,17 +1796,107 @@ async function loadTasks() {
   } catch(e) { console.log("Links load error:", e); }
 }
 
-async function criarTask(ataId, texto, responsavel, prazo) {
+async function criarTask(ataId, texto, responsavel, prazo, assunto, relacionadas) {
   const rows = await api.post("lola_tasks", {
     ata_id: ataId, texto, responsavel, done: false, obs: "", prazo: prazo||"",
     status: "a_fazer",
+    assunto: assunto||"", relacionadas: relacionadas||[],
     criado_por_nome: currentUser ? currentUser.name : "",
     criado_por_id: currentUser ? currentUser.id : ""
   });
   return rows[0];
 }
 
+/* ===== Assuntos + busca de duplicadas + tarefas ligadas ===== */
+window.__etRel=window.__etRel||[]; window.__ntRel=window.__ntRel||[]; window.__filtroAssunto=window.__filtroAssunto||null;
+function _esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _escA(s){return _esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+var _STOP=['para','com','dos','das','que','uma','umas','uns','sobre','fazer','tarefa','reuniao','reuniã','pauta','assunto','este','esta','isso','aqui','tem','nao','por','pelo','pela','mais','muito','toda','todo'];
+function _norm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ');}
+function _tokens(s){return _norm(s).split(/\s+/).filter(function(w){return w.length>=4 && _STOP.indexOf(w)<0;});}
+function buscarSimilares(texto, excludeId){
+  var toks=_tokens(texto); if(!toks.length) return [];
+  var out=[];
+  (tasks||[]).forEach(function(t){
+    if(excludeId && t.id===excludeId) return;
+    var hay=_norm((t.texto||'')+' '+(t.assunto||'')); var sc=0;
+    toks.forEach(function(w){ if(hay.indexOf(w)>=0) sc++; });
+    if(sc>0) out.push({kind:'task',id:t.id,score:sc,t:t});
+  });
+  (atas||[]).forEach(function(a){
+    if(a.avulsa) return;
+    var hay=_norm((a.title||'')+' '+(a.conteudo||'')); var sc=0;
+    toks.forEach(function(w){ if(hay.indexOf(w)>=0) sc++; });
+    if(sc>0) out.push({kind:'ata',id:a.id,score:sc,a:a});
+  });
+  out.sort(function(x,y){return y.score-x.score;});
+  return out.slice(0,6);
+}
+function onTaskTextInput(prefix){ clearTimeout(window.__sugT); window.__sugT=setTimeout(function(){ renderSugestoes(prefix); },250); }
+function renderSugestoes(prefix){
+  var box=document.getElementById(prefix+'Sugestoes'); if(!box) return;
+  var el=document.getElementById(prefix+'Texto'); var txt=el?el.value:'';
+  var excludeId=null;
+  if(prefix==='et'){ var v=document.getElementById('etId').value; excludeId=v?parseInt(v):null; }
+  var res=(txt.trim().length>=3)?buscarSimilares(txt,excludeId):[];
+  if(!res.length){ box.style.display='none'; box.innerHTML=''; return; }
+  var stMap={a_fazer:'A fazer',em_andamento:'Em andamento',em_orcamento:'Em orçamento',aguardando:'Aguard. aprovação',concluida:'Concluída'};
+  var h='<div class="sug-head">⚠️ Pode já existir sobre isso — abra a existente ou ligue as duas:</div>';
+  res.forEach(function(r){
+    if(r.kind==='task'){
+      var t=r.t; var ata=atas.find(function(a){return a.id===t.ata_id;});
+      var sub=(ata?(ata.avulsa?'Avulsa':_esc(ata.title)):'')+' · '+(stMap[t.status||'a_fazer']||'');
+      var jaLig=(window['__'+prefix+'Rel']||[]).indexOf(t.id)>=0;
+      h+='<div class="sug-item"><div class="sug-txt">📋 '+_esc((t.texto||'').slice(0,60))+'<span class="sug-sub">'+sub+'</span></div>'
+        +'<div class="sug-acts"><button type="button" onclick="irTask('+t.id+')">Abrir</button>'
+        +(jaLig?'<button type="button" class="lig" disabled>✓ Ligada</button>':'<button type="button" onclick="ligarTask(\''+prefix+'\','+t.id+')">Ligar a esta</button>')
+        +'</div></div>';
+    } else {
+      var a=r.a;
+      h+='<div class="sug-item"><div class="sug-txt">📄 '+_esc((a.title||'').slice(0,60))+'<span class="sug-sub">'+_esc(fmtDate(a.date))+'</span></div>'
+        +'<div class="sug-acts"><button type="button" onclick="irAta('+a.id+')">Abrir ata</button></div></div>';
+    }
+  });
+  box.innerHTML=h; box.style.display='block';
+}
+function ligarTask(prefix,id){
+  var k='__'+prefix+'Rel'; if(!window[k]) window[k]=[];
+  if(window[k].indexOf(id)<0) window[k].push(id);
+  renderRelChips(prefix); renderSugestoes(prefix); showToast('Ligada — salve para confirmar');
+}
+function removerRel(prefix,id){
+  var k='__'+prefix+'Rel'; window[k]=(window[k]||[]).filter(function(x){return x!==id;});
+  renderRelChips(prefix); renderSugestoes(prefix);
+}
+function renderRelChips(prefix){
+  var wrap=document.getElementById(prefix+'RelWrap'), box=document.getElementById(prefix+'RelChips');
+  if(!box) return;
+  var rel=window['__'+prefix+'Rel']||[];
+  if(!rel.length){ if(wrap)wrap.style.display='none'; box.innerHTML=''; return; }
+  if(wrap)wrap.style.display='block';
+  box.innerHTML=rel.map(function(id){ var t=tasks.find(function(x){return x.id===id;}); var lbl=t?_esc(t.texto.slice(0,28)):('#'+id);
+    return '<span class="rel-chip">🔗 '+lbl+' <b onclick="removerRel(\''+prefix+'\','+id+')">×</b></span>'; }).join('');
+}
+function popularAssuntos(){
+  var dl=document.getElementById('assuntosList'); if(!dl) return;
+  var set={}; (tasks||[]).forEach(function(t){ if(t.assunto&&t.assunto.trim()) set[t.assunto.trim()]=1; });
+  dl.innerHTML=Object.keys(set).sort().map(function(a){return '<option value="'+_escA(a)+'">';}).join('');
+}
+function irTask(id){
+  if(typeof fecharEditTaskModal==='function') fecharEditTaskModal();
+  window.__filtroAssunto=null; switchTab('todas');
+  setTimeout(function(){ var el=document.getElementById('task-item-'+id); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); var o=el.style.background; el.style.transition='background .4s'; el.style.background='#fff3bf'; setTimeout(function(){el.style.background=o||'';},1800);} },350);
+}
+function irAta(id){ if(typeof fecharEditTaskModal==='function') fecharEditTaskModal(); abrirAta(id); }
+function relsOf(t){
+  var ids={}; (t.relacionadas||[]).forEach(function(i){ids[i]=1;});
+  (tasks||[]).forEach(function(o){ if((o.relacionadas||[]).indexOf(t.id)>=0) ids[o.id]=1; });
+  return Object.keys(ids).map(function(i){return tasks.find(function(x){return x.id===parseInt(i);});}).filter(Boolean);
+}
+function filtrarAssunto(a){ window.__filtroAssunto=a; switchTab('todas'); }
+function limparFiltroAssunto(){ window.__filtroAssunto=null; renderTodas(); }
 async function toggleTaskDB(id, done) {
+
   await api.patch("lola_tasks", { done }, `id=eq.${id}`);
 }
 
@@ -2087,9 +2214,12 @@ function renderMinhas() {
 
 function renderTodas() {
   const el=document.getElementById("listTodas");
-  if (!tasks.length){el.innerHTML='<div class="empty"><div class="icon">📋</div><p>Nenhuma tarefa ainda.</p></div>';return;}
+  const fa=window.__filtroAssunto;
+  const banner=fa?('<div class="assunto-banner">🏷 Assunto: <b>'+_esc(fa)+'</b> <button onclick="limparFiltroAssunto()">× limpar filtro</button></div>'):'';
+  const baseTasks=fa?tasks.filter(t=>(t.assunto||'').trim()===fa):tasks;
+  if (!baseTasks.length){el.innerHTML=banner+'<div class="empty"><div class="icon">📋</div><p>Nenhuma tarefa'+(fa?' nesse assunto':' ainda')+'.</p></div>';return;}
   const byAta={};
-  tasks.forEach(t=>{if(!byAta[t.ata_id])byAta[t.ata_id]=[];byAta[t.ata_id].push(t);});
+  baseTasks.forEach(t=>{if(!byAta[t.ata_id])byAta[t.ata_id]=[];byAta[t.ata_id].push(t);});
   function lastActivity(t){
     const comts=comentarios[t.id]||[];
     const lastC=comts.length?comts[comts.length-1].created_at:null;
@@ -2108,7 +2238,7 @@ function renderTodas() {
   const atasComPendentes=ataIds.filter(aid=>byAta[aid].some(t=>t.status!=='concluida'&&!t.done));
   const atasConcluidas=ataIds.filter(aid=>byAta[aid].every(t=>t.status==='concluida'||t.done));
   const ordenadas=[...atasComPendentes,...atasConcluidas];
-  el.innerHTML=ordenadas.map(aid=>{
+  el.innerHTML=banner+ordenadas.map(aid=>{
     const ata=atas.find(a=>a.id===parseInt(aid));if(!ata)return"";
     const label=ata.avulsa?"📌 Tarefas Avulsas":`📅 ${ata.title} — ${fmtDate(ata.date)}`;
     return`<div style="margin-bottom:6px;font-family:'Playfair Display',serif;font-size:.9rem;color:var(--vinho)">${label}</div>${renderTaskList(sortTasks(byAta[aid]))}<div style="height:12px"></div>`;
@@ -2244,6 +2374,10 @@ function abrirNovaTarefaAta(ataId){
   document.getElementById("etId").value="";
   document.getElementById("etTexto").value="";
   document.getElementById("etPrazo").value="";
+  var _ea=document.getElementById("etAssunto"); if(_ea)_ea.value="";
+  window.__etRel=[]; renderRelChips('et');
+  var _es=document.getElementById("etSugestoes"); if(_es){_es.style.display='none';_es.innerHTML='';}
+  popularAssuntos();
   document.getElementById("etChips").innerHTML=TEAM.map(function(u){
     var av=u.photo?'<div class="chip-av"><img src="'+u.photo+'" alt=""></div>':'<div class="chip-av" style="background:'+u.color+'">'+initials(u.name)+'</div>';
     return '<button type="button" class="resp-chip" data-uid="'+u.id+'" style="border-color:'+u.color+';color:'+u.color+'" onclick="toggleChip(this,\''+u.color+'\')">'+av+u.name+'</button>';
@@ -2418,6 +2552,7 @@ function renderTaskList(list, hl) {
         <div class="task-tags">
           ${pessoasTags}
           ${ataTag}
+          ${t.assunto?`<span class="tag tag-assunto" title="Filtrar por assunto" onclick="filtrarAssunto('${_escA(t.assunto)}')">🏷 ${_esc(t.assunto)}</span>`:""}
           ${hashtagChips(t.texto)}
           ${(t.obs && t.obs.startsWith("🔁")) ? `<span class="tag" style="background:#EDE9FE;color:#5B21B6;text-transform:none;font-size:.73rem">${t.obs}</span>` : ""}
           ${t.prazo ? (()=>{
@@ -2428,6 +2563,7 @@ function renderTaskList(list, hl) {
             return '<span class="prazo-tag '+cls+'">'+label+'</span>';
           })() : ''}
         </div>
+        ${(()=>{const r=relsOf(t);return r.length?`<div class="rel-line">🔗 Ligada a: ${r.map(o=>`<a onclick="irTask(${o.id})">${_esc(o.texto.slice(0,32))}</a>`).join(', ')}</div>`:'';})()}
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
           <button class="obs-btn" onclick="abrirEditTarefa(${t.id})" style="color:var(--vinho)">🖊 Editar</button>
           <button class="obs-btn" onclick="deletarTarefa(${t.id})" style="color:#C0392B">🗑 Deletar</button>
@@ -2884,6 +3020,10 @@ function initNovaTarefaTab() {
   // Clear fields
   const txt = document.getElementById("ntTexto");
   if(txt) txt.value = "";
+  var _na=document.getElementById("ntAssunto"); if(_na)_na.value="";
+  window.__ntRel=[]; if(typeof renderRelChips==='function') renderRelChips('nt');
+  var _ns=document.getElementById("ntSugestoes"); if(_ns){_ns.style.display='none';_ns.innerHTML='';}
+  if(typeof popularAssuntos==='function') popularAssuntos();
 }
 
 async function salvarNovaTarefa() {
@@ -2893,6 +3033,8 @@ async function salvarNovaTarefa() {
   const ataId = document.getElementById("ntAta")?.value;
   const categoria = document.getElementById("ntCategoria")?.value||"";
   const prazo = document.getElementById("ntPrazo")?.value||"";
+  const assunto = (document.getElementById("ntAssunto")?.value||"").trim();
+  const rel = window.__ntRel||[];
   showToast("Salvando...");
   try {
     let ataFinal;
@@ -2907,8 +3049,10 @@ async function salvarNovaTarefa() {
         atas.push(ataFinal);
       }
     }
-    const nt = await criarTask(ataFinal.id, texto, JSON.stringify(resps), prazo);
+    const nt = await criarTask(ataFinal.id, texto, JSON.stringify(resps), prazo, assunto, rel);
     tasks.push(nt);
+    window.__ntRel=[]; renderRelChips('nt');
+    var _ns=document.getElementById("ntSugestoes"); if(_ns){_ns.style.display='none';_ns.innerHTML='';}
     setSyncOk(true);
     showToast("✓ Tarefa criada!");
     // Navigate to minhas tarefas if current user is one of the responsáveis
@@ -2923,6 +3067,10 @@ function abrirEditTarefa(id) {
   document.getElementById("etId").value = id;
   document.getElementById("etTexto").value = t.texto;
   document.getElementById("etPrazo").value = t.prazo||"";
+  var _ea=document.getElementById("etAssunto"); if(_ea)_ea.value=t.assunto||"";
+  window.__etRel=Array.isArray(t.relacionadas)?t.relacionadas.slice():[]; renderRelChips('et');
+  var _es=document.getElementById("etSugestoes"); if(_es){_es.style.display='none';_es.innerHTML='';}
+  popularAssuntos();
   const resps = parseResponsaveis(t.responsavel);
   // Render chips
   const chips = document.getElementById("etChips");
@@ -2937,6 +3085,7 @@ function abrirEditTarefa(id) {
   }).join("");
   var _t=document.getElementById('etModalTitle'); if(_t)_t.textContent='🖊 Editar Tarefa';
   const em = document.getElementById("editTaskModal");
+  em.classList.remove("hidden"); em.classList.add("open");
 }
 
 function fecharEditTaskModal() {
@@ -2950,11 +3099,13 @@ async function salvarEdicaoTarefa() {
   if(!texto){ showToast("Escreva a descrição."); return; }
   const resps = [...document.querySelectorAll("#etChips .resp-chip.selected")].map(b=>b.dataset.uid);
   const prazo = document.getElementById("etPrazo")?.value||"";
+  const assunto = (document.getElementById("etAssunto")?.value||"").trim();
+  const rel = window.__etRel||[];
   showToast("Salvando...");
   if(!_idRaw){
     try {
       const ataId = window.__novaTarefaAtaId;
-      const nt = await criarTask(ataId, texto, JSON.stringify(resps), prazo);
+      const nt = await criarTask(ataId, texto, JSON.stringify(resps), prazo, assunto, rel);
       tasks.push(nt);
       fecharEditTaskModal(); renderAll();
       if(!document.getElementById("tab-detalhe").classList.contains("hidden")) abrirAta(ataId);
@@ -2964,9 +3115,9 @@ async function salvarEdicaoTarefa() {
   }
   const id = parseInt(_idRaw);
   try {
-    await api.patch("lola_tasks", {texto, responsavel: JSON.stringify(resps), prazo}, `id=eq.${id}`);
+    await api.patch("lola_tasks", {texto, responsavel: JSON.stringify(resps), prazo, assunto, relacionadas: rel}, `id=eq.${id}`);
     const t = tasks.find(t=>t.id===id);
-    if(t){ t.texto=texto; t.responsavel=JSON.stringify(resps); t.prazo=prazo; }
+    if(t){ t.texto=texto; t.responsavel=JSON.stringify(resps); t.prazo=prazo; t.assunto=assunto; t.relacionadas=rel; }
     // Preserve status - don't overwrite
     fecharEditTaskModal();
     renderAll();
