@@ -678,7 +678,7 @@
         
         <a class="nav-item" href="https://lolaccmq.github.io/Lola-Manutencoes/" target="_blank"><span class="ni">🔧</span><span class="nl">Manutenções</span><span class="na">↗</span></a>
       </div>
-      <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="dashboard" onclick="openEstoque('dashboard')"><span class="ni">📊</span><span class="nl">Dashboard</span></button><button class="nav-item nav-estoque" data-page="insumos" onclick="openEstoque('insumos')"><span class="ni">🧂</span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" onclick="openEstoque('preproducoes')"><span class="ni">🍳</span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" onclick="openEstoque('fichas')"><span class="ni">📒</span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="contagem" onclick="openEstoque('contagem')"><span class="ni">📦</span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" onclick="openEstoque('saidas')"><span class="ni">📤</span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" onclick="openEstoque('fornecedores')"><span class="ni">🚚</span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" onclick="openEstoque('pedidos')"><span class="ni">🛒</span><span class="nl">Pedidos à Central</span></button></div>
+      <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" onclick="openEstoque('insumos')"><span class="ni">🧂</span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" onclick="openEstoque('preproducoes')"><span class="ni">🍳</span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" onclick="openEstoque('fichas')"><span class="ni">📒</span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="contagem" onclick="openEstoque('contagem')"><span class="ni">📦</span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" onclick="openEstoque('saidas')"><span class="ni">📤</span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" onclick="openEstoque('fornecedores')"><span class="ni">🚚</span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" onclick="openEstoque('pedidos')"><span class="ni">🛒</span><span class="nl">Pedidos à Central</span></button></div>
       <div class="sb-divider"></div>
       <div class="sb-section">
         <span class="sb-label">Documentos</span>
@@ -1206,8 +1206,8 @@ async function loadDashTasks(){
   if(!taskEl||taskEl.dataset.loaded==='1') return;
   const nameLC=(u.name||'').toLowerCase();
   try{
-    const tasks=await dbFetch('lola_tasks','select=id,texto,status,prazo,ata_id,responsavel&status=neq.concluida&order=created_at.asc');
-    const mine=tasks.filter(t=>{ try{ const r=typeof t.responsavel==='string'?JSON.parse(t.responsavel):t.responsavel; return Array.isArray(r)&&r.map(x=>x.toLowerCase()).includes(nameLC); }catch{ return false; } });
+    const tasks=await dbFetch('lola_tasks','select=id,texto,status,done,prazo,ata_id,responsavel&status=neq.concluida&order=created_at.asc');
+    const mine=tasks.filter(t=>{ if(t.done) return false; try{ const r=typeof t.responsavel==='string'?JSON.parse(t.responsavel):t.responsavel; return Array.isArray(r)&&r.map(x=>x.toLowerCase()).includes(nameLC); }catch{ return false; } });
     if(taskCount)taskCount.textContent=mine.length;
     if(mine.length===0){ taskEl.innerHTML='<div class="dash-card-empty">✅ Nenhuma tarefa pendente!</div>'; }
     else {
@@ -1655,6 +1655,17 @@ function updateBadges() {
   document.getElementById("bTodas").textContent = tasks.filter(t=>!t.done).length;
 }
 
+function escRe(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function highlight(html, term){
+  if(!term) return html;
+  try{
+    var re = new RegExp('('+escRe(term)+')','gi');
+    return String(html).replace(/(<[^>]*>)|([^<]+)/g, function(m, tag, text){
+      if(tag) return tag;
+      return text.replace(re, '<mark style="background:#FFE08A;color:inherit;padding:0 1px;border-radius:3px">$1</mark>');
+    });
+  }catch(e){ return html; }
+}
 function extractHashtags(text){
   if(!text) return [];
   var m = String(text).match(/#[0-9A-Za-zÀ-ÿ_]+/g);
@@ -1760,8 +1771,8 @@ function renderAtas() {
         ${catTag}
         ${a.autor_nome ? `<span style="font-size:.72rem;color:var(--muted)">por ${a.autor_nome}</span>` : ""}
       </div>
-      <div class="card-title">${a.title}</div>
-      <div class="card-excerpt">${formatText(a.conteudo||"")}</div>
+      <div class="card-title">${q?highlight(a.title,q):a.title}</div>
+      <div class="card-excerpt">${q?highlight(formatText(a.conteudo||""),q):formatText(a.conteudo||"")}</div>
       ${chips?`<div style="margin:6px 0 2px">${chips}</div>`:""}
       <div class="card-actions"><span class="task-count">📌 ${at.length} tarefa${at.length!==1?"s":""}${at.length?` · ${fe} feita${fe!==1?"s":""}`:""}</span></div>
     </div>`;
@@ -1781,7 +1792,7 @@ function renderAtas() {
     out += `<div class="tasks-header">📄 Atas (${lista.length})</div>`;
     out += lista.length ? lista.map(cardHtml).join("") : '<div style="color:var(--muted);font-size:.83rem;padding:7px 0 14px">Nenhuma ata encontrada.</div>';
     out += `<div class="tasks-header" style="margin-top:18px">📌 Tarefas (${tasksMatch.length})</div>`;
-    out += tasksMatch.length ? renderTaskList(tasksMatch) : '<div style="color:var(--muted);font-size:.83rem;padding:7px 0">Nenhuma tarefa encontrada.</div>';
+    out += tasksMatch.length ? renderTaskList(tasksMatch, q) : '<div style="color:var(--muted);font-size:.83rem;padding:7px 0">Nenhuma tarefa encontrada.</div>';
   } else {
     if (!lista.length) { el.innerHTML='<div class="empty"><div class="icon">📄</div><p>Nenhuma ata ainda.<br>Clique em <strong>+ Nova Ata</strong>.</p></div>'; return; }
     const emAndamento = lista.filter(a => { const at=tasks.filter(t=>t.ata_id===a.id); return !(at.length>0 && at.filter(t=>t.done).length===at.length); });
@@ -2074,26 +2085,30 @@ function abrirComentarios(taskId) {
 }
 
 async function enviarComt(taskId) {
-  const input = document.getElementById("ci"+taskId);
+  // Pode haver campos duplicados (mesma tarefa em várias abas/detalhe). Pega o que o usuário preencheu.
+  const inputs = Array.prototype.slice.call(document.querySelectorAll("#ci"+taskId));
+  let input = inputs.filter(function(el){ return el.value && el.value.trim(); })[0];
+  if(!input) input = inputs.filter(function(el){ return el.offsetParent!==null; })[0];
   if(!input || !input.value.trim()) return;
   const texto = input.value.trim();
-  input.value = ""; input.disabled = true;
+  inputs.forEach(function(el){ el.value=""; el.disabled=true; });
   try {
     await adicionarComentario(taskId, texto);
-    const wrap = document.getElementById("comt-wrap-"+taskId);
-    if(wrap) {
+    // Atualiza TODAS as cópias do bloco de comentários (todas as abas + detalhe), pra aparecer na hora.
+    Array.prototype.slice.call(document.querySelectorAll("#comt-wrap-"+taskId)).forEach(function(wrap){
       wrap.style.display = "block";
       wrap.innerHTML = renderComentariosInline(taskId);
-    }
-    // Also update the toggle button label
-    const btn = document.querySelector("[data-action='comentarios'][data-taskid='"+taskId+"']");
-    if(btn) { btn.style.color = "var(--vinho)"; btn.textContent = "💬 "+comentarios[taskId].length+" comentário"+(comentarios[taskId].length>1?"s":""); }
+    });
+    Array.prototype.slice.call(document.querySelectorAll("[data-action='comentarios'][data-taskid='"+taskId+"']")).forEach(function(btn){
+      btn.style.color = "var(--vinho)";
+      btn.textContent = "💬 "+comentarios[taskId].length+" comentário"+(comentarios[taskId].length>1?"s":"");
+    });
     setSyncOk(true); showToast("✓ Comentário enviado!");
   } catch(e) { showToast("Erro ao enviar."); setSyncOk(false); }
-  finally { if(input) input.disabled = false; }
+  finally { Array.prototype.slice.call(document.querySelectorAll("#ci"+taskId)).forEach(function(el){ el.disabled=false; }); }
 }
 
-function renderTaskList(list) {
+function renderTaskList(list, hl) {
   if (!list.length) return '<div style="color:var(--muted);font-size:.83rem;padding:7px 0">Nenhuma tarefa.</div>';
   return list.map(t => {
     const resp=parseResponsaveis(t.responsavel);
@@ -2107,7 +2122,7 @@ function renderTaskList(list) {
     return`<div class="task-item ${t.done?"done":""}" id="task-item-${t.id}">
       <div class="task-check ${t.done?"checked":""}" onclick="toggleTask(${t.id},${!t.done})"></div>
       <div class="task-body">
-        <div class="task-text">${formatText(t.texto)}</div>
+        <div class="task-text">${hl?highlight(formatText(t.texto),hl):formatText(t.texto)}</div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
           <select class="status-select status-${t.status||'a_fazer'}" onchange="alterarStatus(${t.id},this.value,this)">
             <option value="a_fazer" ${(t.status||'a_fazer')==='a_fazer'?'selected':''}>⚪ A fazer</option>
