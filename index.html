@@ -1818,7 +1818,7 @@ async function rhDelSemana(id){
 
 /* ===== Pedidos Hortifrúti ===== */
 var HORTI_PROD=[], HORTI_FORN='', HORTI_QTD={};
-function _hin(extra){ return 'border:1.5px solid var(--border);border-radius:9px;padding:8px 11px;font-family:inherit;font-size:.9rem;background:#fff;color:var(--ink);'+(extra||''); }
+function _hin(extra){ return 'border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:16px;background:#fff;color:var(--ink);'+(extra||''); }
 function hortiCab(){ return '<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">Pedidos Hortifrúti</h2><p style="color:var(--muted);font-size:.84rem">Monte o pedido, gere o texto e envie pro fornecedor no WhatsApp.</p>'; }
 function hortiTabs(a){
   function tb(k,fn,lbl){ return '<button onclick="'+fn+'()" style="padding:8px 16px;border-radius:40px;border:1.5px solid '+(a===k?'var(--vinho)':'var(--border)')+';background:'+(a===k?'var(--vinho)':'#fff')+';color:'+(a===k?'#fff':'var(--vinho)')+';font-weight:600;font-size:.84rem;cursor:pointer;font-family:inherit;margin-right:8px;margin-bottom:6px">'+lbl+'</button>'; }
@@ -1853,9 +1853,9 @@ function hortiLinhas(filtro){
   if(!lst.length) return '<div style="padding:14px;color:var(--muted)">Nenhum produto.</div>';
   return lst.map(function(p,i){
     var val=HORTI_QTD[p.nome]||'';
-    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;'+(i?'border-top:1px solid var(--border)':'')+'">'
-      +'<div style="flex:1;font-size:.9rem">'+_escC(p.nome)+(p.unidade?(' <span style="color:var(--muted);font-size:.76rem">('+_escC(p.unidade)+')</span>'):'')+'</div>'
-      +'<input type="text" value="'+_escA(val)+'" placeholder="qtd" oninput="HORTI_QTD[\''+_escA(p.nome)+'\']=this.value" style="width:84px;text-align:center;'+_hin()+'">'
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;'+(i?'border-top:1px solid var(--border)':'')+'">'
+      +'<div style="flex:1;font-size:.95rem;font-weight:500">'+_escC(p.nome)+(p.unidade?(' <span style="color:var(--muted);font-size:.76rem">('+_escC(p.unidade)+')</span>'):'')+'</div>'
+      +'<input type="text" inputmode="text" value="'+_escA(val)+'" placeholder="qtd" oninput="HORTI_QTD[\''+_escA(p.nome)+'\']=this.value" style="width:78px;text-align:center;'+_hin()+'">'
       +'</div>';
   }).join('');
 }
