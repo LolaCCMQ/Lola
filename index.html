@@ -1717,17 +1717,101 @@ async function rhDelFunc(id,nome){
     rhRenderFuncList(); if(typeof showToast==='function')showToast('Excluído');
   }catch(e){ alert('Erro: '+e.message); }
 }
-function renderRHComissoes(){
+var __rhSemanas=[], __rhSemanaObj=null, __rhItens=[];
+function rhComCab(){ return '<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">RH</h2><p style="color:var(--muted);font-size:.84rem">Cadastro da equipe, salários, VT e comissões.</p>'+rhTabs('com'); }
+async function renderRHComissoes(){
   var panel=document.getElementById('module-rh'); if(!panel) return;
-  var h='<div style="padding:22px 26px;max-width:1040px">';
-  h+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">RH</h2>';
-  h+='<p style="color:var(--muted);font-size:.84rem">Cadastro da equipe, salários, VT e comissões.</p>';
-  h+=rhTabs('com');
-  h+='<div class="empty" style="margin-top:16px">💰 As <b>comissões semanais</b> são o próximo passo — calculam sozinhas (% do cargo × faturamento − descontos). Em breve.</div>';
-  h+='</div>';
+  if(!__adminHash){ renderRH(); return; }
+  __rhSemanaObj=null;
+  try{ __rhSemanas=await adminRpc('rh_semana_list',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash})||[]; }catch(e){ __rhSemanas=[]; }
+  rhComLista();
+}
+function rhComLista(){
+  var panel=document.getElementById('module-rh');
+  var h='<div style="padding:22px 26px;max-width:1040px">'+rhComCab();
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 12px;flex-wrap:wrap;gap:8px"><div style="font-weight:600">Semanas ('+__rhSemanas.length+')</div><button class="btn btn-primary btn-sm" onclick="rhNovaSemana()">➕ Nova semana</button></div>';
+  if(!__rhSemanas.length){ h+='<div class="empty">Nenhuma semana de comissão ainda. Clique em "Nova semana".</div>'; }
+  else{
+    h+='<div style="display:flex;flex-direction:column;gap:8px">';
+    __rhSemanas.forEach(function(s){
+      h+='<div onclick="rhAbrirSemana('+s.id+')" style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<div><div style="font-weight:600">'+_escC(s.label||'Semana')+'</div><div style="font-size:.76rem;color:var(--muted)">'+(s.data_inicio?fmtDate(s.data_inicio):'')+(s.data_fim?(' a '+fmtDate(s.data_fim)):'')+'</div></div>'
+        +'<div style="text-align:right"><div style="font-size:.7rem;color:var(--muted)">Faturamento</div><div style="font-weight:700;color:var(--vinho)">'+rhMoney(s.faturamento)+'</div></div></div>';
+    });
+    h+='</div>';
+  }
+  h+='</div>'; panel.innerHTML=h;
+}
+function rhNovaSemana(){
+  var panel=document.getElementById('module-rh');
+  var h='<div style="padding:22px 26px;max-width:560px">'+rhComCab();
+  h+='<h3 style="color:var(--vinho-deep);margin:14px 0 12px">Nova semana de comissão</h3>';
+  h+=rhField('Rótulo (ex: 2 a 7 Junho)',rhInput('rsLabel',''));
+  h+='<div style="display:flex;gap:10px"><div style="flex:1">'+rhField('Início',rhInput('rsIni','','date'))+'</div><div style="flex:1">'+rhField('Fim',rhInput('rsFim','','date'))+'</div></div>';
+  h+='<div style="display:flex;gap:10px"><div style="flex:1">'+rhField('Faturamento (R$)',rhInput('rsFat','','number'))+'</div><div style="flex:1">'+rhField('Dias trabalhados',rhInput('rsDias','6','number'))+'</div></div>';
+  h+='<p style="font-size:.78rem;color:var(--muted);margin:2px 0 12px">Ao criar, o sistema gera a comissão de cada funcionário ativo que tem % cadastrado.</p>';
+  h+='<div style="display:flex;gap:9px"><button class="btn btn-primary" onclick="rhCriarSemana()">Criar semana</button><button class="btn btn-ghost" onclick="renderRHComissoes()">Cancelar</button></div></div>';
   panel.innerHTML=h;
 }
-function _escC2(){}
+async function rhCriarSemana(){
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  var p={label:(g('rsLabel').trim()||'Semana'),data_inicio:g('rsIni'),data_fim:g('rsFim'),faturamento:g('rsFat'),dias:g('rsDias')||'6'};
+  try{ var id=await adminRpc('rh_semana_criar',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p:p});
+    if(typeof showToast==='function')showToast('✓ Semana criada'); rhAbrirSemana(id);
+  }catch(e){ alert('Erro: '+e.message); }
+}
+async function rhAbrirSemana(id){
+  try{
+    __rhSemanas=await adminRpc('rh_semana_list',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash})||[];
+    __rhSemanaObj=__rhSemanas.find(function(s){return s.id===id;})||null;
+    __rhItens=await adminRpc('rh_semana_itens',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_semana:id})||[];
+    rhComDetalhe();
+  }catch(e){ alert('Erro: '+e.message); }
+}
+function rhComDetalhe(){
+  var panel=document.getElementById('module-rh'); var s=__rhSemanaObj; if(!s){ renderRHComissoes(); return; }
+  var fat=Number(s.faturamento)||0, dias=Number(s.dias)||6;
+  var h='<div style="padding:22px 26px;max-width:1040px">'+rhComCab();
+  h+='<div style="display:flex;align-items:center;gap:10px;margin:14px 0 8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="renderRHComissoes()">← Voltar</button><h3 style="margin:0;font-size:1.1rem;color:var(--vinho-deep)">'+_escC(s.label||'Semana')+'</h3><button class="btn btn-ghost btn-sm" style="color:#C0392B;margin-left:auto" onclick="rhDelSemana('+s.id+')">🗑 Excluir semana</button></div>';
+  h+='<div class="bar" style="gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px;background:var(--vinho-pale);padding:10px 14px;border-radius:10px">'
+    +'<label style="font-size:.82rem;font-weight:600">Faturamento da semana: <input id="rsFatEdit" type="number" value="'+fat+'" onchange="rhSalvarFat()" style="width:150px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;margin-left:4px"></label>'
+    +'<label style="font-size:.82rem;font-weight:600">Dias: <input id="rsDiasEdit" type="number" value="'+dias+'" onchange="rhSalvarFat()" style="width:64px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;margin-left:4px"></label></div>';
+  var tot=0;
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;font-size:.85rem">';
+  h+='<thead><tr style="background:var(--vinho-pale)">'+['Funcionário','Cargo','%','Previsto','Desconto','Comissão','/ dia'].map(function(x){return '<th style="text-align:left;padding:9px 10px;font-size:.7rem;text-transform:uppercase;color:var(--muted)">'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+  __rhItens.forEach(function(it){
+    var pct=Number(it.pct)||0, prev=pct*fat, desc=Number(it.desconto)||0, fin=prev-desc, dia=dias?fin/dias:0; tot+=fin;
+    h+='<tr style="border-top:1px solid var(--border)">'
+      +'<td style="padding:8px 10px;font-weight:600">'+_escC(it.nome||'')+'</td>'
+      +'<td style="padding:8px 10px;color:var(--muted)">'+_escC(it.cargo||'')+'</td>'
+      +'<td style="padding:8px 10px;white-space:nowrap"><input type="number" step="0.001" value="'+(pct*100)+'" onchange="rhSalvarItem('+it.id+',\'pct\',this.value)" style="width:60px;border:1.5px solid var(--border);border-radius:7px;padding:4px 6px;font-family:inherit">%</td>'
+      +'<td style="padding:8px 10px">'+rhMoney(prev)+'</td>'
+      +'<td style="padding:8px 10px"><input type="number" step="0.01" value="'+desc+'" onchange="rhSalvarItem('+it.id+',\'desconto\',this.value)" style="width:90px;border:1.5px solid var(--border);border-radius:7px;padding:4px 6px;font-family:inherit">'+'</td>'
+      +'<td style="padding:8px 10px;font-weight:700;color:var(--vinho)">'+rhMoney(fin)+'</td>'
+      +'<td style="padding:8px 10px;color:var(--muted)">'+rhMoney(dia)+'</td></tr>';
+  });
+  h+='</tbody><tfoot><tr style="background:var(--vinho-pale)"><td colspan="5" style="padding:10px;text-align:right;font-weight:700">Total da semana</td><td style="padding:10px;font-weight:800;color:var(--vinho)">'+rhMoney(tot)+'</td><td></td></tr></tfoot></table></div>';
+  if(!__rhItens.length) h+='<div class="empty" style="margin-top:12px">Nenhum funcionário com % de comissão nesta semana. Defina o % no cadastro e crie a semana de novo.</div>';
+  h+='</div>'; panel.innerHTML=h;
+}
+async function rhSalvarItem(id,field,val){
+  var it=__rhItens.find(function(x){return x.id===id;}); if(!it) return;
+  if(field==='pct') it.pct=(parseFloat(val)||0)/100; else it.desconto=parseFloat(val)||0;
+  try{ await adminRpc('rh_item_save',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p:{id:id,pct:it.pct,desconto:(it.desconto||0)}}); rhComDetalhe(); }
+  catch(e){ alert('Erro: '+e.message); }
+}
+async function rhSalvarFat(){
+  var f=document.getElementById('rsFatEdit'), d=document.getElementById('rsDiasEdit');
+  __rhSemanaObj.faturamento=parseFloat(f?f.value:0)||0; __rhSemanaObj.dias=parseInt(d?d.value:6)||6;
+  var s=__rhSemanaObj;
+  try{ await adminRpc('rh_semana_update',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p:{id:s.id,label:s.label||'',data_inicio:(s.data_inicio||'').slice(0,10),data_fim:(s.data_fim||'').slice(0,10),faturamento:s.faturamento,dias:s.dias}}); rhComDetalhe(); }
+  catch(e){ alert('Erro: '+e.message); }
+}
+async function rhDelSemana(id){
+  if(!confirm('Excluir esta semana e suas comissões?'))return;
+  try{ await adminRpc('rh_semana_delete',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_id:id}); renderRHComissoes(); }
+  catch(e){ alert('Erro: '+e.message); }
+}
 
 function _escC(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 async function comprasWrite(method, body, params){
