@@ -683,6 +683,7 @@
       <div class="sb-section" style="display:none">
         <span class="sb-label">Administração</span>
         <button class="nav-item" data-mod="usuarios" data-menu="usuarios" onclick="switchModule('usuarios')"><span class="ni">👥</span><span class="nl">Usuários</span></button>
+        <button class="nav-item" data-mod="rh" data-menu="rh" onclick="switchModule('rh')"><span class="ni">💼</span><span class="nl">RH</span></button>
         <button class="nav-item nav-fin" data-menu="financeiro_mac" data-fin-unit="mac" onclick="openFinanceiro('mac')"><span class="ni">💰</span><span class="nl">Financeiro Lola MAC</span></button>
         <button class="nav-item nav-fin" data-menu="financeiro_central" data-fin-unit="ccmq" onclick="openFinanceiro('ccmq')"><span class="ni">💰</span><span class="nl">Financeiro Central</span></button>
       </div>
@@ -714,6 +715,7 @@
       <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-manutencoes"><iframe id="manutFrame" title="Manutenções" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-usuarios"></div>
+      <div class="module-panel" id="module-rh"></div>
       <div class="module-panel" id="module-financeiro"><iframe id="finFrame" title="Financeiro" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-compras"></div>
 
@@ -1207,7 +1209,7 @@ window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
  {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras']]},
- {label:'Administração',items:[['usuarios','👥 Usuários'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central']]},
+ {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central']]},
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
  {label:'Documentos',items:[['doc_escala','🗓️ Escala'],['doc_vouchers','🎁 Vouchers'],['doc_reservas','🎉 Reservas e Eventos'],['doc_hortifruti','🥬 Pedidos Hortifruti'],['doc_admissional','📄 Ficha Admissional'],['doc_alergenicos','⚠️ Alergênicos'],['doc_vinhos','🍷 Carta de Vinhos']]}
@@ -1310,6 +1312,7 @@ function switchModule(mod){
     }
   }
   if(mod==='usuarios' && typeof renderUsuarios==='function') renderUsuarios();
+  if(mod==='rh' && typeof renderRH==='function') renderRH();
   if(mod==='compras' && typeof renderCompras==='function') renderCompras();
   if(mod==='home'){['dashTasks','dashCompras','dashPedidos','dashEquip','dashRevisar','dashMargem'].forEach(function(id){var e=document.getElementById(id);if(e)e.dataset.loaded='';});loadDashboard();}
 }
@@ -1597,6 +1600,134 @@ async function admSaveMenu(id){
     setTimeout(function(){ if(btn){ btn.textContent='Salvar acesso'; btn.style.background='var(--vinho)'; btn.disabled=false; } },2200);
   }catch(e){ if(btn){ btn.textContent='Salvar acesso'; btn.disabled=false; } alert('Erro ao salvar: '+e.message); }
 }
+
+/* ===== RH (admin) ===== */
+var __rhFuncs=[];
+function rhMoney(v){ v=Number(v||0); return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+async function renderRH(){
+  var panel=document.getElementById('module-rh'); if(!panel) return;
+  panel.style.overflowY='auto';
+  var u=window.__portalUser;
+  if(!u || u.role!=='admin'){ panel.innerHTML='<div style="padding:28px;color:var(--muted)">Acesso restrito a administradores.</div>'; return; }
+  if(!__adminHash){
+    panel.innerHTML='<div style="padding:28px 26px;max-width:420px">'
+      +'<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.4rem;margin-bottom:6px">RH</h2>'
+      +'<p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Confirme sua senha de administrador para continuar.</p>'
+      +'<input type="password" id="rhPass" placeholder="Sua senha" onkeydown="if(event.key===\'Enter\')confirmAdminRH()" style="width:100%;font-family:inherit;font-size:.95rem;border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;background:#fff;color:var(--ink);margin-bottom:10px">'
+      +'<button onclick="confirmAdminRH()" style="background:var(--vinho);color:#fff;border:none;border-radius:9px;padding:10px 18px;font-weight:600;cursor:pointer;font-family:inherit">Entrar</button>'
+      +'<div id="rhErr" style="color:var(--vinho);font-size:.82rem;margin-top:8px"></div></div>';
+    return;
+  }
+  panel.innerHTML='<div style="padding:24px 26px;color:var(--muted)">Carregando RH…</div>';
+  try{ __rhFuncs=await adminRpc('rh_func_list',{p_admin_name:u.name,p_admin_hash:__adminHash})||[]; }
+  catch(e){ __adminHash=null; renderRH(); return; }
+  rhRenderFuncList();
+}
+async function confirmAdminRH(){
+  var el=document.getElementById('rhPass'); if(!el||!el.value) return;
+  var h=await sha256hex(el.value);
+  try{ await adminRpc('rh_func_list',{p_admin_name:window.__portalUser.name,p_admin_hash:h}); __adminHash=h; renderRH(); }
+  catch(e){ var er=document.getElementById('rhErr'); if(er) er.textContent='Senha incorreta.'; }
+}
+function rhTabs(active){
+  function tb(k,lbl){ return '<button onclick="'+(k==='func'?'rhRenderFuncList()':'renderRHComissoes()')+'" style="padding:7px 16px;border-radius:40px;border:1.5px solid '+(active===k?'var(--vinho)':'var(--border)')+';background:'+(active===k?'var(--vinho)':'#fff')+';color:'+(active===k?'#fff':'var(--vinho)')+';font-weight:600;font-size:.84rem;cursor:pointer;font-family:inherit">'+lbl+'</button>'; }
+  return '<div style="display:flex;gap:8px;margin:10px 0 4px">'+tb('func','👥 Funcionários')+tb('com','💰 Comissões')+'</div>';
+}
+function rhRenderFuncList(){
+  var panel=document.getElementById('module-rh'); if(!panel) return;
+  var h='<div style="padding:22px 26px;max-width:1040px">';
+  h+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">RH</h2>';
+  h+='<p style="color:var(--muted);font-size:.84rem">Cadastro da equipe, salários, VT e comissões.</p>';
+  h+=rhTabs('func');
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 12px;flex-wrap:wrap;gap:8px"><div style="font-weight:600">Funcionários ('+__rhFuncs.length+')</div><button class="btn btn-primary btn-sm" onclick="rhEditFunc(0)">➕ Novo funcionário</button></div>';
+  if(!__rhFuncs.length){ h+='<div class="empty">Nenhum funcionário cadastrado ainda.</div>'; }
+  else {
+    h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;font-size:.85rem">';
+    h+='<thead><tr style="background:var(--vinho-pale)">'+['Nome','Cargo','Empresa','Salário','Comissão','Status',''].map(function(x){return '<th style="text-align:left;padding:9px 11px;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+    __rhFuncs.forEach(function(f){
+      h+='<tr style="border-top:1px solid var(--border)">'
+        +'<td style="padding:9px 11px;font-weight:600">'+_escC(f.nome)+(f.ativo?'':' <span style="font-size:.7rem;color:var(--muted)">(inativo)</span>')+'</td>'
+        +'<td style="padding:9px 11px">'+_escC(f.cargo||'')+'</td>'
+        +'<td style="padding:9px 11px">'+_escC(f.empresa||'')+'</td>'
+        +'<td style="padding:9px 11px">'+rhMoney(f.salario)+'</td>'
+        +'<td style="padding:9px 11px">'+(f.comissao_pct?(Number(f.comissao_pct)*100).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%':'—')+'</td>'
+        +'<td style="padding:9px 11px">'+(f.ativo?'<span class="pill" style="background:#eef9f1;color:#1d6b43">ativo</span>':'<span class="pill">inativo</span>')+'</td>'
+        +'<td style="padding:9px 11px;white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="rhEditFunc('+f.id+')">🖊</button> <button class="btn btn-ghost btn-sm" style="color:#C0392B" onclick="rhDelFunc('+f.id+',\''+_escC(String(f.nome)).replace(/'/g,"\\'")+'\')">🗑</button></td>'
+        +'</tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  h+='</div>';
+  panel.innerHTML=h;
+}
+function rhField(label,inner){ return '<div style="margin-bottom:10px"><label style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">'+label+'</label>'+inner+'</div>'; }
+function rhInput(id,val,type){ return '<input id="'+id+'" type="'+(type||'text')+'" value="'+_escC(val==null?'':String(val))+'" style="width:100%;font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;background:#fff;color:var(--ink);box-sizing:border-box">'; }
+function rhEditFunc(id){
+  var panel=document.getElementById('module-rh'); if(!panel) return;
+  window.__rhEditId=id||'';
+  var f=id?(__rhFuncs.find(function(x){return x.id===id;})||{}):{};
+  var emp=f.empresa||'';
+  var opts=['','Lola','Eventos','N/C'].map(function(o){return '<option value="'+o+'"'+(o===emp?' selected':'')+'>'+(o||'—')+'</option>';}).join('');
+  var pctVal=f.comissao_pct?(Number(f.comissao_pct)*100):'';
+  var h='<div style="padding:22px 26px;max-width:720px">';
+  h+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.4rem;margin-bottom:14px">'+(id?'Editar funcionário':'Novo funcionário')+'</h2>';
+  h+=rhField('Nome *',rhInput('rfNome',f.nome));
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:160px">'+rhField('Cargo',rhInput('rfCargo',f.cargo))+'</div>'
+    +'<div style="flex:1;min-width:160px">'+rhField('Setor',rhInput('rfSetor',f.setor))+'</div></div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:140px">'+rhField('Empresa','<select id="rfEmpresa" style="width:100%;font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;background:#fff;color:var(--ink)">'+opts+'</select>')+'</div>'
+    +'<div style="flex:1;min-width:140px">'+rhField('Admissão',rhInput('rfAdm',(f.data_admissao||'').slice(0,10),'date'))+'</div></div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:120px">'+rhField('Salário (folha)',rhInput('rfSalario',f.salario||'','number'))+'</div>'
+    +'<div style="flex:1;min-width:120px">'+rhField('Por fora',rhInput('rfPorFora',f.por_fora||'','number'))+'</div></div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:110px">'+rhField('Insalubridade',rhInput('rfInsa',f.insalubridade||'','number'))+'</div>'
+    +'<div style="flex:1;min-width:110px">'+rhField('VT',rhInput('rfVt',f.vt||'','number'))+'</div>'
+    +'<div style="flex:1;min-width:110px">'+rhField('Comissão (%)',rhInput('rfPct',pctVal,'number'))+'</div></div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:140px">'+rhField('CPF',rhInput('rfCpf',f.cpf))+'</div>'
+    +'<div style="flex:1;min-width:140px">'+rhField('PIX',rhInput('rfPix',f.pix))+'</div>'
+    +'<div style="flex:1;min-width:140px">'+rhField('Contato',rhInput('rfContato',f.contato))+'</div></div>';
+  h+=rhField('Observações','<textarea id="rfObs" style="width:100%;min-height:60px;font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;background:#fff;color:var(--ink);box-sizing:border-box">'+_escC(f.obs||'')+'</textarea>');
+  h+='<label style="display:flex;align-items:center;gap:7px;font-size:.88rem;margin:6px 0 16px;cursor:pointer"><input type="checkbox" id="rfAtivo"'+((id===0||f.ativo||f.ativo===undefined)?' checked':'')+'> Funcionário ativo</label>';
+  h+='<div style="display:flex;gap:9px"><button class="btn btn-primary" onclick="rhSalvarFunc()">💾 Salvar</button><button class="btn btn-ghost" onclick="rhRenderFuncList()">Cancelar</button></div>';
+  h+='</div>';
+  panel.innerHTML=h;
+}
+async function rhSalvarFunc(){
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  var nome=g('rfNome').trim(); if(!nome){alert('Informe o nome.');return;}
+  var pctRaw=parseFloat(g('rfPct'))||0;
+  var p={ id:window.__rhEditId||'', nome:nome, cargo:g('rfCargo'), setor:g('rfSetor'), empresa:g('rfEmpresa'),
+    data_admissao:g('rfAdm'), salario:g('rfSalario'), por_fora:g('rfPorFora'), insalubridade:g('rfInsa'),
+    vt:g('rfVt'), comissao_pct:(pctRaw/100), cpf:g('rfCpf'), pix:g('rfPix'), contato:g('rfContato'),
+    ativo: document.getElementById('rfAtivo').checked, obs:g('rfObs') };
+  try{
+    await adminRpc('rh_func_save',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p:p});
+    __rhFuncs=await adminRpc('rh_func_list',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash})||[];
+    rhRenderFuncList(); if(typeof showToast==='function')showToast('✓ Funcionário salvo');
+  }catch(e){ alert('Erro ao salvar: '+e.message); }
+}
+async function rhDelFunc(id,nome){
+  if(!confirm('Excluir '+nome+'? (não afeta comissões já salvas)'))return;
+  try{
+    await adminRpc('rh_func_delete',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_id:id});
+    __rhFuncs=await adminRpc('rh_func_list',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash})||[];
+    rhRenderFuncList(); if(typeof showToast==='function')showToast('Excluído');
+  }catch(e){ alert('Erro: '+e.message); }
+}
+function renderRHComissoes(){
+  var panel=document.getElementById('module-rh'); if(!panel) return;
+  var h='<div style="padding:22px 26px;max-width:1040px">';
+  h+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">RH</h2>';
+  h+='<p style="color:var(--muted);font-size:.84rem">Cadastro da equipe, salários, VT e comissões.</p>';
+  h+=rhTabs('com');
+  h+='<div class="empty" style="margin-top:16px">💰 As <b>comissões semanais</b> são o próximo passo — calculam sozinhas (% do cargo × faturamento − descontos). Em breve.</div>';
+  h+='</div>';
+  panel.innerHTML=h;
+}
+function _escC2(){}
 
 function _escC(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 async function comprasWrite(method, body, params){
