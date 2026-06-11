@@ -216,15 +216,15 @@
   #module-tarefas .section-header h2 {font-family:'Playfair Display',serif;font-size:1.35rem;color:var(--vinho-deep);}
 
   /* BUTTONS */
-  #module-tarefas .btn {display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;
+  #module-tarefas .btn, #module-rh .btn {display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;
     border:none;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;}
-  #module-tarefas .btn-primary {background:var(--vinho);color:#fff;}
-  #module-tarefas .btn-primary:hover {background:var(--vinho-deep);}
-  #module-tarefas .btn-ghost {background:transparent;border:2px solid var(--vinho);color:var(--vinho);}
-  #module-tarefas .btn-ghost:hover {background:var(--vinho-pale);}
-  #module-tarefas .btn-sm {padding:6px 13px;font-size:.78rem;}
-  #module-tarefas .btn-danger {background:#C0392B;color:#fff;}
-  #module-tarefas .btn-danger:hover {background:#962d22;}
+  #module-tarefas .btn-primary, #module-rh .btn-primary {background:var(--vinho);color:#fff;}
+  #module-tarefas .btn-primary:hover, #module-rh .btn-primary:hover {background:var(--vinho-deep);}
+  #module-tarefas .btn-ghost, #module-rh .btn-ghost {background:transparent;border:2px solid var(--vinho);color:var(--vinho);}
+  #module-tarefas .btn-ghost:hover, #module-rh .btn-ghost:hover {background:var(--vinho-pale);}
+  #module-tarefas .btn-sm, #module-rh .btn-sm {padding:6px 13px;font-size:.78rem;}
+  #module-tarefas .btn-danger, #module-rh .btn-danger {background:#C0392B;color:#fff;}
+  #module-tarefas .btn-danger:hover, #module-rh .btn-danger:hover {background:#962d22;}
   #module-tarefas .btn-ai {background:linear-gradient(135deg,var(--vinho-deep),var(--vinho-light));color:#fff;}
   #module-tarefas .btn-ai:hover {opacity:.88;}
 
@@ -1667,7 +1667,7 @@ function rhEditFunc(id){
   window.__rhEditId=id||'';
   var f=id?(__rhFuncs.find(function(x){return x.id===id;})||{}):{};
   var emp=f.empresa||'';
-  var opts=['','Lola','Eventos','N/C'].map(function(o){return '<option value="'+o+'"'+(o===emp?' selected':'')+'>'+(o||'—')+'</option>';}).join('');
+  var opts=['','Lola','Eventos','MAC','N/C'].map(function(o){return '<option value="'+o+'"'+(o===emp?' selected':'')+'>'+(o||'—')+'</option>';}).join('');
   var pctVal=f.comissao_pct?(Number(f.comissao_pct)*100):'';
   var h='<div style="padding:22px 26px;max-width:720px">';
   h+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.4rem;margin-bottom:14px">'+(id?'Editar funcionário':'Novo funcionário')+'</h2>';
