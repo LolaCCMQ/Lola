@@ -216,15 +216,15 @@
   #module-tarefas .section-header h2 {font-family:'Playfair Display',serif;font-size:1.35rem;color:var(--vinho-deep);}
 
   /* BUTTONS */
-  #module-tarefas .btn, #module-rh .btn {display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;
+  #module-tarefas .btn, #module-rh .btn, #module-hortifruti .btn {display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;
     border:none;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;}
-  #module-tarefas .btn-primary, #module-rh .btn-primary {background:var(--vinho);color:#fff;}
-  #module-tarefas .btn-primary:hover, #module-rh .btn-primary:hover {background:var(--vinho-deep);}
-  #module-tarefas .btn-ghost, #module-rh .btn-ghost {background:transparent;border:2px solid var(--vinho);color:var(--vinho);}
-  #module-tarefas .btn-ghost:hover, #module-rh .btn-ghost:hover {background:var(--vinho-pale);}
-  #module-tarefas .btn-sm, #module-rh .btn-sm {padding:6px 13px;font-size:.78rem;}
-  #module-tarefas .btn-danger, #module-rh .btn-danger {background:#C0392B;color:#fff;}
-  #module-tarefas .btn-danger:hover, #module-rh .btn-danger:hover {background:#962d22;}
+  #module-tarefas .btn-primary, #module-rh .btn-primary, #module-hortifruti .btn-primary {background:var(--vinho);color:#fff;}
+  #module-tarefas .btn-primary:hover, #module-rh .btn-primary:hover, #module-hortifruti .btn-primary:hover {background:var(--vinho-deep);}
+  #module-tarefas .btn-ghost, #module-rh .btn-ghost, #module-hortifruti .btn-ghost {background:transparent;border:2px solid var(--vinho);color:var(--vinho);}
+  #module-tarefas .btn-ghost:hover, #module-rh .btn-ghost:hover, #module-hortifruti .btn-ghost:hover {background:var(--vinho-pale);}
+  #module-tarefas .btn-sm, #module-rh .btn-sm, #module-hortifruti .btn-sm {padding:6px 13px;font-size:.78rem;}
+  #module-tarefas .btn-danger, #module-rh .btn-danger, #module-hortifruti .btn-danger {background:#C0392B;color:#fff;}
+  #module-tarefas .btn-danger:hover, #module-rh .btn-danger:hover, #module-hortifruti .btn-danger:hover {background:#962d22;}
   #module-tarefas .btn-ai {background:linear-gradient(135deg,var(--vinho-deep),var(--vinho-light));color:#fff;}
   #module-tarefas .btn-ai:hover {opacity:.88;}
 
@@ -677,6 +677,7 @@
         <button class="nav-item" data-mod="tarefas" data-menu="tarefas" onclick="switchModule('tarefas')"><span class="ni">📋</span><span class="nl">Reuniões & Tarefas</span></button>
         <button class="nav-item" data-mod="diario" data-menu="diario" onclick="switchModule('diario')"><span class="ni">📓</span><span class="nl">Diário de Gerentes</span></button>
         <button class="nav-item" data-mod="compras" data-menu="compras" onclick="switchModule('compras')"><span class="ni">🛒</span><span class="nl">Lista de Compras</span></button>
+        <button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni">🥬</span><span class="nl">Pedidos Hortifrúti</span></button>
         
         
       </div>
@@ -718,6 +719,7 @@
       <div class="module-panel" id="module-rh"></div>
       <div class="module-panel" id="module-financeiro"><iframe id="finFrame" title="Financeiro" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-compras"></div>
+      <div class="module-panel" id="module-hortifruti"></div>
 
       <div class="module-panel active" id="module-home">
   <div class="home-wrap">
@@ -1208,7 +1210,7 @@ const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Com
 window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
- {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras']]},
+ {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti']]},
  {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central']]},
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
@@ -1217,7 +1219,7 @@ var MENU_GROUPS=[
 var ALL_MENU=[]; MENU_GROUPS.forEach(function(g){g.items.forEach(function(it){ALL_MENU.push(it[0]);});});
 function defaultMenu(role){
   if(role==='admin') return ALL_MENU.slice();
-  var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala','doc_vouchers','doc_reservas','doc_hortifruti','doc_admissional','doc_alergenicos','doc_vinhos'];
+  var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala','doc_vouchers','doc_reservas','doc_hortifruti','doc_admissional','doc_alergenicos','doc_vinhos','hortifruti'];
   var est=['est_insumos','est_preproducoes','est_fichas','est_contagem','est_saidas','est_fornecedores','est_pedidos'];
   if(role==='gerente'||role==='compras') return base.concat(est);
   return base;
@@ -1313,6 +1315,7 @@ function switchModule(mod){
   }
   if(mod==='usuarios' && typeof renderUsuarios==='function') renderUsuarios();
   if(mod==='rh' && typeof renderRH==='function') renderRH();
+  if(mod==='hortifruti' && typeof renderHorti==='function') renderHorti();
   if(mod==='compras' && typeof renderCompras==='function') renderCompras();
   if(mod==='home'){['dashTasks','dashCompras','dashPedidos','dashEquip','dashRevisar','dashMargem'].forEach(function(id){var e=document.getElementById(id);if(e)e.dataset.loaded='';});loadDashboard();}
 }
@@ -1811,6 +1814,137 @@ async function rhDelSemana(id){
   if(!confirm('Excluir esta semana e suas comissões?'))return;
   try{ await adminRpc('rh_semana_delete',{p_admin_name:window.__portalUser.name,p_admin_hash:__adminHash,p_id:id}); renderRHComissoes(); }
   catch(e){ alert('Erro: '+e.message); }
+}
+
+/* ===== Pedidos Hortifrúti ===== */
+var HORTI_PROD=[], HORTI_FORN='', HORTI_QTD={};
+function _hin(extra){ return 'border:1.5px solid var(--border);border-radius:9px;padding:8px 11px;font-family:inherit;font-size:.9rem;background:#fff;color:var(--ink);'+(extra||''); }
+function hortiCab(){ return '<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">Pedidos Hortifrúti</h2><p style="color:var(--muted);font-size:.84rem">Monte o pedido, gere o texto e envie pro fornecedor no WhatsApp.</p>'; }
+function hortiTabs(a){
+  function tb(k,fn,lbl){ return '<button onclick="'+fn+'()" style="padding:8px 16px;border-radius:40px;border:1.5px solid '+(a===k?'var(--vinho)':'var(--border)')+';background:'+(a===k?'var(--vinho)':'#fff')+';color:'+(a===k?'#fff':'var(--vinho)')+';font-weight:600;font-size:.84rem;cursor:pointer;font-family:inherit;margin-right:8px;margin-bottom:6px">'+lbl+'</button>'; }
+  return '<div style="margin:10px 0 14px">'+tb('novo','hortiNovo','🛒 Novo pedido')+tb('hist','hortiHistorico','📜 Histórico')+tb('prod','hortiProdutos','🥬 Produtos')+'</div>';
+}
+async function renderHorti(){
+  var panel=document.getElementById('module-hortifruti'); if(!panel) return;
+  panel.style.overflowY='auto';
+  panel.innerHTML='<div style="padding:24px 26px;color:var(--muted)">Carregando…</div>';
+  try{ HORTI_PROD=await api.get('hortifruti_produtos','select=*&order=ordem.asc,nome.asc')||[]; }catch(e){ HORTI_PROD=[]; }
+  try{ var c=await api.get('lola_config','select=value&key=eq.horti_fornecedor'); HORTI_FORN=(c&&c[0])?c[0].value:''; }catch(e){ HORTI_FORN=''; }
+  hortiNovo();
+}
+function hortiNovo(){
+  var panel=document.getElementById('module-hortifruti'); if(!panel) return;
+  HORTI_QTD=Object.assign({}, window.__hortiPrefill||{}); window.__hortiPrefill=null;
+  var hoje=new Date().toISOString().slice(0,10);
+  var h='<div style="padding:22px 26px;max-width:760px">'+hortiCab()+hortiTabs('novo');
+  if(!HORTI_FORN){ h+='<div style="background:#fff7ed;border:1.5px solid #f0c89a;border-radius:10px;padding:9px 13px;margin-bottom:12px;font-size:.84rem;color:#9a5b1a">⚠️ Cadastre o WhatsApp do fornecedor na aba <b>Produtos</b> pra poder enviar.</div>'; }
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end">'
+    +'<div><label style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Data</label><input type="date" id="hData" value="'+hoje+'" style="'+_hin()+'"></div>'
+    +'<div><label style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Turno</label><select id="hTurno" style="'+_hin()+'"><option>Tarde</option><option>Noite</option><option value="">—</option></select></div>'
+    +'<input type="text" id="hBusca" placeholder="🔍 filtrar produto..." oninput="hortiFiltrar(this.value)" style="'+_hin('flex:1;min-width:150px')+'">'
+    +'</div>';
+  h+='<div id="hLista" style="background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden">'+hortiLinhas('')+'</div>';
+  h+='<div style="display:flex;gap:9px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-primary" onclick="hortiGerar(true)">📲 Gerar e enviar no WhatsApp</button><button class="btn btn-ghost" onclick="hortiGerar(false)">💾 Salvar (sem enviar)</button></div>';
+  h+='</div>'; panel.innerHTML=h;
+}
+function hortiLinhas(filtro){
+  var f=(filtro||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  var lst=HORTI_PROD.filter(function(p){ if(!p.ativo)return false; if(!f)return true; return p.nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').indexOf(f)>=0; });
+  if(!lst.length) return '<div style="padding:14px;color:var(--muted)">Nenhum produto.</div>';
+  return lst.map(function(p,i){
+    var val=HORTI_QTD[p.nome]||'';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;'+(i?'border-top:1px solid var(--border)':'')+'">'
+      +'<div style="flex:1;font-size:.9rem">'+_escC(p.nome)+(p.unidade?(' <span style="color:var(--muted);font-size:.76rem">('+_escC(p.unidade)+')</span>'):'')+'</div>'
+      +'<input type="text" value="'+_escA(val)+'" placeholder="qtd" oninput="HORTI_QTD[\''+_escA(p.nome)+'\']=this.value" style="width:84px;text-align:center;'+_hin()+'">'
+      +'</div>';
+  }).join('');
+}
+function hortiFiltrar(v){ var el=document.getElementById('hLista'); if(el) el.innerHTML=hortiLinhas(v); }
+function hortiMsg(data,turno,itens){
+  var d=data?fmtDate(data):'';
+  var cab='*Pedido Hortifrúti*'+(d?(' — '+d):'')+(turno?(' ('+turno+')'):'')+'\n\n';
+  return cab+itens.map(function(it){return '• '+it.produto+': '+it.quantidade;}).join('\n');
+}
+function hortiAbrirWhats(data,turno,itens){
+  var num=(HORTI_FORN||'').replace(/\D/g,'');
+  var url='https://wa.me/'+num+'?text='+encodeURIComponent(hortiMsg(data,turno,itens));
+  window.open(url,'_blank');
+}
+async function hortiGerar(enviar){
+  var data=document.getElementById('hData').value, turno=document.getElementById('hTurno').value;
+  var itens=[];
+  HORTI_PROD.forEach(function(p){ var q=(HORTI_QTD[p.nome]||'').trim(); if(q) itens.push({produto:p.nome,quantidade:q}); });
+  if(!itens.length){ showToast('Coloque a quantidade de ao menos um item.'); return; }
+  if(enviar && !HORTI_FORN){ showToast('Cadastre o WhatsApp do fornecedor (aba Produtos).'); return; }
+  showToast('Salvando pedido...');
+  try{
+    var ped=await api.post('hortifruti_pedidos',{data:data||null,turno:turno||null,fornecedor:HORTI_FORN||null,criado_por:(typeof currentUser!=='undefined'&&currentUser)?currentUser.name:''});
+    var pid=ped[0].id;
+    for(var i=0;i<itens.length;i++){ await api.post('hortifruti_pedido_itens',{pedido_id:pid,produto:itens[i].produto,quantidade:itens[i].quantidade}); }
+    if(typeof setSyncOk==='function')setSyncOk(true);
+    showToast('✓ Pedido salvo');
+    if(enviar) hortiAbrirWhats(data,turno,itens);
+  }catch(e){ showToast('Erro ao salvar'); }
+}
+async function hortiHistorico(){
+  var panel=document.getElementById('module-hortifruti'); if(!panel)return;
+  var h='<div style="padding:22px 26px;max-width:760px">'+hortiCab()+hortiTabs('hist');
+  var peds=[]; try{ peds=await api.get('hortifruti_pedidos','select=*&order=created_at.desc&limit=120')||[]; }catch(e){}
+  if(!peds.length){ h+='<div style="padding:18px;color:var(--muted);text-align:center">Nenhum pedido ainda.</div>'; }
+  else{
+    h+='<div style="display:flex;flex-direction:column;gap:8px">';
+    peds.forEach(function(p){
+      var d=p.data?fmtDate(p.data):fmtDate((p.created_at||'').slice(0,10));
+      h+='<div onclick="hortiVerPedido('+p.id+')" style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<div><div style="font-weight:600">'+d+(p.turno?(' · '+_escC(p.turno)):'')+'</div><div style="font-size:.74rem;color:var(--muted)">'+(p.criado_por?('por '+_escC(p.criado_por)):'')+'</div></div>'
+        +'<div style="font-size:.82rem;color:var(--vinho)">ver →</div></div>';
+    });
+    h+='</div>';
+  }
+  h+='</div>'; panel.innerHTML=h;
+}
+async function hortiVerPedido(id){
+  var panel=document.getElementById('module-hortifruti'); if(!panel)return;
+  var p,itens; try{ p=(await api.get('hortifruti_pedidos','select=*&id=eq.'+id))[0]; itens=await api.get('hortifruti_pedido_itens','select=*&pedido_id=eq.'+id+'&order=id.asc')||[]; }catch(e){ return; }
+  if(!p)return;
+  var d=p.data?fmtDate(p.data):'';
+  window.__hortiVer={data:p.data,turno:p.turno,itens:itens.map(function(it){return {produto:it.produto,quantidade:it.quantidade};})};
+  var h='<div style="padding:22px 26px;max-width:680px">'+hortiCab()+hortiTabs('hist');
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="hortiHistorico()">← Voltar</button><h3 style="margin:0;color:var(--vinho-deep);font-size:1.1rem">Pedido '+d+(p.turno?(' · '+_escC(p.turno)):'')+'</h3></div>';
+  h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">';
+  itens.forEach(function(it,i){ h+='<div style="display:flex;justify-content:space-between;padding:8px 14px;'+(i?'border-top:1px solid var(--border)':'')+'"><span>'+_escC(it.produto)+'</span><b>'+_escC(it.quantidade)+'</b></div>'; });
+  if(!itens.length) h+='<div style="padding:12px;color:var(--muted)">Sem itens.</div>';
+  h+='</div>';
+  h+='<div style="display:flex;gap:9px;flex-wrap:wrap"><button class="btn btn-primary" onclick="hortiReenviar()">📲 Enviar no WhatsApp</button><button class="btn btn-ghost" onclick="hortiDuplicar('+id+')">📋 Repetir como novo</button><button class="btn btn-ghost" style="color:#C0392B" onclick="hortiExcluirPedido('+id+')">🗑 Excluir</button></div>';
+  h+='</div>'; panel.innerHTML=h;
+}
+function hortiReenviar(){ var v=window.__hortiVer; if(v&&v.itens.length){ if(!HORTI_FORN){ showToast('Cadastre o WhatsApp do fornecedor.'); return; } hortiAbrirWhats(v.data,v.turno,v.itens); } }
+function hortiDuplicar(id){ var v=window.__hortiVer; if(!v)return; var pre={}; v.itens.forEach(function(it){pre[it.produto]=it.quantidade;}); window.__hortiPrefill=pre; hortiNovo(); }
+async function hortiExcluirPedido(id){ if(!confirm('Excluir este pedido do histórico?'))return; try{ await api.delete('hortifruti_pedidos','id=eq.'+id); hortiHistorico(); }catch(e){ showToast('Erro'); } }
+async function hortiProdutos(){
+  var panel=document.getElementById('module-hortifruti'); if(!panel)return;
+  var h='<div style="padding:22px 26px;max-width:680px">'+hortiCab()+hortiTabs('prod');
+  h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px"><label style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">📲 WhatsApp do fornecedor (com DDD, só números)</label><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="hForn" value="'+_escA(HORTI_FORN)+'" placeholder="Ex: 51998765432" style="'+_hin('flex:1;min-width:160px')+'"><button class="btn btn-primary btn-sm" onclick="hortiSalvarForn()">Salvar</button></div></div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="hNovoProd" placeholder="Novo produto..." style="'+_hin('flex:1;min-width:160px')+'"><button class="btn btn-primary btn-sm" onclick="hortiAddProd()">➕ Adicionar</button></div>';
+  h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden">';
+  HORTI_PROD.forEach(function(p,i){
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;'+(i?'border-top:1px solid var(--border)':'')+'"><div style="flex:1">'+_escC(p.nome)+'</div><button class="btn btn-ghost btn-sm" style="color:#C0392B" onclick="hortiDelProd('+p.id+')">🗑</button></div>';
+  });
+  h+='</div></div>'; panel.innerHTML=h;
+}
+async function hortiSalvarForn(){
+  var v=(document.getElementById('hForn').value||'').trim(); HORTI_FORN=v;
+  try{ var ex=await api.get('lola_config','select=key&key=eq.horti_fornecedor');
+    if(ex&&ex.length){ await api.patch('lola_config',{value:v},'key=eq.horti_fornecedor'); } else { await api.post('lola_config',{key:'horti_fornecedor',value:v}); }
+    showToast('✓ Fornecedor salvo'); }catch(e){ showToast('Erro ao salvar'); }
+}
+async function hortiAddProd(){
+  var inp=document.getElementById('hNovoProd'); var nome=(inp.value||'').trim(); if(!nome)return;
+  try{ await api.post('hortifruti_produtos',{nome:nome,ordem:999}); HORTI_PROD=await api.get('hortifruti_produtos','select=*&order=ordem.asc,nome.asc')||[]; hortiProdutos(); showToast('✓ Adicionado'); }catch(e){ showToast('Erro'); }
+}
+async function hortiDelProd(id){
+  if(!confirm('Remover este produto da lista?'))return;
+  try{ await api.delete('hortifruti_produtos','id=eq.'+id); HORTI_PROD=HORTI_PROD.filter(function(p){return p.id!==id;}); hortiProdutos(); }catch(e){ showToast('Erro'); }
 }
 
 function _escC(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
