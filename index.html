@@ -1221,9 +1221,11 @@ var MENU_GROUPS=[
 var ALL_MENU=[]; MENU_GROUPS.forEach(function(g){g.items.forEach(function(it){ALL_MENU.push(it[0]);});});
 function defaultMenu(role){
   if(role==='admin') return ALL_MENU.slice();
-  var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala','doc_vouchers','doc_reservas','doc_admissional','doc_alergenicos','doc_vinhos','hortifruti','comprascartao','avaliacoes'];
+  var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala','doc_vouchers','doc_reservas','doc_admissional','doc_alergenicos','doc_vinhos'];
   var est=['est_insumos','est_preproducoes','est_fichas','est_contagem','est_saidas','est_fornecedores','est_pedidos'];
-  if(role==='gerente'||role==='compras') return base.concat(est);
+  var ger=['hortifruti','comprascartao','avaliacoes'];
+  if(role==='gerente') return base.concat(est).concat(ger);
+  if(role==='compras') return base.concat(est);
   return base;
 }
 function effectiveMenu(u){ if(!u) return []; if(u.role==='admin') return ALL_MENU.slice(); return Array.isArray(u.menu_acesso)?u.menu_acesso:defaultMenu(u.role); }
@@ -2066,7 +2068,7 @@ async function cartaoExcluir(id){
 }
 
 /* ===== Avaliações Google ===== */
-var AV_HEAD=[], AV_ROWS=[], AV_URL='', AV_F={nota:'',tema:'',q:''};
+var AV_HEAD=[], AV_ROWS=[], AV_URL='', AV_F={nota:'',tema:'',q:''}, AV_RESP={};
 function _csvParse(text){
   var rows=[],row=[],cur='',inq=false;
   for(var i=0;i<text.length;i++){ var ch=text[i];
@@ -2090,6 +2092,7 @@ async function renderAvaliacoes(){
     var r=await fetch(AV_URL,{cache:'no-store'}); var txt=await r.text();
     var rows=_csvParse(txt).filter(function(x){return x.some(function(c){return (c||'').trim();});});
     AV_HEAD=rows[0]||[]; AV_ROWS=rows.slice(1);
+    try{ var rr=await api.get('avaliacoes_respostas','select=review_key,resposta,respondido')||[]; AV_RESP={}; rr.forEach(function(x){ AV_RESP[x.review_key]={resposta:x.resposta||'',respondido:!!x.respondido}; }); }catch(e){ AV_RESP={}; }
     avRender();
   }catch(e){ panel.innerHTML='<div style="padding:24px 26px;max-width:640px"><p style="color:var(--vinho)">Não consegui carregar a planilha (verifique se ela está <b>Publicada na web</b> e se o link é o CSV).</p><button class="btn btn-ghost btn-sm" onclick="avTrocarLink()">Trocar link</button></div>'; }
 }
@@ -2150,16 +2153,58 @@ function avLista(){
   if(!lst.length) return '<div style="padding:16px;color:var(--muted);text-align:center">Nenhuma avaliação com esse filtro.</div>';
   var h='<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">'+lst.length+' avaliação(ões)</div>';
   h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;font-size:.84rem">';
-  h+='<thead><tr style="background:var(--vinho-pale)">'+AV_HEAD.map(function(x){return '<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted);white-space:nowrap">'+_escC(x)+'</th>';}).join('')+'</tr></thead><tbody>';
+  h+='<thead><tr style="background:var(--vinho-pale)">'+AV_HEAD.map(function(x){return '<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted);white-space:nowrap">'+_escC(x)+'</th>';}).join('')+'<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted)">Resposta</th></tr></thead><tbody>';
   lst.forEach(function(r){
     h+='<tr style="border-top:1px solid var(--border)">'+AV_HEAD.map(function(hd,ci){
       var v=r[ci]||''; var low=hd.toLowerCase();
       if(low.indexOf('nota')>=0){ var n=_avNota(r); return '<td style="padding:8px 10px;color:#e6a700;white-space:nowrap">'+(n!=null?avEstrelas(n)+' '+n:_escC(v))+'</td>'; }
       var wrap=(low.indexOf('coment')>=0)?'min-width:240px':'white-space:nowrap';
       return '<td style="padding:8px 10px;'+wrap+'">'+_escC(v)+'</td>';
-    }).join('')+'</tr>';
+    }).join('')+avRowResp(r)+'</tr>';
   });
   h+='</tbody></table></div>'; return h;
+}
+function _avHash(s){ var h=0; s=String(s); for(var i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; } return 'r'+(h>>>0); }
+function avKey(r){ return _avHash(_avCol(r,'autor')+'|'+_avCol(r,'data')+'|'+_avCol(r,'coment')); }
+function avRowResp(r){ var k=avKey(r); var st=AV_RESP[k]; var done=st&&st.respondido; return '<td style="padding:8px 10px;white-space:nowrap">'+(done?'<span class="pill" style="background:#eef9f1;color:#1d6b43">✓ respondida</span> ':'')+'<button class="btn btn-ghost btn-sm" onclick="avResponder(\''+k+'\')">💬 Responder</button></td>'; }
+function avModal(html){ avCloseModal(); var ov=document.createElement('div'); ov.id='avOverlay'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px'; var box=document.createElement('div'); box.style.cssText='background:#fff;border-radius:16px;padding:20px 22px;max-width:96vw;max-height:90vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.2);font-family:inherit'; box.innerHTML=html; ov.appendChild(box); ov.addEventListener('click',function(e){ if(e.target===ov)avCloseModal(); }); document.body.appendChild(ov); }
+function avCloseModal(){ var o=document.getElementById('avOverlay'); if(o)o.remove(); }
+function avResponder(k){
+  var r=AV_ROWS.find(function(x){return avKey(x)===k;}); if(!r)return;
+  var st=AV_RESP[k]||{resposta:'',respondido:false};
+  var autor=_avCol(r,'autor'), nota=_avNota(r), coment=_avCol(r,'coment');
+  var html='<div style="max-width:560px"><h3 style="font-family:\'Playfair Display\',serif;color:var(--vinho);margin:0 0 4px">Responder avaliação</h3>'
+    +'<div style="font-size:.85rem;color:var(--muted);margin-bottom:8px">'+_escC(autor)+(nota!=null?(' · <span style="color:#e6a700">'+avEstrelas(nota)+'</span>'):'')+'</div>'
+    +'<div style="background:var(--vinho-pale);border-radius:10px;padding:10px 12px;font-size:.86rem;margin-bottom:12px;max-height:150px;overflow:auto">'+(coment?_escC(coment):'<i>(sem comentário)</i>')+'</div>'
+    +'<textarea id="avResp" rows="5" placeholder="Escreva a resposta..." style="width:100%;box-sizing:border-box;'+_hin()+'">'+_escC(st.resposta)+'</textarea>'
+    +'<div id="avRespErr" style="color:var(--vinho);font-size:.8rem;margin-top:4px"></div>'
+    +'<label style="display:flex;align-items:center;gap:7px;font-size:.86rem;margin:10px 0;cursor:pointer"><input type="checkbox" id="avDone" '+(st.respondido?'checked':'')+'> Já respondi no Google</label>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" id="avSugBtn" onclick="avSugerir(\''+k+'\')">✨ Sugerir (IA)</button><button class="btn btn-ghost btn-sm" onclick="avCopiar()">📋 Copiar</button><button class="btn btn-primary btn-sm" onclick="avSalvarResp(\''+k+'\')">💾 Salvar</button><button class="btn btn-ghost btn-sm" onclick="avCloseModal()">Fechar</button></div></div>';
+  avModal(html);
+}
+async function avSugerir(k){
+  var r=AV_ROWS.find(function(x){return avKey(x)===k;}); if(!r)return;
+  var btn=document.getElementById('avSugBtn'); if(btn){btn.disabled=true;btn.textContent='✨ Gerando…';}
+  var err=document.getElementById('avRespErr'); if(err)err.textContent='';
+  try{
+    var resp=await fetch('https://mvjbsdpfjhywhaonvpfl.supabase.co/functions/v1/sugerir-resposta',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({autor:_avCol(r,'autor'),nota:_avNota(r),comentario:_avCol(r,'coment')})});
+    var d=await resp.json();
+    if(d.erro){ if(err)err.textContent=d.erro; }
+    else { var ta=document.getElementById('avResp'); if(ta)ta.value=d.resposta||''; }
+  }catch(e){ if(err)err.textContent='Erro ao gerar: '+e.message; }
+  if(btn){btn.disabled=false;btn.textContent='✨ Sugerir (IA)';}
+}
+function avCopiar(){ var ta=document.getElementById('avResp'); if(!ta)return; var v=ta.value; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(v).then(function(){ showToast('✓ Copiado'); }); } else { ta.select(); try{document.execCommand('copy');}catch(e){} showToast('✓ Copiado'); } }
+async function avSalvarResp(k){
+  var ta=document.getElementById('avResp'); var done=document.getElementById('avDone');
+  var resposta=ta?ta.value:''; var respondido=done?done.checked:false;
+  try{
+    var ex=await api.get('avaliacoes_respostas','select=id&review_key=eq.'+encodeURIComponent(k));
+    if(ex&&ex.length){ await api.patch('avaliacoes_respostas',{resposta:resposta,respondido:respondido,updated_at:new Date().toISOString()},'review_key=eq.'+encodeURIComponent(k)); }
+    else{ await api.post('avaliacoes_respostas',{review_key:k,resposta:resposta,respondido:respondido}); }
+    AV_RESP[k]={resposta:resposta,respondido:respondido};
+    avCloseModal(); if(typeof avListaRefresh==='function')avListaRefresh(); showToast('✓ Salvo');
+  }catch(e){ showToast('Erro ao salvar'); }
 }
 function avListaRefresh(){ var el=document.getElementById('avLista'); if(el) el.innerHTML=avLista(); }
 
