@@ -763,6 +763,26 @@
         </div>
       </div>
 
+      <!-- Aniversariantes -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-card-title"><span class="icon">🎂</span> Aniversariantes do mês <span class="dash-card-count" id="dashAnivCount">—</span></div>
+        </div>
+        <div class="dash-card-body" id="dashAniv">
+          <div class="dash-card-loading">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Reservas de hoje -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-card-title"><span class="icon">📅</span> Reservas de hoje <span class="dash-card-count" id="dashAgendaCount">—</span></div>
+        </div>
+        <div class="dash-card-body" id="dashAgenda">
+          <div class="dash-card-loading">Carregando...</div>
+        </div>
+      </div>
+
       <!-- Pedidos em aberto (gerente+) -->
       <div class="dash-card" id="dashPedidosCard" data-minrole="gerente">
         <div class="dash-card-header">
@@ -1343,6 +1363,8 @@ async function loadDashboard(){
   if(greetEl){ const fn=(u.name||'').trim().split(/\s+/)[0]||''; greetEl.textContent=fn?('Olá, '+fn+'!'):'Olá!'; }
   loadDashTasks();
   loadDashCompras();
+  loadDashAniversarios();
+  loadDashAgenda();
   if(userCan('gerente')){ loadDashPedidos(); loadDashEquip(); loadDashRevisar(); loadDashMargem(); }
   notepadLoad();
 }
@@ -1383,6 +1405,28 @@ async function notepadSave(){
   }catch(e){ if(st)st.textContent='erro ao salvar'; }
 }
 
+async function loadDashAniversarios(){
+  var el=document.getElementById('dashAniv'); var cnt=document.getElementById('dashAnivCount'); if(!el) return;
+  try{
+    var rows=await fetch(PORTAL_URL+'/rest/v1/rpc/rh_aniversarios',{method:'POST',headers:{'Content-Type':'application/json','apikey':PORTAL_KEY,'Authorization':'Bearer '+PORTAL_KEY},body:'{}'}).then(function(r){return r.json();});
+    var hoje=new Date(); var mes=hoje.getMonth()+1; var dia=hoje.getDate();
+    var doMes=(rows||[]).filter(function(x){ return x.data_nascimento && parseInt(String(x.data_nascimento).slice(5,7))===mes; }).map(function(x){ return {nome:x.nome, d:parseInt(String(x.data_nascimento).slice(8,10))}; }).sort(function(a,b){return a.d-b.d;});
+    if(cnt)cnt.textContent=doMes.length;
+    if(!doMes.length){ el.innerHTML='<div style="color:var(--muted);font-size:.84rem;padding:6px 2px">Nenhum aniversário este mês.</div>'; return; }
+    el.innerHTML=doMes.map(function(a){ var hj=(a.d===dia); return '<div class="dash-task"'+(hj?' style="background:var(--vinho-pale);border-radius:8px"':'')+'><div class="dash-task-dot" style="background:#e0609a"></div><div class="dash-task-info"><div class="dash-task-text">'+(hj?'🎉 ':'')+_escC(a.nome)+'</div></div><span style="font-size:.74rem;color:var(--muted);white-space:nowrap">'+a.d+'/'+mes+'</span></div>'; }).join('');
+  }catch(e){ if(el)el.innerHTML='<div style="color:var(--muted);font-size:.82rem">—</div>'; }
+}
+async function loadDashAgenda(){
+  var el=document.getElementById('dashAgenda'); var cnt=document.getElementById('dashAgendaCount'); if(!el) return;
+  try{
+    var d=await fetch('https://mvjbsdpfjhywhaonvpfl.supabase.co/functions/v1/agenda-hoje',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).then(function(r){return r.json();});
+    if(d.erro){ el.innerHTML='<div style="color:var(--muted);font-size:.8rem;padding:6px 2px">'+_escC(d.erro)+'</div>'; if(cnt)cnt.textContent='—'; return; }
+    var evs=d.eventos||[];
+    if(cnt)cnt.textContent=evs.length;
+    if(!evs.length){ el.innerHTML='<div style="color:var(--muted);font-size:.84rem;padding:6px 2px">Nenhuma reserva pra hoje. 🎉</div>'; return; }
+    el.innerHTML=evs.map(function(e){ return '<div class="dash-task"><div class="dash-task-dot" style="background:#2D7A5A"></div><div class="dash-task-info"><div class="dash-task-text">'+(e.hora?('<b>'+_escC(e.hora)+'</b> · '):'')+_escC(e.titulo||'(sem título)')+(e.local?(' <span style=\'color:var(--muted)\'>· '+_escC(e.local)+'</span>'):'')+'</div></div></div>'; }).join('');
+  }catch(e){ if(el)el.innerHTML='<div style="color:var(--muted);font-size:.82rem">—</div>'; }
+}
 async function loadDashTasks(){
   const u=window.__portalUser; if(!u) return;
   const taskEl=document.getElementById('dashTasks'); const taskCount=document.getElementById('dashTaskCount');
@@ -1686,7 +1730,7 @@ function rhEditFunc(id){
     +'<div style="flex:1;min-width:160px">'+rhField('Setor',rhInput('rfSetor',f.setor))+'</div></div>';
   h+='<div style="display:flex;gap:10px;flex-wrap:wrap">'
     +'<div style="flex:1;min-width:140px">'+rhField('Empresa','<select id="rfEmpresa" style="width:100%;font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;background:#fff;color:var(--ink)">'+opts+'</select>')+'</div>'
-    +'<div style="flex:1;min-width:140px">'+rhField('Admissão',rhInput('rfAdm',(f.data_admissao||'').slice(0,10),'date'))+'</div></div>';
+    +'<div style="flex:1;min-width:140px">'+rhField('Admissão',rhInput('rfAdm',(f.data_admissao||'').slice(0,10),'date'))+'</div>'+'<div style="flex:1;min-width:140px">'+rhField('Nascimento',rhInput('rfNasc',(f.data_nascimento||'').slice(0,10),'date'))+'</div></div>';
   h+='<div style="display:flex;gap:10px;flex-wrap:wrap">'
     +'<div style="flex:1;min-width:120px">'+rhField('Salário (folha)',rhInput('rfSalario',f.salario||'','number'))+'</div>'
     +'<div style="flex:1;min-width:120px">'+rhField('Por fora',rhInput('rfPorFora',f.por_fora||'','number'))+'</div></div>';
@@ -1709,7 +1753,7 @@ async function rhSalvarFunc(){
   var nome=g('rfNome').trim(); if(!nome){alert('Informe o nome.');return;}
   var pctRaw=parseFloat(g('rfPct'))||0;
   var p={ id:window.__rhEditId||'', nome:nome, cargo:g('rfCargo'), setor:g('rfSetor'), empresa:g('rfEmpresa'),
-    data_admissao:g('rfAdm'), salario:g('rfSalario'), por_fora:g('rfPorFora'), insalubridade:g('rfInsa'),
+    data_admissao:g('rfAdm'), data_nascimento:g('rfNasc'), salario:g('rfSalario'), por_fora:g('rfPorFora'), insalubridade:g('rfInsa'),
     vt:g('rfVt'), comissao_pct:(pctRaw/100), cpf:g('rfCpf'), pix:g('rfPix'), contato:g('rfContato'),
     ativo: document.getElementById('rfAtivo').checked, obs:g('rfObs') };
   try{
@@ -2180,7 +2224,7 @@ function avResponder(k){
     +'<textarea id="avResp" rows="5" placeholder="Escreva a resposta..." style="width:100%;box-sizing:border-box;'+_hin()+'">'+_escC(st.resposta)+'</textarea>'
     +'<div id="avRespErr" style="color:var(--vinho);font-size:.8rem;margin-top:4px"></div>'
     +'<label style="display:flex;align-items:center;gap:7px;font-size:.86rem;margin:10px 0;cursor:pointer"><input type="checkbox" id="avDone" '+(st.respondido?'checked':'')+'> Já respondi no Google</label>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" id="avSugBtn" onclick="avSugerir(\''+k+'\')">✨ Sugerir (IA)</button><button class="btn btn-ghost btn-sm" onclick="avCopiar()">📋 Copiar</button><button class="btn btn-primary btn-sm" onclick="avSalvarResp(\''+k+'\')">💾 Salvar</button><button class="btn btn-ghost btn-sm" onclick="avCloseModal()">Fechar</button></div></div>';
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="avSugBtn" onclick="avSugerir(\''+k+'\')" style="background:var(--vinho);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit">✨ Sugerir (IA)</button><button onclick="avCopiar()" style="background:#fff;color:var(--vinho);border:1.5px solid var(--vinho);border-radius:10px;padding:9px 16px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit">📋 Copiar</button><button onclick="avSalvarResp(\''+k+'\')" style="background:var(--vinho);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit">💾 Salvar</button><button onclick="avCloseModal()" style="background:#fff;color:var(--muted);border:1.5px solid var(--border);border-radius:10px;padding:9px 16px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit">Fechar</button></div></div>';
   avModal(html);
 }
 async function avSugerir(k){
