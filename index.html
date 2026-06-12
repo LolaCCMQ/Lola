@@ -2151,11 +2151,12 @@ function avRender(){
 function avLista(){
   var lst=avFiltrar();
   if(!lst.length) return '<div style="padding:16px;color:var(--muted);text-align:center">Nenhuma avaliação com esse filtro.</div>';
-  var h='<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">'+lst.length+' avaliação(ões)</div>';
+  var h='<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">'+lst.length+' avaliação(ões) · 👆 clique numa avaliação para responder / marcar como respondida</div>';
   h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;font-size:.84rem">';
   h+='<thead><tr style="background:var(--vinho-pale)">'+AV_HEAD.map(function(x){return '<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted);white-space:nowrap">'+_escC(x)+'</th>';}).join('')+'<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted)">Resposta</th></tr></thead><tbody>';
   lst.forEach(function(r){
-    h+='<tr style="border-top:1px solid var(--border)">'+AV_HEAD.map(function(hd,ci){
+    var _k=avKey(r); var _done=AV_RESP[_k]&&AV_RESP[_k].respondido;
+    h+='<tr onclick="avResponder(\''+_k+'\')" style="border-top:1px solid var(--border);cursor:pointer;'+(_done?'background:#f1f9f4':'')+'" onmouseover="this.style.background=\'var(--vinho-pale)\'" onmouseout="this.style.background=\''+(_done?'#f1f9f4':'')+'\'">'+AV_HEAD.map(function(hd,ci){
       var v=r[ci]||''; var low=hd.toLowerCase();
       if(low.indexOf('nota')>=0){ var n=_avNota(r); return '<td style="padding:8px 10px;color:#e6a700;white-space:nowrap">'+(n!=null?avEstrelas(n)+' '+n:_escC(v))+'</td>'; }
       var wrap=(low.indexOf('coment')>=0)?'min-width:240px':'white-space:nowrap';
@@ -2166,7 +2167,7 @@ function avLista(){
 }
 function _avHash(s){ var h=0; s=String(s); for(var i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; } return 'r'+(h>>>0); }
 function avKey(r){ return _avHash(_avCol(r,'autor')+'|'+_avCol(r,'data')+'|'+_avCol(r,'coment')); }
-function avRowResp(r){ var k=avKey(r); var st=AV_RESP[k]; var done=st&&st.respondido; return '<td style="padding:8px 10px;white-space:nowrap">'+(done?'<span class="pill" style="background:#eef9f1;color:#1d6b43">✓ respondida</span> ':'')+'<button class="btn btn-ghost btn-sm" onclick="avResponder(\''+k+'\')">💬 Responder</button></td>'; }
+function avRowResp(r){ var k=avKey(r); var st=AV_RESP[k]; var done=st&&st.respondido; return '<td style="padding:8px 10px;white-space:nowrap">'+(done?'<span class="pill" style="background:#eef9f1;color:#1d6b43">✓ respondida</span>':'<span style="color:var(--vinho);font-weight:600">💬 responder →</span>')+'</td>'; }
 function avModal(html){ avCloseModal(); var ov=document.createElement('div'); ov.id='avOverlay'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px'; var box=document.createElement('div'); box.style.cssText='background:#fff;border-radius:16px;padding:20px 22px;max-width:96vw;max-height:90vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.2);font-family:inherit'; box.innerHTML=html; ov.appendChild(box); ov.addEventListener('click',function(e){ if(e.target===ov)avCloseModal(); }); document.body.appendChild(ov); }
 function avCloseModal(){ var o=document.getElementById('avOverlay'); if(o)o.remove(); }
 function avResponder(k){
