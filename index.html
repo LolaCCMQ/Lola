@@ -2155,8 +2155,8 @@ async function avSalvarUrl(){
   renderAvaliacoes();
 }
 function avTrocarLink(){ AV_URL=''; avConfig(); }
-function avFiltrar(){
-  return AV_ROWS.filter(function(r){
+function _avDataNum(r){var s=(_avCol(r,'data')||'')+'';var p=s.split('/');if(p.length!==3)return 0;return parseInt(p[2]+('0'+p[1]).slice(-2)+('0'+p[0]).slice(-2))||0;}function avSetDataIni(v){AV_F.dini=v?parseInt(v.split('-').join('')):0;avRender();}function avSetDataFim(v){AV_F.dfim=v?parseInt(v.split('-').join('')):0;avRender();}function avAtalhoData(dias){if(!dias){AV_F.dini=0;AV_F.dfim=0;}else{var now=new Date();function nm(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();}var d0=new Date(now);d0.setDate(d0.getDate()-(dias-1));AV_F.dini=nm(d0);AV_F.dfim=nm(now);}avRender();}function avFiltrar(){
+  return AV_ROWS.filter(function(r){ var _dn=_avDataNum(r); if(_dn){ if(AV_F.dini&&_dn<AV_F.dini)return false; if(AV_F.dfim&&_dn>AV_F.dfim)return false; }
     if(AV_F.nota){ var n=_avNota(r); if(Math.round(n||0)!==parseInt(AV_F.nota)) return false; }
     if(AV_F.tema){ if(_avTemas(r).map(function(s){return s.toLowerCase();}).indexOf(AV_F.tema.toLowerCase())<0) return false; }
     if(AV_F.q){ var hay=r.join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); var q=AV_F.q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); if(hay.indexOf(q)<0) return false; }
@@ -2183,7 +2183,7 @@ function avRender(){
   h+='</div>';
   // filtros
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'
-    +'<input id="avQ" placeholder="🔍 buscar (autor, comentário...)" value="'+_escA(AV_F.q)+'" oninput="AV_F.q=this.value;avListaRefresh()" style="'+_hin('flex:1;min-width:180px')+'">'
+    +'<input id="avQ" placeholder="🔍 buscar (autor, comentário...)" value="'+_escA(AV_F.q)+'" oninput="AV_F.q=this.value;avListaRefresh()" style="'+_hin('flex:1;min-width:180px')+'">'+'<input type="date" onchange="avSetDataIni(this.value)" title="De" style="'+_hin()+'">'+'<input type="date" onchange="avSetDataFim(this.value)" title="Até" style="'+_hin()+'">'+'<button class="btn btn-ghost btn-sm" onclick="avAtalhoData(7)">7 dias</button>'+'<button class="btn btn-ghost btn-sm" onclick="avAtalhoData(30)">30 dias</button>'+'<button class="btn btn-ghost btn-sm" onclick="avAtalhoData(0)">Tudo</button>'
     +'<select id="avNota" onchange="AV_F.nota=this.value;avRender()" style="'+_hin()+'"><option value="">Todas as notas</option>'+[5,4,3,2,1].map(function(n){return '<option value="'+n+'"'+(AV_F.nota==n?' selected':'')+'>'+n+' estrelas</option>';}).join('')+'</select>'
     +'<select id="avTema" onchange="AV_F.tema=this.value;avRender()" style="'+_hin()+'"><option value="">Todos os temas</option>'+temasOrd.map(function(tm){return '<option'+(AV_F.tema===tm?' selected':'')+'>'+_escC(tm)+'</option>';}).join('')+'</select>'
     +(((AV_F.nota||AV_F.tema||AV_F.q))?'<button class="btn btn-ghost btn-sm" onclick="AV_F={nota:\'\',tema:\'\',q:\'\'};avRender()">Limpar</button>':'')
@@ -2196,11 +2196,11 @@ function avLista(){
   var lst=avFiltrar();
   if(!lst.length) return '<div style="padding:16px;color:var(--muted);text-align:center">Nenhuma avaliação com esse filtro.</div>';
   var h='<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">'+lst.length+' avaliação(ões) · 👆 clique numa avaliação para responder / marcar como respondida</div>';
-  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;font-size:.84rem">';
+  h+='<div style="overflow-x:auto"><table style="min-width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;font-size:.84rem">';
   h+='<thead><tr style="background:var(--vinho-pale)">'+AV_HEAD.map(function(x){return '<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted);white-space:nowrap">'+_escC(x)+'</th>';}).join('')+'<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted)">Resposta</th></tr></thead><tbody>';
   lst.forEach(function(r){
     var _k=avKey(r); var _done=AV_RESP[_k]&&AV_RESP[_k].respondido;
-    h+='<tr onclick="avResponder(\''+_k+'\')" style="border-top:1px solid var(--border);cursor:pointer;'+(_done?'background:#f1f9f4':'')+'" onmouseover="this.style.background=\'var(--vinho-pale)\'" onmouseout="this.style.background=\''+(_done?'#f1f9f4':'')+'\'">'+AV_HEAD.map(function(hd,ci){
+    h+='<tr onclick="avResponder(\''+_k+'\')" style="border-top:1px solid var(--border);cursor:pointer;'+(_done?'background:#e6f6ec;border-left:4px solid #1d6b43':'')+'" onmouseover="this.style.background=\'var(--vinho-pale)\'" onmouseout="this.style.background=\''+(_done?'#f1f9f4':'')+'\'">'+AV_HEAD.map(function(hd,ci){
       var v=r[ci]||''; var low=hd.toLowerCase();
       if(low.indexOf('nota')>=0){ var n=_avNota(r); return '<td style="padding:8px 10px;color:#e6a700;white-space:nowrap">'+(n!=null?avEstrelas(n)+' '+n:_escC(v))+'</td>'; }
       var wrap=(low.indexOf('coment')>=0)?'min-width:240px':'white-space:nowrap';
@@ -2211,7 +2211,7 @@ function avLista(){
 }
 function _avHash(s){ var h=0; s=String(s); for(var i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; } return 'r'+(h>>>0); }
 function avKey(r){ return _avHash(_avCol(r,'autor')+'|'+_avCol(r,'data')+'|'+_avCol(r,'coment')); }
-function avRowResp(r){ var k=avKey(r); var st=AV_RESP[k]; var done=st&&st.respondido; return '<td style="padding:8px 10px;white-space:nowrap">'+(done?'<span class="pill" style="background:#eef9f1;color:#1d6b43">✓ respondida</span>':'<span style="color:var(--vinho);font-weight:600">💬 responder →</span>')+'</td>'; }
+function avRowResp(r){ var k=avKey(r); var st=AV_RESP[k]; var done=st&&st.respondido; return '<td style="padding:8px 10px;white-space:nowrap">'+(done?'<span class="pill" style="background:#1d6b43;color:#fff;font-weight:700;padding:3px 11px;border-radius:20px;white-space:nowrap">✓ Respondida</span>':'<span style="color:var(--vinho);font-weight:600">💬 responder →</span>')+'</td>'; }
 function avModal(html){ avCloseModal(); var ov=document.createElement('div'); ov.id='avOverlay'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px'; var box=document.createElement('div'); box.style.cssText='background:#fff;border-radius:16px;padding:20px 22px;max-width:96vw;max-height:90vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.2);font-family:inherit'; box.innerHTML=html; ov.appendChild(box); ov.addEventListener('click',function(e){ if(e.target===ov)avCloseModal(); }); document.body.appendChild(ov); }
 function avCloseModal(){ var o=document.getElementById('avOverlay'); if(o)o.remove(); }
 function avResponder(k){
@@ -2223,7 +2223,7 @@ function avResponder(k){
     +'<div style="background:var(--vinho-pale);border-radius:10px;padding:10px 12px;font-size:.86rem;margin-bottom:12px;max-height:150px;overflow:auto">'+(coment?_escC(coment):'<i>(sem comentário)</i>')+'</div>'
     +'<textarea id="avResp" rows="5" placeholder="Escreva a resposta..." style="width:100%;box-sizing:border-box;'+_hin()+'">'+_escC(st.resposta)+'</textarea>'
     +'<div id="avRespErr" style="color:var(--vinho);font-size:.8rem;margin-top:4px"></div>'
-    +'<label style="display:flex;align-items:center;gap:7px;font-size:.86rem;margin:10px 0;cursor:pointer"><input type="checkbox" id="avDone" '+(st.respondido?'checked':'')+'> Já respondi no Google</label>'
+    +'<label style="display:flex;align-items:center;gap:7px;font-size:.86rem;margin:10px 0;cursor:pointer"><input type="checkbox" id="avDone" '+(st.respondido?'checked':'')+' onchange="avSalvarResp(\''+k+'\')"> Já respondi no Google</label>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="avSugBtn" onclick="avSugerir(\''+k+'\')" style="background:var(--vinho);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit">✨ Sugerir (IA)</button><button onclick="avCopiar()" style="background:#fff;color:var(--vinho);border:1.5px solid var(--vinho);border-radius:10px;padding:9px 16px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit">📋 Copiar</button><button onclick="avSalvarResp(\''+k+'\')" style="background:var(--vinho);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit">💾 Salvar</button><button onclick="avCloseModal()" style="background:#fff;color:var(--muted);border:1.5px solid var(--border);border-radius:10px;padding:9px 16px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit">Fechar</button></div></div>';
   avModal(html);
 }
