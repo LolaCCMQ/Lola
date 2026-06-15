@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metas — Lola</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--vinho:#A8272A;--vinho-deep:#7C1A1C;--vinho-pale:#F9ECEC;--cream:#FDFAF7;--warm:#F2EDE8;--border:#E8D8D8;--ink:#1E0A0A;--muted:#9A7070;--green:#1d6b43;--green-pale:#e6f6ec;--red:#C0392B;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);padding:14px 16px 60px;}
+  h1{font-family:'Playfair Display',serif;font-style:italic;color:var(--vinho);font-size:1.5rem;}
+  .sub{color:var(--muted);font-size:.83rem;margin-bottom:14px;}
+  .bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:none;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;transition:.15s;}
+  .btn-primary{background:var(--vinho);color:#fff;}.btn-primary:hover{background:var(--vinho-deep);}
+  .btn-ghost{background:#fff;border:1.5px solid var(--vinho);color:var(--vinho);}.btn-ghost:hover{background:var(--vinho-pale);}
+  .btn-sm{padding:5px 10px;font-size:.78rem;}
+  .month-nav{display:flex;align-items:center;gap:10px;}
+  .month-nav .mlabel{font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--vinho-deep);min-width:150px;text-align:center;}
+  .navbtn{background:var(--vinho-pale);border:1.5px solid var(--border);border-radius:8px;width:32px;height:32px;cursor:pointer;color:var(--vinho);font-size:1.1rem;line-height:1;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;}
+  .card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:12px 14px;}
+  .card .lab{font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+  .card .val{font-size:1.35rem;font-weight:700;margin-top:3px;}
+  .card .val.green{color:var(--green);}.card .val.red{color:var(--red);}
+  .card .sml{font-size:.72rem;color:var(--muted);margin-top:2px;}
+  .metaset{background:var(--vinho-pale);border:1.5px solid var(--vinho-muted,#ddb8b8);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .metaset label{font-size:.78rem;font-weight:700;color:var(--vinho-deep);}
+  input[type=number],input[type=password],select{font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);outline:none;}
+  input:focus,select:focus{border-color:var(--vinho);}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;font-size:.84rem;}
+  thead th{background:var(--vinho-pale);text-align:left;padding:9px 10px;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);white-space:nowrap;}
+  tbody td{padding:7px 10px;border-top:1px solid var(--border);white-space:nowrap;}
+  tbody tr.fechado{background:#faf6f6;color:var(--muted);}
+  tbody tr.bateu{background:var(--green-pale);}
+  tbody tr.hoje td{font-weight:600;}
+  td input{width:108px;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:700;}
+  .pill.ok{background:var(--green-pale);color:var(--green);}
+  .pill.no{background:#fde2e2;color:var(--red);}
+  .pill.na{background:var(--warm);color:var(--muted);}
+  .dim{color:var(--muted);}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:9px 18px;border-radius:9px;font-size:.83rem;z-index:99;transition:.3s;opacity:0;}
+  #toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(28,8,8,.45);align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .modal-bg.open{display:flex;}
+  .modal{background:#fff;border-radius:18px;padding:24px;width:340px;max-width:95vw;display:flex;flex-direction:column;gap:12px;}
+  .modal h2{font-family:'Playfair Display',serif;color:var(--vinho-deep);font-size:1.2rem;}
+  .modal .err{color:var(--vinho);font-size:.8rem;min-height:16px;}
+  .badge-admin{background:var(--green);color:#fff;font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:5px;text-transform:uppercase;}
+  .loading{padding:30px;text-align:center;color:var(--muted);}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div style="flex:1">
+      <h1>Metas <span id="adminBadge" class="badge-admin" style="display:none;vertical-align:middle">admin</span></h1>
+      <div class="sub" id="sub">Lançamento diário e acompanhamento da meta</div>
+    </div>
+    <div class="month-nav">
+      <button class="navbtn" id="prevBtn" onclick="navMes(-1)" style="display:none">‹</button>
+      <div class="mlabel" id="mlabel">—</div>
+      <button class="navbtn" id="nextBtn" onclick="navMes(1)" style="display:none">›</button>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="adminBtn" onclick="openAdmin()">🔒 Modo administradora</button>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn" onclick="logoutAdmin()" style="display:none">Sair do admin</button>
+  </div>
+
+  <div class="metaset" id="metaSet" style="display:none">
+    <label>Meta do mês (R$):</label>
+    <input type="number" id="metaInput" step="100" style="width:160px">
+    <button class="btn btn-primary btn-sm" onclick="salvarMeta()">Salvar meta</button>
+    <span class="dim" id="metaHint" style="font-size:.76rem"></span>
+  </div>
+
+  <div class="cards" id="cards"></div>
+  <div id="grid"><div class="loading">Carregando…</div></div>
+
+  <div class="modal-bg" id="adminModal">
+    <div class="modal">
+      <h2>Modo administradora</h2>
+      <div style="font-size:.8rem;color:var(--muted)">Use sua senha de administradora do portal.</div>
+      <select id="admName"></select>
+      <input type="password" id="admPass" placeholder="Senha" onkeydown="if(event.key==='Enter')doAdminLogin()">
+      <div class="err" id="admErr"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="closeAdmin()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="doAdminLogin()">Entrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+const SB_URL="https://mvjbsdpfjhywhaonvpfl.supabase.co";
+const SB_KEY="sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy";
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
+const DIAS=["dom","seg","ter","qua","qui","sex","sáb"];
+const MES_NOME=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+let PESOS={"0":0.22,"2":0.12,"3":0.10,"4":0.15,"5":0.18,"6":0.23}; // getDay: dom..sab; seg(1) fechado
+let ADMIN=null;               // {name}
+let cur=new Date();           // mês exibido
+let valorMensal=0, dias={};   // dados do mês
+
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800);}
+function brl(n){return (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});}
+async function sha256(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");}
+async function sb(path,opt={}){const r=await fetch(SB_URL+"/rest/v1/"+path,{headers:H,...opt});if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null;}
+
+function fmtData(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function diasDoMes(ano,mes){const out=[];const n=new Date(ano,mes+1,0).getDate();for(let i=1;i<=n;i++){const d=new Date(ano,mes,i);out.push(d);}return out;}
+function pesoDe(d){return PESOS[String(d.getDay())]||0;}
+function somaPesos(ano,mes){return diasDoMes(ano,mes).reduce((s,d)=>s+pesoDe(d),0);}
+function metaDoDia(d){const sp=somaPesos(d.getFullYear(),d.getMonth());if(!sp||!valorMensal)return 0;return valorMensal*pesoDe(d)/sp;}
+
+async function carregarPesos(){try{const r=await sb("lola_config?key=eq.metas_pesos&select=value");if(r&&r[0]){PESOS=JSON.parse(r[0].value);}}catch(e){}}
+
+async function carregarMes(){
+  const ano=cur.getFullYear(),mes=cur.getMonth();
+  document.getElementById("grid").innerHTML='<div class="loading">Carregando…</div>';
+  try{
+    const m=await sb(`lola_metas_mes?ano=eq.${ano}&mes=eq.${mes+1}&select=valor_mensal`);
+    valorMensal=(m&&m[0])?Number(m[0].valor_mensal):0;
+    const ini=fmtData(new Date(ano,mes,1)), fim=fmtData(new Date(ano,mes+1,0));
+    const dd=await sb(`lola_metas_dia?data=gte.${ini}&data=lte.${fim}&select=*`);
+    dias={}; (dd||[]).forEach(x=>dias[x.data]=x);
+    render();
+  }catch(e){ document.getElementById("grid").innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'; }
+}
+
+function render(){
+  const ano=cur.getFullYear(),mes=cur.getMonth();
+  document.getElementById("mlabel").textContent=MES_NOME[mes]+" "+ano;
+  document.getElementById("metaInput").value=valorMensal||"";
+  document.getElementById("metaHint").textContent = valorMensal? ("distribuída por dia da semana (sáb maior … seg fechado)") : "defina a meta do mês para começar";
+  const hojeStr=fmtData(new Date());
+  let somaMeta=0,somaExec=0,somaPax=0;
+  let rows="";
+  diasDoMes(ano,mes).forEach(d=>{
+    const ds=fmtData(d), peso=pesoDe(d), fechado=peso<=0;
+    const meta=metaDoDia(d); somaMeta+=meta;
+    const reg=dias[ds]||{}; const ex=reg.executado!=null?Number(reg.executado):null; const px=reg.pax!=null?Number(reg.pax):null;
+    if(ex!=null)somaExec+=ex; if(px!=null)somaPax+=px;
+    const pct = (meta>0&&ex!=null)? Math.round(ex/meta*100) : null;
+    const bateu = (ex!=null&&meta>0)? ex>=meta : null;
+    let cls=fechado?"fechado":""; if(bateu===true)cls+=" bateu"; if(ds===hojeStr)cls+=" hoje";
+    rows+=`<tr class="${cls}">
+      <td>${String(d.getDate()).padStart(2,"0")}/${String(mes+1).padStart(2,"0")}</td>
+      <td>${DIAS[d.getDay()]}</td>
+      <td>${fechado?'<span class="dim">fechado</span>':brl(meta)}</td>
+      <td>${fechado?'':`<input type="number" step="1" value="${ex!=null?ex:''}" data-d="${ds}" data-f="executado" placeholder="R$">`}</td>
+      <td>${fechado?'':`<input type="number" step="1" value="${px!=null?px:''}" data-d="${ds}" data-f="pax" placeholder="nº">`}</td>
+      <td>${pct!=null?pct+'%':'<span class="dim">—</span>'}</td>
+      <td>${bateu==null?'<span class="pill na">—</span>':(bateu?'<span class="pill ok">✓ bateu</span>':'<span class="pill no">abaixo</span>')}</td>
+    </tr>`;
+  });
+  document.getElementById("grid").innerHTML=`<table><thead><tr><th>Dia</th><th>Sem</th><th>Meta</th><th>Valor do dia</th><th>Pessoas</th><th>%</th><th>Bateu?</th></tr></thead><tbody>${rows}</tbody></table>`;
+  // cards
+  const pctMes = somaMeta>0? Math.round(somaExec/somaMeta*100):0;
+  const bateuMes = somaExec>=somaMeta && somaMeta>0;
+  document.getElementById("cards").innerHTML=`
+    <div class="card"><div class="lab">Meta do mês</div><div class="val">${brl(somaMeta)}</div></div>
+    <div class="card"><div class="lab">Realizado</div><div class="val ${bateuMes?'green':(somaExec?'red':'')}">${brl(somaExec)}</div><div class="sml">${pctMes}% da meta</div></div>
+    <div class="card"><div class="lab">Diferença</div><div class="val ${somaExec-somaMeta>=0?'green':'red'}">${brl(somaExec-somaMeta)}</div></div>
+    <div class="card"><div class="lab">Pessoas atendidas</div><div class="val">${(somaPax||0).toLocaleString("pt-BR")}</div></div>`;
+  // bind inputs
+  document.querySelectorAll("#grid input").forEach(inp=>{inp.addEventListener("change",onEdit);});
+}
+
+let saveT=null;
+async function onEdit(e){
+  const ds=e.target.dataset.d, f=e.target.dataset.f, v=e.target.value===""?null:Number(e.target.value);
+  const reg=dias[ds]||{data:ds}; reg[f]=v; dias[ds]=reg;
+  try{
+    await sb("lola_metas_dia?on_conflict=data",{method:"POST",headers:{...H,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{data:ds,executado:reg.executado??null,pax:reg.pax??null}])});
+    toast("✓ salvo"); render();
+  }catch(err){ toast("erro ao salvar"); }
+}
+
+function navMes(delta){ if(!ADMIN)return; cur=new Date(cur.getFullYear(),cur.getMonth()+delta,1); carregarMes(); }
+
+async function salvarMeta(){
+  if(!ADMIN){toast("só admin define meta");return;}
+  const v=Number(document.getElementById("metaInput").value)||0;
+  const ano=cur.getFullYear(),mes=cur.getMonth()+1;
+  try{
+    await sb("lola_metas_mes?on_conflict=ano,mes",{method:"POST",headers:{...H,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{ano,mes,valor_mensal:v}])});
+    valorMensal=v; toast("✓ meta salva"); render();
+  }catch(e){ toast("erro: "+e.message); }
+}
+
+// ---- admin ----
+async function openAdmin(){
+  document.getElementById("admErr").textContent="";
+  document.getElementById("admPass").value="";
+  try{ const names=await sb("rpc/portal_admin_names",{method:"POST",body:"{}"}); const sel=document.getElementById("admName"); sel.innerHTML=(names||[]).map(n=>`<option>${n.name}</option>`).join(""); }catch(e){}
+  document.getElementById("adminModal").classList.add("open");
+}
+function closeAdmin(){document.getElementById("adminModal").classList.remove("open");}
+async function doAdminLogin(){
+  const name=document.getElementById("admName").value, pass=document.getElementById("admPass").value;
+  const err=document.getElementById("admErr"); err.textContent="";
+  if(!pass){err.textContent="Digite a senha.";return;}
+  try{
+    const hash=await sha256(pass);
+    const ok=await sb("rpc/portal_admin_check",{method:"POST",body:JSON.stringify({p_admin_name:name,p_admin_hash:hash})});
+    if(ok===true){ ADMIN={name}; setAdminUI(true); closeAdmin(); carregarMes(); toast("modo admin liberado"); }
+    else { err.textContent="Senha incorreta."; }
+  }catch(e){ err.textContent="Erro ao verificar."; }
+}
+function logoutAdmin(){ ADMIN=null; setAdminUI(false); cur=new Date(); carregarMes(); }
+function setAdminUI(on){
+  document.getElementById("adminBadge").style.display=on?"inline-block":"none";
+  document.getElementById("metaSet").style.display=on?"flex":"none";
+  document.getElementById("prevBtn").style.display=on?"inline-block":"none";
+  document.getElementById("nextBtn").style.display=on?"inline-block":"none";
+  document.getElementById("adminBtn").style.display=on?"none":"inline-flex";
+  document.getElementById("logoutBtn").style.display=on?"inline-flex":"none";
+  document.getElementById("sub").textContent=on?"Modo administradora — defina metas e navegue pelos meses":"Lançamento diário do mês atual";
+}
+
+(async function init(){ await carregarPesos(); await carregarMes(); })();
+</script>
+</body>
+</html>
