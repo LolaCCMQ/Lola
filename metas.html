@@ -53,6 +53,15 @@
 </style>
 </head>
 <body>
+  <div class="modal-bg open" id="gateModal" style="z-index:60">
+    <div class="modal">
+      <h2>Metas — Lola</h2>
+      <div style="font-size:.82rem;color:var(--muted)">Digite a senha de gerência para acessar.</div>
+      <input type="password" id="gatePass" placeholder="Senha de gerência" onkeydown="if(event.key==='Enter')doGate()">
+      <div class="err" id="gateErr"></div>
+      <button class="btn btn-primary" onclick="doGate()">Entrar</button>
+    </div>
+  </div>
   <div class="bar">
     <div style="flex:1">
       <h1>Metas <span id="adminBadge" class="badge-admin" style="display:none;vertical-align:middle">admin</span></h1>
@@ -103,11 +112,15 @@ let PESOS={"0":0.22,"2":0.12,"3":0.10,"4":0.15,"5":0.18,"6":0.23}; // getDay: do
 let ADMIN=null;               // {name}
 let cur=new Date();           // mês exibido
 let valorMensal=0, dias={};   // dados do mês
+let gerHash=null;             // senha de gerência (hash)
 
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800);}
 function brl(n){return (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});}
 async function sha256(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function sb(path,opt={}){const r=await fetch(SB_URL+"/rest/v1/"+path,{headers:H,...opt});if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null;}
+async function rpc(fn,args){const r=await fetch(SB_URL+"/rest/v1/rpc/"+fn,{method:"POST",headers:H,body:JSON.stringify(args)});if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null;}
+function applyData(data){if(data&&data.pesos)PESOS=(typeof data.pesos==='string'?JSON.parse(data.pesos):data.pesos);valorMensal=data?(Number(data.valor_mensal)||0):0;dias={};((data&&data.dias)||[]).forEach(x=>dias[x.data]=x);render();}
+async function doGate(){const p=document.getElementById('gatePass').value;const e=document.getElementById('gateErr');e.textContent='';if(!p){e.textContent='Digite a senha.';return;}try{const h=await sha256(p);const data=await rpc('metas_load',{p_hash:h,p_ano:cur.getFullYear(),p_mes:cur.getMonth()+1});gerHash=h;applyData(data);document.getElementById('gateModal').classList.remove('open');}catch(err){e.textContent='Senha incorreta.';}}
 
 function fmtData(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function diasDoMes(ano,mes){const out=[];const n=new Date(ano,mes+1,0).getDate();for(let i=1;i<=n;i++){const d=new Date(ano,mes,i);out.push(d);}return out;}
@@ -115,19 +128,12 @@ function pesoDe(d){return PESOS[String(d.getDay())]||0;}
 function somaPesos(ano,mes){return diasDoMes(ano,mes).reduce((s,d)=>s+pesoDe(d),0);}
 function metaDoDia(d){const sp=somaPesos(d.getFullYear(),d.getMonth());if(!sp||!valorMensal)return 0;return valorMensal*pesoDe(d)/sp;}
 
-async function carregarPesos(){try{const r=await sb("lola_config?key=eq.metas_pesos&select=value");if(r&&r[0]){PESOS=JSON.parse(r[0].value);}}catch(e){}}
-
 async function carregarMes(){
-  const ano=cur.getFullYear(),mes=cur.getMonth();
   document.getElementById("grid").innerHTML='<div class="loading">Carregando…</div>';
   try{
-    const m=await sb(`lola_metas_mes?ano=eq.${ano}&mes=eq.${mes+1}&select=valor_mensal`);
-    valorMensal=(m&&m[0])?Number(m[0].valor_mensal):0;
-    const ini=fmtData(new Date(ano,mes,1)), fim=fmtData(new Date(ano,mes+1,0));
-    const dd=await sb(`lola_metas_dia?data=gte.${ini}&data=lte.${fim}&select=*`);
-    dias={}; (dd||[]).forEach(x=>dias[x.data]=x);
-    render();
-  }catch(e){ document.getElementById("grid").innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'; }
+    const data=await rpc("metas_load",{p_hash:gerHash,p_ano:cur.getFullYear(),p_mes:cur.getMonth()+1});
+    applyData(data);
+  }catch(e){ document.getElementById("grid").innerHTML='<div class="loading">Erro ao carregar.</div>'; }
 }
 
 function render(){
@@ -174,7 +180,7 @@ async function onEdit(e){
   const ds=e.target.dataset.d, f=e.target.dataset.f, v=e.target.value===""?null:Number(e.target.value);
   const reg=dias[ds]||{data:ds}; reg[f]=v; dias[ds]=reg;
   try{
-    await sb("lola_metas_dia?on_conflict=data",{method:"POST",headers:{...H,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{data:ds,executado:reg.executado??null,pax:reg.pax??null}])});
+    await rpc("metas_save_dia",{p_hash:gerHash,p_data:ds,p_exec:reg.executado??null,p_pax:reg.pax??null});
     toast("✓ salvo"); render();
   }catch(err){ toast("erro ao salvar"); }
 }
@@ -186,7 +192,7 @@ async function salvarMeta(){
   const v=Number(document.getElementById("metaInput").value)||0;
   const ano=cur.getFullYear(),mes=cur.getMonth()+1;
   try{
-    await sb("lola_metas_mes?on_conflict=ano,mes",{method:"POST",headers:{...H,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{ano,mes,valor_mensal:v}])});
+    await rpc("metas_save_mes",{p_admin_name:ADMIN.name,p_admin_hash:ADMIN.hash,p_ano:ano,p_mes:mes,p_valor:v});
     valorMensal=v; toast("✓ meta salva"); render();
   }catch(e){ toast("erro: "+e.message); }
 }
@@ -195,7 +201,7 @@ async function salvarMeta(){
 async function openAdmin(){
   document.getElementById("admErr").textContent="";
   document.getElementById("admPass").value="";
-  try{ const names=await sb("rpc/portal_admin_names",{method:"POST",body:"{}"}); const sel=document.getElementById("admName"); sel.innerHTML=(names||[]).map(n=>`<option>${n.name}</option>`).join(""); }catch(e){}
+  try{ const names=await rpc("portal_admin_names",{}); const sel=document.getElementById("admName"); sel.innerHTML=(names||[]).map(n=>`<option>${n.name}</option>`).join(""); }catch(e){}
   document.getElementById("adminModal").classList.add("open");
 }
 function closeAdmin(){document.getElementById("adminModal").classList.remove("open");}
@@ -205,8 +211,8 @@ async function doAdminLogin(){
   if(!pass){err.textContent="Digite a senha.";return;}
   try{
     const hash=await sha256(pass);
-    const ok=await sb("rpc/portal_admin_check",{method:"POST",body:JSON.stringify({p_admin_name:name,p_admin_hash:hash})});
-    if(ok===true){ ADMIN={name}; setAdminUI(true); closeAdmin(); carregarMes(); toast("modo admin liberado"); }
+    const ok=await rpc("portal_admin_check",{p_admin_name:name,p_admin_hash:hash});
+    if(ok===true){ ADMIN={name,hash}; setAdminUI(true); closeAdmin(); carregarMes(); toast("modo admin liberado"); }
     else { err.textContent="Senha incorreta."; }
   }catch(e){ err.textContent="Erro ao verificar."; }
 }
@@ -221,7 +227,7 @@ function setAdminUI(on){
   document.getElementById("sub").textContent=on?"Modo administradora — defina metas e navegue pelos meses":"Lançamento diário do mês atual";
 }
 
-(async function init(){ await carregarPesos(); await carregarMes(); })();
+setTimeout(()=>{var g=document.getElementById('gatePass');if(g)g.focus();},120);
 </script>
 </body>
 </html>
