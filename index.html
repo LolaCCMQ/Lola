@@ -619,7 +619,7 @@
     font-weight:700 !important;
   }
 </style>
-</head>
+<style>.portal-content,.module-panel,.module-panel.active,#module-avaliacoes,#module-avaliacoes *{min-width:0!important;}#module-avaliacoes{max-width:100%;}</style></head>
 <body>
 
 <div id="loginScreen" class="hidden">
@@ -2196,7 +2196,7 @@ function avLista(){
   var lst=avFiltrar();
   if(!lst.length) return '<div style="padding:16px;color:var(--muted);text-align:center">Nenhuma avaliação com esse filtro.</div>';
   var h='<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">'+lst.length+' avaliação(ões) · 👆 clique numa avaliação para responder / marcar como respondida</div>';
-  h+='<div style="overflow-x:auto"><table style="min-width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;font-size:.84rem">';
+  h+='<div style="overflow-x:auto;max-width:100%"><table style="min-width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;font-size:.84rem">';
   h+='<thead><tr style="background:var(--vinho-pale)">'+AV_HEAD.map(function(x){return '<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted);white-space:nowrap">'+_escC(x)+'</th>';}).join('')+'<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted)">Resposta</th></tr></thead><tbody>';
   lst.forEach(function(r){
     var _k=avKey(r); var _done=AV_RESP[_k]&&AV_RESP[_k].respondido;
