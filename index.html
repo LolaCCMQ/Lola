@@ -1243,7 +1243,7 @@ function defaultMenu(role){
   if(role==='admin') return ALL_MENU.slice();
   var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala','doc_vouchers','doc_reservas','doc_admissional','doc_alergenicos','doc_vinhos'];
   var est=['est_insumos','est_preproducoes','est_fichas','est_contagem','est_saidas','est_fornecedores','est_pedidos'];
-  var ger=['hortifruti','comprascartao','avaliacoes'];
+  var ger=['hortifruti','comprascartao','avaliacoes','loucas'];
   if(role==='gerente') return base.concat(est).concat(ger);
   if(role==='compras') return base.concat(est);
   return base;
