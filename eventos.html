@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eventos Lola</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --vinho:#A8272A; --vinho-deep:#7C1A1C; --vinho-pale:#F9ECEC; --vinho-light:#C94040; --vinho-muted:#DDB8B8;
+    --cream:#FDFAF7; --warm:#F2EDE8; --border:#e8d5d5; --ink:#1E0A0A; --muted:#8a7d7d;
+    --green:#2D6A4F; --green-pale:#e7f1ec; --white:#ffffff;
+    --amber:#b9791b; --amber-pale:#fbf0dc; --blue:#3d6e94; --blue-pale:#eaf1f7;
+    --shadow:0 2px 16px rgba(168,39,42,.10);
+    --serif:'Playfair Display',Georgia,serif;
+    --sans:'Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);background:var(--cream);color:var(--ink);font-size:15px;line-height:1.5}
+  h1,h2,h3{margin:0;font-weight:700}
+  h2{font-family:var(--serif)}
+  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:10px;font-size:14px;font-weight:700}
+  input,select,textarea{font-family:var(--sans);font-size:14px;width:100%;padding:9px 11px;border:1px solid var(--border);
+    border-radius:9px;background:var(--white);color:var(--ink)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--vinho)}
+  textarea{resize:vertical;min-height:42px}
+  a{color:var(--vinho)}
+  header{background:var(--white);border-top:4px solid var(--vinho);padding:16px 26px;
+    display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
+  .brand{display:flex;align-items:center;gap:13px}
+  .logo-text{font-family:var(--serif);font-style:italic;font-weight:800;font-size:30px;color:var(--vinho);line-height:1}
+  .brand .titles h1{font-size:16px;color:var(--ink);font-weight:800}
+  .brand .titles small{display:block;font-weight:600;color:var(--muted);font-size:11px;letter-spacing:2px;text-transform:uppercase}
+  .top-actions{display:flex;gap:8px;align-items:center}
+  .top-actions button{background:var(--vinho-pale);color:var(--vinho);padding:9px 14px}
+  .top-actions button:hover{background:var(--vinho-muted)}
+  .top-actions a.home{color:var(--muted);font-weight:700;text-decoration:none;font-size:13px;padding:9px 6px}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:20px}
+  .toolbar .search{flex:1;min-width:200px}
+  .btn-primary{background:var(--vinho);color:#fff;padding:11px 18px}
+  .btn-primary:hover{background:var(--vinho-deep)}
+  .btn-ghost{background:var(--white);color:var(--vinho);border:1px solid var(--border);padding:10px 15px}
+  .btn-ghost:hover{border-color:var(--vinho);background:var(--vinho-pale)}
+  .btn-sm{padding:6px 11px;font-size:12.5px;border-radius:8px}
+  .filters{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{padding:7px 13px;border-radius:20px;background:var(--white);border:1px solid var(--border);font-size:13px;color:var(--muted);font-weight:600}
+  .chip.active{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+  .card{background:var(--white);border-radius:14px;box-shadow:var(--shadow);padding:18px;border:1px solid var(--border);
+    transition:transform .12s,box-shadow .12s;cursor:pointer;position:relative;overflow:hidden}
+  .card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(168,39,42,.16)}
+  .card .ev-type{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--vinho);font-weight:800;margin-bottom:5px}
+  .card h3{font-family:var(--serif);font-size:18px;margin-bottom:8px;line-height:1.25;color:var(--ink)}
+  .card .meta{font-size:13px;color:var(--muted);margin-bottom:3px;display:flex;gap:7px;align-items:center;font-weight:600}
+  .loc-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.3px}
+  .loc-central{background:#eef2f7;color:#3a5a82}
+  .loc-ccmq{background:#f1ecf7;color:#6a4b9c}
+  .loc-mac{background:#fbeee6;color:#b56a2e}
+  .badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.4px}
+  .b-pre{background:var(--blue-pale);color:var(--blue)}
+  .b-orc{background:var(--amber-pale);color:var(--amber)}
+  .b-apr{background:var(--green-pale);color:var(--green)}
+  .b-real{background:var(--vinho-pale);color:var(--vinho)}
+  .b-canc{background:#f3e3e3;color:var(--vinho-deep)}
+  .progress{height:8px;background:var(--warm);border-radius:6px;margin-top:13px;overflow:hidden}
+  .progress > div{height:100%;background:linear-gradient(90deg,var(--vinho),var(--vinho-light));border-radius:6px;transition:width .3s}
+  .card .pct{font-size:12px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;font-weight:700}
+  .empty{text-align:center;padding:70px 20px;color:var(--muted)}
+  .empty .big{font-size:54px;margin-bottom:10px}
+  .empty h3{font-family:var(--serif);color:var(--vinho);font-size:22px}
+  .back{background:none;color:var(--muted);font-weight:700;padding:6px 0;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .detail-head{background:var(--white);border-radius:14px;box-shadow:var(--shadow);padding:22px;margin-bottom:18px;border:1px solid var(--border)}
+  .detail-head .row1{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+  .detail-head h2{font-size:25px;color:var(--vinho)}
+  .detail-head .sub{color:var(--muted);font-size:14px;margin-top:4px;font-weight:600}
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:16px}
+  .summary .box{background:var(--cream);border-radius:10px;padding:11px 13px;border:1px solid var(--border)}
+  .summary .box span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:3px;font-weight:700}
+  .summary .box b{font-size:15px;font-weight:800}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;border-bottom:2px solid var(--border)}
+  .tabs button{background:none;color:var(--muted);padding:11px 14px;font-weight:700;border-radius:8px 8px 0 0;border-bottom:3px solid transparent;margin-bottom:-2px;font-size:13.5px}
+  .tabs button:hover{color:var(--vinho)}
+  .tabs button.active{color:var(--vinho);border-bottom-color:var(--vinho)}
+  .tabs button .count{font-size:11px;background:var(--warm);padding:1px 7px;border-radius:10px;margin-left:5px}
+  .panel{background:var(--white);border-radius:14px;box-shadow:var(--shadow);padding:24px;border:1px solid var(--border)}
+  .section-title{font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--vinho);font-weight:800;
+    margin:22px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+  .section-title:first-child{margin-top:0}
+  .intro{color:var(--muted);font-size:13.5px;margin:-4px 0 16px;font-weight:600}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--ink);margin-bottom:5px}
+  .field .hint{font-weight:500;color:var(--muted);font-size:11px}
+  .full{grid-column:1/-1}
+  .ck-item{display:flex;gap:12px;padding:12px;border-radius:10px;border:1px solid var(--border);margin-bottom:9px;background:var(--white)}
+  .ck-item.done{background:var(--green-pale);border-color:#bfe0d0}
+  .ck-cb{flex-shrink:0;width:22px;height:22px;border:2px solid var(--vinho);border-radius:6px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;margin-top:1px;background:var(--white);transition:all .12s;font-weight:800}
+  .ck-cb.on{background:var(--green);border-color:var(--green);color:#fff}
+  .ck-body{flex:1}
+  .ck-body .txt{font-weight:700;font-size:14px}
+  .ck-item.done .txt{text-decoration:line-through;color:var(--muted)}
+  .ck-body .desc{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:600}
+  .ck-note{margin-top:8px;font-size:13px;min-height:34px;background:var(--cream)}
+  .ck-link{display:flex;gap:7px;align-items:center;margin-top:7px}
+  .ck-link input{font-size:12.5px;background:var(--cream)}
+  .phase-bar{height:7px;background:var(--warm);border-radius:6px;margin:4px 0 18px;overflow:hidden}
+  .phase-bar>div{height:100%;background:var(--green);transition:width .3s}
+  .orc-add{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;background:var(--cream);padding:14px;border-radius:11px;border:1px solid var(--border)}
+  .orc-add .field{flex:1;min-width:140px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;padding:9px 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);font-weight:800}
+  td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
+  td input{padding:6px 8px}
+  td input.num,td input[type=number]{text-align:right}
+  td.name{font-weight:700}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .del-row{background:none;color:var(--vinho);font-size:18px;padding:0 6px}
+  .totals{margin-top:18px;display:flex;flex-direction:column;gap:7px;max-width:380px;margin-left:auto}
+  .totals .line{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;font-weight:600}
+  .totals .grand{border-top:2px solid var(--vinho);padding-top:10px;font-size:19px;font-weight:800;color:var(--vinho);font-family:var(--serif)}
+  .mini-input{max-width:90px;display:inline-block}
+  .ficha-link{color:var(--vinho);font-weight:700;font-size:12.5px;text-decoration:none}
+  .ficha-link:hover{text-decoration:underline}
+  .step-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:28px;padding-top:18px;border-top:1px solid var(--border);flex-wrap:wrap}
+  .step-dots{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--vinho-muted);cursor:pointer;transition:.15s;border:none;padding:0}
+  .dot.on{background:var(--vinho);transform:scale(1.35)}
+  .dot:hover{background:var(--vinho-light)}
+  .btn-skip{background:none;color:var(--muted);padding:10px 12px;text-decoration:underline}
+  .btn-skip:hover{color:var(--vinho)}
+  .nav-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .save-flash{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 20px;border-radius:10px;
+    box-shadow:var(--shadow);opacity:0;transform:translateY(10px);transition:all .25s;z-index:100;font-weight:700}
+  .save-flash.show{opacity:1;transform:translateY(0)}
+  .save-flash.err{background:var(--vinho)}
+  .hidden{display:none!important}
+  .danger{color:var(--vinho);background:none;font-weight:700;padding:8px 12px;border:1px solid var(--border);border-radius:9px}
+  .danger:hover{border-color:var(--vinho);background:var(--vinho-pale)}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .toolrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .loading{text-align:center;padding:60px;color:var(--muted);font-weight:700}
+  .conn{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--green-pale);color:var(--green)}
+  .conn.off{background:#f3e3e3;color:var(--vinho)}
+  @media print{
+    header,.tabs,.top-actions,.toolbar,.back,.row-actions,.orc-add,.del-row,.step-nav,.no-print{display:none!important}
+    body{background:#fff}.panel,.detail-head{box-shadow:none;border:1px solid #ccc}
+  }
+  @media(max-width:600px){.wrap{padding:14px}header{padding:14px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo-text">Lola</div>
+    <div class="titles"><h1>Eventos</h1><small>Organizador</small></div>
+  </div>
+  <div class="top-actions">
+    <span class="conn" id="conn">conectando…</span>
+    <a class="home" href="https://equipelola.net/">← Portal</a>
+    <button onclick="reloadAll()">↻ Atualizar</button>
+    <button onclick="exportData()">⬇ Exportar</button>
+  </div>
+</header>
+<div class="wrap">
+  <div id="dashboard">
+    <div class="toolbar">
+      <input class="search" id="search" placeholder="🔍 Buscar evento, responsável, ocasião..." oninput="renderList()">
+      <button class="btn-primary" onclick="newEvent()">+ Novo evento</button>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div id="list" class="grid" style="margin-top:18px"><div class="loading">Carregando eventos…</div></div>
+  </div>
+  <div id="detail" class="hidden"></div>
+</div>
+<div class="save-flash" id="flash">Salvo ✓</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===== Conexão Supabase (mesmo banco do portal) ===== */
+const SB_URL="https://mvjbsdpfjhywhaonvpfl.supabase.co";
+const SB_KEY="sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy";
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+const ALL=["reserva","reserva_perso","personalizado","show"];
+const TIPOS = [
+  {v:"reserva", l:"Reserva simples (até 25 pax)"},
+  {v:"reserva_perso", l:"Reserva personalizada (até 30 lugares)"},
+  {v:"personalizado", l:"Evento personalizado"},
+  {v:"show", l:"Evento Lola / Show (Majestic, Bailinho, Lançamentos)"}
+];
+const LOCAIS = [
+  {v:"", l:"Unidade..."},
+  {v:"central", l:"Lola Central", c:"loc-central"},
+  {v:"ccmq", l:"Lola CCMQ", c:"loc-ccmq"},
+  {v:"mac", l:"Lola MAC", c:"loc-mac"}
+];
+const STATUS = [
+  {v:"pre", l:"Pré-reserva", c:"b-pre"},
+  {v:"orcamento", l:"Orçamento enviado", c:"b-orc"},
+  {v:"aprovado", l:"Aprovado", c:"b-apr"},
+  {v:"realizado", l:"Realizado", c:"b-real"},
+  {v:"cancelado", l:"Cancelado", c:"b-canc"}
+];
+const SETORES=["Cozinha","Bar","Salão","Recepção","Geral"];
+const FASES = [
+  { id:"triagem", nome:"1 · Triagem inicial", tipos:ALL, itens:[
+    {t:"Definir tipo de evento e ocasião", d:""},
+    {t:"Confirmar nº de pax (dentro e fora)", d:""},
+    {t:"Definir se precisa ser na cúpula", d:"Se sim, necessário pacote de consumo"},
+    {t:"Verificar disponibilidade na agenda", d:""},
+    {t:"Marcar na agenda com horário, nº de pessoas e contato", d:""},
+    {t:"Definir estilo de serviço", d:"Volante, ilhas, jantar, mini porções, brunch, etc"},
+    {t:"Definir exclusividade do espaço", d:"Interno/externo — exclusivo ou compartilhado?"},
+    {t:"Confirmar se precisa de nota / Danfe", d:""},
+  ]},
+  { id:"negociacao", nome:"2 · Negociação", tipos:ALL, itens:[
+    {t:"Anotar na planilha Reservas e Pacotes // Eventos Lola", d:"Sinalizar andamento da negociação"},
+    {t:"Anotar na agenda como pré-reserva", d:""},
+    {t:"Montar pacote de serviços", d:"Colar abaixo o link da ficha / planilha do pacote"},
+    {t:"Enviar proposta pelo Canva", d:"Colar abaixo o link do arquivo da proposta"},
+    {t:"Enviar pacote de consumo (se cúpula)", d:""},
+  ]},
+  { id:"os", nome:"3 · Operacional (OS)", tipos:["reserva_perso","personalizado","show"], itens:[
+    {t:"Menu e quantidades", d:"Definir na aba Orçamento"},
+    {t:"Louça necessária", d:"Pratos / copos / talheres · kit café / copos descartáveis"},
+    {t:"Louças para montagem de ilha / mini porções", d:""},
+    {t:"Montagem de salão", d:"Precisa retirar mesas? Mesão ou mais separado?"},
+    {t:"Equipamentos de som e iluminação", d:"Chamar? Contratante traz? Testar montagem"},
+    {t:"Outros equipamentos", d:"Máquina de café / mesa pra servir"},
+    {t:"Botão no sistema", d:"Como serão lançados os pedidos"},
+    {t:"Formato de venda", d:"Comanda / ticket"},
+    {t:"Equipe", d:"Freelas? Recepção?"},
+    {t:"Pagamento — verificar com financeiro", d:"Ver aba Orçamento › Pagamento"},
+    {t:"Menus impressos", d:""},
+    {t:"Chopeira na rua / cobrança maquininha", d:"Se aplicável"},
+    {t:"Treinamento das equipes de salão e cozinha", d:"⏰ Tarefa antecipada — no mínimo 2 dias antes"},
+  ]},
+  { id:"show", nome:"4 · Evento Lola / Show", tipos:["show"], itens:[
+    {t:"Convidados (DJ, banda)", d:"Orçar e combinar data e programação"},
+    {t:"Confirmar lista de equipamentos (rider técnico)", d:"Mesa, CDJ, instrumentos, caixas + mídias p/ divulgação"},
+    {t:"Articular divulgação com marketing", d:""},
+    {t:"Orçar locação de som e iluminação", d:"A partir do rider ou programação"},
+    {t:"Convites — articular com marketing", d:""},
+    {t:"Menu especial? Alinhar com a cozinha", d:"Testes, apresentação e preços"},
+    {t:"Definir montagem do salão (pré e pós)", d:""},
+    {t:"Freelas de atendimento / de porta?", d:""},
+    {t:"Serviço — pratos especiais, embalagens?", d:"Pedido de balcão? Usar sistema?"},
+    {t:"Impressão de menus", d:""},
+    {t:"Botões no sistema", d:""},
+    {t:"Decoração especial", d:""},
+    {t:"Definir consumo dos convidados", d:"Banda / DJ / apoiadores / influencers"},
+    {t:"Definir treinamento de serviço e funcionamento especial", d:""},
+  ]},
+  { id:"dia", nome:"5 · No dia do evento", tipos:["reserva_perso","personalizado","show"], itens:[
+    {t:"Montagem de equipas — quem faz e que horas", d:""},
+    {t:"Liberar espaço no bar ou cúpula", d:"É necessário?"},
+    {t:"Definir onde guardar mobiliário não utilizado", d:""},
+  ]},
+  { id:"despro", nome:"6 · Desprodução", tipos:["reserva_perso","personalizado","show"], itens:[
+    {t:"Recolher equipamentos", d:"Quando? Combinar horário"},
+    {t:"Remontar salão no plano de chão original", d:""},
+  ]},
+];
+const SECTIONS = [
+  {id:"info", kind:"form", icon:"📋", label:"Dados", tipos:ALL},
+  {id:"triagem", kind:"fase", tipos:ALL},
+  {id:"negociacao", kind:"fase", tipos:ALL},
+  {id:"os", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
+  {id:"cozbar", kind:"cozbar", icon:"👨‍🍳", label:"Cozinha & Bar", tipos:["reserva_perso","personalizado","show"]},
+  {id:"show", kind:"fase", tipos:["show"]},
+  {id:"dia", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
+  {id:"despro", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
+  {id:"materiais", kind:"materiais", icon:"📦", label:"Materiais", tipos:["reserva_perso","personalizado","show"]},
+  {id:"orc", kind:"orc", icon:"💰", label:"Orçamento", tipos:ALL},
+];
+
+let DB={events:[]};
+let FICHAS=[];
+let view = {screen:"dash", id:null, tab:"info", filter:"todos", cozFilter:"todos"};
+
+/* ===== Mapeamento banco <-> app ===== */
+function intOrNull(v){const n=parseInt(v);return isNaN(n)?null:n;}
+function numOr(v,d){const n=Number(v);return isNaN(n)?d:n;}
+function fromRow(r){
+  return {
+    id:r.id, nome:r.nome||"", responsavel:r.responsavel||"", contato:r.contato||"",
+    tipo:r.tipo||"personalizado", local:r.local||"", status:r.status||"pre",
+    paxIn:r.pax_in==null?"":r.pax_in, paxOut:r.pax_out==null?"":r.pax_out,
+    data:r.data||"", horario:r.horario||"", duracao:r.duracao||"", ocasiao:r.ocasiao||"",
+    servico:r.servico||"", exclusividade:r.exclusividade||"", cupula:r.cupula||"nao", nota:r.nota||"nao",
+    obs:r.obs||"", pax:r.pax==null?"":r.pax, maoObra:r.mao_obra==null?0:r.mao_obra, gorjeta:r.gorjeta==null?10:r.gorjeta,
+    checks:r.checks||{}, menu:r.menu||[], cozbar:r.cozbar||[], materiais:r.materiais||[],
+    pag:r.pag||{}, criado:r.created_at
+  };
+}
+function toRow(ev){
+  return {
+    nome:ev.nome, responsavel:ev.responsavel, contato:ev.contato, tipo:ev.tipo, local:ev.local,
+    status:ev.status, pax_in:intOrNull(ev.paxIn), pax_out:intOrNull(ev.paxOut),
+    data:ev.data||null, horario:ev.horario, duracao:ev.duracao, ocasiao:ev.ocasiao,
+    servico:ev.servico, exclusividade:ev.exclusividade, cupula:ev.cupula, nota:ev.nota,
+    obs:ev.obs, pax:intOrNull(ev.pax), mao_obra:numOr(ev.maoObra,0), gorjeta:numOr(ev.gorjeta,10),
+    checks:ev.checks||{}, menu:ev.menu||[], cozbar:ev.cozbar||[], materiais:ev.materiais||[],
+    pag:ev.pag||{}, editado_por:"portal"
+  };
+}
+
+/* ===== Carregamento ===== */
+async function init(){
+  try{
+    const [ev,fic]=await Promise.all([
+      sb.from('lola_eventos').select('*').eq('arquivado',false).order('data',{ascending:true,nullsFirst:false}),
+      sb.from('lola_fichas_tecnicas').select('nome,preco_venda,categoria,cardapio').eq('ativo',true).gt('preco_venda',0).order('nome')
+    ]);
+    if(ev.error)throw ev.error;
+    DB.events=(ev.data||[]).map(fromRow);
+    FICHAS=(fic.data||[]).map(f=>({n:f.nome,p:Number(f.preco_venda),cat:f.categoria,card:f.cardapio}));
+    setConn(true);
+  }catch(e){
+    console.error(e);setConn(false);
+    document.getElementById('list').innerHTML=`<div class="empty full" style="grid-column:1/-1"><div class="big">⚠️</div><h3>Não consegui conectar ao banco</h3><p>Verifique a conexão e clique em ↻ Atualizar.</p></div>`;
+    return;
+  }
+  renderFilters();renderList();
+}
+function setConn(ok){const c=document.getElementById('conn');c.textContent=ok?'● conectado':'● offline';c.className='conn'+(ok?'':' off');}
+async function reloadAll(){document.getElementById('list').innerHTML='<div class="loading">Atualizando…</div>';view.screen="dash";document.getElementById('detail').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');await init();}
+
+/* ===== Persistência ===== */
+function showFlash(msg,err){const f=document.getElementById('flash');f.textContent=msg||"Salvo ✓";f.className='save-flash show'+(err?' err':'');setTimeout(()=>f.className='save-flash'+(err?' err':''),1400);}
+let saveTimers={};
+function save(flashOn){
+  const ev=getEvent(view.id);if(!ev)return;
+  clearTimeout(saveTimers[ev.id]);
+  saveTimers[ev.id]=setTimeout(()=>persist(ev,flashOn!==false),250);
+}
+async function persist(ev,doFlash){
+  const {error}=await sb.from('lola_eventos').update(toRow(ev)).eq('id',ev.id);
+  if(error){console.error(error);showFlash("Erro ao salvar",true);}
+  else if(doFlash)showFlash();
+}
+const fmt = n => "R$ "+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function esc(s){return (s==null?'':s.toString()).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function blankEvent(){
+  const checks={};
+  FASES.forEach(f=>f.itens.forEach((it,i)=>checks[f.id+"_"+i]={done:false,note:"",link:""}));
+  return {
+    id:null, nome:"", responsavel:"", contato:"", tipo:"personalizado", local:"", status:"pre",
+    paxIn:"", paxOut:"", data:"", horario:"", duracao:"", ocasiao:"", servico:"",
+    exclusividade:"", cupula:"nao", nota:"nao", obs:"",
+    checks, menu:[], pax:"", maoObra:0, gorjeta:10,
+    cozbar:[], materiais:[], pag:{forma:"",antecipado:false,sinalValor:"",sinalData:"",sinalPago:false,saldoData:"",saldoPago:false,obs:""}
+  };
+}
+function getEvent(id){return DB.events.find(e=>e.id===id);}
+function relevantSections(ev){return SECTIONS.filter(s=>s.tipos.includes(ev.tipo));}
+function relevantFases(ev){return FASES.filter(f=>f.tipos.includes(ev.tipo));}
+function progress(ev){let tot=0,done=0;relevantFases(ev).forEach(f=>f.itens.forEach((it,i)=>{tot++;if(ev.checks[f.id+"_"+i]&&ev.checks[f.id+"_"+i].done)done++;}));return tot?Math.round(done/tot*100):0;}
+function faseProgress(ev,f){let tot=f.itens.length,done=0;f.itens.forEach((it,i)=>{if(ev.checks[f.id+"_"+i]&&ev.checks[f.id+"_"+i].done)done++;});return {done,tot,pct:tot?Math.round(done/tot*100):0};}
+function locPill(v){const l=LOCAIS.find(x=>x.v===v);if(!l||!v)return '';return `<span class="loc-pill ${l.c}">📍 ${l.l.replace('Lola ','')}</span>`;}
+
+function renderFilters(){
+  const wrap=document.getElementById('filters');
+  const opts=[{v:"todos",l:"Todos"}].concat(STATUS.map(s=>({v:s.v,l:s.l})));
+  wrap.innerHTML=opts.map(o=>`<button class="chip ${view.filter===o.v?'active':''}" onclick="setFilter('${o.v}')">${o.l}</button>`).join('');
+}
+function setFilter(v){view.filter=v;renderFilters();renderList();}
+function renderList(){
+  const q=(document.getElementById('search').value||"").toLowerCase();
+  let evs=DB.events.slice().sort((a,b)=>(a.data||"9999").localeCompare(b.data||"9999"));
+  if(view.filter!=="todos")evs=evs.filter(e=>e.status===view.filter);
+  if(q)evs=evs.filter(e=>[e.nome,e.responsavel,e.ocasiao,e.contato].join(' ').toLowerCase().includes(q));
+  const list=document.getElementById('list');
+  if(!evs.length){
+    list.innerHTML=`<div class="empty full" style="grid-column:1/-1"><div class="big">🥂</div>
+      <h3>Nenhum evento ${view.filter!=='todos'?'neste status':'ainda'}</h3>
+      <p>Clique em <b>+ Novo evento</b> para começar a organizar.</p></div>`;
+    return;
+  }
+  list.innerHTML=evs.map(e=>{
+    const st=STATUS.find(s=>s.v===e.status)||STATUS[0];
+    const tp=TIPOS.find(t=>t.v===e.tipo);
+    const pct=progress(e);
+    const pax=[e.paxIn,e.paxOut].filter(x=>x!=='').join(' + ');
+    const dt=e.data?new Date(e.data+'T00:00').toLocaleDateString('pt-BR'):'Data a definir';
+    return `<div class="card" onclick="open_('${e.id}')">
+      <div class="ev-type">${tp?tp.l.split('(')[0]:''}</div>
+      <h3>${esc(e.nome)||'(sem nome)'}</h3>
+      <div class="meta">📅 ${dt}${e.horario?' · '+e.horario:''} ${locPill(e.local)}</div>
+      <div class="meta">👤 ${esc(e.responsavel)||'—'}${pax?' · 👥 '+pax+' pax':''}</div>
+      <div style="margin-top:10px"><span class="badge ${st.c}">${st.l}</span></div>
+      <div class="progress"><div style="width:${pct}%"></div></div>
+      <div class="pct"><span>Checklist</span><span>${pct}%</span></div>
+    </div>`;
+  }).join('');
+}
+async function newEvent(){
+  const ev=blankEvent();
+  const {data,error}=await sb.from('lola_eventos').insert(toRow(ev)).select().single();
+  if(error){alert("Não consegui criar o evento. Tente novamente.");console.error(error);return;}
+  const e=fromRow(data);DB.events.push(e);open_(e.id);
+}
+function open_(id){view.screen="detail";view.id=id;view.tab="info";document.getElementById('dashboard').classList.add('hidden');document.getElementById('detail').classList.remove('hidden');renderDetail();window.scrollTo(0,0);}
+function backToDash(){view.screen="dash";document.getElementById('detail').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');renderFilters();renderList();window.scrollTo(0,0);}
+function tabOrder(ev){return relevantSections(ev).map(s=>s.id);}
+function secLabel(ev,id){const s=SECTIONS.find(x=>x.id===id);if(!s)return id;if(s.kind==='fase'){const f=FASES.find(x=>x.id===id);return f?f.nome.replace(/^\d+ · /,''):id;}return s.label;}
+function renderDetail(){
+  const ev=getEvent(view.id);if(!ev){backToDash();return;}
+  if(!relevantSections(ev).some(s=>s.id===view.tab))view.tab="info";
+  const st=STATUS.find(s=>s.v===ev.status)||STATUS[0];
+  const tp=TIPOS.find(t=>t.v===ev.tipo);
+  const pct=progress(ev);
+  const pax=[ev.paxIn,ev.paxOut].filter(x=>x!=='').join(' + ');
+  const dt=ev.data?new Date(ev.data+'T00:00').toLocaleDateString('pt-BR'):'A definir';
+  const total=orcTotal(ev);
+  const tabs=relevantSections(ev).map(s=>{
+    let label, count='';
+    if(s.kind==='fase'){const f=FASES.find(x=>x.id===s.id);const fp=faseProgress(ev,f);label=f.nome;count=`${fp.done}/${fp.tot}`;}
+    else if(s.kind==='cozbar'){label=(s.icon||'')+' '+s.label;count=(ev.cozbar||[]).length||'';}
+    else if(s.kind==='materiais'){label=(s.icon||'')+' '+s.label;count=(ev.materiais||[]).length||'';}
+    else {label=(s.icon||'')+' '+s.label;}
+    return {id:s.id,label,count};
+  });
+  document.getElementById('detail').innerHTML=`
+    <button class="back" onclick="backToDash()">← Voltar aos eventos</button>
+    <div class="detail-head">
+      <div class="row1">
+        <div>
+          <div class="ev-type" style="color:var(--vinho);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800">${tp?tp.l:''} ${locPill(ev.local)}</div>
+          <h2>${esc(ev.nome)||'(novo evento)'}</h2>
+          <div class="sub">${esc(ev.responsavel)||'sem responsável'} · 📅 ${dt}${ev.horario?' '+ev.horario:''}</div>
+        </div>
+        <div class="row-actions">
+          <select onchange="setField('status',this.value)" style="width:auto;font-weight:700">
+            ${STATUS.map(s=>`<option value="${s.v}" ${ev.status===s.v?'selected':''}>${s.l}</option>`).join('')}
+          </select>
+          <button class="btn-ghost no-print" onclick="window.print()">🖨 Imprimir</button>
+          <button class="danger no-print" onclick="delEvent('${ev.id}')">🗑</button>
+        </div>
+      </div>
+      <div class="summary">
+        <div class="box"><span>Status</span><b><span class="badge ${st.c}">${st.l}</span></b></div>
+        <div class="box"><span>Unidade</span><b>${ev.local?(LOCAIS.find(l=>l.v===ev.local)||{}).l:'—'}</b></div>
+        <div class="box"><span>Pax</span><b>${pax||'—'}</b></div>
+        <div class="box"><span>Checklist</span><b>${pct}%</b></div>
+        <div class="box"><span>Orçamento</span><b>${fmt(total)}</b></div>
+      </div>
+    </div>
+    <div class="tabs">
+      ${tabs.map(t=>`<button class="${view.tab===t.id?'active':''}" onclick="gotoTab('${t.id}')">${t.label}${t.count!==''?`<span class="count">${t.count}</span>`:''}</button>`).join('')}
+    </div>
+    <div class="panel" id="tabContent"></div>`;
+  renderTab();
+}
+function gotoTab(id){view.tab=id;renderDetail();window.scrollTo({top:0,behavior:'smooth'});}
+function stepNav(ev){
+  const order=tabOrder(ev);const idx=order.indexOf(view.tab);
+  const prev=idx>0?order[idx-1]:null;const next=idx<order.length-1?order[idx+1]:null;
+  const dots=order.map(id=>`<button class="dot ${id===view.tab?'on':''}" title="${secLabel(ev,id)}" onclick="gotoTab('${id}')"></button>`).join('');
+  return `<div class="step-nav">
+    <div>${prev?`<button class="btn-ghost" onclick="gotoTab('${prev}')">← ${secLabel(ev,prev)}</button>`:''}</div>
+    <div class="step-dots">${dots}</div>
+    <div class="nav-right">
+      ${next?`<button class="btn-skip" onclick="gotoTab('${next}')">pular etapa</button>
+              <button class="btn-primary" onclick="gotoTab('${next}')">Próxima: ${secLabel(ev,next)} →</button>`
+            :`<button class="btn-primary" onclick="backToDash()">✓ Concluir</button>`}
+    </div>
+  </div>`;
+}
+function renderTab(){
+  const ev=getEvent(view.id);const c=document.getElementById('tabContent');
+  const s=SECTIONS.find(x=>x.id===view.tab)||SECTIONS[0];
+  let html='';
+  if(s.kind==='form')html=formHTML(ev);
+  else if(s.kind==='orc')html=orcHTML(ev);
+  else if(s.kind==='cozbar')html=cozbarHTML(ev);
+  else if(s.kind==='materiais')html=materiaisHTML(ev);
+  else {const f=FASES.find(x=>x.id===view.tab);if(f)html=faseHTML(ev,f);}
+  c.innerHTML=html+stepNav(ev);
+}
+function field(label,key,ev,type="text",hint=""){
+  return `<div class="field"><label>${label} ${hint?`<span class="hint">${hint}</span>`:''}</label>
+    <input type="${type}" value="${esc(ev[key])}" onchange="setField('${key}',this.value)"></div>`;
+}
+function selField(label,key,ev,opts){
+  return `<div class="field"><label>${label}</label><select onchange="setField('${key}',this.value)">
+    ${opts.map(o=>`<option value="${o.v}" ${ev[key]===o.v?'selected':''}>${o.l}</option>`).join('')}</select></div>`;
+}
+function formHTML(ev){
+  return `
+  <div class="section-title">Identificação</div>
+  <div class="form-grid">
+    ${field("Nome do evento","nome",ev)}
+    ${field("Nome do responsável","responsavel",ev)}
+    ${field("Contato (WhatsApp / e-mail)","contato",ev)}
+    ${selField("Tipo de evento","tipo",ev,TIPOS)}
+    ${selField("Unidade","local",ev,LOCAIS)}
+  </div>
+  <div class="section-title">Quando e quantos</div>
+  <div class="form-grid">
+    ${field("Data","data",ev,"date")}
+    ${field("Horário","horario",ev,"time")}
+    ${field("Tempo de duração","duracao",ev,"text","ex: 4h")}
+    ${field("Nº de pessoas (dentro)","paxIn",ev,"number")}
+    ${field("Nº de pessoas (fora)","paxOut",ev,"number")}
+    ${field("Ocasião","ocasiao",ev,"text","aniversário, casamento, corporativo...")}
+  </div>
+  <div class="section-title">Formato do serviço</div>
+  <div class="form-grid">
+    ${selField("Estilo de serviço","servico",ev,[{v:"",l:"Selecione..."},{v:"volante",l:"Volante"},{v:"ilhas",l:"Ilhas"},{v:"jantar",l:"Jantar"},{v:"miniporcoes",l:"Mini porções"},{v:"brunch",l:"Brunch"},{v:"coquetel",l:"Coquetel"},{v:"outro",l:"Outro"}])}
+    ${selField("Espaço","exclusividade",ev,[{v:"",l:"Selecione..."},{v:"exclusivo",l:"Exclusivo do espaço"},{v:"compartilhado",l:"Compartilhado"}])}
+    ${selField("Na cúpula?","cupula",ev,[{v:"nao",l:"Não"},{v:"sim",l:"Sim (requer pacote de consumo)"}])}
+    ${selField("Precisa de nota / Danfe?","nota",ev,[{v:"nao",l:"Não"},{v:"sim",l:"Sim"}])}
+  </div>
+  <div class="section-title">Observações</div>
+  <div class="field full"><textarea onchange="setField('obs',this.value)" placeholder="Detalhes da negociação, pedidos especiais, combinados...">${esc(ev.obs)}</textarea></div>`;
+}
+function setField(key,val){const ev=getEvent(view.id);ev[key]=val;save();
+  if(["nome","status","tipo","local","responsavel","data","horario","paxIn","paxOut"].includes(key))renderDetail();
+}
+function faseHTML(ev,f){
+  const fp=faseProgress(ev,f);
+  return `<div class="section-title">${f.nome} — ${fp.done}/${fp.tot} concluídos</div>
+  <div class="phase-bar"><div style="width:${fp.pct}%"></div></div>
+  ${f.itens.map((it,i)=>{
+    const k=f.id+"_"+i;const ck=ev.checks[k]||{done:false,note:"",link:""};
+    const hasLink=ck.link&&ck.link.trim();
+    return `<div class="ck-item ${ck.done?'done':''}">
+      <div class="ck-cb ${ck.done?'on':''}" onclick="toggleCheck('${f.id}',${i})">${ck.done?'✓':''}</div>
+      <div class="ck-body">
+        <div class="txt">${it.t}</div>
+        ${it.d?`<div class="desc">${it.d}</div>`:''}
+        <textarea class="ck-note" placeholder="Anotação..." onchange="setNote('${f.id}',${i},this.value)">${esc(ck.note)}</textarea>
+        <div class="ck-link">
+          <input type="url" placeholder="🔗 Colar link (ficha, proposta Canva, Drive...)" value="${esc(ck.link)}" onchange="setLink('${f.id}',${i},this.value)">
+          ${hasLink?`<a class="btn-ghost btn-sm" href="${esc(ck.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('')}`;
+}
+function toggleCheck(fid,i){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].done=!ev.checks[k].done;save();renderDetail();}
+function setNote(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].note=v;save(false);}
+function setLink(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].link=v;save(false);renderTab();}
+
+function cozbarHTML(ev){
+  const rows=(ev.cozbar||[]).map((r,i)=>({r,i})).filter(x=>view.cozFilter==='todos'||x.r.setor===view.cozFilter).sort((a,b)=>(a.r.hora||'').localeCompare(b.r.hora||''));
+  return `<div class="section-title">Operacional Cozinha & Bar</div>
+  <div class="intro">Organização de horários e serviço por setor. Filtre por setor e imprima a folha de cada equipe.</div>
+  <div class="toolrow no-print">
+    <label style="font-weight:700;font-size:13px">Ver setor:</label>
+    <select style="width:auto" onchange="setCozFilter(this.value)">
+      <option value="todos" ${view.cozFilter==='todos'?'selected':''}>Todos</option>
+      ${SETORES.map(s=>`<option value="${s}" ${view.cozFilter===s?'selected':''}>${s}</option>`).join('')}
+    </select>
+    <button class="btn-ghost btn-sm" onclick="addCoz()">+ Linha</button>
+    <button class="btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir setor</button>
+  </div>
+  <table>
+    <thead><tr><th style="width:90px">Horário</th><th style="width:130px">Setor</th><th>Atividade / O que servir</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
+    <tbody>
+    ${rows.length?rows.map(({r,i})=>`<tr>
+      <td><input type="time" value="${esc(r.hora)}" onchange="setCoz(${i},'hora',this.value)"></td>
+      <td><select onchange="setCoz(${i},'setor',this.value)">${SETORES.map(s=>`<option ${r.setor===s?'selected':''}>${s}</option>`).join('')}</select></td>
+      <td><input value="${esc(r.atividade)}" onchange="setCoz(${i},'atividade',this.value)"></td>
+      <td><input value="${esc(r.obs)}" onchange="setCoz(${i},'obs',this.value)"></td>
+      <td class="no-print"><button class="del-row" onclick="delCoz(${i})">×</button></td>
+    </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">Sem linhas. Clique em <b>+ Linha</b>.</td></tr>`}
+    </tbody>
+  </table>`;
+}
+function setCozFilter(v){view.cozFilter=v;renderTab();}
+function addCoz(){const ev=getEvent(view.id);ev.cozbar=ev.cozbar||[];ev.cozbar.push({hora:"",setor:view.cozFilter!=='todos'?view.cozFilter:"Cozinha",atividade:"",obs:""});save(false);renderDetail();}
+function setCoz(i,k,v){const ev=getEvent(view.id);ev.cozbar[i][k]=v;save(false);if(k==='hora'||k==='setor')renderTab();}
+function delCoz(i){const ev=getEvent(view.id);ev.cozbar.splice(i,1);save(false);renderDetail();}
+
+function materiaisHTML(ev){
+  const m=ev.materiais||[];
+  return `<div class="section-title">Materiais — saída e volta</div>
+  <div class="intro">Registre louças, equipamentos e utensílios que saem para o evento e conferem na volta.</div>
+  <div class="toolrow no-print">
+    <button class="btn-ghost btn-sm" onclick="addMat()">+ Material</button>
+    <button class="btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir folha</button>
+  </div>
+  <table>
+    <thead><tr><th>Material</th><th style="width:80px">Qtd saída</th><th style="width:70px">Saiu</th><th style="width:80px">Qtd volta</th><th style="width:70px">Voltou</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
+    <tbody>
+    ${m.length?m.map((r,i)=>`<tr>
+      <td class="name"><input value="${esc(r.item)}" onchange="setMat(${i},'item',this.value)"></td>
+      <td><input type="number" value="${esc(r.qtdSaida)}" onchange="setMat(${i},'qtdSaida',this.value)"></td>
+      <td style="text-align:center"><input type="checkbox" style="width:auto" ${r.saiu?'checked':''} onchange="setMat(${i},'saiu',this.checked)"></td>
+      <td><input type="number" value="${esc(r.qtdVolta)}" onchange="setMat(${i},'qtdVolta',this.value)"></td>
+      <td style="text-align:center"><input type="checkbox" style="width:auto" ${r.voltou?'checked':''} onchange="setMat(${i},'voltou',this.checked)"></td>
+      <td><input value="${esc(r.obs)}" onchange="setMat(${i},'obs',this.value)"></td>
+      <td class="no-print"><button class="del-row" onclick="delMat(${i})">×</button></td>
+    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">Nenhum material. Clique em <b>+ Material</b>.</td></tr>`}
+    </tbody>
+  </table>`;
+}
+function addMat(){const ev=getEvent(view.id);ev.materiais=ev.materiais||[];ev.materiais.push({item:"",qtdSaida:"",saiu:false,qtdVolta:"",voltou:false,obs:""});save(false);renderDetail();}
+function setMat(i,k,v){const ev=getEvent(view.id);ev.materiais[i][k]=v;save(false);}
+function delMat(i){const ev=getEvent(view.id);ev.materiais.splice(i,1);save(false);renderDetail();}
+
+function orcTotal(ev){const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});return sub+(Number(ev.maoObra)||0)+sub*(Number(ev.gorjeta)||0)/100;}
+function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
+function orcHTML(ev){
+  const pax=Number(ev.pax)||0;
+  let sub=0;(ev.menu||[]).forEach(m=>sub+=lineTotal(m,pax));
+  const mo=Number(ev.maoObra)||0;const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const total=sub+mo+gorj;
+  const datalist=FICHAS.map(p=>`<option value="${esc(p.n)}">${esc(p.cat||'')} · ${fmt(p.p)}</option>`).join('');
+  const pg=ev.pag||{};const sinal=Number(pg.sinalValor)||0;const saldo=total-sinal;
+  const fichaNote=FICHAS.length?`Itens e preços vêm da <b>ficha técnica do portal</b> (${FICHAS.length} itens). Escolha pela busca; o preço preenche sozinho.`:`⚠️ Não carregou a ficha técnica do portal — você ainda pode digitar itens e preços manualmente.`;
+  return `
+  <div class="section-title">Montagem do pacote</div>
+  <div class="toolrow no-print">
+    <div class="field" style="max-width:170px"><label>Nº de pax do orçamento</label><input type="number" value="${esc(ev.pax)}" onchange="setOrc('pax',this.value)" placeholder="ex: 50"></div>
+    <button class="btn-ghost btn-sm" style="margin-top:18px" onclick="window.print()">🖨 Imprimir cardápio</button>
+  </div>
+  <div class="intro">💡 ${fichaNote}</div>
+  <div class="orc-add no-print">
+    <div class="field"><label>Item da ficha técnica</label>
+      <input id="addItem" list="precoslist" placeholder="Digite ou escolha..." onchange="autoPreco()"><datalist id="precoslist">${datalist}</datalist></div>
+    <div class="field" style="max-width:110px"><label>Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"></div>
+    <div class="field" style="max-width:110px"><label>Preço un. (R$)</label><input id="addPreco" type="number" step="0.01" placeholder="auto"></div>
+    <button class="btn-primary" style="height:38px" onclick="addMenuItem()">+ Adicionar</button>
+  </div>
+  <table>
+    <thead><tr><th>Item</th><th style="width:80px">Qtd/pax</th><th style="width:55px">Por pax</th><th style="width:95px">Preço un.</th><th class="num" style="width:110px">Total</th><th style="width:28px" class="no-print"></th></tr></thead>
+    <tbody>
+    ${(ev.menu||[]).length? ev.menu.map((m,i)=>`<tr>
+      <td class="name">${esc(m.nome)}</td>
+      <td><input type="number" step="0.01" value="${esc(m.qtd)}" onchange="setMenu(${i},'qtd',this.value)"></td>
+      <td style="text-align:center"><input type="checkbox" style="width:auto" ${m.perPax?'checked':''} onchange="setMenu(${i},'perPax',this.checked)"></td>
+      <td><input type="number" step="0.01" value="${esc(m.preco)}" onchange="setMenu(${i},'preco',this.value)"></td>
+      <td class="num">${fmt(lineTotal(m,pax))}</td>
+      <td class="no-print"><button class="del-row" onclick="delMenu(${i})">×</button></td>
+    </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione itens da ficha técnica acima.</td></tr>`}
+    </tbody>
+  </table>
+  <div class="totals">
+    <div class="line"><span>Subtotal cardápio</span><b>${fmt(sub)}</b></div>
+    <div class="line no-print"><span>Mão de obra extra</span><input class="mini-input num" type="number" value="${esc(ev.maoObra||0)}" onchange="setOrc('maoObra',this.value)"></div>
+    <div class="line no-print"><span>Gorjeta (<input class="mini-input num" style="max-width:55px" type="number" value="${gpct}" onchange="setOrc('gorjeta',this.value)">%)</span><b>${fmt(gorj)}</b></div>
+    <div class="line grand"><span>TOTAL</span><span>${fmt(total)}</span></div>
+    ${pax?`<div class="line" style="color:var(--muted)"><span>Por pessoa</span><span>${fmt(total/pax)}</span></div>`:''}
+  </div>
+
+  <div class="section-title">Pagamento</div>
+  <div class="form-grid">
+    <div class="field"><label>Forma de pagamento</label>
+      <select onchange="setPag('forma',this.value)">${["","Pix","Cartão","Dinheiro","Transferência","Boleto","Misto"].map(o=>`<option ${pg.forma===o?'selected':''}>${o||'Selecione...'}</option>`).join('')}</select></div>
+    <div class="field"><label>Pagamento antecipado?</label>
+      <select onchange="setPag('antecipado',this.value==='sim')"><option value="nao" ${!pg.antecipado?'selected':''}>Não</option><option value="sim" ${pg.antecipado?'selected':''}>Sim (sinal/entrada)</option></select></div>
+    <div class="field"><label>Valor do sinal / entrada (R$)</label><input type="number" step="0.01" value="${esc(pg.sinalValor)}" onchange="setPag('sinalValor',this.value)"></div>
+    <div class="field"><label>Data do sinal</label><input type="date" value="${esc(pg.sinalData)}" onchange="setPag('sinalData',this.value)"></div>
+    <div class="field"><label>Sinal pago?</label><select onchange="setPag('sinalPago',this.value==='sim')"><option value="nao" ${!pg.sinalPago?'selected':''}>Não</option><option value="sim" ${pg.sinalPago?'selected':''}>Sim ✓</option></select></div>
+    <div class="field"><label>Data prevista do saldo</label><input type="date" value="${esc(pg.saldoData)}" onchange="setPag('saldoData',this.value)"></div>
+    <div class="field"><label>Saldo pago?</label><select onchange="setPag('saldoPago',this.value==='sim')"><option value="nao" ${!pg.saldoPago?'selected':''}>Não</option><option value="sim" ${pg.saldoPago?'selected':''}>Sim ✓</option></select></div>
+  </div>
+  <div class="totals" style="margin-top:14px">
+    <div class="line"><span>Sinal / entrada</span><b>${fmt(sinal)} ${pg.sinalPago?'✓':''}</b></div>
+    <div class="line grand" style="font-size:16px"><span>Saldo a receber</span><span>${fmt(saldo)} ${pg.saldoPago?'✓':''}</span></div>
+  </div>
+  <div class="field full" style="margin-top:12px"><label>Observações de pagamento</label><textarea onchange="setPag('obs',this.value)" placeholder="Combinados de pagamento, parcelas, antecipação...">${esc(pg.obs)}</textarea></div>`;
+}
+function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);if(f)document.getElementById('addPreco').value=f.p;}
+function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();if(k==='pax')renderDetail();}
+function setPag(k,v){const ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag[k]=v;save(false);renderTab();}
+function addMenuItem(){
+  const ev=getEvent(view.id);
+  const nome=document.getElementById('addItem').value.trim();if(!nome)return;
+  let preco=document.getElementById('addPreco').value;
+  const qtd=document.getElementById('addQtd').value||1;
+  let ficha=null;
+  if(!preco){const f=FICHAS.find(p=>p.n.toLowerCase()===nome.toLowerCase());preco=f?f.p:0;if(f)ficha=f.n;}
+  ev.menu=ev.menu||[];ev.menu.push({nome,qtd:Number(qtd),preco:Number(preco),perPax:true,ficha});
+  save(false);renderTab();renderDetail();
+}
+function setMenu(i,k,v){const ev=getEvent(view.id);ev.menu[i][k]=v;save(false);renderTab();renderDetail();}
+function delMenu(i){const ev=getEvent(view.id);ev.menu.splice(i,1);save(false);renderTab();renderDetail();}
+async function delEvent(id){
+  if(!confirm("Excluir este evento? Esta ação não pode ser desfeita."))return;
+  const {error}=await sb.from('lola_eventos').delete().eq('id',id);
+  if(error){alert("Não consegui excluir.");return;}
+  DB.events=DB.events.filter(e=>e.id!==id);backToDash();showFlash("Excluído");
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB.events,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download="eventos-lola-"+new Date().toISOString().slice(0,10)+".json";a.click();
+  showFlash("Exportado ✓");
+}
+init();
+</script>
+</body>
+</html>
