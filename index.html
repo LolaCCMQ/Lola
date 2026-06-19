@@ -714,7 +714,7 @@
     <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
 
     <main class="portal-content">
-      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
+      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div><div class="module-panel" id="module-eventos"><iframe id="eventosFrame" title="Eventos" src="https://equipelola.net/eventos.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-manutencoes"><iframe id="manutFrame" title="Manutenções" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-usuarios"></div>
       <div class="module-panel" id="module-rh"></div>
@@ -1232,7 +1232,7 @@ const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Com
 window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
- {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti'],['comprascartao','💳 Compras no Cartão'],['loucas','🍽️ Louças e Utensílios'],['avaliacoes','⭐ Avaliações']]},
+ {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti'],['comprascartao','💳 Compras no Cartão'],['loucas','🍽️ Louças e Utensílios'],['eventos','📅 Eventos'],['avaliacoes','⭐ Avaliações']]},
  {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central']]},
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
