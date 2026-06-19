@@ -678,7 +678,7 @@
         <button class="nav-item" data-mod="diario" data-menu="diario" onclick="switchModule('diario')"><span class="ni">📓</span><span class="nl">Diário de Gerentes</span></button>
         <button class="nav-item" data-mod="compras" data-menu="compras" onclick="switchModule('compras')"><span class="ni">🛒</span><span class="nl">Lista de Compras</span></button>
         <button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni">🥬</span><span class="nl">Pedidos Hortifrúti</span></button>
-        <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni">💳</span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni">🍽️</span><span class="nl">Louças e Utensílios</span></button>
+        <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni">💳</span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni">🍽️</span><span class="nl">Louças e Utensílios</span></button><button class="nav-item" data-mod="eventos" data-menu="eventos" onclick="switchModule('eventos')"><span class="ni">📅</span><span class="nl">Eventos</span></button>
         <button class="nav-item" onclick="switchModule('layout')"><span class="ni">🪑</span><span class="nl">Layout de Mesas</span></button>
         <button class="nav-item" data-mod="avaliacoes" data-menu="avaliacoes" onclick="switchModule('avaliacoes')"><span class="ni">⭐</span><span class="nl">Avaliações</span></button>
         
@@ -715,7 +715,7 @@
     <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
 
     <main class="portal-content">
-      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
+      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div><div class="module-panel" id="module-eventos"><iframe id="eventosFrame" title="Eventos" src="https://equipelola.net/eventos.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-manutencoes"><iframe id="manutFrame" title="Manutenções" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-usuarios"></div>
       <div class="module-panel" id="module-rh"></div>
@@ -1234,7 +1234,7 @@ const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Com
 window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
- {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti'],['comprascartao','💳 Compras no Cartão'],['loucas','🍽️ Louças e Utensílios'],['avaliacoes','⭐ Avaliações']]},
+ {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti'],['comprascartao','💳 Compras no Cartão'],['loucas','🍽️ Louças e Utensílios'],['eventos','📅 Eventos'],['avaliacoes','⭐ Avaliações']]},
  {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central']]},
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
@@ -2007,7 +2007,7 @@ async function hortiDelProd(id){
 /* ===== Compras no Cartão ===== */
 var COMPRAS=[], CART_F={status:'',empresa:'',cartao:'',mes:''};
 var CART_EMPRESAS=['Lola','Lola MAC','Cozinha Central'];
-var CART_CARTOES=['Débito Stone','Crédito Banrisul','Outro'];
+var CART_CARTOES=['Débito Stone','Crédito Banrisul','Cartão Meliuz','Outro'];
 var _CMES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function cartMes(c){ if(!c)return''; var a=String(c).split('-'); return a.length===2?(_CMES[parseInt(a[1])]+'/'+a[0]):c; }
 function cartSel(id,arr,val,vazio){ return '<select id="'+id+'" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">'+(vazio||'—')+'</option>'+arr.map(function(o){return '<option'+(o===val?' selected':'')+'>'+o+'</option>';}).join('')+'</select>'; }
@@ -2018,7 +2018,7 @@ async function renderCartao(){
   try{ COMPRAS=await api.get('compras_cartao','select=*&order=data.desc.nullslast,id.desc')||[]; }catch(e){ COMPRAS=[]; }
   cartaoRender();
 }
-function cartaoCab(){ return '<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">Compras no Cartão</h2><p style="color:var(--muted);font-size:.84rem">Registre cada compra; marque ✓ quando já lançou no Financeiro.</p>'; }
+function cartaoCab(){ return '<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">Compras no Cartão</h2><p style="color:var(--muted);font-size:.84rem">Registre cada compra · ✓ = lançado no Financeiro · 📦 = item recebido.</p>'; }
 function cartaoRender(){
   var panel=document.getElementById('module-comprascartao'); if(!panel) return;
   var ed=window.__cartEdit?COMPRAS.find(function(x){return x.id===window.__cartEdit;}):null;
@@ -2041,7 +2041,7 @@ function cartaoRender(){
   h+='</div>';
   // filtros
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'
-    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Status</label><select id="fStatus" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todas</option><option value="pend"'+(CART_F.status==='pend'?' selected':'')+'>⏳ Pendentes</option><option value="conf"'+(CART_F.status==='conf'?' selected':'')+'>✓ Conferidas</option></select></div>'
+    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Status</label><select id="fStatus" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todas</option><option value="pend"'+(CART_F.status==='pend'?' selected':'')+'>⏳ Pendentes</option><option value="conf"'+(CART_F.status==='conf'?' selected':'')+'>✓ Conferidas</option><option value="nrec"'+(CART_F.status==='nrec'?' selected':'')+'>📦 A receber</option></select></div>'
     +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Empresa</label><select id="fEmp" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todas</option>'+CART_EMPRESAS.map(function(o){return '<option'+(CART_F.empresa===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
     +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Cartão</label><select id="fCard" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todos</option>'+CART_CARTOES.map(function(o){return '<option'+(CART_F.cartao===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
     +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Competência</label><input type="month" id="fMes" value="'+_escA(CART_F.mes)+'" onchange="cartaoFiltro()" style="'+_hin()+'"></div>'
@@ -2054,6 +2054,7 @@ function cartaoFiltrar(){
   return COMPRAS.filter(function(c){
     if(CART_F.status==='pend' && c.conferido) return false;
     if(CART_F.status==='conf' && !c.conferido) return false;
+    if(CART_F.status==='nrec' && c.recebido) return false;
     if(CART_F.empresa && c.empresa!==CART_F.empresa) return false;
     if(CART_F.cartao && c.cartao!==CART_F.cartao) return false;
     if(CART_F.mes && c.competencia!==CART_F.mes) return false;
@@ -2066,10 +2067,11 @@ function cartaoLista(){
   var pend=lst.filter(function(c){return !c.conferido;}).length;
   var h='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">'+lst.length+' compra(s)'+(pend?(' · <b style="color:#9a5b1a">'+pend+' pendente(s) de lançar</b>'):'')+'</div>';
   h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;font-size:.85rem">';
-  h+='<thead><tr style="background:var(--vinho-pale)">'+['✓','Data','O que comprou','Loja','Empresa','Cartão','Comp.',''].map(function(x){return '<th style="text-align:left;padding:9px 10px;font-size:.68rem;text-transform:uppercase;color:var(--muted)">'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+  h+='<thead><tr style="background:var(--vinho-pale)">'+['✓','📦','Data','O que comprou','Loja','Empresa','Cartão','Comp.',''].map(function(x){return '<th style="text-align:left;padding:9px 10px;font-size:.68rem;text-transform:uppercase;color:var(--muted)">'+x+'</th>';}).join('')+'</tr></thead><tbody>';
   lst.forEach(function(c){
     h+='<tr style="border-top:1px solid var(--border);'+(c.conferido?'opacity:.62':'')+'">'
       +'<td style="padding:8px 10px;text-align:center"><input type="checkbox" '+(c.conferido?'checked':'')+' onchange="cartaoToggleConf('+c.id+',this.checked)" title="Marcado = já lancei no Financeiro" style="width:18px;height:18px"></td>'
+      +'<td style="padding:8px 10px;text-align:center"><input type="checkbox" '+(c.recebido?'checked':'')+' onchange="cartaoToggleReceb('+c.id+',this.checked)" title="Marcado = item recebido/chegou" style="width:18px;height:18px"></td>'
       +'<td style="padding:8px 10px;white-space:nowrap">'+(c.data?fmtDate(c.data):'')+'</td>'
       +'<td style="padding:8px 10px;font-weight:600">'+_escC(c.descricao||'')+'</td>'
       +'<td style="padding:8px 10px">'+_escC(c.loja||'')+'</td>'
@@ -2106,6 +2108,14 @@ function cartaoCancelEdit(){ window.__cartEdit=null; cartaoRender(); }
 async function cartaoToggleConf(id,ck){
   var c=COMPRAS.find(function(x){return x.id===id;}); if(c)c.conferido=ck;
   try{ await api.patch('compras_cartao',{conferido:ck},'id=eq.'+id); }catch(e){ showToast('Erro'); }
+  var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoLista();
+}
+async function cartaoToggleReceb(id,ck){
+  var c=COMPRAS.find(function(x){return x.id===id;});
+  var quem=(typeof currentUser!=='undefined'&&currentUser)?currentUser.name:'';
+  var p={recebido:ck,recebido_por:ck?quem:null,recebido_em:ck?new Date().toISOString():null};
+  if(c){ c.recebido=p.recebido; c.recebido_por=p.recebido_por; c.recebido_em=p.recebido_em; }
+  try{ await api.patch('compras_cartao',p,'id=eq.'+id); }catch(e){ showToast('Erro'); }
   var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoLista();
 }
 async function cartaoExcluir(id){
