@@ -285,6 +285,7 @@ const SECTIONS = [
   {id:"despro", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
   {id:"materiais", kind:"materiais", icon:"📦", label:"Materiais", tipos:["reserva_perso","personalizado","show"]},
   {id:"layout", kind:"layout", icon:"🪑", label:"Layout de Mesas", tipos:["reserva_perso","personalizado","show"]},
+  {id:"convidados", kind:"convidados", icon:"👥", label:"Convidados", tipos:ALL},
   {id:"orc", kind:"orc", icon:"💰", label:"Orçamento", tipos:ALL},
 ];
 
@@ -304,7 +305,7 @@ function fromRow(r){
     servico:r.servico||"", exclusividade:r.exclusividade||"", cupula:r.cupula||"nao", nota:r.nota||"nao",
     obs:r.obs||"", pax:r.pax==null?"":r.pax, maoObra:r.mao_obra==null?0:r.mao_obra, gorjeta:r.gorjeta==null?10:r.gorjeta,
     checks:r.checks||{}, menu:r.menu||[], cozbar:r.cozbar||[], materiais:r.materiais||[],
-    pag:r.pag||{}, criado:r.created_at, editadoPor:r.editado_por||"", editadoEm:r.updated_at||""
+    pag:r.pag||{}, criado:r.created_at, editadoPor:r.editado_por||"", editadoEm:r.updated_at||"", layoutPng:r.layout_png||"", convidados:r.convidados||[]
   };
 }
 function toRow(ev){
@@ -315,7 +316,7 @@ function toRow(ev){
     servico:ev.servico, exclusividade:ev.exclusividade, cupula:ev.cupula, nota:ev.nota,
     obs:ev.obs, pax:intOrNull(ev.pax), mao_obra:numOr(ev.maoObra,0), gorjeta:numOr(ev.gorjeta,10),
     checks:ev.checks||{}, menu:ev.menu||[], cozbar:ev.cozbar||[], materiais:ev.materiais||[],
-    pag:ev.pag||{}, editado_por:currentUserName(), updated_at:new Date().toISOString()
+    pag:ev.pag||{}, editado_por:currentUserName(), updated_at:new Date().toISOString(), convidados:ev.convidados||[]
   };
 }
 
@@ -434,6 +435,7 @@ function renderDetail(){
     if(s.kind==='fase'){const f=FASES.find(x=>x.id===s.id);const fp=faseProgress(ev,f);label=f.nome;count=`${fp.done}/${fp.tot}`;}
     else if(s.kind==='cozbar'){label=(s.icon||'')+' '+s.label;count=(ev.cozbar||[]).length||'';}
     else if(s.kind==='materiais'){label=(s.icon||'')+' '+s.label;count=(ev.materiais||[]).length||'';}
+    else if(s.kind==='convidados'){label=(s.icon||'')+' '+s.label;count=(ev.convidados||[]).length||'';}
     else {label=(s.icon||'')+' '+s.label;}
     return {id:s.id,label,count};
   });
@@ -492,6 +494,7 @@ function renderTab(){
   else if(s.kind==='cozbar')html=cozbarHTML(ev);
   else if(s.kind==='materiais')html=materiaisHTML(ev);
   else if(s.kind==='layout')html=layoutHTML(ev);
+  else if(s.kind==='convidados')html=convidadosHTML(ev);
   else {const f=FASES.find(x=>x.id===view.tab);if(f)html=faseHTML(ev,f);}
   c.innerHTML=html+stepNav(ev);
 }
@@ -567,6 +570,39 @@ function openLayoutLibrary(){
   m.style.display='flex';
 }
 function closeLayoutLibrary(){ const m=document.getElementById('libOverlay'); if(m) m.style.display='none'; }
+function convidadosHTML(ev){
+  const g=ev.convidados||[]; const conf=g.filter(function(x){return x.confirmado;}).length;
+  return `<div class="section-title">Lista de Convidados</div>
+  <div class="intro">${g.length} convidado(s)${g.length?(' · '+conf+' confirmado(s)'):''}. Exporte para Excel ou inclua no PDF do evento.</div>
+  <div class="toolrow no-print">
+    <button class="btn-ghost btn-sm" onclick="addConv()">+ Convidado</button>
+    <button class="btn-ghost btn-sm" onclick="exportConvidados()">⬇ Exportar Excel</button>
+  </div>
+  <table>
+    <thead><tr><th>Nome</th><th style="width:90px">Mesa</th><th style="width:95px">Confirmado</th><th>Observação</th><th style="width:30px" class="no-print"></th></tr></thead>
+    <tbody>
+    ${g.length?g.map(function(r,i){return `<tr>
+      <td class="name"><input value="${esc(r.nome)}" onchange="setConv(${i},'nome',this.value)"></td>
+      <td><input value="${esc(r.mesa)}" onchange="setConv(${i},'mesa',this.value)"></td>
+      <td style="text-align:center"><input type="checkbox" style="width:auto" ${r.confirmado?'checked':''} onchange="setConv(${i},'confirmado',this.checked)"></td>
+      <td><input value="${esc(r.obs)}" onchange="setConv(${i},'obs',this.value)"></td>
+      <td class="no-print"><button class="del-row" onclick="delConv(${i})">×</button></td>
+    </tr>`;}).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">Nenhum convidado ainda. Clique em <b>+ Convidado</b>.</td></tr>`}
+    </tbody>
+  </table>`;
+}
+function addConv(){const ev=getEvent(view.id);ev.convidados=ev.convidados||[];ev.convidados.push({nome:"",mesa:"",confirmado:false,obs:""});save(false);renderDetail();}
+function setConv(i,k,v){const ev=getEvent(view.id);ev.convidados[i][k]=v;save(false);}
+function delConv(i){const ev=getEvent(view.id);ev.convidados.splice(i,1);save(false);renderDetail();}
+function exportConvidados(){
+  const ev=getEvent(view.id);const g=ev.convidados||[];
+  const cell=function(x){return '"'+String(x==null?'':x).replace(/"/g,'""')+'"';};
+  let csv='Nome;Mesa;Confirmado;Observacao\n';
+  g.forEach(function(r){ csv+=[cell(r.nome),cell(r.mesa),cell(r.confirmado?'Sim':'Nao'),cell(r.obs)].join(';')+'\n'; });
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='convidados-'+((ev.nome||'evento').replace(/[^\w\-]+/g,'_'))+'.csv';a.click();
+  showFlash('Lista exportada (abre no Excel)');
+}
 function layoutHTML(ev){
   return `<div class="section-title">Layout de Mesas</div>
   <div class="intro">Monte a planta de mesas e cadeiras deste evento — arraste os móveis sobre a planta. As alterações salvam sozinhas neste evento. (Planta atual: unidade CCMQ.)</div>
@@ -681,17 +717,18 @@ function openPrintDialog(){
   m.style.display='flex';
 }
 function closePrintDialog(){const m=document.getElementById('printModal');if(m)m.style.display='none';}
-function printEvent(withValues,sel){
+async function printEvent(withValues,sel){
   closePrintDialog();
   const ev=getEvent(view.id);if(!ev)return;
+  if(sel&&sel.layout){ try{ const r=await sb.from('lola_eventos').select('layout_png').eq('id',ev.id).single(); if(r&&r.data) ev.layoutPng=r.data.layout_png||""; }catch(e){} }
   document.getElementById('printArea').innerHTML=buildPrintHTML(ev,withValues,sel);
-  setTimeout(function(){window.print();},350);
+  setTimeout(function(){window.print();},400);
 }
 function choosePrintSections(withValues){
   const ev=getEvent(view.id);if(!ev)return;
   let m=document.getElementById('printModal');
   if(!m){m=document.createElement('div');m.id='printModal';m.className='pm-overlay';document.body.appendChild(m);}
-  const secs=relevantSections(ev).filter(function(s){return s.id!=='info'&&s.id!=='layout'&&!(s.id==='orc'&&!withValues);});
+  const secs=relevantSections(ev).filter(function(s){return s.id!=='info'&&!(s.id==='orc'&&!withValues)&&!(s.id==='layout'&&!(ev.layoutPng&&ev.layoutPng.length));});
   const rows=secs.map(function(s){return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:14px;cursor:pointer"><input type="checkbox" class="pm-sec" value="'+s.id+'" checked style="width:auto"> '+secLabel(ev,s.id)+'</label>';}).join('');
   m.innerHTML='<div class="pm-box" style="max-width:380px"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:4px">O que incluir no PDF?</h3>'
    +'<p style="color:var(--muted);margin:0 0 10px;font-size:13px">Os dados principais do evento entram sempre. Marque as partes extras:</p>'
@@ -758,6 +795,8 @@ function buildPrintHTML(ev,withValues,sel){
   const now=new Date().toLocaleString('pt-BR');
   let edinfo='';
   if(ev.editadoEm){edinfo=' · última edição '+new Date(ev.editadoEm).toLocaleDateString('pt-BR')+(ev.editadoPor&&ev.editadoPor!=='portal'?(' por '+esc(ev.editadoPor)):'');}
+  if(inc('layout') && ev.layoutPng){ h+=_pt('Layout de Mesas',color)+'<img src="'+ev.layoutPng+'" alt="Layout de mesas" style="width:100%;max-width:720px;border:1px solid #eee;border-radius:8px;display:block;margin:6px auto 0">'; }
+  if(inc('convidados')){ var gg=(ev.convidados||[]).filter(function(x){return x.nome;}); if(gg.length){ var confN=gg.filter(function(x){return x.confirmado;}).length; h+=_pt('Convidados ('+gg.length+(confN?(' · '+confN+' confirmados'):'')+')',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Nome</th><th>Mesa</th><th>Confirmado</th><th>Obs</th></tr>'+gg.map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.nome)+'</td><td>'+esc(r.mesa||'')+'</td><td>'+(r.confirmado?'✓':'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>'; } }
   h+='<div style="margin-top:24px;border-top:1px solid #eee;padding-top:8px;font-size:10px;color:#8a7d7d">Gerado em '+now+edinfo+' · equipelola.net</div>';
   h+='</div>';
   return h;
