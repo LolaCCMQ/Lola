@@ -149,9 +149,13 @@
   .loading{text-align:center;padding:60px;color:var(--muted);font-weight:700}
   .conn{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--green-pale);color:var(--green)}
   .conn.off{background:#f3e3e3;color:var(--vinho)}
+  #printArea{display:none}
+  .pm-overlay{display:none;position:fixed;inset:0;background:rgba(30,10,10,.45);z-index:9999;align-items:center;justify-content:center;padding:16px}
+  .pm-box{background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
   @media print{
-    header,.tabs,.top-actions,.toolbar,.back,.row-actions,.orc-add,.del-row,.step-nav,.no-print{display:none!important}
-    body{background:#fff}.panel,.detail-head{box-shadow:none;border:1px solid #ccc}
+    header,.tabs,.top-actions,.toolbar,.back,.row-actions,.orc-add,.del-row,.step-nav,.no-print,.wrap,.pm-overlay{display:none!important}
+    body{background:#fff}
+    #printArea{display:block!important}
   }
   @media(max-width:600px){.wrap{padding:14px}header{padding:14px}}
 </style>
@@ -444,7 +448,7 @@ function renderDetail(){
           <select onchange="setField('status',this.value)" style="width:auto;font-weight:700">
             ${STATUS.map(s=>`<option value="${s.v}" ${ev.status===s.v?'selected':''}>${s.l}</option>`).join('')}
           </select>
-          <button class="btn-ghost no-print" onclick="window.print()">🖨 Imprimir</button>
+          <button class="btn-ghost no-print" onclick="openPrintDialog()">🖨 Imprimir</button>
           <button class="danger no-print" onclick="delEvent('${ev.id}')">🗑</button>
         </div>
       </div>
@@ -565,7 +569,7 @@ function cozbarHTML(ev){
       ${SETORES.map(s=>`<option value="${s}" ${view.cozFilter===s?'selected':''}>${s}</option>`).join('')}
     </select>
     <button class="btn-ghost btn-sm" onclick="addCoz()">+ Linha</button>
-    <button class="btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir setor</button>
+    <button class="btn-ghost btn-sm" onclick="openPrintDialog()">🖨 Imprimir setor</button>
   </div>
   <table>
     <thead><tr><th style="width:90px">Horário</th><th style="width:130px">Setor</th><th>Atividade / O que servir</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
@@ -591,7 +595,7 @@ function materiaisHTML(ev){
   <div class="intro">Registre louças, equipamentos e utensílios que saem para o evento e conferem na volta.</div>
   <div class="toolrow no-print">
     <button class="btn-ghost btn-sm" onclick="addMat()">+ Material</button>
-    <button class="btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir folha</button>
+    <button class="btn-ghost btn-sm" onclick="openPrintDialog()">🖨 Imprimir folha</button>
   </div>
   <table>
     <thead><tr><th>Material</th><th style="width:80px">Qtd saída</th><th style="width:70px">Saiu</th><th style="width:80px">Qtd volta</th><th style="width:70px">Voltou</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
@@ -612,6 +616,89 @@ function addMat(){const ev=getEvent(view.id);ev.materiais=ev.materiais||[];ev.ma
 function setMat(i,k,v){const ev=getEvent(view.id);ev.materiais[i][k]=v;save(false);}
 function delMat(i){const ev=getEvent(view.id);ev.materiais.splice(i,1);save(false);renderDetail();}
 
+/* ===== Impressao / PDF do evento ===== */
+const SERVICO_LBL={volante:"Volante",ilhas:"Ilhas",jantar:"Jantar",miniporcoes:"Mini porções",brunch:"Brunch",coquetel:"Coquetel",outro:"Outro"};
+const EXCL_LBL={exclusivo:"Exclusivo do espaço",compartilhado:"Compartilhado"};
+const LOCALESP_LBL={cupula_ccmq:"Cúpula CCMQ",interno_ccmq:"Interno CCMQ",todo_ccmq:"Todo CCMQ",jardim_mac:"Jardim MAC",plataforma_mac:"Plataforma MAC",frente_cafe_mac:"Frente ao Café MAC",todo_mac:"Todo MAC",externo:"Evento Externo"};
+function unitLogo(local){return local==='mac'?'lola-mac.png.png':'lola-ccmq.png.png';}
+function unitColor(local){return local==='mac'?'#2D6A4F':'#A8272A';}
+function openPrintDialog(){
+  const ev=getEvent(view.id);if(!ev)return;
+  let m=document.getElementById('printModal');
+  if(!m){m=document.createElement('div');m.id='printModal';m.className='pm-overlay';document.body.appendChild(m);}
+  m.innerHTML='<div class="pm-box"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:6px">Imprimir / Salvar PDF</h3>'
+   +'<p style="color:var(--muted);margin:0 0 16px;font-size:14px">Como você quer gerar o PDF deste evento?</p>'
+   +'<div style="display:flex;flex-direction:column;gap:10px">'
+   +'<button class="btn-primary" style="padding:12px" onclick="printEvent(true)">💰 Com valores do orçamento</button>'
+   +'<button class="btn-ghost" style="padding:12px" onclick="printEvent(false)">📄 Sem valores</button>'
+   +'</div><button style="background:none;color:var(--muted);margin-top:12px;width:100%;padding:8px" onclick="closePrintDialog()">Cancelar</button></div>';
+  m.style.display='flex';
+}
+function closePrintDialog(){const m=document.getElementById('printModal');if(m)m.style.display='none';}
+function printEvent(withValues){
+  closePrintDialog();
+  const ev=getEvent(view.id);if(!ev)return;
+  document.getElementById('printArea').innerHTML=buildPrintHTML(ev,withValues);
+  setTimeout(function(){window.print();},350);
+}
+function _pr(label,val){return (val==null||val===''||val==='—')?'':'<div style="display:flex;gap:8px;padding:3px 0;font-size:13px"><span style="min-width:150px;color:#8a7d7d;font-weight:700">'+label+'</span><span style="color:#1E0A0A">'+val+'</span></div>';}
+function _pt(t,color){return '<div style="font-family:var(--serif);font-weight:700;color:'+color+';font-size:15px;margin:18px 0 6px;border-bottom:2px solid '+color+';padding-bottom:3px">'+t+'</div>';}
+function buildPrintHTML(ev,withValues){
+  const color=unitColor(ev.local);
+  const tp=(TIPOS.find(t=>t.v===ev.tipo)||{}).l||'';
+  const loc=ev.local?((LOCAIS.find(l=>l.v===ev.local)||{}).l||''):'';
+  const st=(STATUS.find(s=>s.v===ev.status)||{}).l||'';
+  let dt='';
+  if(ev.data){const d=new Date(ev.data+'T00:00');dt=d.toLocaleDateString('pt-BR')+' · '+d.toLocaleDateString('pt-BR',{weekday:'long'}).toUpperCase();}
+  const pax=[ev.paxIn,ev.paxOut].filter(x=>x!=='').join(' + ');
+  let h='<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:var(--sans);color:#1E0A0A;max-width:760px;margin:0 auto;padding:24px">';
+  h+='<div style="height:8px;background:'+color+';border-radius:4px;margin-bottom:16px"></div>';
+  h+='<div style="display:flex;align-items:center;gap:18px;margin-bottom:6px"><img src="'+unitLogo(ev.local)+'" alt="Lola" style="height:60px;width:auto" onerror="this.style.display=\'none\'">'
+   +'<div><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:'+color+';font-weight:800">'+esc(tp)+(loc?' · '+esc(loc):'')+'</div>'
+   +'<div style="font-family:var(--serif);font-size:26px;font-weight:800">'+(esc(ev.nome)||'(evento sem nome)')+'</div>'
+   +(st?'<div style="font-size:12px;color:#8a7d7d;font-weight:700">'+esc(st)+'</div>':'')+'</div></div>';
+  h+=_pt('Informações gerais',color);
+  h+=_pr('Data',dt)+_pr('Horário',esc(ev.horario))+_pr('Duração',esc(ev.duracao))+_pr('Nº de pessoas',pax?(esc(pax)+' pax'):'')+_pr('Ocasião',esc(ev.ocasiao))+_pr('Responsável',esc(ev.responsavel))+_pr('Contato',esc(ev.contato))+_pr('Estilo de serviço',SERVICO_LBL[ev.servico]||'')+_pr('Espaço',EXCL_LBL[ev.exclusividade]||'')+_pr('Local específico',LOCALESP_LBL[ev.cupula]||'')+_pr('Precisa nota/Danfe?',ev.nota==='sim'?'Sim':'');
+  if(ev.obs&&ev.obs.trim()){h+=_pt('Observações',color)+'<div style="font-size:13px;white-space:pre-wrap">'+esc(ev.obs)+'</div>';}
+  let ckHtml='';
+  relevantFases(ev).forEach(function(f){
+    let items='';
+    f.itens.forEach(function(it,i){const ck=ev.checks[f.id+'_'+i]||{};const note=(ck.note||'').trim();
+      if(ck.done||note){items+='<div style="font-size:12px;padding:2px 0">'+(ck.done?'✓ ':'• ')+esc(it.t)+(note?(' <span style="color:#8a7d7d">— '+esc(note)+'</span>'):'')+'</div>';}});
+    if(items){const fp=faseProgress(ev,f);ckHtml+='<div style="margin:8px 0 4px;font-weight:700;font-size:13px">'+esc(f.nome)+' ('+fp.done+'/'+fp.tot+')</div>'+items;}
+  });
+  if(ckHtml){h+=_pt('Checklist',color)+ckHtml;}
+  const coz=(ev.cozbar||[]).filter(function(r){return r.hora||r.atividade||r.obs;});
+  if(coz.length){h+=_pt('Operacional Cozinha & Bar',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Horário</th><th>Setor</th><th>Atividade</th><th>Obs</th></tr>'
+    +coz.sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'');}).map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.hora||'')+'</td><td>'+esc(r.setor||'')+'</td><td>'+esc(r.atividade||'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}
+  const mat=(ev.materiais||[]).filter(function(r){return r.item;});
+  if(mat.length){h+=_pt('Materiais',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Material</th><th>Qtd saída</th><th>Saiu</th><th>Qtd volta</th><th>Voltou</th><th>Obs</th></tr>'
+    +mat.map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.item)+'</td><td>'+esc(r.qtdSaida||'')+'</td><td>'+(r.saiu?'✓':'')+'</td><td>'+esc(r.qtdVolta||'')+'</td><td>'+(r.voltou?'✓':'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}
+  if(withValues){
+    const pax2=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(function(m){sub+=lineTotal(m,pax2);});
+    const mo=Number(ev.maoObra)||0;const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const total=sub+mo+gorj;
+    if((ev.menu||[]).length){
+      h+=_pt('Orçamento',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Item</th><th>Qtd/pax</th><th style="text-align:right">Total</th></tr>'
+       +ev.menu.map(function(m){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(m.nome)+'</td><td>'+esc(m.qtd)+(m.perPax?'/pax':'')+'</td><td style="text-align:right">'+fmt(lineTotal(m,pax2))+'</td></tr>';}).join('')
+       +'</table><div style="margin-top:8px;font-size:13px">'
+       +'<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Subtotal cardápio</span><b>'+fmt(sub)+'</b></div>'
+       +(mo?('<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Mão de obra extra</span><b>'+fmt(mo)+'</b></div>'):'')
+       +(gorj?('<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Gorjeta ('+gpct+'%)</span><b>'+fmt(gorj)+'</b></div>'):'')
+       +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid '+color+';font-weight:800;font-size:15px;color:'+color+'"><span>TOTAL</span><span>'+fmt(total)+'</span></div>'
+       +(pax2?('<div style="display:flex;justify-content:space-between;color:#8a7d7d"><span>Por pessoa</span><span>'+fmt(total/pax2)+'</span></div>'):'')+'</div>';
+    }
+    const pg=ev.pag||{};
+    if(pg.forma||pg.sinalValor||pg.obs){
+      h+=_pt('Pagamento',color)+_pr('Forma',esc(pg.forma))+_pr('Antecipado?',pg.antecipado?'Sim':'')+_pr('Sinal/entrada',pg.sinalValor?(fmt(pg.sinalValor)+(pg.sinalPago?' (pago)':'')):'')+_pr('Data do sinal',esc(pg.sinalData))+_pr('Data do saldo',esc(pg.saldoData))+(pg.obs?('<div style="font-size:12px;margin-top:4px;white-space:pre-wrap">'+esc(pg.obs)+'</div>'):'');
+    }
+  }
+  const now=new Date().toLocaleString('pt-BR');
+  let edinfo='';
+  if(ev.editadoEm){edinfo=' · última edição '+new Date(ev.editadoEm).toLocaleDateString('pt-BR')+(ev.editadoPor&&ev.editadoPor!=='portal'?(' por '+esc(ev.editadoPor)):'');}
+  h+='<div style="margin-top:24px;border-top:1px solid #eee;padding-top:8px;font-size:10px;color:#8a7d7d">Gerado em '+now+edinfo+' · equipelola.net</div>';
+  h+='</div>';
+  return h;
+}
 function orcTotal(ev){const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});return sub+(Number(ev.maoObra)||0)+sub*(Number(ev.gorjeta)||0)/100;}
 function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
 function orcHTML(ev){
@@ -625,7 +712,7 @@ function orcHTML(ev){
   <div class="section-title">Montagem do pacote</div>
   <div class="toolrow no-print">
     <div class="field" style="max-width:170px"><label>Nº de pax do orçamento</label><input type="number" value="${esc(ev.pax)}" onchange="setOrc('pax',this.value)" placeholder="ex: 50"></div>
-    <button class="btn-ghost btn-sm" style="margin-top:18px" onclick="window.print()">🖨 Imprimir cardápio</button>
+    <button class="btn-ghost btn-sm" style="margin-top:18px" onclick="openPrintDialog()">🖨 Imprimir cardápio</button>
   </div>
   <div class="intro">💡 ${fichaNote}</div>
   <div class="orc-add no-print">
@@ -703,5 +790,6 @@ function exportData(){
 }
 init();
 </script>
+<div id="printArea"></div>
 </body>
 </html>
