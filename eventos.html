@@ -283,6 +283,7 @@ const SECTIONS = [
   {id:"dia", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
   {id:"despro", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
   {id:"materiais", kind:"materiais", icon:"📦", label:"Materiais", tipos:["reserva_perso","personalizado","show"]},
+  {id:"layout", kind:"layout", icon:"🪑", label:"Layout de Mesas", tipos:["reserva_perso","personalizado","show"]},
   {id:"orc", kind:"orc", icon:"💰", label:"Orçamento", tipos:ALL},
 ];
 
@@ -489,6 +490,7 @@ function renderTab(){
   else if(s.kind==='orc')html=orcHTML(ev);
   else if(s.kind==='cozbar')html=cozbarHTML(ev);
   else if(s.kind==='materiais')html=materiaisHTML(ev);
+  else if(s.kind==='layout')html=layoutHTML(ev);
   else {const f=FASES.find(x=>x.id===view.tab);if(f)html=faseHTML(ev,f);}
   c.innerHTML=html+stepNav(ev);
 }
@@ -558,6 +560,11 @@ function toggleCheck(fid,i){const ev=getEvent(view.id);const k=fid+"_"+i;ev.chec
 function setNote(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].note=v;save(false);}
 function setLink(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].link=v;save(false);renderTab();}
 
+function layoutHTML(ev){
+  return `<div class="section-title">Layout de Mesas</div>
+  <div class="intro">Monte a planta de mesas e cadeiras deste evento — arraste os móveis sobre a planta. As alterações salvam sozinhas neste evento. (Planta atual: unidade CCMQ.)</div>
+  <iframe src="https://lolaccmq.github.io/LolaLayout/?evento=${encodeURIComponent(ev.id)}" title="Layout de Mesas" style="width:100%;height:78vh;border:1px solid var(--border);border-radius:12px;display:block;background:#fff"></iframe>`;
+}
 function cozbarHTML(ev){
   const rows=(ev.cozbar||[]).map((r,i)=>({r,i})).filter(x=>view.cozFilter==='todos'||x.r.setor===view.cozFilter).sort((a,b)=>(a.r.hora||'').localeCompare(b.r.hora||''));
   return `<div class="section-title">Operacional Cozinha & Bar</div>
