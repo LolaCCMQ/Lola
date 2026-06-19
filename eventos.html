@@ -59,6 +59,11 @@
   .loc-central{background:#eef2f7;color:#3a5a82}
   .loc-ccmq{background:#f1ecf7;color:#6a4b9c}
   .loc-mac{background:#fbeee6;color:#b56a2e}
+  .loc-catering{background:#fbe6f0;color:#b5366e}
+  .card.loc-card-ccmq{border-left:6px solid #c0392b;background:#fdeceb}
+  .card.loc-card-mac{border-left:6px solid #2D6A4F;background:#eaf5ef}
+  .card.loc-card-central{border-left:6px solid #d4a017;background:#fdf7e6}
+  .card.loc-card-catering{border-left:6px solid #d6478f;background:#fdeaf3}
   .badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.4px}
   .b-pre{background:var(--blue-pale);color:var(--blue)}
   .b-orc{background:var(--amber-pale);color:var(--amber)}
@@ -195,7 +200,8 @@ const LOCAIS = [
   {v:"", l:"Unidade..."},
   {v:"central", l:"Lola Central", c:"loc-central"},
   {v:"ccmq", l:"Lola CCMQ", c:"loc-ccmq"},
-  {v:"mac", l:"Lola MAC", c:"loc-mac"}
+  {v:"mac", l:"Lola MAC", c:"loc-mac"},
+  {v:"catering", l:"Lola Catering", c:"loc-catering"}
 ];
 const STATUS = [
   {v:"pre", l:"Pré-reserva", c:"b-pre"},
@@ -386,7 +392,7 @@ function renderList(){
     const pct=progress(e);
     const pax=[e.paxIn,e.paxOut].filter(x=>x!=='').join(' + ');
     const dt=e.data?new Date(e.data+'T00:00').toLocaleDateString('pt-BR'):'Data a definir';
-    return `<div class="card" onclick="open_('${e.id}')">
+    return `<div class="card loc-card-${e.local||'none'}" onclick="open_('${e.id}')">
       <div class="ev-type">${tp?tp.l.split('(')[0]:''}</div>
       <h3>${esc(e.nome)||'(sem nome)'}</h3>
       <div class="meta">📅 ${dt}${e.horario?' · '+e.horario:''} ${locPill(e.local)}</div>
@@ -431,7 +437,7 @@ function renderDetail(){
         <div>
           <div class="ev-type" style="color:var(--vinho);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800">${tp?tp.l:''} ${locPill(ev.local)}</div>
           <h2>${esc(ev.nome)||'(novo evento)'}</h2>
-          <div class="sub">${esc(ev.responsavel)||'sem responsável'} · 📅 ${dt}${ev.horario?' '+ev.horario:''}</div>
+          <div class="sub">${esc(ev.responsavel)||'sem responsável'} · <span id="subDateTime">📅 ${dt}${ev.horario?' '+ev.horario:''}</span></div>
         </div>
         <div class="row-actions">
           <select onchange="setField('status',this.value)" style="width:auto;font-weight:700">
@@ -519,7 +525,8 @@ function formHTML(ev){
   <div class="field full"><textarea onchange="setField('obs',this.value)" placeholder="Detalhes da negociação, pedidos especiais, combinados...">${esc(ev.obs)}</textarea></div>`;
 }
 function setField(key,val){const ev=getEvent(view.id);ev[key]=val;save();
-  if(["nome","status","tipo","local","responsavel","data","horario","paxIn","paxOut"].includes(key))renderDetail();
+  if(key==="data"||key==="horario"){const el=document.getElementById('subDateTime');if(el){const dt=ev.data?new Date(ev.data+'T00:00').toLocaleDateString('pt-BR'):'A definir';el.textContent='📅 '+dt+(ev.horario?' '+ev.horario:'');}return;}
+  if(["nome","status","tipo","local","responsavel","paxIn","paxOut"].includes(key))renderDetail();
 }
 function faseHTML(ev,f){
   const fp=faseProgress(ev,f);
