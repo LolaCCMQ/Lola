@@ -589,18 +589,50 @@ function addCoz(){const ev=getEvent(view.id);ev.cozbar=ev.cozbar||[];ev.cozbar.p
 function setCoz(i,k,v){const ev=getEvent(view.id);ev.cozbar[i][k]=v;save(false);if(k==='hora'||k==='setor')renderTab();}
 function delCoz(i){const ev=getEvent(view.id);ev.cozbar.splice(i,1);save(false);renderDetail();}
 
+let LOUCAS_CAT=null;
+async function openLoucasPicker(){
+  const ev=getEvent(view.id);if(!ev)return;
+  let m=document.getElementById('loucasModal');
+  if(!m){m=document.createElement('div');m.id='loucasModal';m.className='pm-overlay';document.body.appendChild(m);}
+  m.style.display='flex';
+  m.innerHTML='<div class="pm-box" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="font-family:var(--serif);color:var(--vinho);margin:0">Catálogo de Louças</h3><button style="background:none;color:var(--muted);font-size:22px;width:auto;padding:0 6px" onclick="closeLoucasPicker()">×</button></div><input id="loucasSearch" placeholder="🔍 Buscar item..." oninput="renderLoucasGrid(this.value)" style="margin-bottom:10px"><div id="loucasGrid" style="overflow:auto;flex:1;min-height:120px">Carregando catálogo…</div></div>';
+  if(!LOUCAS_CAT){
+    try{const r=await sb.from('lola_loucas_itens').select('id,name,category,unidade,medida,quantity,photo_url').order('category').order('name');LOUCAS_CAT=r.error?[]:(r.data||[]);}catch(e){LOUCAS_CAT=[];}
+  }
+  renderLoucasGrid('');
+}
+function closeLoucasPicker(){const m=document.getElementById('loucasModal');if(m)m.style.display='none';}
+function renderLoucasGrid(q){
+  const g=document.getElementById('loucasGrid');if(!g)return;
+  q=(q||'').toLowerCase();
+  const items=(LOUCAS_CAT||[]).filter(function(it){return !q||(((it.name||'')+' '+(it.category||'')).toLowerCase().indexOf(q)>=0);});
+  if(!items.length){g.innerHTML='<div style="color:var(--muted);padding:24px;text-align:center">Nenhum item encontrado.</div>';return;}
+  g.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">'+items.map(function(it){return '<div style="border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;cursor:pointer" onclick="addMatFromCatalog(\''+it.id+'\')">'
+    +(it.photo_url?'<img src="'+esc(it.photo_url)+'" style="width:100%;height:88px;object-fit:cover;border-radius:6px" loading="lazy">':'<div style="height:88px;background:var(--warm);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px">🍽️</div>')
+    +'<div style="font-size:12px;font-weight:700;margin-top:5px;line-height:1.2">'+esc(it.name||'')+'</div>'
+    +'<div style="font-size:10px;color:var(--muted)">'+esc(it.category||'')+(it.quantity!=null?(' · '+it.quantity+' un'):'')+'</div>'
+    +'<div style="margin-top:4px;color:var(--vinho);font-size:11px;font-weight:800">+ adicionar</div></div>';}).join('')+'</div>';
+}
+function addMatFromCatalog(id){
+  const it=(LOUCAS_CAT||[]).find(function(x){return String(x.id)===String(id);});if(!it)return;
+  const ev=getEvent(view.id);ev.materiais=ev.materiais||[];
+  ev.materiais.push({item:it.name||'',qtdSaida:'',saiu:false,qtdVolta:'',voltou:false,obs:'',foto:it.photo_url||'',loucaId:it.id});
+  save(false);showFlash((it.name||'Item')+' adicionado ✓');renderDetail();
+}
 function materiaisHTML(ev){
   const m=ev.materiais||[];
   return `<div class="section-title">Materiais — saída e volta</div>
   <div class="intro">Registre louças, equipamentos e utensílios que saem para o evento e conferem na volta.</div>
   <div class="toolrow no-print">
     <button class="btn-ghost btn-sm" onclick="addMat()">+ Material</button>
+    <button class="btn-ghost btn-sm" onclick="openLoucasPicker()">🍽️ Escolher do catálogo</button>
     <button class="btn-ghost btn-sm" onclick="openPrintDialog()">🖨 Imprimir folha</button>
   </div>
   <table>
-    <thead><tr><th>Material</th><th style="width:80px">Qtd saída</th><th style="width:70px">Saiu</th><th style="width:80px">Qtd volta</th><th style="width:70px">Voltou</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
+    <thead><tr><th style="width:46px"></th><th>Material</th><th style="width:80px">Qtd saída</th><th style="width:70px">Saiu</th><th style="width:80px">Qtd volta</th><th style="width:70px">Voltou</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
     <tbody>
     ${m.length?m.map((r,i)=>`<tr>
+      <td>${r.foto?`<img src="${esc(r.foto)}" style="width:38px;height:38px;object-fit:cover;border-radius:6px">`:''}</td>
       <td class="name"><input value="${esc(r.item)}" onchange="setMat(${i},'item',this.value)"></td>
       <td><input type="number" value="${esc(r.qtdSaida)}" onchange="setMat(${i},'qtdSaida',this.value)"></td>
       <td style="text-align:center"><input type="checkbox" style="width:auto" ${r.saiu?'checked':''} onchange="setMat(${i},'saiu',this.checked)"></td>
@@ -608,7 +640,7 @@ function materiaisHTML(ev){
       <td style="text-align:center"><input type="checkbox" style="width:auto" ${r.voltou?'checked':''} onchange="setMat(${i},'voltou',this.checked)"></td>
       <td><input value="${esc(r.obs)}" onchange="setMat(${i},'obs',this.value)"></td>
       <td class="no-print"><button class="del-row" onclick="delMat(${i})">×</button></td>
-    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">Nenhum material. Clique em <b>+ Material</b>.</td></tr>`}
+    </tr>`).join(''):`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">Nenhum material. Clique em <b>+ Material</b>.</td></tr>`}
     </tbody>
   </table>`;
 }
@@ -672,8 +704,8 @@ function buildPrintHTML(ev,withValues){
   if(coz.length){h+=_pt('Operacional Cozinha & Bar',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Horário</th><th>Setor</th><th>Atividade</th><th>Obs</th></tr>'
     +coz.sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'');}).map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.hora||'')+'</td><td>'+esc(r.setor||'')+'</td><td>'+esc(r.atividade||'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}
   const mat=(ev.materiais||[]).filter(function(r){return r.item;});
-  if(mat.length){h+=_pt('Materiais',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Material</th><th>Qtd saída</th><th>Saiu</th><th>Qtd volta</th><th>Voltou</th><th>Obs</th></tr>'
-    +mat.map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.item)+'</td><td>'+esc(r.qtdSaida||'')+'</td><td>'+(r.saiu?'✓':'')+'</td><td>'+esc(r.qtdVolta||'')+'</td><td>'+(r.voltou?'✓':'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}
+  if(mat.length){h+=_pt('Materiais',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="width:42px"></th><th style="padding:3px">Material</th><th>Qtd saída</th><th>Saiu</th><th>Qtd volta</th><th>Voltou</th><th>Obs</th></tr>'
+    +mat.map(function(r){return '<tr style="border-top:1px solid #eee"><td>'+(r.foto?('<img src="'+esc(r.foto)+'" style="width:34px;height:34px;object-fit:cover;border-radius:4px">'):'')+'</td><td style="padding:3px">'+esc(r.item)+'</td><td>'+esc(r.qtdSaida||'')+'</td><td>'+(r.saiu?'✓':'')+'</td><td>'+esc(r.qtdVolta||'')+'</td><td>'+(r.voltou?'✓':'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}
   if(withValues){
     const pax2=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(function(m){sub+=lineTotal(m,pax2);});
     const mo=Number(ev.maoObra)||0;const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const total=sub+mo+gorj;
