@@ -678,7 +678,7 @@
         <button class="nav-item" data-mod="diario" data-menu="diario" onclick="switchModule('diario')"><span class="ni">📓</span><span class="nl">Diário de Gerentes</span></button>
         <button class="nav-item" data-mod="compras" data-menu="compras" onclick="switchModule('compras')"><span class="ni">🛒</span><span class="nl">Lista de Compras</span></button>
         <button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni">🥬</span><span class="nl">Pedidos Hortifrúti</span></button>
-        <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni">💳</span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni">🍽️</span><span class="nl">Louças e Utensílios</span></button><button class="nav-item" data-mod="eventos" data-menu="eventos" onclick="switchModule('eventos')"><span class="ni">📅</span><span class="nl">Eventos</span></button>
+        <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni">💳</span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni">🍽️</span><span class="nl">Louças e Utensílios</span></button>
         <button class="nav-item" data-mod="avaliacoes" data-menu="avaliacoes" onclick="switchModule('avaliacoes')"><span class="ni">⭐</span><span class="nl">Avaliações</span></button>
         
         
@@ -714,7 +714,7 @@
     <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
 
     <main class="portal-content">
-      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div><div class="module-panel" id="module-eventos"><iframe id="eventosFrame" title="Eventos" src="https://equipelola.net/eventos.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
+      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-manutencoes"><iframe id="manutFrame" title="Manutenções" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-usuarios"></div>
       <div class="module-panel" id="module-rh"></div>
@@ -1089,14 +1089,14 @@
 </main><!-- MODAL EDITAR TAREFA -->
 <datalist id="assuntosList"></datalist>
 <style>
-.sug-box{background:#fff7ed;border:1.5px solid #f0c89a;border-radius:10px;padding:8px 10px;margin:-4px 0 12px}
-.sug-head{font-size:.76rem;font-weight:600;color:#9a5b1a;margin-bottom:6px}
-.sug-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed #f0c89a;flex-wrap:wrap}
+.sug-box{background:#eef4ff;border:1.5px solid #bcd2f5;border-radius:10px;padding:8px 10px;margin:-4px 0 12px}
+.sug-head{font-size:.76rem;font-weight:600;color:#23508a;margin-bottom:6px}
+.sug-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed #bcd2f5;flex-wrap:wrap}
 .sug-item:first-of-type{border-top:none}
 .sug-txt{font-size:.82rem;color:var(--ink);flex:1;min-width:150px}
 .sug-sub{display:block;font-size:.68rem;color:var(--muted)}
 .sug-acts{display:flex;gap:6px}
-.sug-acts button{font-size:.72rem;padding:3px 9px;border-radius:7px;border:1.5px solid #c98;background:#fff;color:var(--vinho);cursor:pointer}
+.sug-acts button{font-size:.72rem;padding:3px 9px;border-radius:7px;border:1.5px solid #9bb8e6;background:#fff;color:var(--vinho);cursor:pointer}
 .sug-acts button.lig{border-color:#9fd3b4;color:#1d6b43;background:#eef9f1;cursor:default}
 .tag-assunto{background:#e7eefc;color:#23508a;cursor:pointer}
 .rel-chip{display:inline-block;background:#eef2f7;color:#33506f;border-radius:7px;padding:2px 8px;font-size:.74rem;margin:2px 4px 2px 0}
@@ -1232,7 +1232,7 @@ const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Com
 window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
- {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti'],['comprascartao','💳 Compras no Cartão'],['loucas','🍽️ Louças e Utensílios'],['eventos','📅 Eventos'],['avaliacoes','⭐ Avaliações']]},
+ {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti'],['comprascartao','💳 Compras no Cartão'],['loucas','🍽️ Louças e Utensílios'],['avaliacoes','⭐ Avaliações']]},
  {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central']]},
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
@@ -2599,13 +2599,13 @@ function buscarSimilares(texto, excludeId){
     if(excludeId && t.id===excludeId) return;
     var hay=_norm((t.texto||'')+' '+(t.assunto||'')); var sc=0;
     toks.forEach(function(w){ if(hay.indexOf(w)>=0) sc++; });
-    if(sc>0) out.push({kind:'task',id:t.id,score:sc,t:t});
+    if(sc>=3) out.push({kind:'task',id:t.id,score:sc,t:t});
   });
   (atas||[]).forEach(function(a){
     if(a.avulsa) return;
     var hay=_norm((a.conteudo||'')+' '+(a.assunto||'')); var sc=0;
     toks.forEach(function(w){ if(hay.indexOf(w)>=0) sc++; });
-    if(sc>0) out.push({kind:'ata',id:a.id,score:sc,a:a});
+    if(sc>=3) out.push({kind:'ata',id:a.id,score:sc,a:a});
   });
   out.sort(function(x,y){return y.score-x.score;});
   return out.slice(0,6);
@@ -2619,7 +2619,7 @@ function renderSugestoes(prefix){
   var res=(txt.trim().length>=3)?buscarSimilares(txt,excludeId):[];
   if(!res.length){ box.style.display='none'; box.innerHTML=''; return; }
   var stMap={a_fazer:'A fazer',em_andamento:'Em andamento',em_orcamento:'Em orçamento',aguardando:'Aguard. aprovação',concluida:'Concluída'};
-  var h='<div class="sug-head">⚠️ Pode já existir sobre isso — abra a existente ou ligue as duas:</div>';
+  var h='<div class="sug-head">💡 Tarefas parecidas (opcional). Você pode ignorar e clicar em “Salvar Tarefa” para criar uma nova — ou, se quiser, abrir/ligar a uma existente:</div>';
   res.forEach(function(r){
     if(r.kind==='task'){
       var t=r.t; var ata=atas.find(function(a){return a.id===t.ata_id;});
