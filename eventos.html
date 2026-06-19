@@ -169,6 +169,7 @@
     <span class="conn" id="conn">conectando…</span>
     <a class="home" href="https://equipelola.net/">← Portal</a>
     <button onclick="reloadAll()">↻ Atualizar</button>
+    <button onclick="openLayoutLibrary()">🪑 Layouts salvos</button>
     <button onclick="exportData()">⬇ Exportar</button>
   </div>
 </header>
@@ -560,6 +561,12 @@ function toggleCheck(fid,i){const ev=getEvent(view.id);const k=fid+"_"+i;ev.chec
 function setNote(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].note=v;save(false);}
 function setLink(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].link=v;save(false);renderTab();}
 
+function openLayoutLibrary(){
+  let m=document.getElementById('libOverlay');
+  if(!m){ m=document.createElement('div'); m.id='libOverlay'; m.style.cssText='position:fixed;inset:0;background:rgba(30,10,10,.55);z-index:9999;display:flex;flex-direction:column;padding:16px'; m.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="color:#fff;font-size:18px;font-family:var(--serif)">🪑 Biblioteca de Layouts</b><button onclick="closeLayoutLibrary()" style="background:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Fechar ✕</button></div><iframe src="https://lolaccmq.github.io/LolaLayout/?lib=1" title="Biblioteca de Layouts" style="flex:1;width:100%;border:none;border-radius:12px;background:#fff"></iframe>'; document.body.appendChild(m); }
+  m.style.display='flex';
+}
+function closeLayoutLibrary(){ const m=document.getElementById('libOverlay'); if(m) m.style.display='none'; }
 function layoutHTML(ev){
   return `<div class="section-title">Layout de Mesas</div>
   <div class="intro">Monte a planta de mesas e cadeiras deste evento — arraste os móveis sobre a planta. As alterações salvam sozinhas neste evento. (Planta atual: unidade CCMQ.)</div>
