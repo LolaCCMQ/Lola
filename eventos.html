@@ -299,7 +299,7 @@ function fromRow(r){
     servico:r.servico||"", exclusividade:r.exclusividade||"", cupula:r.cupula||"nao", nota:r.nota||"nao",
     obs:r.obs||"", pax:r.pax==null?"":r.pax, maoObra:r.mao_obra==null?0:r.mao_obra, gorjeta:r.gorjeta==null?10:r.gorjeta,
     checks:r.checks||{}, menu:r.menu||[], cozbar:r.cozbar||[], materiais:r.materiais||[],
-    pag:r.pag||{}, criado:r.created_at
+    pag:r.pag||{}, criado:r.created_at, editadoPor:r.editado_por||"", editadoEm:r.updated_at||""
   };
 }
 function toRow(ev){
@@ -310,7 +310,7 @@ function toRow(ev){
     servico:ev.servico, exclusividade:ev.exclusividade, cupula:ev.cupula, nota:ev.nota,
     obs:ev.obs, pax:intOrNull(ev.pax), mao_obra:numOr(ev.maoObra,0), gorjeta:numOr(ev.gorjeta,10),
     checks:ev.checks||{}, menu:ev.menu||[], cozbar:ev.cozbar||[], materiais:ev.materiais||[],
-    pag:ev.pag||{}, editado_por:"portal"
+    pag:ev.pag||{}, editado_por:currentUserName(), updated_at:new Date().toISOString()
   };
 }
 
@@ -350,13 +350,14 @@ async function persist(ev,doFlash){
 }
 const fmt = n => "R$ "+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 function esc(s){return (s==null?'':s.toString()).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function currentUserName(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.name)return pp.__portalUser.name;}catch(e){}return 'portal';}
 function blankEvent(){
   const checks={};
   FASES.forEach(f=>f.itens.forEach((it,i)=>checks[f.id+"_"+i]={done:false,note:"",link:""}));
   return {
     id:null, nome:"", responsavel:"", contato:"", tipo:"personalizado", local:"", status:"pre",
     paxIn:"", paxOut:"", data:"", horario:"", duracao:"", ocasiao:"", servico:"",
-    exclusividade:"", cupula:"nao", nota:"nao", obs:"",
+    exclusividade:"", cupula:"", nota:"nao", obs:"",
     checks, menu:[], pax:"", maoObra:0, gorjeta:10,
     cozbar:[], materiais:[], pag:{forma:"",antecipado:false,sinalValor:"",sinalData:"",sinalPago:false,saldoData:"",saldoPago:false,obs:""}
   };
@@ -391,12 +392,13 @@ function renderList(){
     const tp=TIPOS.find(t=>t.v===e.tipo);
     const pct=progress(e);
     const pax=[e.paxIn,e.paxOut].filter(x=>x!=='').join(' + ');
-    const dt=e.data?new Date(e.data+'T00:00').toLocaleDateString('pt-BR'):'Data a definir';
+    const dt=e.data?(()=>{const _d=new Date(e.data+'T00:00');return _d.toLocaleDateString('pt-BR')+' · '+_d.toLocaleDateString('pt-BR',{weekday:'long'}).toUpperCase();})():'Data a definir';
     return `<div class="card loc-card-${e.local||'none'}" onclick="open_('${e.id}')">
       <div class="ev-type">${tp?tp.l.split('(')[0]:''}</div>
       <h3>${esc(e.nome)||'(sem nome)'}</h3>
       <div class="meta">📅 ${dt}${e.horario?' · '+e.horario:''} ${locPill(e.local)}</div>
       <div class="meta">👤 ${esc(e.responsavel)||'—'}${pax?' · 👥 '+pax+' pax':''}</div>
+      ${e.editadoEm?`<div class="meta" style="font-size:11px;color:var(--muted)">✏️ ${new Date(e.editadoEm).toLocaleDateString('pt-BR')} ${new Date(e.editadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}${e.editadoPor&&e.editadoPor!=='portal'?' · '+esc(e.editadoPor):''}</div>`:''}
       <div style="margin-top:10px"><span class="badge ${st.c}">${st.l}</span></div>
       <div class="progress"><div style="width:${pct}%"></div></div>
       <div class="pct"><span>Checklist</span><span>${pct}%</span></div>
@@ -518,7 +520,7 @@ function formHTML(ev){
   <div class="form-grid">
     ${selField("Estilo de serviço","servico",ev,[{v:"",l:"Selecione..."},{v:"volante",l:"Volante"},{v:"ilhas",l:"Ilhas"},{v:"jantar",l:"Jantar"},{v:"miniporcoes",l:"Mini porções"},{v:"brunch",l:"Brunch"},{v:"coquetel",l:"Coquetel"},{v:"outro",l:"Outro"}])}
     ${selField("Espaço","exclusividade",ev,[{v:"",l:"Selecione..."},{v:"exclusivo",l:"Exclusivo do espaço"},{v:"compartilhado",l:"Compartilhado"}])}
-    ${selField("Na cúpula?","cupula",ev,[{v:"nao",l:"Não"},{v:"sim",l:"Sim (requer pacote de consumo)"}])}
+    ${selField("Local específico","cupula",ev,[{v:"",l:"Selecione..."},{v:"cupula_ccmq",l:"Cúpula CCMQ"},{v:"interno_ccmq",l:"Interno CCMQ"},{v:"todo_ccmq",l:"Todo CCMQ"},{v:"jardim_mac",l:"Jardim MAC"},{v:"plataforma_mac",l:"Plataforma MAC"},{v:"frente_cafe_mac",l:"Frente ao Café MAC"},{v:"todo_mac",l:"Todo MAC"},{v:"externo",l:"Evento Externo"}])}
     ${selField("Precisa de nota / Danfe?","nota",ev,[{v:"nao",l:"Não"},{v:"sim",l:"Sim"}])}
   </div>
   <div class="section-title">Observações</div>
