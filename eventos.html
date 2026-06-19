@@ -675,21 +675,38 @@ function openPrintDialog(){
   m.innerHTML='<div class="pm-box"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:6px">Imprimir / Salvar PDF</h3>'
    +'<p style="color:var(--muted);margin:0 0 16px;font-size:14px">Como você quer gerar o PDF deste evento?</p>'
    +'<div style="display:flex;flex-direction:column;gap:10px">'
-   +'<button class="btn-primary" style="padding:12px" onclick="printEvent(true)">💰 Com valores do orçamento</button>'
-   +'<button class="btn-ghost" style="padding:12px" onclick="printEvent(false)">📄 Sem valores</button>'
+   +'<button class="btn-primary" style="padding:12px" onclick="choosePrintSections(true)">💰 Com valores do orçamento</button>'
+   +'<button class="btn-ghost" style="padding:12px" onclick="choosePrintSections(false)">📄 Sem valores</button>'
    +'</div><button style="background:none;color:var(--muted);margin-top:12px;width:100%;padding:8px" onclick="closePrintDialog()">Cancelar</button></div>';
   m.style.display='flex';
 }
 function closePrintDialog(){const m=document.getElementById('printModal');if(m)m.style.display='none';}
-function printEvent(withValues){
+function printEvent(withValues,sel){
   closePrintDialog();
   const ev=getEvent(view.id);if(!ev)return;
-  document.getElementById('printArea').innerHTML=buildPrintHTML(ev,withValues);
+  document.getElementById('printArea').innerHTML=buildPrintHTML(ev,withValues,sel);
   setTimeout(function(){window.print();},350);
+}
+function choosePrintSections(withValues){
+  const ev=getEvent(view.id);if(!ev)return;
+  let m=document.getElementById('printModal');
+  if(!m){m=document.createElement('div');m.id='printModal';m.className='pm-overlay';document.body.appendChild(m);}
+  const secs=relevantSections(ev).filter(function(s){return s.id!=='info'&&s.id!=='layout'&&!(s.id==='orc'&&!withValues);});
+  const rows=secs.map(function(s){return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:14px;cursor:pointer"><input type="checkbox" class="pm-sec" value="'+s.id+'" checked style="width:auto"> '+secLabel(ev,s.id)+'</label>';}).join('');
+  m.innerHTML='<div class="pm-box" style="max-width:380px"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:4px">O que incluir no PDF?</h3>'
+   +'<p style="color:var(--muted);margin:0 0 10px;font-size:13px">Os dados principais do evento entram sempre. Marque as partes extras:</p>'
+   +'<div style="text-align:left;max-height:46vh;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:6px 10px">'+(rows||'<div style="color:#8a7d7d;font-size:13px;padding:6px">Sem partes extras para este evento.</div>')+'</div>'
+   +'<div style="display:flex;gap:8px;margin-top:14px"><button class="btn-ghost" style="flex:1;padding:10px" onclick="closePrintDialog()">Cancelar</button><button class="btn-primary" style="flex:1;padding:10px" onclick="doPrintEvent('+withValues+')">Gerar PDF</button></div></div>';
+  m.style.display='flex';
+}
+function doPrintEvent(withValues){
+  const sel={}; document.querySelectorAll('.pm-sec:checked').forEach(function(c){sel[c.value]=true;});
+  printEvent(withValues,sel);
 }
 function _pr(label,val){return (val==null||val===''||val==='—')?'':'<div style="display:flex;gap:8px;padding:3px 0;font-size:13px"><span style="min-width:150px;color:#8a7d7d;font-weight:700">'+label+'</span><span style="color:#1E0A0A">'+val+'</span></div>';}
 function _pt(t,color){return '<div style="font-family:var(--serif);font-weight:700;color:'+color+';font-size:15px;margin:18px 0 6px;border-bottom:2px solid '+color+';padding-bottom:3px">'+t+'</div>';}
-function buildPrintHTML(ev,withValues){
+function buildPrintHTML(ev,withValues,sel){
+  function inc(id){ return !sel || !!sel[id]; }
   const color=unitColor(ev.local);
   const tp=(TIPOS.find(t=>t.v===ev.tipo)||{}).l||'';
   const loc=ev.local?((LOCAIS.find(l=>l.v===ev.local)||{}).l||''):'';
@@ -707,7 +724,7 @@ function buildPrintHTML(ev,withValues){
   h+=_pr('Data',dt)+_pr('Horário',esc(ev.horario))+_pr('Duração',esc(ev.duracao))+_pr('Nº de pessoas',pax?(esc(pax)+' pax'):'')+_pr('Ocasião',esc(ev.ocasiao))+_pr('Responsável',esc(ev.responsavel))+_pr('Contato',esc(ev.contato))+_pr('Estilo de serviço',SERVICO_LBL[ev.servico]||'')+_pr('Espaço',EXCL_LBL[ev.exclusividade]||'')+_pr('Local específico',LOCALESP_LBL[ev.cupula]||'')+_pr('Precisa nota/Danfe?',ev.nota==='sim'?'Sim':'');
   if(ev.obs&&ev.obs.trim()){h+=_pt('Observações',color)+'<div style="font-size:13px;white-space:pre-wrap">'+esc(ev.obs)+'</div>';}
   let ckHtml='';
-  relevantFases(ev).forEach(function(f){
+  relevantFases(ev).filter(function(f){return inc(f.id);}).forEach(function(f){
     let items='';
     f.itens.forEach(function(it,i){const ck=ev.checks[f.id+'_'+i]||{};const note=(ck.note||'').trim();
       if(ck.done||note){items+='<div style="font-size:12px;padding:2px 0">'+(ck.done?'✓ ':'• ')+esc(it.t)+(note?(' <span style="color:#8a7d7d">— '+esc(note)+'</span>'):'')+'</div>';}});
@@ -715,12 +732,12 @@ function buildPrintHTML(ev,withValues){
   });
   if(ckHtml){h+=_pt('Checklist',color)+ckHtml;}
   const coz=(ev.cozbar||[]).filter(function(r){return r.hora||r.atividade||r.obs;});
-  if(coz.length){h+=_pt('Operacional Cozinha & Bar',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Horário</th><th>Setor</th><th>Atividade</th><th>Obs</th></tr>'
+  if(coz.length&&inc('cozbar')){h+=_pt('Operacional Cozinha & Bar',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Horário</th><th>Setor</th><th>Atividade</th><th>Obs</th></tr>'
     +coz.sort(function(a,b){return (a.hora||'').localeCompare(b.hora||'');}).map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.hora||'')+'</td><td>'+esc(r.setor||'')+'</td><td>'+esc(r.atividade||'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}
   const mat=(ev.materiais||[]).filter(function(r){return r.item;});
-  if(mat.length){h+=_pt('Materiais',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="width:42px"></th><th style="padding:3px">Material</th><th>Qtd saída</th><th>Saiu</th><th>Qtd volta</th><th>Voltou</th><th>Obs</th></tr>'
+  if(mat.length&&inc('materiais')){h+=_pt('Materiais',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="width:42px"></th><th style="padding:3px">Material</th><th>Qtd saída</th><th>Saiu</th><th>Qtd volta</th><th>Voltou</th><th>Obs</th></tr>'
     +mat.map(function(r){return '<tr style="border-top:1px solid #eee"><td>'+(r.foto?('<img src="'+esc(r.foto)+'" style="width:34px;height:34px;object-fit:cover;border-radius:4px">'):'')+'</td><td style="padding:3px">'+esc(r.item)+'</td><td>'+esc(r.qtdSaida||'')+'</td><td>'+(r.saiu?'✓':'')+'</td><td>'+esc(r.qtdVolta||'')+'</td><td>'+(r.voltou?'✓':'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}
-  if(withValues){
+  if(withValues&&inc('orc')){
     const pax2=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(function(m){sub+=lineTotal(m,pax2);});
     const mo=Number(ev.maoObra)||0;const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const total=sub+mo+gorj;
     if((ev.menu||[]).length){
