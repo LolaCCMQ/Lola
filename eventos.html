@@ -830,8 +830,8 @@ function buildPrintHTML(ev,withValues,sel){
        +(pax2?('<div style="display:flex;justify-content:space-between;color:#8a7d7d"><span>Por pessoa</span><span>'+fmt(total/pax2)+'</span></div>'):'')+'</div>';
     }
     const pg=ev.pag||{};
-    if(pg.forma||pg.sinalValor||pg.obs){
-      h+=_pt('Pagamento',color)+_pr('Forma',esc(pg.forma))+_pr('Antecipado?',pg.antecipado?'Sim':'')+_pr('Sinal/entrada',pg.sinalValor?(fmt(pg.sinalValor)+(pg.sinalPago?' (pago)':'')):'')+_pr('Data do sinal',esc(pg.sinalData))+_pr('Data do saldo',esc(pg.saldoData))+(pg.obs?('<div style="font-size:12px;margin-top:4px;white-space:pre-wrap">'+esc(pg.obs)+'</div>'):'');
+    if(pg.forma||pg.sinalValor||pg.obs||(pg.pago&&pg.pago!=='Não')||pg.precisaDanfe==='Sim'){
+      h+=_pt('Pagamento',color)+_pr('Forma',esc(pg.forma))+_pr('Pago?',(pg.pago&&pg.pago!=='Não')?pg.pago:'')+_pr('Danfe/Nota?',pg.precisaDanfe==='Sim'?'Sim':'')+_pr('Antecipado?',pg.antecipado?'Sim':'')+_pr('Sinal/entrada',pg.sinalValor?(fmt(pg.sinalValor)+(pg.sinalPago?' (pago)':'')):'')+_pr('Data do sinal',esc(pg.sinalData))+_pr('Data do saldo',esc(pg.saldoData))+(pg.obs?('<div style="font-size:12px;margin-top:4px;white-space:pre-wrap">'+esc(pg.obs)+'</div>'):'');
     }
   }
   const now=new Date().toLocaleString('pt-BR');
@@ -900,6 +900,34 @@ function orcHTML(ev){
     <div class="field"><label>Data prevista do saldo</label><input type="date" value="${esc(pg.saldoData)}" onchange="setPag('saldoData',this.value)"></div>
     <div class="field"><label>Saldo pago?</label><select onchange="setPag('saldoPago',this.value==='sim')"><option value="nao" ${!pg.saldoPago?'selected':''}>Não</option><option value="sim" ${pg.saldoPago?'selected':''}>Sim ✓</option></select></div>
   </div>
+  <div class="section-title" style="font-size:15px">Comprovação e nota fiscal</div>
+  <div class="form-grid">
+    <div class="field"><label>Pagamento efetuado?</label><select onchange="setPag('pago',this.value)">${["Não","Parcial","Pago"].map(o=>`<option ${(pg.pago||'Não')===o?'selected':''}>${o}</option>`).join('')}</select></div>
+    <div class="field"><label>Precisa de Danfe / Nota?</label><select onchange="setPag('precisaDanfe',this.value)">${["Não","Sim"].map(o=>`<option ${(pg.precisaDanfe||'Não')===o?'selected':''}>${o}</option>`).join('')}</select></div>
+  </div>
+  <div class="field full no-print" style="margin-top:8px"><label>Comprovante de pagamento (foto, PDF, JPG)</label>
+    <input type="file" accept="image/*,application/pdf" onchange="uploadPagFile(this,'comprovante')">
+    ${(pg.comprovantes||[]).map((c,i)=>`<div style="font-size:13px;margin-top:4px">📎 <a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.name)}</a> <button class="del-row" onclick="delPagFile('comprovante',${i})">×</button></div>`).join('')}
+  </div>
+  ${pg.precisaDanfe==='Sim'?`<div class="form-grid no-print" style="margin-top:4px">
+    <div class="field"><label>Danfe — arquivo PDF</label><input type="file" accept="application/pdf" onchange="uploadPagFile(this,'danfePdf')">${pg.danfePdf?`<div style="font-size:13px;margin-top:4px">📄 <a href="${esc(pg.danfePdf.url)}" target="_blank" rel="noopener">${esc(pg.danfePdf.name)}</a> <button class="del-row" onclick="delPagFile('danfePdf')">×</button></div>`:''}</div>
+    <div class="field"><label>Danfe — arquivo XML</label><input type="file" accept=".xml,text/xml,application/xml" onchange="uploadPagFile(this,'danfeXml')">${pg.danfeXml?`<div style="font-size:13px;margin-top:4px">🧾 <a href="${esc(pg.danfeXml.url)}" target="_blank" rel="noopener">${esc(pg.danfeXml.name)}</a> <button class="del-row" onclick="delPagFile('danfeXml')">×</button></div>`:''}</div>
+  </div>`:''}
+  <div class="no-print" style="margin-top:10px">
+    <button class="btn-ghost btn-sm" onclick="toggleDadosLola()">🏢 Dados do Lola para pagamento</button>
+    <div id="dadosLola" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--cream)">
+      <div id="dadosLolaTxt" style="font-size:13px;white-space:pre-wrap;line-height:1.55">Eventos Lola CCMQ LTDA
+Rua dos Andradas, 736 - sala 10
+Centro Histórico, Porto Alegre - RS
+CEP: 90020-004
+CNPJ: 58.541.846/0001-19
+Inscrição Estadual: 0964051630
+Inscrição Municipal: 88055426
+
+Banco Stone (197) · Agência: 0001 · Conta: 58429028-2</div>
+      <button class="btn-ghost btn-sm" style="margin-top:8px" onclick="copiarDadosLola()">📋 Copiar dados</button>
+    </div>
+  </div>
   <div class="totals" style="margin-top:14px">
     <div class="line"><span>Sinal / entrada</span><b>${fmt(sinal)} ${pg.sinalPago?'✓':''}</b></div>
     <div class="line grand" style="font-size:16px"><span>Saldo a receber</span><span>${fmt(saldo)} ${pg.saldoPago?'✓':''}</span></div>
@@ -909,6 +937,25 @@ function orcHTML(ev){
 function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);if(f)document.getElementById('addPreco').value=f.p;}
 function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();if(k==='pax')renderDetail();}
 function setPag(k,v){const ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag[k]=v;save(false);renderTab();}
+async function uploadPagFile(inputEl,field){
+  const f=inputEl&&inputEl.files&&inputEl.files[0]; if(!f) return;
+  const ev=getEvent(view.id); ev.pag=ev.pag||{};
+  showFlash('Enviando '+f.name+'…');
+  try{
+    const safe=f.name.replace(/[^\w.\-]+/g,'_');
+    const path='eventos/'+ev.id+'/'+field+'/'+Date.now()+'_'+safe;
+    const up=await sb.storage.from('anexos').upload(path,f,{upsert:true,contentType:f.type||'application/octet-stream'});
+    if(up.error) throw up.error;
+    const url=sb.storage.from('anexos').getPublicUrl(path).data.publicUrl;
+    if(field==='comprovante'){ ev.pag.comprovantes=ev.pag.comprovantes||[]; ev.pag.comprovantes.push({url:url,name:f.name}); }
+    else { ev.pag[field]={url:url,name:f.name}; }
+    save(); renderTab(); showFlash(f.name+' anexado ✓');
+  }catch(e){ showFlash('Erro ao anexar: '+((e&&e.message)||e),true); }
+  try{inputEl.value='';}catch(e){}
+}
+function delPagFile(field,idx){ const ev=getEvent(view.id); ev.pag=ev.pag||{}; if(field==='comprovante'){ (ev.pag.comprovantes||[]).splice(idx,1); } else { ev.pag[field]=null; } save(); renderTab(); }
+function toggleDadosLola(){ var el=document.getElementById('dadosLola'); if(el) el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none'; }
+function copiarDadosLola(){ var t=document.getElementById('dadosLolaTxt'); if(!t)return; var s=t.innerText; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(s).then(function(){showFlash('Dados copiados ✓');},function(){showFlash('Copie manualmente',true);}); } else { showFlash('Copie manualmente',true); } }
 function addMenuItem(){
   const ev=getEvent(view.id);
   const nome=document.getElementById('addItem').value.trim();if(!nome)return;
