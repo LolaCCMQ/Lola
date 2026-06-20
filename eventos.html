@@ -647,17 +647,25 @@ async function openLoucasPicker(){
   let m=document.getElementById('loucasModal');
   if(!m){m=document.createElement('div');m.id='loucasModal';m.className='pm-overlay';document.body.appendChild(m);}
   m.style.display='flex';
-  m.innerHTML='<div class="pm-box" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="font-family:var(--serif);color:var(--vinho);margin:0">Catálogo de Louças</h3><button style="background:none;color:var(--muted);font-size:22px;width:auto;padding:0 6px" onclick="closeLoucasPicker()">×</button></div><input id="loucasSearch" placeholder="🔍 Buscar item..." oninput="renderLoucasGrid(this.value)" style="margin-bottom:10px"><div id="loucasGrid" style="overflow:auto;flex:1;min-height:120px">Carregando catálogo…</div></div>';
+  m.innerHTML='<div class="pm-box" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="font-family:var(--serif);color:var(--vinho);margin:0">Catálogo de Louças</h3><button style="background:none;color:var(--muted);font-size:22px;width:auto;padding:0 6px" onclick="closeLoucasPicker()">×</button></div><input id="loucasSearch" placeholder="🔍 Buscar item..." oninput="renderLoucasGrid()" style="margin-bottom:8px"><div id="loucasChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div><div id="loucasGrid" style="overflow:auto;flex:1;min-height:120px">Carregando catálogo…</div></div>';
   if(!LOUCAS_CAT){
     try{const r=await sb.from('lola_loucas_itens').select('id,name,category,unidade,medida,quantity,photo_url').order('category').order('name');LOUCAS_CAT=r.error?[]:(r.data||[]);}catch(e){LOUCAS_CAT=[];}
   }
-  renderLoucasGrid('');
+  loucasCat='__all'; renderLoucasChips(); renderLoucasGrid();
 }
 function closeLoucasPicker(){const m=document.getElementById('loucasModal');if(m)m.style.display='none';}
-function renderLoucasGrid(q){
+let loucasCat='__all';
+function renderLoucasChips(){
+  const el=document.getElementById('loucasChips'); if(!el) return;
+  const cats=[]; (LOUCAS_CAT||[]).forEach(function(it){var c=(it.category||'').trim()||'Sem categoria'; if(cats.indexOf(c)<0)cats.push(c);});
+  cats.sort();
+  el.innerHTML=['__all'].concat(cats).map(function(c){var on=(loucasCat===c);var lbl=(c==='__all')?'Todas':c;return '<button onclick="setLoucasCat(\''+String(c)+'\')" style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid var(--vinho);'+(on?'background:var(--vinho);color:#fff':'background:#fff;color:var(--vinho)')+'">'+lbl+'</button>';}).join('');
+}
+function setLoucasCat(c){loucasCat=c;renderLoucasChips();renderLoucasGrid();}
+function renderLoucasGrid(){
   const g=document.getElementById('loucasGrid');if(!g)return;
-  q=(q||'').toLowerCase();
-  const items=(LOUCAS_CAT||[]).filter(function(it){return !q||(((it.name||'')+' '+(it.category||'')).toLowerCase().indexOf(q)>=0);});
+  const si=document.getElementById('loucasSearch');const q=(si?si.value:'').toLowerCase();
+  const items=(LOUCAS_CAT||[]).filter(function(it){var c=(it.category||'').trim()||'Sem categoria';if(loucasCat!=='__all'&&c!==loucasCat)return false;return !q||(((it.name||'')+' '+(it.category||'')).toLowerCase().indexOf(q)>=0);});
   if(!items.length){g.innerHTML='<div style="color:var(--muted);padding:24px;text-align:center">Nenhum item encontrado.</div>';return;}
   g.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">'+items.map(function(it){return '<div style="border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;cursor:pointer" onclick="addMatFromCatalog(\''+it.id+'\')">'
     +(it.photo_url?'<img src="'+esc(it.photo_url)+'" style="width:100%;height:88px;object-fit:cover;border-radius:6px" loading="lazy">':'<div style="height:88px;background:var(--warm);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px">🍽️</div>')
