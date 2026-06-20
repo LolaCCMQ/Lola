@@ -224,14 +224,13 @@ const FASES = [
     {t:"Marcar na agenda com horário, nº de pessoas e contato", d:""},
     {t:"Definir estilo de serviço", d:"Volante, ilhas, jantar, mini porções, brunch, etc"},
     {t:"Definir exclusividade do espaço", d:"Interno/externo — exclusivo ou compartilhado?"},
-    {t:"Confirmar se precisa de nota / Danfe", d:""},
   ]},
   { id:"negociacao", nome:"2 · Negociação", tipos:ALL, itens:[
     {t:"Anotar na planilha Reservas e Pacotes // Eventos Lola", d:"Sinalizar andamento da negociação"},
-    {t:"Anotar na agenda como pré-reserva", d:""},
     {t:"Montar pacote de serviços", d:"Colar abaixo o link da ficha / planilha do pacote"},
     {t:"Enviar proposta pelo Canva", d:"Colar abaixo o link do arquivo da proposta"},
     {t:"Enviar pacote de consumo (se cúpula)", d:""},
+    {t:"Confirmar se precisa de nota / Danfe", d:""},
   ]},
   { id:"os", nome:"3 · Operacional (OS)", tipos:["reserva_perso","personalizado","show"], itens:[
     {t:"Menu e quantidades", d:"Definir na aba Orçamento"},
@@ -242,7 +241,8 @@ const FASES = [
     {t:"Formato de venda", d:"Comanda / ticket"},
     {t:"Equipe", d:"Freelas? Recepção?"},
     {t:"Menus impressos", d:""},
-    {t:"Chopeira na rua / cobrança maquininha", d:"Se aplicável"},
+    {t:"Serviços externos parceiros", d:"ex. chopeira, iluminação, sonorização"},
+    {t:"Conferência de serviços externos parceiros", d:"Está tudo ok?"},
     {t:"Treinamento das equipes de salão e cozinha", d:"⏰ Tarefa antecipada — no mínimo 2 dias antes"},
   ]},
   { id:"show", nome:"4 · Evento Lola / Show", tipos:["show"], itens:[
@@ -908,10 +908,18 @@ async function delEvent(id){
   DB.events=DB.events.filter(e=>e.id!==id);backToDash();showFlash("Excluído");
 }
 function exportData(){
-  const blob=new Blob([JSON.stringify(DB.events,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download="eventos-lola-"+new Date().toISOString().slice(0,10)+".json";a.click();
-  showFlash("Exportado ✓");
+  const evs=DB.events.slice().sort(function(a,b){return (a.data||'9999').localeCompare(b.data||'9999');});
+  if(!evs.length){showFlash('Nenhum evento para exportar',true);return;}
+  const fmtData=function(d){if(!d)return 'A definir';var x=new Date(d+'T00:00');return x.toLocaleDateString('pt-BR')+' · '+x.toLocaleDateString('pt-BR',{weekday:'short'}).toUpperCase().replace('.','');};
+  let h='<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:var(--sans);color:#1E0A0A;max-width:920px;margin:0 auto;padding:24px">';
+  h+='<div style="height:8px;background:#A8272A;border-radius:4px;margin-bottom:14px"></div>';
+  h+='<div style="font-family:var(--serif);font-size:24px;font-weight:800;color:#A8272A">Eventos Lola — Lista geral</div>';
+  h+='<div style="font-size:12px;color:#8a7d7d;margin-bottom:14px">'+evs.length+' evento(s) · gerado em '+new Date().toLocaleString('pt-BR')+'</div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d;border-bottom:2px solid #A8272A"><th style="padding:5px 4px">Evento</th><th>Unidade</th><th>Data</th><th>Horário</th><th>Pax</th><th>Status</th><th>Responsável</th><th style="text-align:right">Orçamento</th></tr>';
+  evs.forEach(function(e){var st=(STATUS.find(function(s){return s.v===e.status;})||{}).l||'';var loc=e.local?((LOCAIS.find(function(l){return l.v===e.local;})||{}).l||''):'';var pax=[e.paxIn,e.paxOut].filter(function(x){return x!=='';}).join('+');h+='<tr style="border-bottom:1px solid #eee"><td style="padding:5px 4px;font-weight:700">'+esc(e.nome||'(sem nome)')+'</td><td>'+esc(loc)+'</td><td>'+fmtData(e.data)+'</td><td>'+esc(e.horario||'')+'</td><td>'+esc(pax)+'</td><td>'+esc(st)+'</td><td>'+esc(e.responsavel||'')+'</td><td style="text-align:right">'+fmt(orcTotal(e))+'</td></tr>';});
+  h+='</table><div style="margin-top:16px;font-size:10px;color:#8a7d7d">equipelola.net · Eventos</div></div>';
+  document.getElementById('printArea').innerHTML=h;
+  setTimeout(function(){window.print();},250);
 }
 init();
 </script>
