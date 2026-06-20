@@ -821,7 +821,7 @@
       <!-- Margem abaixo de 70% (gerente+) -->
       <div class="dash-card" id="dashMargemCard" data-minrole="gerente">
         <div class="dash-card-header">
-          <div class="dash-card-title"><span class="icon">📉</span> Margem abaixo de 70% <span class="dash-card-count" id="dashMargemCount">—</span></div>
+          <div class="dash-card-title"><span class="icon">📉</span> CMV acima de 30% <span class="dash-card-count" id="dashMargemCount">—</span></div>
           <a class="dash-card-link" href="javascript:void(0)" onclick="openEstoque('fichas')">Ver fichas →</a>
         </div>
         <div class="dash-card-body" id="dashMargem">
@@ -1524,10 +1524,10 @@ async function loadDashMargem(){
   if(!el||el.dataset.loaded==='1') return;
   try{
     const fichas=await dbFetch('lola_fichas_tecnicas','select=id,nome,preco_venda,custo_por_porcao,ativo');
-    const baixas=(fichas||[]).filter(f=>f.ativo!==false&&f.preco_venda>0&&f.custo_por_porcao>0&&((f.preco_venda-f.custo_por_porcao)/f.preco_venda)<0.70).map(f=>({nome:f.nome,margem:Math.round((f.preco_venda-f.custo_por_porcao)/f.preco_venda*100)})).sort((a,b)=>a.margem-b.margem);
+    const baixas=(fichas||[]).filter(f=>f.ativo!==false&&f.preco_venda>0&&f.custo_por_porcao>0&&(f.custo_por_porcao/f.preco_venda)>0.30).map(f=>({nome:f.nome,cmv:Math.round(f.custo_por_porcao/f.preco_venda*100)})).sort((a,b)=>b.cmv-a.cmv);
     if(cnt)cnt.textContent=baixas.length;
-    if(baixas.length===0){ el.innerHTML='<div class="dash-card-empty">✅ Todas com margem ≥ 70%.</div>'; }
-    else { el.innerHTML=baixas.slice(0,8).map(b=>`<div class="dash-equip" style="cursor:pointer" onclick="openEstoque('fichas')"><div class="dash-equip-icon">📉</div><div class="dash-equip-info"><div class="dash-equip-nome">${b.nome}</div><div class="dash-equip-setor">Margem ${b.margem}%</div></div><span class="prob-badge">${b.margem}%</span></div>`).join(''); }
+    if(baixas.length===0){ el.innerHTML='<div class="dash-card-empty">✅ Todas com CMV ≤ 30%.</div>'; }
+    else { el.innerHTML=baixas.slice(0,8).map(b=>`<div class="dash-equip" style="cursor:pointer" onclick="openEstoque('fichas')"><div class="dash-equip-icon">📉</div><div class="dash-equip-info"><div class="dash-equip-nome">${b.nome}</div><div class="dash-equip-setor">CMV ${b.cmv}%</div></div><span class="prob-badge">${b.cmv}%</span></div>`).join(''); }
     el.dataset.loaded='1';
   }catch(e){ el.innerHTML='<div class="dash-card-empty">Não foi possível carregar agora.</div>'; }
 }
