@@ -728,7 +728,7 @@ function choosePrintSections(withValues){
   const ev=getEvent(view.id);if(!ev)return;
   let m=document.getElementById('printModal');
   if(!m){m=document.createElement('div');m.id='printModal';m.className='pm-overlay';document.body.appendChild(m);}
-  const secs=relevantSections(ev).filter(function(s){return s.id!=='info'&&!(s.id==='orc'&&!withValues)&&!(s.id==='layout'&&!(ev.layoutPng&&ev.layoutPng.length));});
+  const secs=relevantSections(ev).filter(function(s){return s.id!=='info'&&!(s.id==='orc'&&!withValues);});
   const rows=secs.map(function(s){return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:14px;cursor:pointer"><input type="checkbox" class="pm-sec" value="'+s.id+'" checked style="width:auto"> '+secLabel(ev,s.id)+'</label>';}).join('');
   m.innerHTML='<div class="pm-box" style="max-width:380px"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:4px">O que incluir no PDF?</h3>'
    +'<p style="color:var(--muted);margin:0 0 10px;font-size:13px">Os dados principais do evento entram sempre. Marque as partes extras:</p>'
