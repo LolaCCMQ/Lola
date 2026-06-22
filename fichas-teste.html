@@ -105,7 +105,6 @@
     <div class="adv" id="qAdv">
       <div class="lab">Unidade</div><div class="pick" id="qUni"></div>
       <div class="lab">Categoria / operação</div><div class="pick" id="qCat"></div>
-      <div class="lab">Pessoa (sobre quem é)</div><input type="text" id="qPessoa" placeholder="Ex.: Michele, um cliente... (separe por vírgula)">
       <div class="lab">Responsável</div><div class="pick" id="qResp"></div>
       <div class="lab">Detalhes</div><textarea id="qCont" placeholder="Observações, decisões, próximos passos..."></textarea>
     </div>
@@ -290,14 +289,13 @@ function initQuick(){
 function toggleAdv(){var a=document.getElementById('qAdv');a.classList.toggle('open');document.getElementById('qMore').textContent=a.classList.contains('open')?'– esconder classificação':'+ classificar (unidade, área, pessoa…)';}
 function clearQuick(){
   _q={tipo:'',uni:[],cat:[],resp:[]};
-  document.getElementById('qTexto').value='';document.getElementById('qPessoa').value='';document.getElementById('qCont').value='';
+  document.getElementById('qTexto').value='';document.getElementById('qCont').value='';
   initQuick();
 }
 async function quickSave(){
   var txt=document.getElementById('qTexto').value.trim();
   if(!txt){toast('Escreva o registro.');return;}
-  var pess=document.getElementById('qPessoa').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
-  var p={titulo:txt,tipo:document.getElementById('qTipo').value||'Nota',unidades:_q.uni.slice(),categorias:_q.cat.slice(),pessoas:pess,
+  var p={titulo:txt,tipo:document.getElementById('qTipo').value||'Nota',unidades:_q.uni.slice(),categorias:_q.cat.slice(),pessoas:[],
     responsaveis:_q.resp.slice(),conteudo:document.getElementById('qCont').value,tags:[],relacionados:[],
     data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
   try{var i=await sb.from('lola_assuntos').insert(p);if(i.error)throw i.error;clearQuick();await load();toast('✓ Registrado');window.scrollTo({top:0,behavior:'smooth'});}
