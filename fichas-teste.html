@@ -26,6 +26,7 @@
   .quick .lab{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
   .quick textarea,.quick input[type=text]{width:100%;font-family:inherit;font-size:1rem;padding:12px;border:1.5px solid var(--border);border-radius:11px;background:var(--cream);color:var(--ink)}
   .quick textarea{min-height:60px;resize:vertical}
+  .quick select{width:100%;font-family:inherit;font-size:1rem;padding:12px;border:1.5px solid var(--border);border-radius:11px;background:var(--cream);color:var(--ink)}
   .quickhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .quickhead b{color:var(--vinho-deep);font-size:1rem}
   .quickhead .dt{font-size:.72rem;color:var(--muted)}
@@ -99,7 +100,7 @@
     <div class="quickhead"><b>➕ Novo registro</b><span class="dt" id="qData"></span></div>
     <textarea id="qTexto" placeholder="O que aconteceu? Ex.: cliente disse que a comida estava fria"></textarea>
     <div class="lab">Tipo</div>
-    <div class="tchips" id="qTipos"></div>
+    <select id="qTipo"></select>
     <span class="moreToggle" id="qMore" onclick="toggleAdv()">+ classificar (unidade, área, pessoa…)</span>
     <div class="adv" id="qAdv">
       <div class="lab">Unidade</div><div class="pick" id="qUni"></div>
@@ -140,7 +141,7 @@
   <div class="modal">
     <h2 id="mTit">Editar registro</h2>
     <div class="fld"><label>Assunto / o que é</label><input type="text" id="mNome"></div>
-    <div class="fld"><label>Tipo</label><div class="tchips" id="mTipos"></div></div>
+    <div class="fld"><label>Tipo</label><select id="mTipo"></select></div>
     <div class="fld"><label>Data</label><input type="date" id="mData"></div>
     <div class="fld"><label>Unidade</label><div class="pick" id="mUni"></div></div>
     <div class="fld"><label>Categoria / operação</label><div class="pick" id="mCat"></div></div>
@@ -281,9 +282,10 @@ function tipoInto(id,stateObj){
 }
 
 // ---- quick ----
+function tipoOptions(sel){return '<option value="">Selecione o tipo…</option>'+TIPOS.map(function(t){return '<option'+(sel===t.k?' selected':'')+'>'+esc(t.k)+'</option>';}).join('');}
 function initQuick(){
   document.getElementById('qData').textContent='hoje · '+fmtDate(new Date().toISOString());
-  tipoInto('qTipos',_q); pickInto('qUni',UNIDADES,_q.uni); pickInto('qCat',CATS,_q.cat); pickInto('qResp',TEAM,_q.resp);
+  document.getElementById('qTipo').innerHTML=tipoOptions(''); pickInto('qUni',UNIDADES,_q.uni); pickInto('qCat',CATS,_q.cat); pickInto('qResp',TEAM,_q.resp);
 }
 function toggleAdv(){var a=document.getElementById('qAdv');a.classList.toggle('open');document.getElementById('qMore').textContent=a.classList.contains('open')?'– esconder classificação':'+ classificar (unidade, área, pessoa…)';}
 function clearQuick(){
@@ -295,7 +297,7 @@ async function quickSave(){
   var txt=document.getElementById('qTexto').value.trim();
   if(!txt){toast('Escreva o registro.');return;}
   var pess=document.getElementById('qPessoa').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
-  var p={titulo:txt,tipo:_q.tipo||'Nota',unidades:_q.uni.slice(),categorias:_q.cat.slice(),pessoas:pess,
+  var p={titulo:txt,tipo:document.getElementById('qTipo').value||'Nota',unidades:_q.uni.slice(),categorias:_q.cat.slice(),pessoas:pess,
     responsaveis:_q.resp.slice(),conteudo:document.getElementById('qCont').value,tags:[],relacionados:[],
     data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
   try{var i=await sb.from('lola_assuntos').insert(p);if(i.error)throw i.error;clearQuick();await load();toast('✓ Registrado');window.scrollTo({top:0,behavior:'smooth'});}
@@ -316,7 +318,7 @@ function editar(id){
   document.getElementById('mPessoa').value=arr(f.pessoas).join(', ');
   document.getElementById('mTags').value=arr(f.tags).join(' ');
   document.getElementById('mCont').value=f.conteudo||'';
-  tipoInto('mTipos',_m);pickInto('mUni',UNIDADES,_m.uni);pickInto('mCat',CATS,_m.cat);pickInto('mResp',TEAM,_m.resp);
+  document.getElementById('mTipo').innerHTML=tipoOptions(f.tipo||'');pickInto('mUni',UNIDADES,_m.uni);pickInto('mCat',CATS,_m.cat);pickInto('mResp',TEAM,_m.resp);
   fillRel(f.id,arr(f.relacionados));
   document.getElementById('ov').classList.add('show');
 }
@@ -326,7 +328,7 @@ function relSel(){var s=document.getElementById('mRel');return Array.prototype.m
 async function salvar(){
   var titulo=document.getElementById('mNome').value.trim();if(!titulo){toast('Dê um título.');return;}
   var pess=document.getElementById('mPessoa').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
-  var p={titulo:titulo,tipo:_m.tipo||'Nota',data:document.getElementById('mData').value||null,
+  var p={titulo:titulo,tipo:document.getElementById('mTipo').value||'Nota',data:document.getElementById('mData').value||null,
     unidades:_m.uni.slice(),categorias:_m.cat.slice(),pessoas:pess,responsaveis:_m.resp.slice(),
     tags:parseTags(document.getElementById('mTags').value),relacionados:relSel(),
     conteudo:document.getElementById('mCont').value,updated_at:new Date().toISOString()};
