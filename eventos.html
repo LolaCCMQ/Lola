@@ -321,13 +321,16 @@ function toRow(ev){
 /* ===== Carregamento ===== */
 async function init(){
   try{
-    const [ev,fic]=await Promise.all([
+    const [ev,fic,pp]=await Promise.all([
       sb.from('lola_eventos').select('*').eq('arquivado',false).order('data',{ascending:true,nullsFirst:false}),
-      sb.from('lola_fichas_tecnicas').select('nome,preco_venda,categoria,cardapio').eq('ativo',true).gt('preco_venda',0).order('nome')
+      sb.from('lola_fichas_tecnicas').select('nome,preco_venda,categoria,cardapio').eq('ativo',true).gt('preco_venda',0).order('nome'),
+      sb.from('lola_preproducoes').select('nome,valor_venda_central,categoria').eq('ativo',true).order('nome')
     ]);
     if(ev.error)throw ev.error;
     DB.events=(ev.data||[]).map(fromRow);
-    FICHAS=(fic.data||[]).map(f=>({n:f.nome,p:Number(f.preco_venda),cat:f.categoria,card:f.cardapio}));
+    FICHAS=(fic.data||[]).map(f=>({n:f.nome,p:Number(f.preco_venda),cat:f.categoria,card:f.cardapio}))
+      .concat((pp.data||[]).map(f=>({n:f.nome,p:Number(f.valor_venda_central)||0,cat:'pré-produção',card:null})))
+      .sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));
     setConn(true);
   }catch(e){
     console.error(e);setConn(false);
@@ -852,7 +855,7 @@ function orcHTML(ev){
   const mo=Number(ev.maoObra)||0;const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const total=sub+mo+gorj;
   const datalist=FICHAS.map(p=>`<option value="${esc(p.n)}">${esc(p.cat||'')} · ${fmt(p.p)}</option>`).join('');
   const pg=ev.pag||{};const sinal=Number(pg.sinalValor)||0;const saldo=total-sinal;
-  const fichaNote=FICHAS.length?`Itens e preços vêm da <b>ficha técnica do portal</b> (${FICHAS.length} itens). Escolha pela busca; o preço preenche sozinho.`:`⚠️ Não carregou a ficha técnica do portal — você ainda pode digitar itens e preços manualmente.`;
+  const fichaNote=FICHAS.length?`Itens e preços vêm da <b>ficha técnica + pré-produções</b> (${FICHAS.length} itens). Escolha pela busca; o preço preenche sozinho. <b>Não está na lista?</b> Digite o nome e o preço manualmente que ele entra no cálculo do pacote.`:`⚠️ Não carregou a ficha técnica do portal — você ainda pode digitar itens e preços manualmente.`;
   return `
   <div class="section-title">Montagem do pacote</div>
   <div class="toolrow no-print">
@@ -861,7 +864,7 @@ function orcHTML(ev){
   </div>
   <div class="intro">💡 ${fichaNote}</div>
   <div class="orc-add no-print">
-    <div class="field"><label>Item da ficha técnica</label>
+    <div class="field"><label>Item (ficha, pré-produção ou avulso)</label>
       <input id="addItem" list="precoslist" placeholder="Digite ou escolha..." onchange="autoPreco()"><datalist id="precoslist">${datalist}</datalist></div>
     <div class="field" style="max-width:110px"><label>Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"></div>
     <div class="field" style="max-width:110px"><label>Preço un. (R$)</label><input id="addPreco" type="number" step="0.01" placeholder="auto"></div>
