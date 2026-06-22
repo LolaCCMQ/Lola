@@ -60,6 +60,8 @@
   .loc-ccmq{background:#f1ecf7;color:#6a4b9c}
   .loc-mac{background:#fbeee6;color:#b56a2e}
   .loc-catering{background:#fbe6f0;color:#b5366e}
+  .card.ev-done{opacity:.5}
+  .card.ev-done:hover{opacity:.85}
   .card.loc-card-ccmq{border-left:6px solid #c0392b;background:#fdeceb}
   .card.loc-card-mac{border-left:6px solid #2D6A4F;background:#eaf5ef}
   .card.loc-card-central{border-left:6px solid #d4a017;background:#fdf7e6}
@@ -384,7 +386,7 @@ function renderFilters(){
 function setFilter(v){view.filter=v;renderFilters();renderList();}
 function renderList(){
   const q=(document.getElementById('search').value||"").toLowerCase();
-  let evs=DB.events.slice().sort((a,b)=>(a.data||"9999").localeCompare(b.data||"9999"));
+  let evs=DB.events.slice().sort((a,b)=>{var ca=(a.status==='realizado'||a.status==='cancelado')?1:0,cb=(b.status==='realizado'||b.status==='cancelado')?1:0;if(ca!==cb)return ca-cb;return (a.data||"9999").localeCompare(b.data||"9999");});
   if(view.filter!=="todos")evs=evs.filter(e=>e.status===view.filter);
   if(q)evs=evs.filter(e=>[e.nome,e.responsavel,e.ocasiao,e.contato].join(' ').toLowerCase().includes(q));
   const list=document.getElementById('list');
@@ -400,7 +402,7 @@ function renderList(){
     const pct=progress(e);
     const pax=[e.paxIn,e.paxOut].filter(x=>x!=='').join(' + ');
     const dt=e.data?(()=>{const _d=new Date(e.data+'T00:00');return _d.toLocaleDateString('pt-BR')+' · '+_d.toLocaleDateString('pt-BR',{weekday:'long'}).toUpperCase();})():'Data a definir';
-    return `<div class="card loc-card-${e.local||'none'}" onclick="open_('${e.id}')">
+    return `<div class="card loc-card-${e.local||'none'}${(e.status==='realizado'||e.status==='cancelado')?' ev-done':''}" onclick="open_('${e.id}')">
       <div class="ev-type">${tp?tp.l.split('(')[0]:''}</div>
       <h3>${esc(e.nome)||'(sem nome)'}</h3>
       <div class="meta">📅 ${dt}${e.horario?' · '+e.horario:''} ${locPill(e.local)}</div>
