@@ -66,6 +66,10 @@
   .convo .tags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
   .unread{position:absolute;top:12px;right:10px;min-width:18px;height:18px;padding:0 5px;border-radius:10px;background:var(--brand);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
   .empty{padding:30px 16px;text-align:center;color:var(--ink-soft);font-size:13px}
+  .waitbar{margin:6px 8px 2px;padding:8px 11px;border-radius:10px;background:#fff3f2;border:1px solid #f0c9c5;color:var(--brand);font-weight:700;font-size:12.5px;cursor:pointer}
+  .waitbar.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .convo.urgent{box-shadow:inset 3px 0 0 var(--brand)}
+  .convo .waitflag{color:var(--brand);font-weight:700;font-size:11px;margin-top:3px}
 
   .tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
   .t-respondido{background:#e3f4e7;color:#1f7a3d}
@@ -399,6 +403,7 @@
 </div>
 <div class="toast" id="toast"></div>
 
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* =========================================================================
@@ -499,11 +504,23 @@ async function loadConversas(){
 }
 
 /* ===== lista (inbox) ===== */
+const ESPERA_MS = 60*60*1000; // 1 hora
+let waitOnly=false;
+function isWaiting(c){ return (c.status==='nao-respondido'||c.status==='nao-lido') && c._ts && (Date.now()-new Date(c._ts).getTime() > ESPERA_MS); }
+function waitLabel(c){ const ms=Date.now()-new Date(c._ts).getTime(); const h=Math.floor(ms/3600000); const m=Math.floor((ms%3600000)/60000); return '⏰ esperando há '+(h>0?(h+'h'+(m?(' '+m+'m'):'')):(m+'m')); }
+function toggleWait(){ waitOnly=!waitOnly; renderList(document.querySelector('.search').value); }
 function renderList(search=''){
   const box=document.getElementById('convos'); if(!box) return; box.innerHTML='';
   const fs=document.getElementById('fStatus').value, fc=document.getElementById('fCat').value;
   const s2=(search||'').toLowerCase();
+  const waitingCount=convos.filter(isWaiting).length;
+  if(waitingCount||waitOnly){
+    const wb=document.createElement('div');wb.className='waitbar'+(waitOnly?' on':'');wb.onclick=toggleWait;
+    wb.textContent='⏰ '+waitingCount+' esperando há +1h'+(waitOnly?'  ·  clique p/ ver todas':'');
+    box.appendChild(wb);
+  }
   const arr=convos.filter(c=>{
+    if(waitOnly&&!isWaiting(c))return false;
     if(filter==='wa'&&c.ch!=='wa')return false;
     if(filter==='ig'&&c.ch!=='ig')return false;
     if(fs&&c.status!==fs)return false;
@@ -511,13 +528,14 @@ function renderList(search=''){
     if(s2&&!((c.name||'').toLowerCase().includes(s2)||(c.phone||'').includes(search)))return false;
     return true;
   });
-  if(!arr.length){box.innerHTML='<div class="empty">Nenhuma conversa com esses filtros.</div>';return;}
+  if(!arr.length){box.insertAdjacentHTML('beforeend','<div class="empty">Nenhuma conversa com esses filtros.</div>');return;}
   arr.forEach(c=>{
-    const s=statusObj(c.status),cat=catObj(c.cat);
-    const el=document.createElement('div');el.className='convo'+(c.id===activeId?' active':'');el.onclick=()=>openConvo(c.id);
+    const s=statusObj(c.status),cat=catObj(c.cat),w=isWaiting(c);
+    const el=document.createElement('div');el.className='convo'+(c.id===activeId?' active':'')+(w?' urgent':'');el.onclick=()=>openConvo(c.id);
     el.innerHTML=`<div class="ch" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}<div class="badge ${c.ch}"></div></div>
       <div class="body"><div class="row1"><span class="name">${esc(c.name)}</span><span class="time">${c.time}</span></div>
       <div class="preview">${esc(c.preview)||'<i>—</i>'}</div>
+      ${w?`<div class="waitflag">${waitLabel(c)}</div>`:''}
       <div class="tags"><span class="tag ${s.cls}">${s.label}</span>${cat?`<span class="cat ${cat.cls}">${cat.label}</span>`:''}</div></div>
       ${c.unread?`<div class="unread">${c.unread}</div>`:''}`;
     box.appendChild(el);
@@ -838,6 +856,7 @@ initAgent();
 fillSelects();
 loadConversas().then(()=>{ if(convos.length) openConvo(convos[0].id); });
 subscribeRealtime();
+
 </script>
 </body>
 </html>
