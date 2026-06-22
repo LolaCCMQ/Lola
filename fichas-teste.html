@@ -52,6 +52,11 @@
   @media(max-width:560px){.grid{grid-template-columns:1fr}}
   .card{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:13px 14px;display:flex;flex-direction:column;gap:7px}
   .card.flash{border-color:var(--vinho);box-shadow:0 0 0 3px var(--vinho-pale)}
+  .card.done{opacity:.58}
+  .card.done h3{text-decoration:line-through}
+  .chk{width:21px;height:21px;cursor:pointer;accent-color:var(--vinho);flex-shrink:0}
+  .prazo{font-size:.74rem;color:var(--muted)}
+  .prazo.atras{color:#c0392b;font-weight:700}
   .cardtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .badge{font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:7px;white-space:nowrap}
   .card h3{font-size:1rem;color:var(--ink);line-height:1.3}
@@ -106,6 +111,7 @@
       <div class="lab">Unidade</div><div class="pick" id="qUni"></div>
       <div class="lab">Categoria / operação</div><div class="pick" id="qCat"></div>
       <div class="lab">Responsável</div><div class="pick" id="qResp"></div>
+      <div class="lab">Prazo (opcional)</div><input type="date" id="qPrazo">
       <div class="lab">Detalhes</div><textarea id="qCont" placeholder="Observações, decisões, próximos passos..."></textarea>
     </div>
     <div style="margin-top:14px"><button class="btn btn-primary" onclick="quickSave()">Salvar registro</button></div>
@@ -121,6 +127,7 @@
     <select id="fcat" onchange="render()"><option value="">Categoria: todas</option></select>
     <select id="funi" onchange="render()"><option value="">Unidade: todas</option></select>
     <select id="fpess" onchange="render()"><option value="">Pessoa: todas</option></select>
+    <select id="fsit" onchange="render()"><option value="">Situação: todas</option><option value="abertas">A fazer</option><option value="feitas">Concluídas</option></select>
     <select id="grp" onchange="render()">
       <option value="none">Sem agrupar</option>
       <option value="tipo">Agrupar por tipo</option>
@@ -142,6 +149,8 @@
     <div class="fld"><label>Assunto / o que é</label><input type="text" id="mNome"></div>
     <div class="fld"><label>Tipo</label><select id="mTipo"></select></div>
     <div class="fld"><label>Data</label><input type="date" id="mData"></div>
+    <div class="fld"><label>Prazo (tarefa)</label><input type="date" id="mPrazo"></div>
+    <div class="fld"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="mConcl" style="width:auto"> Concluído</label></div>
     <div class="fld"><label>Unidade</label><div class="pick" id="mUni"></div></div>
     <div class="fld"><label>Categoria / operação</label><div class="pick" id="mCat"></div></div>
     <div class="fld"><label>Pessoa(s)</label><input type="text" id="mPessoa" placeholder="Separe por vírgula"></div>
@@ -199,18 +208,23 @@ function popFiltros(){
 
 function filtered(){
   var q=norm(document.getElementById('q').value),tp=document.getElementById('ftipo').value,
-      ct=document.getElementById('fcat').value,un=document.getElementById('funi').value,pe=document.getElementById('fpess').value;
+      ct=document.getElementById('fcat').value,un=document.getElementById('funi').value,pe=document.getElementById('fpess').value,
+      st=(document.getElementById('fsit')||{}).value||'';
   return REG.filter(function(f){
     if(tp && f.tipo!==tp)return false;
     if(ct && arr(f.categorias).indexOf(ct)<0)return false;
     if(un && arr(f.unidades).indexOf(un)<0)return false;
     if(pe && arr(f.pessoas).indexOf(pe)<0)return false;
+    if(st==='abertas' && f.concluido)return false;
+    if(st==='feitas' && !f.concluido)return false;
     if(q){var blob=norm([f.titulo,f.conteudo,f.tipo,arr(f.categorias).join(' '),arr(f.unidades).join(' '),arr(f.pessoas).join(' '),arr(f.responsaveis).join(' '),arr(f.tags).join(' ')].join(' '));if(blob.indexOf(q)<0)return false;}
     return true;
   });
 }
 
 function cardHTML(f){
+  var hojeStr=new Date().toISOString().slice(0,10);
+  var prazoH=f.prazo?('<div class="prazo'+(!f.concluido&&String(f.prazo).slice(0,10)<hojeStr?' atras':'')+'">'+(!f.concluido&&String(f.prazo).slice(0,10)<hojeStr?'⚠️ Atrasado: ':'🗓 Prazo: ')+fmtDate(f.prazo)+'</div>'):'';
   var uni=arr(f.unidades).map(function(u){return '<span class="chip uni" onclick="setF(\'funi\',\''+esc(u).replace(/'/g,"\\'")+'\')">'+esc(u)+'</span>';}).join('');
   var cat=arr(f.categorias).map(function(c){return '<span class="chip cat" onclick="setF(\'fcat\',\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</span>';}).join('');
   var pess=arr(f.pessoas).map(function(p){return '<span class="chip pess" onclick="setF(\'fpess\',\''+esc(p).replace(/'/g,"\\'")+'\')">👤 '+esc(p)+'</span>';}).join('');
@@ -218,12 +232,13 @@ function cardHTML(f){
   var resp=arr(f.responsaveis).length?('<div class="resp">Responsável: '+arr(f.responsaveis).map(esc).join(', ')+'</div>'):'';
   var rel=arr(f.relacionados).map(function(id){var r=REG.find(function(x){return x.id==id;});return r?('<a onclick="focar('+r.id+')">'+esc(r.titulo)+'</a>'):'';}).filter(Boolean).join(' · ');
   var cont=f.conteudo?('<div class="conteudo" id="c'+f.id+'">'+esc(f.conteudo)+'</div><span class="vermais" onclick="var e=document.getElementById(\'c'+f.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
-  return '<div class="card" id="f'+f.id+'">'
-    +'<div class="cardtop"><span class="badge" style="background:'+tipoCor(f.tipo)+'22;color:'+tipoCor(f.tipo)+'">'+esc(f.tipo||'Nota')+'</span><span class="dt">'+fmtDate(f.data)+'</span></div>'
+  return '<div class="card'+(f.concluido?' done':'')+'" id="f'+f.id+'">'
+    +'<div class="cardtop"><span style="display:flex;align-items:center;gap:8px"><input type="checkbox" class="chk" '+(f.concluido?'checked':'')+' onchange="toggleDone('+f.id+',this.checked)" title="Marcar como concluído"><span class="badge" style="background:'+tipoCor(f.tipo)+'22;color:'+tipoCor(f.tipo)+'">'+esc(f.tipo||'Nota')+'</span></span><span class="dt">'+fmtDate(f.data)+'</span></div>'
     +'<h3>'+esc(f.titulo||'(sem título)')+'</h3>'
     +((uni||cat)?'<div class="chips">'+uni+cat+'</div>':'')
     +(pess?'<div class="chips">'+pess+'</div>':'')
     +resp
+    +prazoH
     +cont
     +(tags?'<div class="chips">'+tags+'</div>':'')
     +(rel?'<div class="rel">🔗 '+rel+'</div>':'')
@@ -240,7 +255,8 @@ function setUni(v){document.getElementById('funi').value=v;render();window.scrol
 function render(){
   renderUnibar();
   var lst=filtered(), grp=document.getElementById('grp').value;
-  document.getElementById('count').textContent=lst.length+' registro(s)';
+  var _ab=lst.filter(function(c){return c.tipo==='Tarefa'&&!c.concluido;}).length;
+  document.getElementById('count').textContent=lst.length+' registro(s)'+(_ab?(' · '+_ab+' tarefa(s) a fazer'):'');
   var box=document.getElementById('lista');
   if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
   if(grp==='none'){box.innerHTML='<div class="feed">'+lst.map(cardHTML).join('')+'</div>';return;}
@@ -259,8 +275,16 @@ function render(){
 }
 
 function setF(id,v){document.getElementById(id).value=v;render();window.scrollTo({top:0,behavior:'smooth'});}
-function limpar(){['q','ftipo','fcat','funi','fpess'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('grp').value='none';render();}
+function limpar(){['q','ftipo','fcat','funi','fpess','fsit'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});document.getElementById('grp').value='none';render();}
 function focar(id){limpar();setTimeout(function(){var el=document.getElementById('f'+id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash');setTimeout(function(){el.classList.remove('flash');},1800);}},60);}
+async function toggleDone(id,ck){
+  var f=REG.find(function(x){return x.id==id;});
+  var em=ck?new Date().toISOString():null;
+  if(f){f.concluido=ck;f.concluido_em=em;}
+  try{var u=await sb.from('lola_assuntos').update({concluido:ck,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(ck?'✓ Concluído':'Reaberto');}
+  catch(e){toast('Erro ao atualizar');}
+  render();
+}
 
 // ---- pickers ----
 function pickInto(id,opts,state){
@@ -289,13 +313,13 @@ function initQuick(){
 function toggleAdv(){var a=document.getElementById('qAdv');a.classList.toggle('open');document.getElementById('qMore').textContent=a.classList.contains('open')?'– esconder classificação':'+ classificar (unidade, área, pessoa…)';}
 function clearQuick(){
   _q={tipo:'',uni:[],cat:[],resp:[]};
-  document.getElementById('qTexto').value='';document.getElementById('qCont').value='';
+  document.getElementById('qTexto').value='';document.getElementById('qCont').value='';var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
   initQuick();
 }
 async function quickSave(){
   var txt=document.getElementById('qTexto').value.trim();
   if(!txt){toast('Escreva o registro.');return;}
-  var p={titulo:txt,tipo:document.getElementById('qTipo').value||'Nota',unidades:_q.uni.slice(),categorias:_q.cat.slice(),pessoas:[],
+  var p={titulo:txt,tipo:document.getElementById('qTipo').value||'Nota',unidades:_q.uni.slice(),categorias:_q.cat.slice(),pessoas:[],prazo:document.getElementById('qPrazo').value||null,
     responsaveis:_q.resp.slice(),conteudo:document.getElementById('qCont').value,tags:[],relacionados:[],
     data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
   try{var i=await sb.from('lola_assuntos').insert(p);if(i.error)throw i.error;clearQuick();await load();toast('✓ Registrado');window.scrollTo({top:0,behavior:'smooth'});}
@@ -313,6 +337,8 @@ function editar(id){
   document.getElementById('mTit').textContent='Editar registro';
   document.getElementById('mNome').value=f.titulo||'';
   document.getElementById('mData').value=(f.data||'').slice(0,10);
+  document.getElementById('mPrazo').value=(f.prazo||'').slice(0,10);
+  document.getElementById('mConcl').checked=!!f.concluido;
   document.getElementById('mPessoa').value=arr(f.pessoas).join(', ');
   document.getElementById('mTags').value=arr(f.tags).join(' ');
   document.getElementById('mCont').value=f.conteudo||'';
@@ -326,7 +352,8 @@ function relSel(){var s=document.getElementById('mRel');return Array.prototype.m
 async function salvar(){
   var titulo=document.getElementById('mNome').value.trim();if(!titulo){toast('Dê um título.');return;}
   var pess=document.getElementById('mPessoa').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
-  var p={titulo:titulo,tipo:document.getElementById('mTipo').value||'Nota',data:document.getElementById('mData').value||null,
+  var _cc=document.getElementById('mConcl').checked;
+  var p={titulo:titulo,tipo:document.getElementById('mTipo').value||'Nota',data:document.getElementById('mData').value||null,prazo:document.getElementById('mPrazo').value||null,concluido:_cc,concluido_em:_cc?new Date().toISOString():null,
     unidades:_m.uni.slice(),categorias:_m.cat.slice(),pessoas:pess,responsaveis:_m.resp.slice(),
     tags:parseTags(document.getElementById('mTags').value),relacionados:relSel(),
     conteudo:document.getElementById('mCont').value,updated_at:new Date().toISOString()};
