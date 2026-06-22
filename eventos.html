@@ -824,7 +824,7 @@ function buildPrintHTML(ev,withValues,sel){
     const mo=Number(ev.maoObra)||0;const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const total=sub+mo+gorj;
     if((ev.menu||[]).length){
       h+=_pt('Orçamento',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Item</th><th>Qtd/pax</th><th style="text-align:right">Total</th></tr>'
-       +ev.menu.map(function(m){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(m.nome)+'</td><td>'+esc(m.qtd)+(m.un?' '+esc(m.un):'')+(m.perPax?'/pax':'')+'</td><td style="text-align:right">'+fmt(lineTotal(m,pax2))+'</td></tr>';}).join('')
+       +ev.menu.map(function(m){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(m.nome)+'</td><td>'+esc(m.qtd)+(m.un?' '+esc(m.un):'')+(m.perPax?'/pax':'')+((m.perPax&&pax2)?(' = '+fmtQty((Number(m.qtd)||0)*pax2)+(m.un?' '+esc(m.un):'')):'')+'</td><td style="text-align:right">'+fmt(lineTotal(m,pax2))+'</td></tr>';}).join('')
        +'</table><div style="margin-top:8px;font-size:13px">'
        +'<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Subtotal cardápio</span><b>'+fmt(sub)+'</b></div>'
        +(mo?('<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Mão de obra extra</span><b>'+fmt(mo)+'</b></div>'):'')
