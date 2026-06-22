@@ -42,6 +42,10 @@
   .filters input,.filters select{font-family:inherit;font-size:.83rem;padding:9px 10px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--ink)}
   .filters input[type=search]{flex:1;min-width:160px}
   .count{font-size:.76rem;color:var(--muted);margin:2px 0 12px}
+  .unibar{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0 12px}
+  .unibar .ub{flex:1;min-width:78px;text-align:center;font-size:.86rem;font-weight:700;padding:11px 8px;border-radius:12px;border:1.5px solid var(--vinho-muted);background:#fff;color:var(--vinho-deep);cursor:pointer}
+  .unibar .ub.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+  .feed{display:flex;flex-direction:column;gap:10px;max-width:640px;margin:0 auto}
   /* CARDS */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
   @media(max-width:560px){.grid{grid-template-columns:1fr}}
@@ -106,6 +110,9 @@
     </div>
     <div style="margin-top:14px"><button class="btn btn-primary" onclick="quickSave()">Salvar registro</button></div>
   </div>
+
+  <!-- UNIDADE: primeiro corte -->
+  <div class="unibar" id="unibar"></div>
 
   <!-- FILTROS -->
   <div class="filters">
@@ -224,12 +231,19 @@ function cardHTML(f){
     +'</div>';
 }
 
+function renderUnibar(){
+  var cur=document.getElementById('funi').value, labels={'':'Tudo','Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'Central'};
+  var opts=[''].concat(UNIDADES);
+  document.getElementById('unibar').innerHTML=opts.map(function(u){return '<div class="ub'+(cur===u?' on':'')+'" onclick="setUni(\''+u.replace(/'/g,"\\'")+'\')">'+esc(labels[u]||u)+'</div>';}).join('');
+}
+function setUni(v){document.getElementById('funi').value=v;render();window.scrollTo({top:0,behavior:'smooth'});}
 function render(){
+  renderUnibar();
   var lst=filtered(), grp=document.getElementById('grp').value;
   document.getElementById('count').textContent=lst.length+' registro(s)';
   var box=document.getElementById('lista');
   if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
-  if(grp==='none'){box.innerHTML='<div class="grid">'+lst.map(cardHTML).join('')+'</div>';return;}
+  if(grp==='none'){box.innerHTML='<div class="feed">'+lst.map(cardHTML).join('')+'</div>';return;}
   var groups={},order=[];
   lst.forEach(function(f){
     var keys;
@@ -240,7 +254,7 @@ function render(){
   });
   order.sort(function(a,b){return groups[b].length-groups[a].length;});
   box.innerHTML=order.map(function(k){
-    return '<div class="grouphdr">'+esc(k)+'<span>'+groups[k].length+'</span></div><div class="grid">'+groups[k].map(cardHTML).join('')+'</div>';
+    return '<div class="grouphdr">'+esc(k)+'<span>'+groups[k].length+'</span></div><div class="feed">'+groups[k].map(cardHTML).join('')+'</div>';
   }).join('');
 }
 
