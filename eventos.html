@@ -970,7 +970,7 @@ async function enviarPedidoCentral(){
     var p={numero_pedido:num,unidade:uni,status:'solicitado',data_pedido:new Date().toISOString().slice(0,10),valor_total:Math.round(total*100)/100,observacoes:'Pedido do evento: '+(ev.nome||'')+(pax?(' ('+pax+' pax)'):'')+(ev.cliente?(' — Cliente: '+ev.cliente):''),destinatario:'Central',responsavel:(ev.responsavel||'')};
     var ins=await sb.from('lola_pedidos').insert(p).select();if(ins.error)throw ins.error;
     var pedidoId=ins.data&&ins.data[0]&&ins.data[0].id;
-    var itens=(ev.menu||[]).map(function(m){var q=(m.perPax?(Number(m.qtd)||0)*pax:(Number(m.qtd)||0));return {pedido_id:pedidoId,nome_item:m.nome,quantidade:Math.round(q*1000)/1000,unidade:m.un||'',preco_unitario:Math.round((Number(m.preco)||0)*100)/100,subtotal:Math.round(lineTotal(m,pax)*100)/100};});
+    var itens=(ev.menu||[]).map(function(m){var q=(m.perPax?(Number(m.qtd)||0)*pax:(Number(m.qtd)||0));return {pedido_id:pedidoId,nome_item:m.nome,quantidade:Math.round(q*1000)/1000,unidade:m.un||'',preco_unitario:Math.round((Number(m.preco)||0)*100)/100};});
     if(pedidoId&&itens.length){var iti=await sb.from('lola_pedidos_itens').insert(itens);if(iti.error)throw iti.error;}
     ev.pag.pedidoNum=num;save();renderTab();showFlash('✓ Pedido #'+num+' enviado à central ('+itens.length+' itens)');
   }catch(e){showFlash('Erro ao enviar: '+((e&&e.message)||e),true);}
