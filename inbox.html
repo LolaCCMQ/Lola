@@ -222,7 +222,6 @@
 </style>
 </head>
 <body>
-<div class="demoflag">PROTÓTIPO · dados de exemplo</div>
 <div class="app">
   <div class="topbar">
     <div class="logo">
@@ -400,9 +399,29 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+/* =========================================================================
+   Inbox Unificado Equipe Lola — motor de dados (Supabase)
+   Conecta o protótipo às tabelas wa_contatos / wa_conversas / wa_mensagens.
+   Envio de atendente via Edge Function wa-send. Realtime + fallback de polling.
+   ========================================================================= */
+const SB_URL = "https://mvjbsdpfjhywhaonvpfl.supabase.co";
+const SB_KEY = "sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy";
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+/* usuário logado no portal (quando aberto dentro do portal) */
+function getPortalUser(){
+  try{ if(window.parent && window.parent!==window && window.parent.__portalUser) return window.parent.__portalUser; }catch(e){}
+  if(window.__portalUser) return window.__portalUser;
+  return null;
+}
+const PU = getPortalUser();
+let ME = { id: PU && PU.id ? PU.id : null, name: (PU && PU.name) ? PU.name : "Atendente", role: PU && PU.role ? PU.role : null };
+
 const agentColors={Bianca:'#A8272A',Mahara:'#7C3D3D',Luana:'#1A6B7A',Lucas:'#2D5A8E',Paola:'#2D7A5A'};
-const agentRoles={Bianca:'Administradora',Mahara:'Administradora',Luana:'Gerente de Eventos',Lucas:'Gerente de Salão',Paola:'Gerente de Salão'};
+function colorFor(name){ return agentColors[name] || '#A8272A'; }
+
 const statusList=[
   {id:'respondido',label:'Respondido',cls:'t-respondido'},
   {id:'aguardando-retorno',label:'Aguardando retorno',cls:'t-aguardando-retorno'},
@@ -416,61 +435,228 @@ const catList=[
 ];
 const chColor={wa:'#25d366',ig:'linear-gradient(135deg,#feda75,#d62976,#4f5bd5)'};
 
-let convos=[
-  {id:1,name:'Juliana Prado',ch:'wa',phone:'+55 11 99812-4477',handle:null,time:'14:22',dia:'hoje',unread:2,status:'nao-respondido',cat:'reserva',inContacts:false,bot:false,
-   msgs:[{from:'in',txt:'Oi! Queria reservar uma mesa pra sábado, somos 6 pessoas pra comemorar um aniversário 🎂',t:'14:20'},{from:'in',txt:'Tem como por volta das 20h?',t:'14:22'}]},
-  {id:2,name:'@marina.recepcoes',ch:'ig',phone:null,handle:'@marina.recepcoes',time:'13:05',dia:'hoje',unread:0,status:'aguardando-proposta',cat:'eventos',inContacts:true,bot:false,
-   msgs:[{from:'in',txt:'Fizemos a confraternização da empresa aí ano passado, queremos repetir!',t:'12:40'},{from:'bot',who:'Bot Lola',txt:'Que alegria ter vocês de volta! 🥂 Já estou chamando a Luana, do time de eventos.',t:'12:41'},{from:'out',who:'Luana',txt:'Oi Marina! Aqui é a Luana. Te mando o orçamento até amanhã 👍',t:'13:05'}]},
-  {id:3,name:'Fernanda Lopes',ch:'wa',phone:'+55 21 98765-0011',handle:null,time:'11:48',dia:'hoje',unread:0,status:'respondido',cat:'elogio',inContacts:true,bot:false,
-   msgs:[{from:'in',txt:'Gente, o jantar de ontem foi PERFEITO. Atendimento nota mil! 😍',t:'11:30'},{from:'out',who:'Paola',txt:'Aaah Fernanda, que delícia ler isso! 💛 Obrigada por escolher a Lola!',t:'11:48'}]},
-  {id:4,name:'Pedro Henrique',ch:'ig',phone:null,handle:'@pedrohzao',time:'10:15',dia:'hoje',unread:1,status:'aguardando-retorno',cat:'eventos',inContacts:false,bot:false,
-   msgs:[{from:'in',txt:'Vocês fecham o espaço pra casamento? Seria pra 80 pessoas em dez/2026.',t:'10:15'}]},
-  {id:5,name:'Sandra Mota',ch:'wa',phone:'+55 31 99100-2233',handle:null,time:'Ontem',dia:'ontem',unread:0,status:'nao-lido',cat:'reclamacao',inContacts:true,bot:false,
-   msgs:[{from:'in',txt:'Minha reserva de ontem estava marcada errada e não tinha mesa quando cheguei 😟',t:'18:50'}]},
-  {id:6,name:'@theo.gastronomia',ch:'ig',phone:null,handle:'@theo.gastronomia',time:'Ontem',dia:'ontem',unread:0,status:'respondido',cat:'pacotes',inContacts:true,bot:true,
-   msgs:[{from:'in',txt:'Qual o valor do menu fechado pra grupos?',t:'16:02'},{from:'bot',who:'Bot Lola',txt:'Oi! 👋 Nosso menu fechado para grupos começa em R$ 129 por pessoa. Quer que um consultor te passe as opções?',t:'16:02'},{from:'in',txt:'Quero sim!',t:'16:10'}]},
-];
-
-let botMsgs=[
-  {nome:'Saudação',txt:'Oi! 👋 Aqui é a assistente virtual da Equipe Lola. Me conta: você quer falar sobre uma reserva, um pacote ou um evento?'},
-  {nome:'Fora do horário',txt:'Nosso time atende de seg a sex, das 9h às 18h. Já registrei sua mensagem e um de nós te responde no próximo horário comercial 🌙'},
-  {nome:'Coleta de dados',txt:'Pra agilizar, me passa seu nome completo e a data desejada? 🗓️'},
-];
-let botRules=[
-  {kw:'preço, valor, quanto custa',resp:'Envia info e marca Pacotes',cat:'Pacotes'},
-  {kw:'reserva, mesa',resp:'Pergunta data e marca Reserva',cat:'Reserva'},
-  {kw:'evento, casamento, festa',resp:'Encaminha p/ eventos e marca Eventos',cat:'Eventos'},
-  {kw:'reclamação, problema',resp:'Prioriza, avisa líder e marca Reclamação',cat:'Reclamação'},
-];
-
-let biblioteca=[
-  {id:1,nome:'Pacote Casamento 2026',cat:'pacotes',tipo:'pdf',meta:'PDF · 2.4 MB'},
-  {id:2,nome:'Pacote Confraternização Empresarial',cat:'pacotes',tipo:'pdf',meta:'PDF · 1.8 MB'},
-  {id:3,nome:'Pacote Aniversário (15 a 50 pessoas)',cat:'pacotes',tipo:'pdf',meta:'PDF · 1.1 MB'},
-  {id:4,nome:'Cardápio Bar Lola',cat:'cardapio',tipo:'pdf',meta:'PDF · 3.2 MB'},
-  {id:5,nome:'Menu Fechado para Grupos',cat:'cardapio',tipo:'pdf',meta:'PDF · 900 KB'},
-  {id:6,nome:'Salão Principal',cat:'ambiente',tipo:'img',meta:'JPG · 4 fotos'},
-  {id:7,nome:'Área Externa / Jardim',cat:'ambiente',tipo:'img',meta:'JPG · 6 fotos'},
-  {id:8,nome:'Decoração de Eventos',cat:'ambiente',tipo:'img',meta:'JPG · 8 fotos'},
-  {id:9,nome:'Tabela de Preços 2026',cat:'precos',tipo:'pdf',meta:'PDF · 320 KB'},
-];
-const libCats=[{id:'pacotes',label:'Pacotes de eventos',icon:'🎉'},{id:'cardapio',label:'Cardápio / Menu',icon:'🍽️'},{id:'ambiente',label:'Fotos do ambiente',icon:'📸'},{id:'precos',label:'Tabela de preços',icon:'💲'}];
-
-let tags=[
-  {nome:'Dia dos Namorados 2026',pessoas:['Juliana Prado','Fernanda Lopes','@theo.gastronomia']},
-  {nome:'Clientes VIP',pessoas:['Fernanda Lopes','@marina.recepcoes']},
-  {nome:'Orçamentos de eventos',pessoas:['@marina.recepcoes','Pedro Henrique']},
-];
+let convos=[];          // conversas carregadas (formato da UI)
+let msgsByConvo={};     // cache de mensagens por conversa id
+let activeId=null;
+let currentAgent=ME.name;
+let filter='all';
+let templates=[];       // wa_templates
+let biblioteca=[];      // wa_biblioteca
+let etiquetas=[];       // wa_etiquetas (transmissão)
 let activeTag=0;
 
-let activeId=1,currentAgent='Bianca',filter='all';
-
 /* ===== helpers ===== */
-function statusObj(id){return statusList.find(s=>s.id===id)}
-function catObj(id){return catList.find(c=>c.id===id)}
-function chInitial(c){return c.ch==='ig'?'@':c.name.charAt(0).toUpperCase()}
+function statusObj(id){return statusList.find(s=>s.id===id)||statusList[4];}
+function catObj(id){return catList.find(c=>c.id===id)||null;}
+function esc(s){return (s==null?'':s.toString()).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function isToday(d){const n=new Date();return d.getDate()===n.getDate()&&d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();}
+function isYesterday(d){const y=new Date();y.setDate(y.getDate()-1);return d.getDate()===y.getDate()&&d.getMonth()===y.getMonth()&&d.getFullYear()===y.getFullYear();}
+function fmtTime(iso){ if(!iso) return ''; const d=new Date(iso);
+  if(isToday(d)) return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  if(isYesterday(d)) return 'Ontem';
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }
+function diaOf(iso){ if(!iso) return ''; const d=new Date(iso);
+  if(isToday(d)) return 'hoje'; if(isYesterday(d)) return 'ontem';
+  const diff=(Date.now()-d.getTime())/86400000; return diff<=7?'7d':'old'; }
+function nameOf(ct){ if(!ct) return 'Sem nome'; return ct.nome || ct.instagram_handle || ct.telefone || ct.wa_id || 'Sem nome'; }
+function chInitial(c){ return c.ch==='ig' ? '@' : (c.name||'?').charAt(0).toUpperCase(); }
 
-/* ===== fill filter selects ===== */
+/* ===== mapeia linha do banco -> objeto da UI ===== */
+function mapConvo(row){
+  const ct=row.wa_contatos||{};
+  const ch=(row.canal==='instagram')?'ig':'wa';
+  return {
+    id: row.id,
+    contato_id: row.contato_id,
+    wa_id: ct.wa_id,
+    name: nameOf(ct),
+    ch,
+    phone: ct.telefone || ct.wa_id || '',
+    handle: ct.instagram_handle || '',
+    time: fmtTime(row.ultima_mensagem_em || row.updated_at || row.created_at),
+    dia: diaOf(row.ultima_mensagem_em || row.created_at),
+    unread: row.nao_lidas || 0,
+    status: row.status || 'nao-respondido',
+    cat: row.categoria || null,
+    inContacts: !!ct.salvo,
+    bot: !!row.bot_ativo,
+    preview: row.ultima_mensagem || '',
+    janela: row.janela_expira_em,
+    _ts: row.ultima_mensagem_em || row.created_at,
+  };
+}
+
+/* ===== carrega lista de conversas ===== */
+async function loadConversas(){
+  const { data, error } = await sb
+    .from('wa_conversas')
+    .select('*, wa_contatos(*)')
+    .order('ultima_mensagem_em',{ascending:false,nullsFirst:false})
+    .limit(500);
+  if(error){ console.error(error); toast('Erro ao carregar conversas'); return; }
+  convos=(data||[]).map(mapConvo);
+  renderList(document.querySelector('.search')?.value||'');
+}
+
+/* ===== lista (inbox) ===== */
+function renderList(search=''){
+  const box=document.getElementById('convos'); if(!box) return; box.innerHTML='';
+  const fs=document.getElementById('fStatus').value, fc=document.getElementById('fCat').value;
+  const s2=(search||'').toLowerCase();
+  const arr=convos.filter(c=>{
+    if(filter==='wa'&&c.ch!=='wa')return false;
+    if(filter==='ig'&&c.ch!=='ig')return false;
+    if(fs&&c.status!==fs)return false;
+    if(fc&&c.cat!==fc)return false;
+    if(s2&&!((c.name||'').toLowerCase().includes(s2)||(c.phone||'').includes(search)))return false;
+    return true;
+  });
+  if(!arr.length){box.innerHTML='<div class="empty">Nenhuma conversa com esses filtros.</div>';return;}
+  arr.forEach(c=>{
+    const s=statusObj(c.status),cat=catObj(c.cat);
+    const el=document.createElement('div');el.className='convo'+(c.id===activeId?' active':'');el.onclick=()=>openConvo(c.id);
+    el.innerHTML=`<div class="ch" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}<div class="badge ${c.ch}"></div></div>
+      <div class="body"><div class="row1"><span class="name">${esc(c.name)}</span><span class="time">${c.time}</span></div>
+      <div class="preview">${esc(c.preview)||'<i>—</i>'}</div>
+      <div class="tags"><span class="tag ${s.cls}">${s.label}</span>${cat?`<span class="cat ${cat.cls}">${cat.label}</span>`:''}</div></div>
+      ${c.unread?`<div class="unread">${c.unread}</div>`:''}`;
+    box.appendChild(el);
+  });
+}
+
+/* ===== abre conversa ===== */
+async function openConvo(id){
+  activeId=id;
+  const c=convos.find(x=>x.id===id); if(!c) return;
+  if(c.unread){ c.unread=0; sb.from('wa_conversas').update({nao_lidas:0}).eq('id',id).then(()=>{}); }
+  renderList(document.querySelector('.search').value);
+  document.getElementById('threadHead').innerHTML=`<div class="ch" style="background:${c.ch==='ig'?chColor.ig:chColor.wa};width:40px;height:40px">${chInitial(c)}<div class="badge ${c.ch}"></div></div>
+    <div><div class="name">${esc(c.name)}</div><div class="sub">${c.ch==='wa'?'WhatsApp · '+esc(c.phone):'Instagram · '+esc(c.handle)}</div></div>
+    <div class="th-actions"><div class="iconbtn" onclick="reloadThread()">🔄 Atualizar</div></div>`;
+  const m=document.getElementById('messages'); m.innerHTML='<div class="empty">Carregando mensagens…</div>';
+  await loadMessages(id);
+  document.getElementById('botToggle').classList.toggle('on',c.bot);
+  document.getElementById('botState').textContent=c.bot?'ativadas':'desativadas';
+  document.getElementById('libpop').classList.remove('show');
+  renderDetail();
+}
+async function loadMessages(id){
+  const { data, error } = await sb.from('wa_mensagens').select('*').eq('conversa_id',id).order('created_at',{ascending:true}).limit(500);
+  if(error){ console.error(error); }
+  msgsByConvo[id]=(data||[]).map(r=>{
+    const isIn = r.direcao==='in';
+    const from = isIn ? 'in' : (r.autor_tipo==='bot' ? 'bot' : 'out');
+    const file = (r.tipo && r.tipo!=='text' && r.midia_url) ? {tipo:(r.tipo==='image'||r.tipo==='imagem')?'img':'pdf', nome:(r.conteudo||r.tipo)} : null;
+    return { from, who:r.atendente_nome||(from==='bot'?'Bot Lola':''), txt:r.conteudo||'', t:fmtTime(r.created_at), file };
+  });
+  if(activeId===id) renderThread(id);
+}
+function renderThread(id){
+  const m=document.getElementById('messages'); if(!m) return; m.innerHTML='';
+  const list=msgsByConvo[id]||[];
+  if(!list.length){ m.innerHTML='<div class="empty">Nenhuma mensagem ainda.</div>'; return; }
+  list.forEach(msg=>m.appendChild(bubble(msg)));
+  m.scrollTop=m.scrollHeight;
+}
+function reloadThread(){ if(activeId) loadMessages(activeId); }
+function bubble(msg){
+  const d=document.createElement('div');d.className='msg '+msg.from;let who='';
+  if(msg.from==='out')who=`<div class="who">${esc(msg.who||currentAgent)}</div>`;
+  if(msg.from==='bot')who=`<div class="who">${esc(msg.who||'Bot Lola')}<span class="botflag">AUTO</span></div>`;
+  const body=msg.file?`<div class="file"><span>${msg.file.tipo==='pdf'?'📄':'🖼️'}</span> ${esc(msg.file.nome)}</div>`:`<div class="txt">${esc(msg.txt)}</div>`;
+  d.innerHTML=`${who}${body}<div class="t">${msg.t}</div>`;return d;
+}
+
+/* ===== enviar como atendente (via wa-send) ===== */
+async function sendMsg(){
+  const inp=document.getElementById('composerInput');const txt=inp.value.trim();if(!txt||!activeId)return;
+  const c=convos.find(x=>x.id===activeId); if(!c) return;
+  inp.value=''; inp.disabled=true;
+  try{
+    const r=await fetch(`${SB_URL}/functions/v1/wa-send`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({conversa_id:activeId,texto:txt,atendente_id:ME.id,atendente_nome:currentAgent})
+    });
+    const j=await r.json().catch(()=>({}));
+    if(j && j.ok){ toast('Enviado como '+currentAgent+' ✓'); }
+    else if(j && j.fora_da_janela){ toast('⚠️ Fora da janela de 24h — só com modelo aprovado'); }
+    else { toast('Não enviou: '+((j&&j.erro)?'erro da Meta':'verifique a conexão')); inp.value=txt; }
+  }catch(e){ console.error(e); toast('Falha ao enviar'); inp.value=txt; }
+  inp.disabled=false; inp.focus();
+  await loadMessages(activeId);
+  await loadConversas();
+}
+function insertQR(t){const i=document.getElementById('composerInput');i.value=t;i.focus();}
+
+/* ===== status / categoria / bot (persistem no banco) ===== */
+async function setStatus(id){
+  const c=convos.find(x=>x.id===activeId); if(!c) return; c.status=id;
+  await sb.from('wa_conversas').update({status:id,updated_at:new Date().toISOString()}).eq('id',activeId);
+  renderDetail();renderList(document.querySelector('.search').value);toast('Etiqueta: '+statusObj(id).label);
+}
+async function setCat(id){
+  const c=convos.find(x=>x.id===activeId); if(!c) return;
+  const novo = c.cat===id ? null : id; c.cat=novo;
+  await sb.from('wa_conversas').update({categoria:novo,updated_at:new Date().toISOString()}).eq('id',activeId);
+  renderDetail();renderList(document.querySelector('.search').value);toast(novo?('Categoria: '+catObj(id).label):'Categoria removida');
+}
+async function toggleBot(el){
+  const c=convos.find(x=>x.id===activeId); if(!c) return; c.bot=!c.bot;
+  el.classList.toggle('on',c.bot);
+  document.getElementById('botState').textContent=c.bot?'ativadas':'desativadas';
+  await sb.from('wa_conversas').update({bot_ativo:c.bot,updated_at:new Date().toISOString()}).eq('id',activeId);
+  toast(c.bot?'Bot reativado nesta conversa 🤖':'Você assumiu — bot pausado');
+}
+
+/* ===== biblioteca (popover do chat) ===== */
+function toggleLibPop(){
+  const p=document.getElementById('libpop');
+  if(p.classList.contains('show')){p.classList.remove('show');return;}
+  let html='<div class="h">Enviar da biblioteca</div>';
+  if(!biblioteca.length){ html+='<div class="it">Nenhum arquivo na biblioteca ainda.</div>'; }
+  libCats.forEach(cat=>{
+    const items=biblioteca.filter(b=>b.cat===cat.id);
+    if(!items.length)return;
+    html+=`<div class="h">${cat.icon} ${cat.label}</div>`;
+    items.forEach(b=>{html+=`<div class="it" onclick="sendFile('${b.id}')"><div class="ficon f-${b.tipo}">${b.tipo==='pdf'?'📄':'🖼️'}</div><div><div style="font-weight:600;font-size:13px">${esc(b.nome)}</div><div style="font-size:11px;color:var(--ink-soft)">${esc(b.meta)}</div></div></div>`;});
+  });
+  p.innerHTML=html;p.classList.add('show');
+}
+async function sendFile(id){
+  const b=biblioteca.find(x=>x.id===id); if(!b||!activeId) return;
+  document.getElementById('libpop').classList.remove('show');
+  const txt = `${b.nome}${b.url?'\n'+b.url:''}`;
+  document.getElementById('composerInput').value=txt;
+  toast('Arquivo no campo — confira e clique Enviar');
+}
+
+/* ===== detalhe (lateral direita) ===== */
+function renderDetail(){
+  const c=convos.find(x=>x.id===activeId); const box=document.getElementById('detail'); if(!box) return;
+  if(!c){ box.innerHTML='<div class="empty">Selecione uma conversa.</div>'; return; }
+  const nmsg=(msgsByConvo[c.id]||[]).length;
+  box.innerHTML=`
+    <div class="det-card"><div class="big" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}</div><h3>${esc(c.name)}</h3><p>${c.ch==='wa'?'📱 '+esc(c.phone):'📷 '+esc(c.handle)}</p></div>
+    <div class="det-sec"><h4>Status do atendimento</h4><div class="pick">${statusList.map(s=>`<div class="opt ${c.status===s.id?'sel '+s.cls:''}" onclick="setStatus('${s.id}')">${s.label}</div>`).join('')}</div></div>
+    <div class="det-sec"><h4>Categoria</h4><div class="pick">${catList.map(s=>`<div class="opt ${c.cat===s.id?'sel '+s.cls:''}" style="${c.cat===s.id?'border-color:currentColor':''}" onclick="setCat('${s.id}')">${s.label}</div>`).join('')}</div></div>
+    <div class="det-sec"><h4>Dados</h4><div class="field"><span>Canal</span><b>${c.ch==='wa'?'WhatsApp':'Instagram'}</b></div><div class="field"><span>Mensagens</span><b>${nmsg}</b></div><div class="field"><span>Atendente</span><b>${esc(currentAgent)}</b></div></div>
+    <div class="det-sec" style="border-bottom:0"><h4>Lista de contatos</h4><button class="btn-add ${c.inContacts?'added':''}" onclick="addContact()">${c.inContacts?'✓ Salvo nos contatos':'+ Adicionar aos contatos'}</button></div>`;
+}
+async function addContact(){
+  const c=convos.find(x=>x.id===activeId); if(!c||c.inContacts) return; c.inContacts=true;
+  await sb.from('wa_contatos').update({salvo:true}).eq('id',c.contato_id);
+  renderDetail();toast(c.name+' salvo na lista de contatos ✓');
+}
+
+/* ===== filtros / navegação ===== */
+function setFilter(f,el){filter=f;document.querySelectorAll('.chip-f').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderList(document.querySelector('.search').value);}
+function filterList(v){renderList(v);}
+function nav(v,el){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));el.classList.add('active');
+  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');
+  if(v==='contacts')renderContacts();if(v==='bot')renderBot();if(v==='arquivos')renderLib();if(v==='bcast')renderBcast();}
+
+/* ===== preencher selects de filtro ===== */
 function fillSelects(){
   const opts=arr=>arr.map(s=>`<option value="${s.id}">${s.label}</option>`).join('');
   document.getElementById('fStatus').insertAdjacentHTML('beforeend',opts(statusList));
@@ -479,104 +665,7 @@ function fillSelects(){
   document.getElementById('cCat').insertAdjacentHTML('beforeend',opts(catList));
 }
 
-/* ===== inbox list ===== */
-function renderList(search=''){
-  const box=document.getElementById('convos');box.innerHTML='';
-  const fs=document.getElementById('fStatus').value, fc=document.getElementById('fCat').value;
-  const arr=convos.filter(c=>{
-    if(filter==='wa'&&c.ch!=='wa')return false;
-    if(filter==='ig'&&c.ch!=='ig')return false;
-    if(fs&&c.status!==fs)return false;
-    if(fc&&c.cat!==fc)return false;
-    if(search&&!(c.name.toLowerCase().includes(search.toLowerCase())||(c.phone||'').includes(search)))return false;
-    return true;
-  });
-  if(!arr.length){box.innerHTML='<div class="empty">Nenhuma conversa com esses filtros.</div>';return;}
-  arr.forEach(c=>{
-    const s=statusObj(c.status),cat=catObj(c.cat),last=c.msgs[c.msgs.length-1];
-    const el=document.createElement('div');el.className='convo'+(c.id===activeId?' active':'');el.onclick=()=>openConvo(c.id);
-    el.innerHTML=`<div class="ch" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}<div class="badge ${c.ch}"></div></div>
-      <div class="body"><div class="row1"><span class="name">${c.name}</span><span class="time">${c.time}</span></div>
-      <div class="preview">${last.from==='out'?'Você: ':last.from==='bot'?'🤖 ':''}${last.txt}</div>
-      <div class="tags"><span class="tag ${s.cls}">${s.label}</span><span class="cat ${cat.cls}">${cat.label}</span></div></div>
-      ${c.unread?`<div class="unread">${c.unread}</div>`:''}`;
-    box.appendChild(el);
-  });
-}
-function openConvo(id){
-  activeId=id;const c=convos.find(x=>x.id===id);c.unread=0;
-  renderList(document.querySelector('.search').value);
-  document.getElementById('threadHead').innerHTML=`<div class="ch" style="background:${c.ch==='ig'?chColor.ig:chColor.wa};width:40px;height:40px">${chInitial(c)}<div class="badge ${c.ch}"></div></div>
-    <div><div class="name">${c.name}</div><div class="sub">${c.ch==='wa'?'WhatsApp · '+c.phone:'Instagram · '+c.handle}</div></div>
-    <div class="th-actions"><div class="iconbtn" onclick="toast('Histórico completo carregado ✓')">🗂️ Histórico</div></div>`;
-  const m=document.getElementById('messages');m.innerHTML='<div class="daysep">Hoje</div>';
-  c.msgs.forEach(msg=>m.appendChild(bubble(msg)));m.scrollTop=m.scrollHeight;
-  document.getElementById('botToggle').classList.toggle('on',c.bot);
-  document.getElementById('botState').textContent=c.bot?'ativadas':'desativadas';
-  document.getElementById('libpop').classList.remove('show');
-  renderDetail();
-}
-function bubble(msg){
-  const d=document.createElement('div');d.className='msg '+msg.from;let who='';
-  if(msg.from==='out')who=`<div class="who">${msg.who||currentAgent}</div>`;
-  if(msg.from==='bot')who=`<div class="who">${msg.who||'Bot Lola'}<span class="botflag">AUTO</span></div>`;
-  const body=msg.file?`<div class="file"><span>${msg.file.tipo==='pdf'?'📄':'🖼️'}</span> ${msg.file.nome}</div>`:`<div class="txt">${msg.txt}</div>`;
-  d.innerHTML=`${who}${body}<div class="t">${msg.t}</div>`;return d;
-}
-function sendMsg(){
-  const inp=document.getElementById('composerInput');const txt=inp.value.trim();if(!txt)return;
-  const c=convos.find(x=>x.id===activeId);const now=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  c.msgs.push({from:'out',who:currentAgent,txt,t:now});c.status='respondido';c.time=now;
-  inp.value='';openConvo(activeId);toast('Enviado como '+currentAgent+' ✓');
-}
-function insertQR(t){const i=document.getElementById('composerInput');i.value=t;i.focus();}
-function toggleBot(el){const c=convos.find(x=>x.id===activeId);c.bot=!c.bot;el.classList.toggle('on',c.bot);
-  document.getElementById('botState').textContent=c.bot?'ativadas':'desativadas';toast(c.bot?'Bot assumiu esta conversa 🤖':'Você assumiu — bot pausado');}
-
-/* ===== library popover in composer ===== */
-function toggleLibPop(){
-  const p=document.getElementById('libpop');
-  if(p.classList.contains('show')){p.classList.remove('show');return;}
-  let html='<div class="h">Enviar da biblioteca</div>';
-  libCats.forEach(cat=>{
-    const items=biblioteca.filter(b=>b.cat===cat.id);
-    if(!items.length)return;
-    html+=`<div class="h">${cat.icon} ${cat.label}</div>`;
-    items.forEach(b=>{html+=`<div class="it" onclick="sendFile(${b.id})"><div class="ficon f-${b.tipo}">${b.tipo==='pdf'?'📄':'🖼️'}</div><div><div style="font-weight:600;font-size:13px">${b.nome}</div><div style="font-size:11px;color:var(--ink-soft)">${b.meta}</div></div></div>`;});
-  });
-  p.innerHTML=html;p.classList.add('show');
-}
-function sendFile(id){
-  const b=biblioteca.find(x=>x.id===id);const c=convos.find(x=>x.id===activeId);
-  const now=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  c.msgs.push({from:'out',who:currentAgent,file:b,t:now});c.status='respondido';c.time=now;
-  document.getElementById('libpop').classList.remove('show');openConvo(activeId);toast('Arquivo enviado: '+b.nome+' ✓');
-}
-
-/* ===== detail ===== */
-function renderDetail(){
-  const c=convos.find(x=>x.id===activeId);
-  document.getElementById('detail').innerHTML=`
-    <div class="det-card"><div class="big" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}</div><h3>${c.name}</h3><p>${c.ch==='wa'?'📱 '+c.phone:'📷 '+c.handle}</p></div>
-    <div class="det-sec"><h4>Status do atendimento</h4><div class="pick">${statusList.map(s=>`<div class="opt ${c.status===s.id?'sel '+s.cls:''}" onclick="setStatus('${s.id}')">${s.label}</div>`).join('')}</div></div>
-    <div class="det-sec"><h4>Categoria</h4><div class="pick">${catList.map(s=>`<div class="opt ${c.cat===s.id?'sel '+s.cls:''}" style="${c.cat===s.id?'border-color:currentColor':''}" onclick="setCat('${s.id}')">${s.label}</div>`).join('')}</div></div>
-    <div class="det-sec"><h4>Dados</h4><div class="field"><span>Canal</span><b>${c.ch==='wa'?'WhatsApp':'Instagram'}</b></div><div class="field"><span>Mensagens</span><b>${c.msgs.length}</b></div><div class="field"><span>Atendente atual</span><b>${currentAgent}</b></div></div>
-    <div class="det-sec" style="border-bottom:0"><h4>Lista de contatos</h4><button class="btn-add ${c.inContacts?'added':''}" onclick="addContact()">${c.inContacts?'✓ Salvo nos contatos':'+ Adicionar aos contatos'}</button><div class="note">💡 Troque o atendente no topo para responder com o seu próprio nome.</div></div>`;
-}
-function setStatus(id){convos.find(x=>x.id===activeId).status=id;renderDetail();renderList(document.querySelector('.search').value);toast('Etiqueta: '+statusObj(id).label);}
-function setCat(id){convos.find(x=>x.id===activeId).cat=id;renderDetail();renderList(document.querySelector('.search').value);toast('Categoria: '+catObj(id).label);}
-function addContact(){const c=convos.find(x=>x.id===activeId);if(c.inContacts)return;c.inContacts=true;renderDetail();toast(c.name+' salvo na lista de contatos ✓');}
-
-/* ===== filters / nav ===== */
-function setFilter(f,el){filter=f;document.querySelectorAll('.chip-f').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderList(document.querySelector('.search').value);}
-function filterList(v){renderList(v);}
-function changeAgent(){currentAgent=document.getElementById('agentSelect').value;const a=document.getElementById('agAvatar');a.textContent=currentAgent.charAt(0);a.style.background=agentColors[currentAgent];
-  document.getElementById('sendAsName').textContent=currentAgent;document.getElementById('agRole').textContent=agentRoles[currentAgent]+' · online';renderDetail();toast('Agora você responde como '+currentAgent);}
-function nav(v,el){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));el.classList.add('active');
-  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');
-  if(v==='contacts')renderContacts();if(v==='bot')renderBot();if(v==='arquivos')renderLib();if(v==='bcast')renderBcast();}
-
-/* ===== contacts ===== */
+/* ===== contatos ===== */
 function clearContactFilters(){['cDia','cStatus','cCanal','cCat'].forEach(id=>document.getElementById(id).value='');renderContacts();}
 function renderContacts(){
   const tb=document.getElementById('contactsBody');tb.innerHTML='';
@@ -588,93 +677,167 @@ function renderContacts(){
   const rows=saved.filter(c=>{
     if(fDia==='hoje'&&c.dia!=='hoje')return false;
     if(fDia==='ontem'&&c.dia!=='ontem')return false;
+    if(fDia==='7d'&&!(c.dia==='hoje'||c.dia==='ontem'||c.dia==='7d'))return false;
     if(fSt&&c.status!==fSt)return false;
     if(fCa&&c.ch!==fCa)return false;
     if(fCt&&c.cat!==fCt)return false;
     return true;
   });
-  if(!rows.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--ink-soft);padding:24px">Nenhum contato com esses filtros.</td></tr>';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--ink-soft);padding:24px">Nenhum contato salvo com esses filtros.</td></tr>';return;}
   rows.forEach(c=>{
     const s=statusObj(c.status),cat=catObj(c.cat);const tr=document.createElement('tr');tr.className='clickrow';
     tr.title='Abrir conversa';tr.onclick=()=>{document.querySelector('.nav button').click();openConvo(c.id);};
     tr.innerHTML=`<td><div class="mini"><div class="ch" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}<div class="badge ${c.ch}"></div></div>
-      <div><b>${c.name}</b><br><span style="color:var(--ink-soft);font-size:12px">${c.phone||c.handle}</span></div></div></td>
-      <td>${c.ch==='wa'?'🟢 WhatsApp':'📷 Instagram'}</td><td><span class="cat ${cat.cls}">${cat.label}</span></td>
+      <div><b>${esc(c.name)}</b><br><span style="color:var(--ink-soft);font-size:12px">${esc(c.phone||c.handle)}</span></div></div></td>
+      <td>${c.ch==='wa'?'🟢 WhatsApp':'📷 Instagram'}</td><td>${cat?`<span class="cat ${cat.cls}">${cat.label}</span>`:'—'}</td>
       <td><span class="tag ${s.cls}">${s.label}</span></td><td>${c.time} ›</td>`;
     tb.appendChild(tr);
   });
 }
 
-/* ===== bot ===== */
+/* ===== bot (wa_templates) ===== */
+async function loadTemplates(){
+  const { data } = await sb.from('wa_templates').select('*').order('nome');
+  templates=data||[];
+}
 function renderBot(){
-  const ml=document.getElementById('msgList');ml.innerHTML='';
-  botMsgs.forEach((m,i)=>{
-    const d=document.createElement('div');d.className='msgitem';
-    d.innerHTML=`<div class="top"><span class="nm">${m.nome}</span><div class="acts"><button class="btn-sm" onclick="renameMsg(${i})">Renomear</button><button class="btn-sm" onclick="delMsg(${i})">Excluir</button></div></div>
-      <textarea oninput="botMsgs[${i}].txt=this.value">${m.txt}</textarea>`;
-    ml.appendChild(d);
-  });
-  const rl=document.getElementById('ruleList');rl.innerHTML='';
-  botRules.forEach((r,i)=>{
-    const d=document.createElement('div');d.className='rule';
-    d.innerHTML=`<span class="kw">${r.kw}</span><span class="arrow">→</span><span class="r">${r.resp}${r.cat?' · marca <b>'+r.cat+'</b>':''}</span><span class="x" onclick="delRule(${i})">✕</span>`;
-    rl.appendChild(d);
+  loadTemplates().then(()=>{
+    const padroes=templates.filter(t=>t.categoria!=='palavra_chave');
+    const regras=templates.filter(t=>t.categoria==='palavra_chave');
+    const ml=document.getElementById('msgList');ml.innerHTML='';
+    padroes.forEach(t=>{
+      const d=document.createElement('div');d.className='msgitem';
+      d.innerHTML=`<div class="top"><span class="nm">${esc(t.nome)}${t.ativo===false?' (inativa)':''}</span><div class="acts"><button class="btn-sm" onclick="saveTemplate('${t.id}')">Salvar</button><button class="btn-sm" onclick="delTemplate('${t.id}')">Excluir</button></div></div>
+        <textarea id="tpl_${t.id}">${esc(t.conteudo||'')}</textarea>`;
+      ml.appendChild(d);
+    });
+    const rl=document.getElementById('ruleList');rl.innerHTML='';
+    if(!regras.length) rl.innerHTML='<div class="rule"><span class="r">Nenhuma regra por palavra-chave.</span></div>';
+    regras.forEach(t=>{
+      const d=document.createElement('div');d.className='rule';
+      d.innerHTML=`<span class="kw">${esc(t.gatilho||'')}</span><span class="arrow">→</span><span class="r">${esc((t.conteudo||'').slice(0,70))}…</span><span class="x" onclick="delTemplate('${t.id}')">✕</span>`;
+      rl.appendChild(d);
+    });
   });
 }
-function addMsg(){const nome=prompt('Nome da nova mensagem padrão:','Nova mensagem');if(!nome)return;botMsgs.push({nome,txt:''});renderBot();toast('Mensagem criada ✓');}
-function renameMsg(i){const nome=prompt('Renomear mensagem:',botMsgs[i].nome);if(!nome)return;botMsgs[i].nome=nome;renderBot();}
-function delMsg(i){if(!confirm('Excluir esta mensagem?'))return;botMsgs.splice(i,1);renderBot();toast('Mensagem excluída');}
-function addRule(){const kw=document.getElementById('newRuleKw').value.trim(),resp=document.getElementById('newRuleResp').value.trim();if(!kw||!resp){toast('Preencha palavra-chave e resposta');return;}
-  botRules.push({kw,resp,cat:''});document.getElementById('newRuleKw').value='';document.getElementById('newRuleResp').value='';renderBot();toast('Regra adicionada ✓');}
-function delRule(i){botRules.splice(i,1);renderBot();}
+async function saveTemplate(id){
+  const ta=document.getElementById('tpl_'+id); if(!ta) return;
+  await sb.from('wa_templates').update({conteudo:ta.value}).eq('id',id);
+  toast('Mensagem do bot salva ✓');
+}
+async function delTemplate(id){
+  if(!confirm('Excluir esta mensagem/regra do bot?'))return;
+  await sb.from('wa_templates').delete().eq('id',id);
+  renderBot();toast('Removido ✓');
+}
+async function addMsg(){
+  const nome=prompt('Nome da nova mensagem padrão:','Nova mensagem');if(!nome)return;
+  await sb.from('wa_templates').insert({nome,categoria:'resposta_rapida',conteudo:'',ativo:true});
+  renderBot();toast('Mensagem criada ✓');
+}
+async function addRule(){
+  const kw=document.getElementById('newRuleKw').value.trim(),resp=document.getElementById('newRuleResp').value.trim();
+  if(!kw||!resp){toast('Preencha palavra-chave e resposta');return;}
+  await sb.from('wa_templates').insert({nome:'Palavra-chave: '+kw,categoria:'palavra_chave',gatilho:kw,conteudo:resp,ativo:true});
+  document.getElementById('newRuleKw').value='';document.getElementById('newRuleResp').value='';
+  renderBot();toast('Regra adicionada ✓');
+}
 
-/* ===== library page ===== */
+/* ===== biblioteca (página) ===== */
+const libCats=[{id:'pacotes',label:'Pacotes de eventos',icon:'🎉'},{id:'cardapio',label:'Cardápio / Menu',icon:'🍽️'},{id:'ambiente',label:'Fotos do ambiente',icon:'📸'},{id:'precos',label:'Tabela de preços',icon:'💲'},{id:'outros',label:'Outros',icon:'📂'}];
+async function loadBiblioteca(){
+  const { data } = await sb.from('wa_biblioteca').select('*').eq('ativo',true).order('ordem',{ascending:true});
+  biblioteca=(data||[]).map(b=>({id:b.id,nome:b.nome,cat:b.categoria||'outros',tipo:(b.tipo==='imagem'||b.tipo==='img')?'img':'pdf',meta:[(b.tipo||'').toUpperCase(),b.tamanho].filter(Boolean).join(' · '),url:b.url}));
+}
 function renderLib(){
-  const box=document.getElementById('libContent');box.innerHTML='';
-  libCats.forEach(cat=>{
-    const items=biblioteca.filter(b=>b.cat===cat.id);
-    let cards=items.map(b=>`<div class="libcard"><div class="row"><div class="ficon f-${b.tipo}">${b.tipo==='pdf'?'📄':'🖼️'}</div><div><div class="nm">${b.nome}</div><div class="meta">${b.meta}</div></div></div>
-      <div class="actions"><button class="send-lib" onclick="goSendFile(${b.id})">Enviar no chat</button></div></div>`).join('');
-    cards+=`<div class="libcard upload" onclick="toast('No app real: abre o seletor de arquivos do computador 📂')"><div style="font-size:22px">＋</div><div style="font-weight:600;font-size:13px">Adicionar arquivo</div><div class="meta">PDF ou imagem</div></div>`;
-    box.insertAdjacentHTML('beforeend',`<div class="libcat"><h3>${cat.icon} ${cat.label}</h3><div class="libgrid">${cards}</div></div>`);
+  loadBiblioteca().then(()=>{
+    const box=document.getElementById('libContent');box.innerHTML='';
+    libCats.forEach(cat=>{
+      const items=biblioteca.filter(b=>b.cat===cat.id);
+      if(!items.length) return;
+      let cards=items.map(b=>`<div class="libcard"><div class="row"><div class="ficon f-${b.tipo}">${b.tipo==='pdf'?'📄':'🖼️'}</div><div><div class="nm">${esc(b.nome)}</div><div class="meta">${esc(b.meta)}</div></div></div>
+        <div class="actions"><button class="send-lib" onclick="goSendFile('${b.id}')">Enviar no chat</button></div></div>`).join('');
+      box.insertAdjacentHTML('beforeend',`<div class="libcat"><h3>${cat.icon} ${cat.label}</h3><div class="libgrid">${cards}</div></div>`);
+    });
+    if(!biblioteca.length) box.innerHTML='<div class="empty">Nenhum arquivo na biblioteca ainda. (Tabela wa_biblioteca vazia.)</div>';
   });
 }
-function goSendFile(id){document.querySelector('.nav button').click();sendFile(id);}
+function goSendFile(id){
+  if(!activeId){ toast('Abra uma conversa primeiro (aba Atendimento).'); return; }
+  document.querySelector('.nav button').click(); sendFile(id);
+}
 
-/* ===== broadcast ===== */
-function renderBcast(){
-  const tl=document.getElementById('tagList');tl.innerHTML='';
-  tags.forEach((t,i)=>{
-    const d=document.createElement('div');d.className='tagitem'+(i===activeTag?' active':'');d.onclick=()=>{activeTag=i;renderBcast();};
-    d.innerHTML=`<div><div class="nm">🏷️ ${t.nome}</div><div class="ct">${t.pessoas.length} contatos</div></div><span style="color:var(--ink-soft)">›</span>`;
-    tl.appendChild(d);
-  });
-  const t=tags[activeTag];const right=document.getElementById('bcastRight');
-  if(!t){right.innerHTML='<div class="card">Crie ou selecione uma etiqueta.</div>';return;}
-  let rows=t.pessoas.map((nome,i)=>{const c=convos.find(x=>x.name===nome);const sub=c?(c.phone||c.handle):'';
-    return `<div class="checkrow"><input type="checkbox" class="bchk" checked><span class="nm">${nome}</span><span class="meta">${sub}</span></div>`;}).join('');
-  right.innerHTML=`<div class="card">
-    <h3>${t.nome}</h3><p class="desc">Selecione os contatos e escreva a mensagem que será enviada para todos.</p>
-    <div class="selbar"><button class="btn-sm" onclick="checkAll(true)">Selecionar todos</button><button class="btn-sm" onclick="checkAll(false)">Limpar seleção</button></div>
-    <div class="checklist">${rows||'<div class="checkrow">Nenhum contato nesta etiqueta ainda.</div>'}</div>
-    <label class="fl">Mensagem da transmissão</label>
-    <textarea class="inp" id="bcastMsg" placeholder="Ex.: Feliz Dia dos Namorados! 💕 Como agradecimento, ganhem 10% no jantar romântico desta semana...">Olá! 💕 A Equipe Lola passou para agradecer seu carinho e desejar um Feliz Dia dos Namorados! Temos uma surpresa especial pra vocês...</textarea>
-    <button class="btn-primary" style="margin-top:12px" onclick="sendBcast()">📣 Enviar para os selecionados</button>
-  </div>`;
+/* ===== transmissão (wa_etiquetas) ===== */
+async function loadEtiquetas(){
+  const { data } = await sb.from('wa_etiquetas').select('*, wa_etiqueta_contatos(contato_id)').order('created_at',{ascending:false});
+  etiquetas=(data||[]).map(t=>({id:t.id,nome:t.nome,cor:t.cor,qtd:(t.wa_etiqueta_contatos||[]).length}));
 }
-function checkAll(v){document.querySelectorAll('.bchk').forEach(c=>c.checked=v);}
-function sendBcast(){const n=document.querySelectorAll('.bchk:checked').length;if(!n){toast('Selecione ao menos um contato');return;}
-  toast('📣 Transmissão enviada para '+n+' contato(s) via modelo aprovado ✓');}
-function addTag(){const nome=prompt('Nome da nova etiqueta de transmissão:','Dia dos Namorados 2026');if(!nome)return;tags.push({nome,pessoas:[]});activeTag=tags.length-1;renderBcast();toast('Etiqueta criada ✓ Agora adicione contatos a ela.');}
+function renderBcast(){
+  loadEtiquetas().then(()=>{
+    const tl=document.getElementById('tagList');tl.innerHTML='';
+    if(!etiquetas.length) tl.innerHTML='<div class="ct" style="color:var(--ink-soft);padding:8px">Nenhuma etiqueta ainda.</div>';
+    etiquetas.forEach((t,i)=>{
+      const d=document.createElement('div');d.className='tagitem'+(i===activeTag?' active':'');d.onclick=()=>{activeTag=i;renderBcast();};
+      d.innerHTML=`<div><div class="nm">🏷️ ${esc(t.nome)}</div><div class="ct">${t.qtd} contatos</div></div><span style="color:var(--ink-soft)">›</span>`;
+      tl.appendChild(d);
+    });
+    const t=etiquetas[activeTag];const right=document.getElementById('bcastRight');
+    if(!t){right.innerHTML='<div class="card">Crie ou selecione uma etiqueta.</div>';return;}
+    right.innerHTML=`<div class="card">
+      <h3>${esc(t.nome)}</h3><p class="desc">${t.qtd} contato(s) nesta etiqueta. Escreva a mensagem da campanha.</p>
+      <label class="fl">Mensagem da transmissão</label>
+      <textarea class="inp" id="bcastMsg" placeholder="Ex.: Feliz Dia dos Namorados! 💕..."></textarea>
+      <button class="btn-primary" style="margin-top:12px" onclick="sendBcast()">📣 Registrar transmissão</button>
+      <div class="note" style="margin-top:10px">Envio em massa para fora da janela de 24h exige <b>modelo aprovado pela Meta</b>. Esta ação registra a campanha; o disparo em massa será ligado quando os modelos estiverem aprovados.</div>
+    </div>`;
+  });
+}
+async function sendBcast(){
+  const t=etiquetas[activeTag]; if(!t){toast('Selecione uma etiqueta');return;}
+  const msg=document.getElementById('bcastMsg').value.trim(); if(!msg){toast('Escreva a mensagem');return;}
+  await sb.from('wa_transmissoes').insert({etiqueta_id:t.id,nome:t.nome,mensagem:msg,canal:'whatsapp',total:t.qtd,enviadas:0,status:'rascunho',criado_por:currentAgent});
+  toast('Transmissão registrada (rascunho) ✓');
+}
+async function addTag(){
+  const nome=prompt('Nome da nova etiqueta de transmissão:','Dia dos Namorados 2026');if(!nome)return;
+  await sb.from('wa_etiquetas').insert({nome});
+  activeTag=0;renderBcast();toast('Etiqueta criada ✓ Adicione contatos a ela pelas conversas.');
+}
 
 /* ===== toast ===== */
 let toastTimer;
-function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2400);}
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600);}
+
+/* ===== realtime + polling ===== */
+function subscribeRealtime(){
+  try{
+    sb.channel('inbox-rt')
+      .on('postgres_changes',{event:'*',schema:'public',table:'wa_mensagens'},(p)=>{
+        const cid=p.new&&p.new.conversa_id; if(cid&&cid===activeId) loadMessages(activeId);
+        loadConversas();
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'wa_conversas'},()=>{ loadConversas(); })
+      .subscribe();
+  }catch(e){ console.warn('realtime indisponível',e); }
+  setInterval(()=>{ loadConversas(); }, 20000); // fallback
+}
+
+/* ===== identidade do atendente ===== */
+function initAgent(){
+  currentAgent=ME.name;
+  const av=document.getElementById('agAvatar'); if(av){ av.textContent=(currentAgent||'?').charAt(0).toUpperCase(); av.style.background=colorFor(currentAgent); }
+  const sel=document.getElementById('agentSelect');
+  if(sel){ sel.innerHTML=`<option value="${esc(currentAgent)}">${esc(currentAgent)}</option>`; sel.disabled=true; sel.style.cursor='default'; }
+  const role=document.getElementById('agRole'); if(role) role.textContent=(ME.role?ME.role:'Atendente')+' · online';
+  const san=document.getElementById('sendAsName'); if(san) san.textContent=currentAgent;
+}
+function changeAgent(){ /* identidade vem do login do portal */ }
 
 /* ===== init ===== */
+initAgent();
 fillSelects();
-document.getElementById('agAvatar').style.background=agentColors.Bianca;
-renderList();openConvo(1);
+loadConversas().then(()=>{ if(convos.length) openConvo(convos[0].id); });
+subscribeRealtime();
 </script>
 </body>
 </html>
