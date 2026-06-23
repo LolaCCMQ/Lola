@@ -62,11 +62,11 @@
   .unibar{display:flex;gap:6px;flex-wrap:nowrap;margin:4px 0 12px}
   .unibar .ub{flex:1;min-width:0;text-align:center;font-size:.82rem;font-weight:700;padding:9px 4px;border-radius:11px;border:1.5px solid var(--vinho-muted);background:#fff;color:var(--vinho-deep);cursor:pointer;white-space:nowrap}
   .unibar .ub.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
-  .feed{display:grid;grid-template-columns:1fr;gap:10px;margin:0}
+  .feed{display:grid;grid-template-columns:1fr;gap:16px;margin:0}
   .searchrow{display:flex;gap:7px;align-items:center;flex:1 0 100%}
   .searchrow input{flex:1;min-width:0}
   .searchrow .btn{flex:0 0 auto;width:auto;min-width:0}
-  .mapwrap{display:grid;grid-template-columns:1fr;gap:12px}
+  .mapwrap{display:grid;grid-template-columns:1fr;gap:16px}
   @media(min-width:720px){
     .feed{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));align-items:start}
     .mapwrap{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));align-items:start}
@@ -106,7 +106,9 @@
   .vermais{font-size:.72rem;color:var(--vinho);cursor:pointer;font-weight:600}
   .rel{font-size:.74rem;color:var(--muted)}
   .rel a{color:var(--vinho);cursor:pointer;font-weight:600}
-  .cardfoot{display:flex;justify-content:flex-end;gap:8px}
+  .cardfoot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+  .btnconcluir{background:#1f7a4d;color:#fff;border:1.5px solid #1f7a4d}
+  .btnconcluir.reaberto{background:var(--vinho-pale);color:var(--vinho);border:1.5px solid var(--vinho-muted)}
   .grouphdr{font-size:.95rem;color:var(--vinho-deep);font-weight:700;border-bottom:2px solid var(--vinho-pale);padding:10px 0 5px;margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline}
   .grouphdr span{font-size:.72rem;color:var(--muted);font-weight:400}
   .empty{text-align:center;color:var(--muted);padding:40px 10px}
@@ -289,7 +291,7 @@ function cardHTML(f){
     +okRow(f)
     +(rel?'<div class="rel">🔗 Ligadas: '+rel+'</div>':'')
     +(tags?'<div class="chips">'+tags+'</div>':'')
-    +'<div class="cardfoot"><button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+')">➕ Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')">✏️ Editar</button></div>'
+    +'<div class="cardfoot">'+(f.eh_tarefa?'<button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'↩ Reabrir':'✓ Concluir')+'</button>':'')+'<button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+')">➕ Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')">✏️ Editar</button></div>'
     +'</div>';
 }
 
