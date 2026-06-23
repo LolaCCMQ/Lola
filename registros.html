@@ -234,6 +234,15 @@ async function load(){
   catch(e){ document.getElementById('lista').innerHTML='<div class="empty">Erro: '+esc(e.message||e)+'</div>'; return; }
   popFiltros(); render();
 }
+function applyUrlFilters(){
+  try{
+    var p=new URLSearchParams(location.search);
+    var resp=p.get('resp'), sit=p.get('sit'), changed=false;
+    if(resp){var fr=document.getElementById('fresp'); if(fr){ fr.value=resp; if(fr.value!==resp){ var o=document.createElement('option'); o.value=resp; o.textContent=resp; fr.appendChild(o); fr.value=resp; } changed=true; } }
+    if(sit){var fs=document.getElementById('fsit'); if(fs){ fs.value=sit; changed=true; } }
+    if(changed) render();
+  }catch(e){}
+}
 
 function distinct(field){var s={};REG.forEach(function(f){arr(f[field]).forEach(function(v){if(v)s[v]=1;});});return Object.keys(s).sort();}
 function popFiltros(){
@@ -503,7 +512,7 @@ async function delAtual(){
 }
 document.getElementById('ov').addEventListener('click',function(e){if(e.target===this)fechar();});
 
-initQuick(); load();
+initQuick(); load().then(function(){try{applyUrlFilters();}catch(e){}});
 </script>
 </body>
 </html>
