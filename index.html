@@ -678,7 +678,7 @@
         <button class="nav-item" data-mod="diario" data-menu="diario" onclick="switchModule('diario')"><span class="ni">📓</span><span class="nl">Diário de Gerentes</span></button>
         <button class="nav-item" data-mod="compras" data-menu="compras" onclick="switchModule('compras')"><span class="ni">🛒</span><span class="nl">Lista de Compras</span></button>
         <button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni">🥬</span><span class="nl">Pedidos Hortifrúti</span></button>
-        <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni">💳</span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni">🍽️</span><span class="nl">Louças e Utensílios</span></button><button class="nav-item" data-mod="eventos" data-menu="eventos" onclick="switchModule('eventos')"><span class="ni">📅</span><span class="nl">Eventos</span></button>
+        <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni">💳</span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni">🍽️</span><span class="nl">Louças e Utensílios</span></button><button class="nav-item" data-mod="eventos" data-menu="eventos" onclick="switchModule('eventos')"><span class="ni">📅</span><span class="nl">Eventos</span></button><button class="nav-item" data-mod="inbox" data-menu="inbox" onclick="switchModule('inbox')"><span class="ni">💬</span><span class="nl">Atendimento</span></button>
         
         <button class="nav-item" data-mod="avaliacoes" data-menu="avaliacoes" onclick="switchModule('avaliacoes')"><span class="ni">⭐</span><span class="nl">Avaliações</span></button>
         
@@ -715,7 +715,7 @@
     <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
 
     <main class="portal-content">
-      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div><div class="module-panel" id="module-eventos"><iframe id="eventosFrame" title="Eventos" src="https://equipelola.net/eventos.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
+      <div class="module-panel" id="module-estoque"><iframe id="estoqueFrame" title="Estoque" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div><div class="module-panel" id="module-eventos"><iframe id="eventosFrame" title="Eventos" src="https://equipelola.net/eventos.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div><div class="module-panel" id="module-inbox"><iframe id="inboxFrame" title="Atendimento" src="https://equipelola.net/inbox.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-manutencoes"><iframe id="manutFrame" title="Manutenções" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-usuarios"></div>
       <div class="module-panel" id="module-rh"></div>
@@ -940,7 +940,7 @@ const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Com
 window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
- {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti'],['comprascartao','💳 Compras no Cartão'],['loucas','🍽️ Louças e Utensílios'],['eventos','📅 Eventos'],['avaliacoes','⭐ Avaliações']]},
+ {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['hortifruti','🥬 Pedidos Hortifrúti'],['comprascartao','💳 Compras no Cartão'],['loucas','🍽️ Louças e Utensílios'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações']]},
  {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central']]},
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
@@ -951,7 +951,7 @@ function defaultMenu(role){
   if(role==='admin') return ALL_MENU.slice();
   var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala','doc_vouchers','doc_reservas','doc_admissional','doc_alergenicos','doc_vinhos'];
   var est=['est_insumos','est_preproducoes','est_fichas','est_contagem','est_saidas','est_fornecedores','est_pedidos'];
-  var ger=['hortifruti','comprascartao','avaliacoes','loucas'];
+  var ger=['hortifruti','comprascartao','avaliacoes','loucas','inbox'];
   if(role==='gerente') return base.concat(est).concat(ger);
   if(role==='compras') return base.concat(est);
   return base;
