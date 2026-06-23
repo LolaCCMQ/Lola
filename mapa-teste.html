@@ -80,7 +80,7 @@
 <body>
 <header>
   <h1>Mapa de Assuntos</h1>
-  <div class="sub">Teste de formato visual · cada assunto vira um mapa com tarefas por pessoa</div>
+  <div class="sub">Teste de formato visual · sandbox (não mexe no app de verdade) · cada assunto vira um mapa com tarefas por pessoa</div>
 </header>
 
 <div class="wrap">
@@ -158,7 +158,7 @@ function today(){return new Date().toISOString().slice(0,10);}
 function byId(id){return REG.find(function(x){return x.id==id;});}
 
 async function load(){
-  try{ var r=await sb.from('lola_assuntos').select('*').order('id',{ascending:false}); REG=r.data||[]; }
+  try{ var r=await sb.from('lola_mapa_teste').select('*').order('id',{ascending:false}); REG=r.data||[]; }
   catch(e){ document.getElementById('lista').innerHTML='<div class="empty">Erro: '+esc(e.message||e)+'</div>'; return; }
   if(CURRENT && byId(CURRENT)) renderMapa(); else renderLista();
 }
@@ -256,9 +256,9 @@ async function salvarTopic(){
     unidades:_tu.slice(),categorias:_tc.slice(),tags:parseTags(document.getElementById('tTags').value),
     updated_at:new Date().toISOString()};
   try{
-    if(EDIT_TOPIC){ var u=await sb.from('lola_assuntos').update(p).eq('id',EDIT_TOPIC);if(u.error)throw u.error; }
+    if(EDIT_TOPIC){ var u=await sb.from('lola_mapa_teste').update(p).eq('id',EDIT_TOPIC);if(u.error)throw u.error; }
     else { p.pessoas=[];p.responsaveis=[];p.relacionados=[];p.oks={};p.concluido=false;p.data=today();
-      var i=await sb.from('lola_assuntos').insert(p).select('id').single();if(i.error)throw i.error; CURRENT=i.data.id; }
+      var i=await sb.from('lola_mapa_teste').insert(p).select('id').single();if(i.error)throw i.error; CURRENT=i.data.id; }
     fechar('ovTopic');await load();toast('✓ Salvo');
   }catch(e){toast('Erro: '+(e.message||e));}
 }
@@ -267,8 +267,8 @@ async function delTopic(){
   var tk=tasksOf(EDIT_TOPIC);
   if(!confirm('Excluir este assunto'+(tk.length?' e suas '+tk.length+' tarefa(s)':'')+'?'))return;
   try{
-    for(var i=0;i<tk.length;i++){ await sb.from('lola_assuntos').delete().eq('id',tk[i].id); }
-    await sb.from('lola_assuntos').delete().eq('id',EDIT_TOPIC);
+    for(var i=0;i<tk.length;i++){ await sb.from('lola_mapa_teste').delete().eq('id',tk[i].id); }
+    await sb.from('lola_mapa_teste').delete().eq('id',EDIT_TOPIC);
     fechar('ovTopic');CURRENT=null;await load();toast('Excluído');
   }catch(e){toast('Erro ao excluir');}
 }
@@ -303,24 +303,24 @@ async function salvarTask(){
     prazo:document.getElementById('kPrazo').value||null,concluido:done,concluido_em:done?new Date().toISOString():null,
     oks:oks,unidades:arr(base.unidades),categorias:arr(base.categorias),updated_at:new Date().toISOString()};
   try{
-    if(EDIT_TASK){ var u=await sb.from('lola_assuntos').update(p).eq('id',EDIT_TASK);if(u.error)throw u.error; }
+    if(EDIT_TASK){ var u=await sb.from('lola_mapa_teste').update(p).eq('id',EDIT_TASK);if(u.error)throw u.error; }
     else { p.pessoas=[];p.tags=[];p.relacionados=[CURRENT];p.conteudo=null;p.data=today();
-      var i=await sb.from('lola_assuntos').insert(p).select('id').single();if(i.error)throw i.error;
+      var i=await sb.from('lola_mapa_teste').insert(p).select('id').single();if(i.error)throw i.error;
       var top=byId(CURRENT);var rel=top?arr(top.relacionados).slice():[];if(rel.indexOf(i.data.id)<0)rel.push(i.data.id);
-      await sb.from('lola_assuntos').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',CURRENT); }
+      await sb.from('lola_mapa_teste').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',CURRENT); }
     fechar('ovTask');await load();toast('✓ Salvo');
   }catch(e){toast('Erro: '+(e.message||e));}
 }
 async function delTask(){
   if(!EDIT_TASK)return;if(!confirm('Excluir esta tarefa?'))return;
-  try{ await sb.from('lola_assuntos').delete().eq('id',EDIT_TASK); fechar('ovTask');await load();toast('Excluída'); }
+  try{ await sb.from('lola_mapa_teste').delete().eq('id',EDIT_TASK); fechar('ovTask');await load();toast('Excluída'); }
   catch(e){toast('Erro ao excluir');}
 }
 async function toggleTask(id){
   var t=byId(id);if(!t)return;var done=!t.concluido;var resp=arr(t.responsaveis)[0];
   var oks=(done&&resp)?(function(){var o={};o[resp]=new Date().toISOString();return o;})():{};
   t.concluido=done;t.oks=oks;
-  try{ var u=await sb.from('lola_assuntos').update({concluido:done,concluido_em:done?new Date().toISOString():null,oks:oks,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(done?'✓ Feito':'Reaberto'); }
+  try{ var u=await sb.from('lola_mapa_teste').update({concluido:done,concluido_em:done?new Date().toISOString():null,oks:oks,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(done?'✓ Feito':'Reaberto'); }
   catch(e){toast('Erro ao atualizar');}
   renderMapa();
 }
@@ -333,9 +333,9 @@ async function abrirDesdobramento(){
   var p={titulo:titulo,eh_tarefa:false,tipo:'Aviso',conteudo:null,unidades:arr(base.unidades),categorias:arr(base.categorias),
     tags:[],pessoas:[],responsaveis:[],oks:{},concluido:false,relacionados:[CURRENT],data:today(),updated_at:new Date().toISOString()};
   try{
-    var i=await sb.from('lola_assuntos').insert(p).select('id').single();if(i.error)throw i.error;
+    var i=await sb.from('lola_mapa_teste').insert(p).select('id').single();if(i.error)throw i.error;
     var top=byId(CURRENT);var rel=top?arr(top.relacionados).slice():[];if(rel.indexOf(i.data.id)<0)rel.push(i.data.id);
-    await sb.from('lola_assuntos').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',CURRENT);
+    await sb.from('lola_mapa_teste').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',CURRENT);
     await load();toast('✓ Desdobramento criado');
   }catch(e){toast('Erro: '+(e.message||e));}
 }
