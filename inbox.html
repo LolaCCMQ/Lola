@@ -863,13 +863,22 @@ function subscribeRealtime(){
 }
 
 /* ===== identidade do atendente ===== */
-function initAgent(){
-  currentAgent=ME.name;
+function applyAgentUI(){
   const av=document.getElementById('agAvatar'); if(av){ av.textContent=(currentAgent||'?').charAt(0).toUpperCase(); av.style.background=colorFor(currentAgent); }
   const sel=document.getElementById('agentSelect');
   if(sel){ sel.innerHTML=`<option value="${esc(currentAgent)}">${esc(currentAgent)}</option>`; sel.disabled=true; sel.style.cursor='default'; }
   const role=document.getElementById('agRole'); if(role) role.textContent=(ME.role?ME.role:'Atendente')+' · online';
   const san=document.getElementById('sendAsName'); if(san) san.textContent=currentAgent;
+}
+function refreshPortalUser(){
+  const pu=getPortalUser();
+  if(pu && pu.name){ ME={id:pu.id||null,name:pu.name,role:pu.role||null}; currentAgent=pu.name; applyAgentUI(); if(activeId) renderDetail(); return true; }
+  return false;
+}
+function initAgent(){
+  currentAgent=ME.name; applyAgentUI();
+  if(refreshPortalUser()) return;
+  let n=25; const t=setInterval(()=>{ if(refreshPortalUser()||--n<=0) clearInterval(t); }, 600);
 }
 function changeAgent(){ /* identidade vem do login do portal */ }
 
