@@ -40,6 +40,9 @@
   .seg{display:flex;gap:8px}
   .segbtn{flex:1;text-align:center;font-size:.86rem;font-weight:600;padding:11px 8px;border-radius:11px;border:1.5px solid var(--border);background:var(--cream);cursor:pointer;user-select:none}
   .segbtn.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
+  .vincbtn{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;font-weight:600;padding:9px 13px;border-radius:11px;border:1.5px solid var(--vinho-muted);background:var(--vinho-pale);color:var(--vinho);cursor:pointer;user-select:none}
+  .vincbtn.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
+  .vinchint{font-size:.78rem;color:#27508f;background:#eef4ff;border:1px solid #cdddf7;border-radius:9px;padding:8px 11px;margin-top:8px}
   /* SECAO LISTA */
   .seclabel{font-family:'Playfair Display',serif;font-style:italic;color:var(--vinho-deep);font-size:1.1rem;margin:6px 0 10px}
   .filters{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:8px}
@@ -124,6 +127,8 @@
       <span class="segbtn on" data-v="aviso" onclick="setQTipo(false)">📢 Só aviso</span>
       <span class="segbtn" data-v="tarefa" onclick="setQTipo(true)">✅ Tarefa (precisa de OK)</span>
     </div>
+    <div style="margin-top:12px"><span class="vincbtn" id="qVinc" onclick="toggleVinc()">🔗 Vincular próxima ficha</span></div>
+    <div class="vinchint" id="qVincHint" style="display:none"></div>
     <div style="margin-top:16px"><button class="btn btn-primary" onclick="quickSave()">Salvar registro</button></div>
   </div>
 
@@ -185,7 +190,7 @@ var CATS=['Cozinha','Salão','Bar','Compras','Entregas','Eventos','RH','Manuten�
 var TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Charles','Dudinha','Fernanda','Giulia','Intelecta','Juliana','Luana','Lucas','Mahara','Paola','Tatiane Intelecta'];
 
 var REG=[], EDIT=null, FUNI='';
-var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null};
+var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
 var _m={uni:[],cat:[],resp:[],tarefa:false,rel:[]};
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -333,20 +338,22 @@ function renderLigada(){
   else{el.style.display='none';el.innerHTML='';}
 }
 function clearParent(){_q.parent=null;renderLigada();}
+function toggleVinc(){_q.vincular=!_q.vincular;if(!_q.vincular)_q.chain=[];renderVinc();}
+function renderVinc(){var b=document.getElementById('qVinc');if(!b)return;b.classList.toggle('on',!!_q.vincular);var h=document.getElementById('qVincHint');if(h){if(_q.vincular){h.style.display='block';h.textContent=_q.chain.length?('🔗 '+_q.chain.length+' ficha(s) vinculada(s) neste assunto — a próxima também será. Desligue quando terminar.'):'🔗 As próximas fichas que você salvar ficam vinculadas entre si (mesmo assunto). Desligue quando terminar.';}else{h.style.display='none';}}}
 function initQuick(){
   document.getElementById('qData').textContent='hoje · '+fmtDate(new Date().toISOString());
   pickInto('qUni',UNIDADES,_q.uni); pickInto('qCat',CATS,_q.cat); pickInto('qResp',TEAM,_q.resp);
-  renderSeg('qTipoSeg',_q); renderLigada();
+  renderSeg('qTipoSeg',_q); renderLigada(); renderVinc();
 }
 function clearQuick(){
-  _q={uni:[],cat:[],resp:[],tarefa:false,parent:null};
+  _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
   document.getElementById('qTitulo').value='';document.getElementById('qDesc').value='';
   var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
   initQuick();
 }
 function desdobrar(id){
   var f=REG.find(function(x){return x.id==id;});if(!f)return;
-  _q={uni:arr(f.unidades).slice(),cat:arr(f.categorias).slice(),resp:arr(f.responsaveis).slice(),tarefa:true,parent:f.id};
+  _q={uni:arr(f.unidades).slice(),cat:arr(f.categorias).slice(),resp:arr(f.responsaveis).slice(),tarefa:true,parent:f.id,vincular:false,chain:[]};
   document.getElementById('qTitulo').value='';document.getElementById('qDesc').value='';
   var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
   initQuick();
@@ -358,20 +365,22 @@ async function quickSave(){
   var titulo=document.getElementById('qTitulo').value.trim();
   if(!titulo){toast('Dê um título ao registro.');return;}
   var ehT=_q.tarefa, par=_q.parent;
+  var liga=[]; if(par)liga.push(par); _q.chain.forEach(function(id){if(liga.indexOf(id)<0)liga.push(id);});
   var p={titulo:titulo,tipo:ehT?'Tarefa':'Aviso',eh_tarefa:ehT,
     unidades:_q.uni.slice(),categorias:_q.cat.slice(),pessoas:[],
     responsaveis:_q.resp.slice(),conteudo:document.getElementById('qDesc').value.trim()||null,
     prazo:document.getElementById('qPrazo').value||null,tags:[],oks:{},concluido:false,
-    relacionados:par?[par]:[],data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
+    relacionados:liga.slice(),data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
   try{
     var i=await sb.from('lola_assuntos').insert(p).select('id').single();if(i.error)throw i.error;
-    if(par && i.data){
-      var pf=REG.find(function(x){return x.id==par;});
+    var novo=i.data.id;
+    for(var li=0;li<liga.length;li++){
+      var pf=REG.find(function(x){return x.id==liga[li];});
       var rel=pf?arr(pf.relacionados).slice():[];
-      if(rel.indexOf(i.data.id)<0)rel.push(i.data.id);
-      await sb.from('lola_assuntos').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',par);
+      if(rel.indexOf(novo)<0){rel.push(novo);await sb.from('lola_assuntos').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',liga[li]);}
     }
-    clearQuick();await load();toast('✓ Registrado');window.scrollTo({top:0,behavior:'smooth'});
+    if(_q.vincular){_q.chain.push(novo);_q.parent=null;document.getElementById('qDesc').value='';await load();renderVinc();toast('✓ Vinculado ('+_q.chain.length+') — escreva a próxima');window.scrollTo({top:0,behavior:'smooth'});}
+    else{clearQuick();await load();toast('✓ Registrado');window.scrollTo({top:0,behavior:'smooth'});}
   }catch(e){toast('Erro: '+(e.message||e));}
 }
 
