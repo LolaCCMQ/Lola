@@ -119,28 +119,6 @@
 
 <div class="wrap">
 
-  <!-- NOVO REGISTRO -->
-  <div class="quick">
-    <div class="quickhead"><b>➕ Novo registro</b><span class="dt" id="qData"></span></div>
-    <div class="ligada" id="qLigada"></div>
-    <div class="lab">Título</div>
-    <input type="text" id="qTitulo" placeholder="Ex.: Reunião de cozinha · ou cliente reclamou da comida fria">
-    <div class="lab">Unidade</div><div class="pick" id="qUni"></div>
-    <div class="lab">Categoria</div><div class="pick" id="qCat"></div>
-    <div class="lab">Descrição</div>
-    <textarea id="qDesc" placeholder="Detalhes do registro (opcional)"></textarea>
-    <div class="lab">Responsáveis</div><div class="pick" id="qResp"></div>
-    <div class="lab">Prazo (opcional)</div><input type="date" id="qPrazo">
-    <div class="lab">O que é?</div>
-    <div class="seg" id="qTipoSeg">
-      <span class="segbtn on" data-v="aviso" onclick="setQTipo(false)">📢 Só aviso</span>
-      <span class="segbtn" data-v="tarefa" onclick="setQTipo(true)">✅ Tarefa (precisa de OK)</span>
-    </div>
-    <div style="margin-top:12px"><span class="vincbtn" id="qVinc" onclick="toggleVinc()">🔗 Vincular próxima ficha</span></div>
-    <div class="vinchint" id="qVincHint" style="display:none"></div>
-    <div style="margin-top:16px"><button class="btn btn-primary" onclick="quickSave()">Salvar registro</button></div>
-  </div>
-
   <!-- LISTA -->
   <div class="seclabel">Registros já feitos</div>
   <div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')">📋 Lista</span><span class="vt" data-v="mapa" onclick="setView('mapa')">🗺️ Mapa</span></div>
@@ -164,6 +142,30 @@
     </select>
     <button class="btn btn-ghost btn-sm" onclick="limpar()">Limpar</button>
   </div>
+  <!-- BOTAO + FORM COLAPSAVEL -->
+  <div style="margin:2px 0 14px"><button class="btn btn-primary" id="btnNovo" onclick="toggleNovo()">➕ Adicionar novo registro</button></div>
+  <!-- NOVO REGISTRO -->
+  <div class="quick" id="quickBox" style="display:none">
+    <div class="quickhead"><b>➕ Novo registro</b><span class="dt" id="qData"></span></div>
+    <div class="ligada" id="qLigada"></div>
+    <div class="lab">Título</div>
+    <input type="text" id="qTitulo" placeholder="Ex.: Reunião de cozinha · ou cliente reclamou da comida fria">
+    <div class="lab">Unidade</div><div class="pick" id="qUni"></div>
+    <div class="lab">Categoria</div><div class="pick" id="qCat"></div>
+    <div class="lab">Descrição</div>
+    <textarea id="qDesc" placeholder="Detalhes do registro (opcional)"></textarea>
+    <div class="lab">Responsáveis</div><div class="pick" id="qResp"></div>
+    <div class="lab">Prazo (opcional)</div><input type="date" id="qPrazo">
+    <div class="lab">O que é?</div>
+    <div class="seg" id="qTipoSeg">
+      <span class="segbtn on" data-v="aviso" onclick="setQTipo(false)">📢 Só aviso</span>
+      <span class="segbtn" data-v="tarefa" onclick="setQTipo(true)">✅ Tarefa (precisa de OK)</span>
+    </div>
+    <div style="margin-top:12px"><span class="vincbtn" id="qVinc" onclick="toggleVinc()">🔗 Vincular próxima ficha</span></div>
+    <div class="vinchint" id="qVincHint" style="display:none"></div>
+    <div style="margin-top:16px"><button class="btn btn-primary" onclick="quickSave()">Salvar registro</button></div>
+  </div>
+
   <div class="count" id="count"></div>
   <div id="lista"><div class="empty">Carregando…</div></div>
 </div>
@@ -386,6 +388,9 @@ function initQuick(){
   pickInto('qUni',UNIDADES,_q.uni); pickInto('qCat',CATS,_q.cat); pickInto('qResp',TEAM,_q.resp);
   renderSeg('qTipoSeg',_q); renderLigada(); renderVinc();
 }
+function openNovo(){var b=document.getElementById('quickBox');if(b)b.style.display='';var bt=document.getElementById('btnNovo');if(bt)bt.textContent='✕ Fechar';}
+function closeNovo(){var b=document.getElementById('quickBox');if(b)b.style.display='none';var bt=document.getElementById('btnNovo');if(bt)bt.textContent='➕ Adicionar novo registro';}
+function toggleNovo(){var b=document.getElementById('quickBox');if(!b)return;if(b.style.display==='none'){openNovo();var t=document.getElementById('qTitulo');if(t)setTimeout(function(){t.focus();},60);b.scrollIntoView({behavior:'smooth',block:'start'});}else{closeNovo();}}
 function clearQuick(){
   _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
   document.getElementById('qTitulo').value='';document.getElementById('qDesc').value='';
@@ -398,7 +403,8 @@ function desdobrar(id){
   document.getElementById('qTitulo').value='';document.getElementById('qDesc').value='';
   var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
   initQuick();
-  window.scrollTo({top:0,behavior:'smooth'});
+  openNovo();
+  var _qb=document.getElementById('quickBox');if(_qb)_qb.scrollIntoView({behavior:'smooth',block:'start'});
   setTimeout(function(){var t=document.getElementById('qTitulo');if(t)t.focus();},250);
   toast('Nova ficha ligada — preencha o título');
 }
@@ -421,7 +427,7 @@ async function quickSave(){
       if(rel.indexOf(novo)<0){rel.push(novo);await sb.from('lola_assuntos').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',liga[li]);}
     }
     if(_q.vincular){_q.chain.push(novo);_q.parent=null;document.getElementById('qDesc').value='';await load();renderVinc();toast('✓ Vinculado ('+_q.chain.length+') — escreva a próxima');window.scrollTo({top:0,behavior:'smooth'});}
-    else{clearQuick();await load();toast('✓ Registrado');window.scrollTo({top:0,behavior:'smooth'});}
+    else{clearQuick();closeNovo();await load();toast('✓ Registrado');window.scrollTo({top:0,behavior:'smooth'});}
   }catch(e){toast('Erro: '+(e.message||e));}
 }
 
