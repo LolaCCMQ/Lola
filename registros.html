@@ -64,6 +64,7 @@
   .feed{display:grid;grid-template-columns:1fr;gap:10px;margin:0}
   .searchrow{display:flex;gap:7px;align-items:center;flex:1 0 100%}
   .searchrow input{flex:1;min-width:0}
+  .searchrow .btn{flex:0 0 auto;width:auto;min-width:0}
   .mapwrap{display:grid;grid-template-columns:1fr;gap:12px}
   @media(min-width:720px){
     .feed{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));align-items:start}
@@ -73,7 +74,7 @@
     .filters{display:grid;grid-template-columns:1fr 1fr}
     .filters .searchrow{grid-column:1/-1;min-width:0}
     .filters select{width:100%;min-width:0;font-size:.8rem;padding:8px 8px}
-    .filters .btn{width:100%}
+    .filters>.btn{width:100%}
   }
   /* CARDS */
   .card{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:13px 14px;display:flex;flex-direction:column;gap:7px}
