@@ -2456,6 +2456,7 @@ async function deletarTaskDB(id) {
 let toastTimer;
 function showToast(msg) {
   const t = document.getElementById("toast");
+  if(!t)return;
   t.textContent = msg; t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2800);
@@ -4103,6 +4104,7 @@ async function dbFetchAll() {
 
 function dgShowToast(msg, duration=2500) {
   const t = document.getElementById('toast');
+  if(!t)return;
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), duration);
@@ -4451,5 +4453,6 @@ function renderReuniao(){
   },1500);
 })();
 </script>
+<div id="toast"></div>
 </body>
 </html>
