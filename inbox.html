@@ -70,6 +70,8 @@
   .waitbar.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   .convo.urgent{box-shadow:inset 3px 0 0 var(--brand)}
   .convo .waitflag{color:var(--brand);font-weight:700;font-size:11px;margin-top:3px}
+  .opt .catdel{margin-left:5px;color:var(--ink-soft);font-weight:700;opacity:.45;font-size:10px}
+  .opt .catdel:hover{color:var(--brand);opacity:1}
 
   .tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
   .t-respondido{background:#e3f4e7;color:#1f7a3d}
@@ -434,10 +436,7 @@ const statusList=[
   {id:'nao-lido',label:'Não lido',cls:'t-nao-lido'},
   {id:'nao-respondido',label:'Não respondido',cls:'t-nao-respondido'},
 ];
-const catList=[
-  {id:'elogio',label:'Elogio',cls:'c-elogio'},{id:'reclamacao',label:'Reclamação',cls:'c-reclamacao'},
-  {id:'reserva',label:'Reserva',cls:'c-reserva'},{id:'pacotes',label:'Pacotes',cls:'c-pacotes'},{id:'eventos',label:'Eventos',cls:'c-eventos'},
-];
+let catList=[]; // carregado dinamicamente de wa_categorias
 const chColor={wa:'#25d366',ig:'linear-gradient(135deg,#feda75,#d62976,#4f5bd5)'};
 
 let convos=[];          // conversas carregadas (formato da UI)
@@ -453,6 +452,25 @@ let activeTag=0;
 /* ===== helpers ===== */
 function statusObj(id){return statusList.find(s=>s.id===id)||statusList[4];}
 function catObj(id){return catList.find(c=>c.id===id)||null;}
+async function loadCategorias(){
+  const { data } = await sb.from('wa_categorias').select('*').order('ordem',{ascending:true});
+  catList=(data||[]).map(c=>({id:c.slug,label:c.nome,cor:c.cor||'#7a6f67'}));
+}
+function slugify(s){return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40);}
+async function addCategoria(){
+  const nome=prompt('Nome da nova categoria:'); if(!nome||!nome.trim())return;
+  const slug=slugify(nome); if(!slug){toast('Nome invalido');return;}
+  const cores=['#1f7a3d','#A8272A','#1A6B7A','#8a6a1e','#7A2D6B','#2D5A8E','#b5651d','#444'];
+  const cor=cores[catList.length % cores.length];
+  const { error } = await sb.from('wa_categorias').insert({slug,nome:nome.trim(),cor,ordem:catList.length+1});
+  if(error){toast('Essa categoria ja existe (ou erro)');return;}
+  await loadCategorias(); fillCatSelects(); renderDetail(); renderList(document.querySelector('.search').value); toast('Categoria criada ✓');
+}
+async function removeCategoria(slug){
+  if(!confirm('Remover esta categoria? As conversas que ja tem ela continuam, mas ela some da lista.'))return;
+  await sb.from('wa_categorias').delete().eq('slug',slug);
+  await loadCategorias(); fillCatSelects(); renderDetail(); renderList(document.querySelector('.search').value); toast('Categoria removida');
+}
 function esc(s){return (s==null?'':s.toString()).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function isToday(d){const n=new Date();return d.getDate()===n.getDate()&&d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();}
 function isYesterday(d){const y=new Date();y.setDate(y.getDate()-1);return d.getDate()===y.getDate()&&d.getMonth()===y.getMonth()&&d.getFullYear()===y.getFullYear();}
@@ -536,7 +554,7 @@ function renderList(search=''){
       <div class="body"><div class="row1"><span class="name">${esc(c.name)}</span><span class="time">${c.time}</span></div>
       <div class="preview">${esc(c.preview)||'<i>—</i>'}</div>
       ${w?`<div class="waitflag">${waitLabel(c)}</div>`:''}
-      <div class="tags"><span class="tag ${s.cls}">${s.label}</span>${cat?`<span class="cat ${cat.cls}">${cat.label}</span>`:''}</div></div>
+      <div class="tags"><span class="tag ${s.cls}">${s.label}</span>${cat?`<span class="cat" style="color:${cat.cor};border-color:${cat.cor}">${cat.label}</span>`:''}</div></div>
       ${c.unread?`<div class="unread">${c.unread}</div>`:''}`;
     box.appendChild(el);
   });
@@ -657,7 +675,7 @@ function renderDetail(){
   box.innerHTML=`
     <div class="det-card"><div class="big" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}</div><h3>${esc(c.name)}</h3><p>${c.ch==='wa'?'📱 '+esc(c.phone):'📷 '+esc(c.handle)}</p></div>
     <div class="det-sec"><h4>Status do atendimento</h4><div class="pick">${statusList.map(s=>`<div class="opt ${c.status===s.id?'sel '+s.cls:''}" onclick="setStatus('${s.id}')">${s.label}</div>`).join('')}</div></div>
-    <div class="det-sec"><h4>Categoria</h4><div class="pick">${catList.map(s=>`<div class="opt ${c.cat===s.id?'sel '+s.cls:''}" style="${c.cat===s.id?'border-color:currentColor':''}" onclick="setCat('${s.id}')">${s.label}</div>`).join('')}</div></div>
+    <div class="det-sec"><h4>Categoria</h4><div class="pick">${catList.map(s=>`<div class="opt" style="${c.cat===s.id?('border-color:'+s.cor+';color:'+s.cor+';font-weight:800'):''}" onclick="setCat('${s.id}')">${s.label}<span class="catdel" title="Remover categoria" onclick="event.stopPropagation();removeCategoria('${s.id}')">✕</span></div>`).join('')}<div class="opt" style="border-style:dashed;cursor:pointer" onclick="addCategoria()">＋ Nova</div></div></div>
     <div class="det-sec"><h4>Dados</h4><div class="field"><span>Canal</span><b>${c.ch==='wa'?'WhatsApp':'Instagram'}</b></div><div class="field"><span>Mensagens</span><b>${nmsg}</b></div><div class="field"><span>Atendente</span><b>${esc(currentAgent)}</b></div></div>
     <div class="det-sec" style="border-bottom:0"><h4>Lista de contatos</h4><button class="btn-add ${c.inContacts?'added':''}" onclick="addContact()">${c.inContacts?'✓ Salvo nos contatos':'+ Adicionar aos contatos'}</button></div>`;
 }
@@ -678,9 +696,12 @@ function nav(v,el){document.querySelectorAll('.nav button').forEach(b=>b.classLi
 function fillSelects(){
   const opts=arr=>arr.map(s=>`<option value="${s.id}">${s.label}</option>`).join('');
   document.getElementById('fStatus').insertAdjacentHTML('beforeend',opts(statusList));
-  document.getElementById('fCat').insertAdjacentHTML('beforeend',opts(catList));
   document.getElementById('cStatus').insertAdjacentHTML('beforeend',opts(statusList));
-  document.getElementById('cCat').insertAdjacentHTML('beforeend',opts(catList));
+}
+function fillCatSelects(){
+  const opts=arr=>arr.map(s=>`<option value="${s.id}">${s.label}</option>`).join('');
+  const fc=document.getElementById('fCat'); if(fc) fc.innerHTML='<option value="">Todas as categorias</option>'+opts(catList);
+  const cc=document.getElementById('cCat'); if(cc) cc.innerHTML='<option value="">Todas as categorias</option>'+opts(catList);
 }
 
 /* ===== contatos ===== */
@@ -707,7 +728,7 @@ function renderContacts(){
     tr.title='Abrir conversa';tr.onclick=()=>{document.querySelector('.nav button').click();openConvo(c.id);};
     tr.innerHTML=`<td><div class="mini"><div class="ch" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}<div class="badge ${c.ch}"></div></div>
       <div><b>${esc(c.name)}</b><br><span style="color:var(--ink-soft);font-size:12px">${esc(c.phone||c.handle)}</span></div></div></td>
-      <td>${c.ch==='wa'?'🟢 WhatsApp':'📷 Instagram'}</td><td>${cat?`<span class="cat ${cat.cls}">${cat.label}</span>`:'—'}</td>
+      <td>${c.ch==='wa'?'🟢 WhatsApp':'📷 Instagram'}</td><td>${cat?`<span class="cat" style="color:${cat.cor};border-color:${cat.cor}">${cat.label}</span>`:'—'}</td>
       <td><span class="tag ${s.cls}">${s.label}</span></td><td>${c.time} ›</td>`;
     tb.appendChild(tr);
   });
@@ -854,7 +875,7 @@ function changeAgent(){ /* identidade vem do login do portal */ }
 /* ===== init ===== */
 initAgent();
 fillSelects();
-loadConversas().then(()=>{ if(convos.length) openConvo(convos[0].id); });
+loadCategorias().then(()=>{ fillCatSelects(); loadConversas().then(()=>{ if(convos.length) openConvo(convos[0].id); }); });
 subscribeRealtime();
 
 </script>
