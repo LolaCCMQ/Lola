@@ -218,7 +218,7 @@ const STATUS = [
 ];
 const SETORES=["Cozinha","Bar","Salão","Recepção","Geral"];
 const FASES = [
-  { id:"triagem", nome:"1 · Triagem inicial", tipos:ALL, itens:[
+  { id:"triagem", nome:"Triagem inicial", tipos:ALL, itens:[
     {t:"Definir tipo de evento e ocasião", d:""},
     {t:"Confirmar nº de pax (dentro e fora)", d:""},
     {t:"Definir se precisa ser na cúpula", d:"Se sim, necessário pacote de consumo"},
@@ -227,14 +227,14 @@ const FASES = [
     {t:"Definir estilo de serviço", d:"Volante, ilhas, jantar, mini porções, brunch, etc"},
     {t:"Definir exclusividade do espaço", d:"Interno/externo — exclusivo ou compartilhado?"},
   ]},
-  { id:"negociacao", nome:"2 · Negociação", tipos:ALL, itens:[
+  { id:"negociacao", nome:"Negociação", tipos:ALL, itens:[
     {t:"Anotar na planilha Reservas e Pacotes // Eventos Lola", d:"Sinalizar andamento da negociação"},
     {t:"Montar pacote de serviços", d:"Colar abaixo o link da ficha / planilha do pacote"},
     {t:"Enviar proposta pelo Canva", d:"Colar abaixo o link do arquivo da proposta"},
     {t:"Enviar pacote de consumo (se cúpula)", d:""},
     {t:"Confirmar se precisa de nota / Danfe", d:""},
   ]},
-  { id:"os", nome:"3 · Operacional (OS)", tipos:["reserva_perso","personalizado","show"], itens:[
+  { id:"os", nome:"Operacional (OS)", tipos:["reserva_perso","personalizado","show"], itens:[
     {t:"Menu e quantidades", d:"Definir na aba Orçamento"},
     {t:"Louças e materiais necessários", d:"Pratos / copos / talheres · kit café / copos descartáveis"},
     {t:"Equipamentos de som e iluminação", d:"Chamar? Contratante traz? Testar montagem"},
@@ -247,7 +247,7 @@ const FASES = [
     {t:"Conferência de serviços externos parceiros", d:"Está tudo ok?"},
     {t:"Treinamento das equipes de salão e cozinha", d:"⏰ Tarefa antecipada — no mínimo 2 dias antes"},
   ]},
-  { id:"show", nome:"4 · Evento Lola / Show", tipos:["show"], itens:[
+  { id:"show", nome:"Evento Lola / Show", tipos:["show"], itens:[
     {t:"Convidados (DJ, banda)", d:"Orçar e combinar data e programação"},
     {t:"Confirmar lista de equipamentos (rider técnico)", d:"Mesa, CDJ, instrumentos, caixas + mídias p/ divulgação"},
     {t:"Articular divulgação com marketing", d:""},
@@ -263,30 +263,27 @@ const FASES = [
     {t:"Definir consumo dos convidados", d:"Banda / DJ / apoiadores / influencers"},
     {t:"Definir treinamento de serviço e funcionamento especial", d:""},
   ]},
-  { id:"dia", nome:"5 · No dia do evento", tipos:["reserva_perso","personalizado","show"], itens:[
+  { id:"dia", nome:"No dia do evento", tipos:["reserva_perso","personalizado","show"], itens:[
     {t:"Montagem de equipes — quem faz e que horas", d:""},
     {t:"Separar material de serviço", d:"Pratos, talheres, copos e utensílios do serviço"},
     {t:"Liberar espaço no bar ou cúpula", d:"É necessário?"},
     {t:"Definir onde guardar mobiliário não utilizado", d:""},
   ]},
-  { id:"despro", nome:"6 · Desprodução", tipos:["reserva_perso","personalizado","show"], itens:[
+  { id:"despro", nome:"Desprodução", tipos:["reserva_perso","personalizado","show"], itens:[
     {t:"Recolher equipamentos", d:"Quando? Combinar horário"},
     {t:"Remontar salão no plano de chão original", d:""},
   ]},
 ];
 const SECTIONS = [
+  {id:"triagem", kind:"triagemfull", icon:"✅", label:"Triagem", tipos:ALL},
   {id:"info", kind:"form", icon:"📋", label:"Dados", tipos:ALL},
-  {id:"triagem", kind:"fase", tipos:ALL},
-  {id:"negociacao", kind:"fase", tipos:ALL},
   {id:"os", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
-  {id:"cozbar", kind:"cozbar", icon:"👨‍🍳", label:"Cozinha & Bar", tipos:["reserva_perso","personalizado","show"]},
   {id:"show", kind:"fase", tipos:["show"]},
-  {id:"dia", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
-  {id:"despro", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
-  {id:"materiais", kind:"materiais", icon:"📦", label:"Materiais", tipos:["reserva_perso","personalizado","show"]},
+  {id:"orc", kind:"orc", icon:"💰", label:"Orçamento e Pagamentos", tipos:ALL},
   {id:"layout", kind:"layout", icon:"🪑", label:"Layout de Mesas", tipos:["reserva_perso","personalizado","show"]},
   {id:"convidados", kind:"convidados", icon:"👥", label:"Convidados", tipos:ALL},
-  {id:"orc", kind:"orc", icon:"💰", label:"Orçamento e Pagamentos", tipos:ALL},
+  {id:"dia", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
+  {id:"despro", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
 ];
 
 let DB={events:[]};
@@ -436,6 +433,7 @@ function renderDetail(){
   const tabs=relevantSections(ev).map(s=>{
     let label, count='';
     if(s.kind==='fase'){const f=FASES.find(x=>x.id===s.id);const fp=faseProgress(ev,f);label=f.nome;count=`${fp.done}/${fp.tot}`;}
+    else if(s.kind==='triagemfull'){const a=faseProgress(ev,FASES.find(x=>x.id==='triagem'));const b=faseProgress(ev,FASES.find(x=>x.id==='negociacao'));label=(s.icon||'')+' '+s.label;count=(a.done+b.done)+'/'+(a.tot+b.tot);}
     else if(s.kind==='cozbar'){label=(s.icon||'')+' '+s.label;count=(ev.cozbar||[]).length||'';}
     else if(s.kind==='materiais'){label=(s.icon||'')+' '+s.label;count=(ev.materiais||[]).length||'';}
     else if(s.kind==='convidados'){label=(s.icon||'')+' '+s.label;count=(ev.convidados||[]).length||'';}
@@ -493,6 +491,7 @@ function renderTab(){
   const s=SECTIONS.find(x=>x.id===view.tab)||SECTIONS[0];
   let html='';
   if(s.kind==='form')html=formHTML(ev);
+  else if(s.kind==='triagemfull'){const f1=FASES.find(x=>x.id==='triagem');const f2=FASES.find(x=>x.id==='negociacao');html=(f1?faseHTML(ev,f1):'')+'<div style="height:16px"></div>'+(f2?faseHTML(ev,f2):'');}
   else if(s.kind==='orc')html=orcHTML(ev);
   else if(s.kind==='cozbar')html=cozbarHTML(ev);
   else if(s.kind==='materiais')html=materiaisHTML(ev);
@@ -531,7 +530,7 @@ function formHTML(ev){
   </div>
   <div class="section-title">Formato do serviço</div>
   <div class="form-grid">
-    ${selField("Estilo de serviço","servico",ev,[{v:"",l:"Selecione..."},{v:"volante",l:"Volante"},{v:"ilhas",l:"Ilhas"},{v:"jantar",l:"Jantar"},{v:"miniporcoes",l:"Mini porções"},{v:"brunch",l:"Brunch"},{v:"coquetel",l:"Coquetel"},{v:"outro",l:"Outro"}])}
+    ${selField("Estilo de serviço","servico",ev,[{v:"",l:"Selecione..."},{v:"volante",l:"Volante"},{v:"ilhas",l:"Ilhas"},{v:"jantar",l:"Jantar"},{v:"miniporcoes",l:"Mini porções"},{v:"brunch",l:"Brunch"},{v:"coquetel",l:"Coquetel"},{v:"buffet_quente",l:"Buffet (quente)"},{v:"outro",l:"Outro"}])}
     ${selField("Espaço","exclusividade",ev,[{v:"",l:"Selecione..."},{v:"exclusivo",l:"Exclusivo do espaço"},{v:"compartilhado",l:"Compartilhado"}])}
     ${selField("Local específico","cupula",ev,[{v:"",l:"Selecione..."},{v:"cupula_ccmq",l:"Cúpula CCMQ"},{v:"interno_ccmq",l:"Interno CCMQ"},{v:"todo_ccmq",l:"Todo CCMQ"},{v:"jardim_mac",l:"Jardim MAC"},{v:"plataforma_mac",l:"Plataforma MAC"},{v:"frente_cafe_mac",l:"Frente ao Café MAC"},{v:"todo_mac",l:"Todo MAC"},{v:"externo",l:"Evento Externo"}])}
     ${selField("Precisa de nota / Danfe?","nota",ev,[{v:"nao",l:"Não"},{v:"sim",l:"Sim"}])}
@@ -747,7 +746,7 @@ function setMat(i,k,v){const ev=getEvent(view.id);ev.materiais[i][k]=v;save(fals
 function delMat(i){const ev=getEvent(view.id);ev.materiais.splice(i,1);save(false);renderDetail();}
 
 /* ===== Impressao / PDF do evento ===== */
-const SERVICO_LBL={volante:"Volante",ilhas:"Ilhas",jantar:"Jantar",miniporcoes:"Mini porções",brunch:"Brunch",coquetel:"Coquetel",outro:"Outro"};
+const SERVICO_LBL={volante:"Volante",ilhas:"Ilhas",jantar:"Jantar",miniporcoes:"Mini porções",brunch:"Brunch",coquetel:"Coquetel",buffet_quente:"Buffet (quente)",outro:"Outro"};
 const EXCL_LBL={exclusivo:"Exclusivo do espaço",compartilhado:"Compartilhado"};
 const LOCALESP_LBL={cupula_ccmq:"Cúpula CCMQ",interno_ccmq:"Interno CCMQ",todo_ccmq:"Todo CCMQ",jardim_mac:"Jardim MAC",plataforma_mac:"Plataforma MAC",frente_cafe_mac:"Frente ao Café MAC",todo_mac:"Todo MAC",externo:"Evento Externo"};
 function unitLogo(local){return local==='mac'?'lola-mac.png.png':'lola-ccmq.png.png';}
