@@ -62,6 +62,15 @@
   .ph-logout:hover { color:var(--vinho); }
   .ph-bell{position:relative;background:none;border:none;cursor:pointer;font-size:1.15rem;line-height:1;padding:4px 6px;margin-right:2px}
   .ph-bell-badge{position:absolute;top:-1px;right:-1px;background:var(--vinho);color:#fff;font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+  .ph-bell-menu{position:fixed;top:54px;right:14px;width:340px;max-width:92vw;max-height:72vh;overflow:auto;background:#fff;border:1px solid var(--border,#e7d9d9);border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.20);z-index:300;padding:6px}
+  .bellm-h{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--muted,#9a8a8a);padding:8px 10px 6px}
+  .bellm-item{padding:9px 10px;border-radius:9px;cursor:pointer}
+  .bellm-item:hover{background:var(--vinho-pale,#f6e9e9)}
+  .bellm-tit{font-size:.86rem;font-weight:600;color:var(--ink,#3a2b2b);line-height:1.3}
+  .bellm-sub{font-size:.72rem;color:var(--muted,#9a8a8a);margin-top:2px}
+  .bellm-empty{padding:16px 10px;font-size:.82rem;color:var(--muted,#9a8a8a);text-align:center}
+  .bellm-foot{padding:10px;text-align:center;font-size:.78rem;font-weight:700;color:var(--vinho,#AA2B2B);cursor:pointer;border-top:1px solid var(--border,#eee);margin-top:4px}
+  .bellm-foot:hover{background:var(--vinho-pale,#f6e9e9)}
 
   /* LAYOUT */
   .portal-layout { display:flex; flex:1; overflow:hidden; }
@@ -659,7 +668,8 @@
     </div>
     <div class="ph-right">
       <span class="sync-dot" id="syncDot"></span>
-      <button class="ph-bell" id="phBell" onclick="abrirMinhasTarefas()" title="Minhas tarefas pendentes">🔔<span class="ph-bell-badge" id="phBellBadge" style="display:none">0</span></button>
+      <button class="ph-bell" id="phBell" onclick="toggleBell(event)" title="Minhas tarefas pendentes">🔔<span class="ph-bell-badge" id="phBellBadge" style="display:none">0</span></button>
+      <div id="phBellMenu" class="ph-bell-menu" style="display:none"></div>
       <div class="user-pill">
         <div class="avatar"><span id="phInitials">?</span></div>
         <span class="ph-username" id="phUsername"></span>
@@ -4460,6 +4470,14 @@ function renderReuniao(){
 async function loadBellCount(){ try{ var u=window.__portalUser; if(!u||typeof dbFetch!=="function") return; var nameLC=(u.name||"").toLowerCase(); var tasks=await dbFetch("lola_assuntos","select=id,responsaveis,oks&eh_tarefa=eq.true&concluido=eq.false"); var mine=(tasks||[]).filter(function(t){ var r=t.responsaveis; if(typeof r==="string"){try{r=JSON.parse(r);}catch(e){r=[];}} if(!Array.isArray(r)||!r.some(function(x){return String(x).toLowerCase()===nameLC;})) return false; var o=t.oks; if(typeof o==="string"){try{o=JSON.parse(o);}catch(e){o={};}} if(o&&typeof o==="object"){for(var k in o){if(String(k).toLowerCase()===nameLC) return false;}} return true; }); var b=document.getElementById("phBellBadge"); if(b){ b.textContent=mine.length>99?"99+":String(mine.length); b.style.display=mine.length>0?"flex":"none"; } }catch(e){} }
 function abrirMinhasTarefas(){ try{ if(typeof switchModule==="function") switchModule("tarefas"); var u=window.__portalUser; var f=document.getElementById("tarefasFrame"); if(f&&u){ f.dataset.loaded="1"; f.src="https://equipelola.net/registros.html?resp="+encodeURIComponent(u.name||"")+"&sit=abertas&t="+Date.now(); } }catch(e){} }
 (function(){ function tick(){ if(window.__portalUser) loadBellCount(); } setTimeout(tick,1600); setInterval(tick,60000); })();
+</script>
+<script>
+function esc2(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function bellWhen(iso){try{var d=new Date(iso);var now=new Date();var p2=function(n){return String(n).padStart(2,'0');};var hh=p2(d.getHours())+':'+p2(d.getMinutes());var dd=p2(d.getDate())+'/'+p2(d.getMonth()+1);if(d.toDateString()===now.toDateString())return 'hoje '+hh;var y=new Date(now);y.setDate(now.getDate()-1);if(d.toDateString()===y.toDateString())return 'ontem '+hh;return dd+' '+hh;}catch(e){return '';}}
+async function bellPending(){var u=window.__portalUser;if(!u||typeof dbFetch!=='function')return [];var nameLC=(u.name||'').toLowerCase();var tasks=await dbFetch('lola_assuntos','select=id,titulo,created_at,criado_por,responsaveis,oks&eh_tarefa=eq.true&concluido=eq.false&order=created_at.desc&limit=50');return (tasks||[]).filter(function(t){var r=t.responsaveis;if(typeof r==='string'){try{r=JSON.parse(r);}catch(e){r=[];}}if(!Array.isArray(r)||!r.some(function(x){return String(x).toLowerCase()===nameLC;}))return false;var o=t.oks;if(typeof o==='string'){try{o=JSON.parse(o);}catch(e){o={};}}if(o&&typeof o==='object'){for(var k in o){if(String(k).toLowerCase()===nameLC)return false;}}return true;});}
+async function toggleBell(ev){if(ev&&ev.stopPropagation)ev.stopPropagation();var m=document.getElementById('phBellMenu');if(!m)return;if(m.style.display!=='none'){m.style.display='none';return;}m.innerHTML='<div class="bellm-h">Movimentações recentes</div><div class="bellm-empty">Carregando…</div>';m.style.display='block';var list=await bellPending();var html='<div class="bellm-h">Movimentações recentes</div>';if(!list.length){html+='<div class="bellm-empty">✅ Nada pendente pra você.</div>';}else{html+=list.slice(0,12).map(function(t){var quem=t.criado_por?(esc2(t.criado_por)+' adicionou pra você'):'Tarefa pra você';var when=t.created_at?bellWhen(t.created_at):'';return '<div class="bellm-item" onclick="openTaskFromBell(\''+t.id+'\')"><div class="bellm-tit">'+esc2(t.titulo||'(sem título)')+'</div><div class="bellm-sub">'+quem+(when?' · '+when:'')+'</div></div>';}).join('');}html+='<div class="bellm-foot" onclick="document.getElementById(\'phBellMenu\').style.display=\'none\';abrirMinhasTarefas()">Ver todas as minhas tarefas →</div>';m.innerHTML=html;}
+function openTaskFromBell(id){var m=document.getElementById('phBellMenu');if(m)m.style.display='none';try{if(typeof switchModule==='function')switchModule('tarefas');var f=document.getElementById('tarefasFrame');if(f){f.dataset.loaded='1';f.src='https://equipelola.net/registros.html?open='+encodeURIComponent(id)+'&t='+Date.now();}}catch(e){}}
+document.addEventListener('click',function(e){var m=document.getElementById('phBellMenu');var b=document.getElementById('phBell');if(m&&m.style.display!=='none'&&!m.contains(e.target)&&b&&!b.contains(e.target)){m.style.display='none';}});
 </script>
 <div id="toast"></div>
 </body>

@@ -229,6 +229,7 @@ function fmtDate(d){if(!d)return'';var p=String(d).slice(0,10).split('-');return
 function mesLabel(d){if(!d)return'(sem data)';var M=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];var p=String(d).slice(0,7).split('-');return p.length===2?(M[parseInt(p[1])-1]+'/'+p[0]):d;}
 function oksOf(f){return (f.oks&&typeof f.oks==='object'&&!Array.isArray(f.oks))?f.oks:{};}
 
+function meuNome(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.name)return pp.__portalUser.name;}catch(e){}return "";}
 async function load(){
   try{ var r=await sb.from('lola_assuntos').select('*').order('data',{ascending:false,nullsFirst:false}).order('id',{ascending:false}); REG=r.data||[]; }
   catch(e){ document.getElementById('lista').innerHTML='<div class="empty">Erro: '+esc(e.message||e)+'</div>'; return; }
@@ -237,6 +238,7 @@ async function load(){
 function applyUrlFilters(){
   try{
     var p=new URLSearchParams(location.search);
+    var op=p.get("open"); if(op){ setTimeout(function(){ try{ if(typeof focar==="function") focar(op); }catch(e){} },200); return; }
     var resp=p.get('resp'), sit=p.get('sit'), changed=false;
     if(resp){var fr=document.getElementById('fresp'); if(fr){ fr.value=resp; if(fr.value!==resp){ var o=document.createElement('option'); o.value=resp; o.textContent=resp; fr.appendChild(o); fr.value=resp; } changed=true; } }
     if(sit){var fs=document.getElementById('fsit'); if(fs){ fs.value=sit; changed=true; } }
@@ -439,7 +441,7 @@ async function quickSave(){
   if(!titulo){toast('Dê um título ao registro.');return;}
   var ehT=_q.tarefa, par=_q.parent;
   var liga=[]; if(par)liga.push(par); _q.chain.forEach(function(id){if(liga.indexOf(id)<0)liga.push(id);});
-  var p={titulo:titulo,tipo:ehT?'Tarefa':'Aviso',eh_tarefa:ehT,
+  var p={titulo:titulo,criado_por:meuNome()||null,tipo:ehT?'Tarefa':'Aviso',eh_tarefa:ehT,
     unidades:_q.uni.slice(),categorias:_q.cat.slice(),pessoas:[],
     responsaveis:_q.resp.slice(),conteudo:document.getElementById('qDesc').value.trim()||null,
     prazo:document.getElementById('qPrazo').value||null,tags:[],oks:{},concluido:false,
