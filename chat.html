@@ -38,6 +38,7 @@ var SB_KEY="sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy";
 var sb=window.supabase.createClient(SB_URL,SB_KEY);
 function meuNome(){try{var p=window.parent;if(p&&p!==window&&p.__portalUser&&p.__portalUser.name)return p.__portalUser.name;}catch(e){}try{var s=JSON.parse(localStorage.getItem('lola_session')||'null');if(s&&s.name)return s.name;}catch(e){}return 'Equipe';}
 var EU=meuNome();
+if(new URLSearchParams(location.search).get("embed")==="1"){var _hd=document.querySelector("header");if(_hd)_hd.style.display="none";}
 function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function pad(n){return String(n).padStart(2,'0');}
 function hhmm(d){return pad(d.getHours())+':'+pad(d.getMinutes());}
@@ -65,7 +66,7 @@ async function carregar(scroll){
     if(r.error)throw r.error;
     MSGS=r.data||[];
     render(scroll);
-    marcarVisto();
+    if(document.hasFocus())marcarVisto();
   }catch(e){}
 }
 async function enviar(){

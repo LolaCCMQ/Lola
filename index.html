@@ -72,6 +72,9 @@
   .bellm-foot{padding:10px;text-align:center;font-size:.78rem;font-weight:700;color:var(--vinho,#AA2B2B);cursor:pointer;border-top:1px solid var(--border,#eee);margin-top:4px}
   .bellm-foot:hover{background:var(--vinho-pale,#f6e9e9)}
   .nav-badge{margin-left:auto;background:var(--vinho);color:#fff;font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 4px}
+  .chat-pop{position:fixed;top:54px;right:14px;width:380px;max-width:94vw;height:min(560px,78vh);background:#fff;border:1px solid var(--border,#e7d9d9);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.24);z-index:400;display:flex;flex-direction:column;overflow:hidden}
+  .chat-pop-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--vinho);color:#fff;font-weight:700;font-size:.85rem}
+  .chat-pop-x{background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:2px 6px;line-height:1}
 
   /* LAYOUT */
   .portal-layout { display:flex; flex:1; overflow:hidden; }
@@ -669,8 +672,10 @@
     </div>
     <div class="ph-right">
       <span class="sync-dot" id="syncDot"></span>
+      <button class="ph-bell" id="phChat" onclick="toggleChatPop(event)" title="Chat da equipe">💬<span class="ph-bell-badge" id="chatTopBadge" style="display:none">0</span></button>
       <button class="ph-bell" id="phBell" onclick="toggleBell(event)" title="Minhas tarefas pendentes">🔔<span class="ph-bell-badge" id="phBellBadge" style="display:none">0</span></button>
       <div id="phBellMenu" class="ph-bell-menu" style="display:none"></div>
+      <div id="chatPop" class="chat-pop" style="display:none"><div class="chat-pop-head"><span>💬 Chat da Equipe</span><button class="chat-pop-x" onclick="toggleChatPop()" title="Fechar">✕</button></div><iframe id="chatPopFrame" title="Chat da Equipe" style="flex:1;width:100%;border:0;display:block;min-height:0"></iframe></div>
       <div class="user-pill">
         <div class="avatar"><span id="phInitials">?</span></div>
         <span class="ph-username" id="phUsername"></span>
@@ -738,7 +743,6 @@
       <div class="module-panel" id="module-hortifruti"></div>
       <div class="module-panel" id="module-comprascartao"></div>
       <div class="module-panel" id="module-avaliacoes"></div>
-      <div class="module-panel" id="module-chat"><iframe id="chatFrame" title="Chat da Equipe" src="https://equipelola.net/chat.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
   <div class="module-panel" id="module-loucas"><iframe id="loucasFrame" allow="camera; microphone; fullscreen" src="https://lolaccmq.github.io/LolaLoucas/" title="Louças e Utensílios" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
 
       <div class="module-panel active" id="module-home">
@@ -4484,8 +4488,11 @@ document.addEventListener('click',function(e){var m=document.getElementById('phB
 </script>
 <script>
 function chatSeen(){try{var u=window.__portalUser;if(!u)return null;return localStorage.getItem('lola_chat_seen_'+(u.name||'').toLowerCase());}catch(e){return null;}}
-async function loadChatUnread(){try{var u=window.__portalUser;if(!u||typeof dbFetch!=='function')return;var seen=chatSeen();var q='select=id,autor,created_at&order=created_at.desc&limit=80';if(seen){q+='&created_at=gt.'+encodeURIComponent(seen);}var rows=await dbFetch('lola_chat_msgs',q);var nameLC=(u.name||'').toLowerCase();var n=(rows||[]).filter(function(m){return String(m.autor||'').toLowerCase()!==nameLC;}).length;window.__chatUnread=n;var b=document.getElementById('chatNavBadge');if(b){b.textContent=n>99?'99+':String(n);b.style.display=n>0?'inline-flex':'none';}}catch(e){}}
-function abrirChat(){try{if(typeof switchModule==='function')switchModule('chat');var u=window.__portalUser;if(u){try{localStorage.setItem('lola_chat_seen_'+(u.name||'').toLowerCase(),new Date().toISOString());}catch(e){}}window.__chatUnread=0;var b=document.getElementById('chatNavBadge');if(b)b.style.display='none';var m=document.getElementById('phBellMenu');if(m)m.style.display='none';}catch(e){}}
+async function loadChatUnread(){try{var u=window.__portalUser;if(!u||typeof dbFetch!=='function')return;var seen=chatSeen();var q='select=id,autor,created_at&order=created_at.desc&limit=80';if(seen){q+='&created_at=gt.'+encodeURIComponent(seen);}var rows=await dbFetch('lola_chat_msgs',q);var nameLC=(u.name||'').toLowerCase();var n=(rows||[]).filter(function(m){return String(m.autor||'').toLowerCase()!==nameLC;}).length;window.__chatUnread=n;['chatNavBadge','chatTopBadge'].forEach(function(bid){var b=document.getElementById(bid);if(b){b.textContent=n>99?'99+':String(n);b.style.display=n>0?(bid==='chatTopBadge'?'flex':'inline-flex'):'none';}});}catch(e){}}
+function openChatPop(){var p=document.getElementById('chatPop');if(!p)return;var f=document.getElementById('chatPopFrame');if(f&&!f.getAttribute('src'))f.setAttribute('src','https://equipelola.net/chat.html?embed=1');p.style.display='flex';var u=window.__portalUser;if(u){try{localStorage.setItem('lola_chat_seen_'+(u.name||'').toLowerCase(),new Date().toISOString());}catch(e){}}window.__chatUnread=0;['chatNavBadge','chatTopBadge'].forEach(function(bid){var b=document.getElementById(bid);if(b)b.style.display='none';});var mm=document.getElementById('phBellMenu');if(mm)mm.style.display='none';}
+function toggleChatPop(ev){if(ev&&ev.stopPropagation)ev.stopPropagation();var p=document.getElementById('chatPop');if(!p)return;if(p.style.display==='flex'){p.style.display='none';}else{openChatPop();}}
+function abrirChat(){openChatPop();}
+document.addEventListener('click',function(e){var p=document.getElementById('chatPop');var ic=document.getElementById('phChat');if(p&&p.style.display==='flex'&&!p.contains(e.target)&&ic&&!ic.contains(e.target)){p.style.display='none';}});
 (function(){function ct(){if(window.__portalUser)loadChatUnread();}setTimeout(ct,1800);setInterval(ct,15000);})();
 </script>
 <div id="toast"></div>
