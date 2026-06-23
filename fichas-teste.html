@@ -43,6 +43,15 @@
   .vincbtn{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;font-weight:600;padding:9px 13px;border-radius:11px;border:1.5px solid var(--vinho-muted);background:var(--vinho-pale);color:var(--vinho);cursor:pointer;user-select:none}
   .vincbtn.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
   .vinchint{font-size:.78rem;color:#27508f;background:#eef4ff;border:1px solid #cdddf7;border-radius:9px;padding:8px 11px;margin-top:8px}
+  .viewtoggle{display:flex;gap:7px;margin:0 0 12px}
+  .viewtoggle .vt{flex:1;text-align:center;font-size:.86rem;font-weight:600;padding:9px 8px;border-radius:11px;border:1.5px solid var(--vinho-muted);background:#fff;color:var(--vinho-deep);cursor:pointer}
+  .viewtoggle .vt.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+  .mapgroup{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+  .mtopic{background:var(--vinho);color:#fff;border-radius:12px;padding:9px 14px;font-size:.96rem;font-weight:600;display:inline-block;cursor:pointer;max-width:100%}
+  .mvl{width:2px;height:14px;background:var(--vinho-muted);margin:6px auto}
+  .mnote{font-size:.84rem;color:#5a4444;white-space:pre-wrap;background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:9px 11px;max-width:430px;margin:0 auto;text-align:left}
+  .mbranch{display:flex;flex-direction:column;gap:9px;max-width:560px;margin:6px auto 0}
+  .mgrouptag{font-size:.8rem;font-weight:700;color:var(--vinho-deep);margin-bottom:9px}
   /* SECAO LISTA */
   .seclabel{font-family:'Playfair Display',serif;font-style:italic;color:var(--vinho-deep);font-size:1.1rem;margin:6px 0 10px}
   .filters{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:8px}
@@ -134,6 +143,7 @@
 
   <!-- LISTA -->
   <div class="seclabel">Registros já feitos</div>
+  <div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')">📋 Lista</span><span class="vt" data-v="mapa" onclick="setView('mapa')">🗺️ Mapa</span></div>
 
   <!-- UNIDADE: primeiro corte -->
   <div class="unibar" id="unibar"></div>
@@ -189,7 +199,7 @@ var UNIDADES=['Lola CCMQ','Lola MAC','Cozinha Central'];
 var CATS=['Cozinha','Salão','Bar','Compras','Entregas','Eventos','RH','Manutenções','Financeiro','Operacional','Processos'];
 var TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Charles','Dudinha','Fernanda','Giulia','Intelecta','Juliana','Luana','Lucas','Mahara','Paola','Tatiane Intelecta'];
 
-var REG=[], EDIT=null, FUNI='';
+var REG=[], EDIT=null, FUNI='', VIEW='lista';
 var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
 var _m={uni:[],cat:[],resp:[],tarefa:false,rel:[]};
 
@@ -273,6 +283,36 @@ function renderUnibar(){
   document.getElementById('unibar').innerHTML=opts.map(function(u){return '<div class="ub'+(FUNI===u?' on':'')+'" onclick="setUni(\''+u.replace(/'/g,"\\'")+'\')">'+esc(labels[u]||u)+'</div>';}).join('');
 }
 function setUni(v){FUNI=v;render();window.scrollTo({top:0,behavior:'smooth'});}
+function setView(v){VIEW=v;Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);});render();}
+function renderMapaView(lst,box){
+  if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
+  var inSet={}; lst.forEach(function(f){inSet[f.id]=f;});
+  var parent={}; lst.forEach(function(f){parent[f.id]=f.id;});
+  function find(x){while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;}
+  function uni(a,b){var ra=find(a),rb=find(b);if(ra!==rb)parent[ra]=rb;}
+  lst.forEach(function(f){arr(f.relacionados).forEach(function(rid){if(inSet[rid]!==undefined)uni(f.id,rid);});});
+  var g={}; lst.forEach(function(f){var r=find(f.id);(g[r]=g[r]||[]).push(f);});
+  var clusters=Object.keys(g).map(function(k){return g[k];});
+  var multi=clusters.filter(function(c){return c.length>1;});
+  var solo=clusters.filter(function(c){return c.length===1;}).map(function(c){return c[0];});
+  multi.sort(function(a,b){return b.length-a.length;});
+  function sortMembers(arr2){return arr2.slice().sort(function(a,b){if(!!a.concluido!==!!b.concluido)return a.concluido?1:-1;return String(b.data||'').localeCompare(String(a.data||''));});}
+  var html='';
+  multi.forEach(function(members){
+    members=sortMembers(members);
+    var center=members.find(function(m){return !m.eh_tarefa;});
+    if(center){
+      var branches=members.filter(function(m){return m.id!==center.id;});
+      html+='<div class="mapgroup"><div style="text-align:center"><span class="mtopic" onclick="editar('+center.id+')">💡 '+esc(center.titulo||'(sem título)')+'</span></div>';
+      if(center.conteudo)html+='<div class="mvl"></div><div class="mnote">'+esc(center.conteudo)+'</div>';
+      html+='<div class="mvl"></div><div class="mbranch">'+branches.map(cardHTML).join('')+'</div></div>';
+    } else {
+      html+='<div class="mapgroup"><div class="mgrouptag">🔗 Assunto vinculado · '+members.length+' fichas</div><div class="mbranch">'+members.map(cardHTML).join('')+'</div></div>';
+    }
+  });
+  if(solo.length){html+='<div class="grouphdr">Sem vínculo<span>'+solo.length+'</span></div><div class="feed">'+sortMembers(solo).map(cardHTML).join('')+'</div>';}
+  box.innerHTML=html;
+}
 function render(){
   renderUnibar();
   var lst=filtered(), grp=document.getElementById('grp').value;
@@ -280,6 +320,7 @@ function render(){
   var _ab=lst.filter(function(c){return c.eh_tarefa&&!c.concluido;}).length;
   document.getElementById('count').textContent=lst.length+' registro(s)'+(_ab?(' · '+_ab+' tarefa(s) a fazer'):'');
   var box=document.getElementById('lista');
+  if(VIEW==='mapa'){renderMapaView(lst,box);return;}
   if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
   if(grp==='none'){box.innerHTML='<div class="feed">'+lst.map(cardHTML).join('')+'</div>';return;}
   var groups={},order=[];
