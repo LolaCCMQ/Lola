@@ -1742,7 +1742,7 @@ function cartaoRender(){
     +'<div style="flex:1;min-width:150px"><label style="display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Empresa</label>'+cartSel('cEmp',CART_EMPRESAS,ed?ed.empresa:'','Selecione')+'</div>'
     +'<div style="flex:1;min-width:150px"><label style="display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Cartão</label>'+cartSel('cCard',CART_CARTOES,ed?ed.cartao:'','Selecione')+'</div>'
     +'<div style="flex:1;min-width:130px"><label style="display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Competência</label><input type="month" id="cComp" value="'+_escA(ed?ed.competencia:mesAtual)+'" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
-    +'<div style="flex:1;min-width:130px"><label style="display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Valor (R$)</label><input type="number" step="0.01" min="0" inputmode="decimal" id="cValor" value="'+_escA(ed&&ed.valor!=null?ed.valor:'')+'" placeholder="0,00" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<div style="flex:1;min-width:130px"><label style="display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Valor (R$)</label><input type="text" inputmode="decimal" id="cValor" value="'+_escA(ed&&ed.valor!=null?ed.valor:'')+'" placeholder="0,00" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
     +'</div>';
   h+='<div style="display:flex;gap:9px;margin-top:12px">'+(ed?('<button class="btn btn-primary" onclick="cartaoSalvar()">💾 Salvar alteração</button><button class="btn btn-ghost" onclick="cartaoCancelEdit()">Cancelar</button>'):'<button class="btn btn-primary" onclick="cartaoSalvar()">➕ Adicionar compra</button>')+'</div>';
   h+='</div>';
@@ -1812,11 +1812,12 @@ function cartaoFiltro(){
   var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoLista();
 }
 function cartaoLimpar(){ CART_F={status:'',empresa:'',cartao:'',mes:'',de:'',ate:''}; cartaoRender(); }
+function _cartNum(s){s=String(s==null?'':s).trim();if(s==='')return null;if(s.indexOf(',')>=0)s=s.replace(/\./g,'').replace(',','.');var n=parseFloat(s);return isFinite(n)?n:null;}
 async function cartaoSalvar(){
   var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
   var desc=g('cDesc').trim();
   if(!desc){ showToast('Escreva o que foi comprado.'); return; }
-  var p={data:g('cData')||null,descricao:desc,loja:g('cLoja'),empresa:g('cEmp'),cartao:g('cCard'),competencia:g('cComp')||null,valor:(g('cValor')!==''?parseFloat(g('cValor')):null)};
+  var p={data:g('cData')||null,descricao:desc,loja:g('cLoja'),empresa:g('cEmp'),cartao:g('cCard'),competencia:g('cComp')||null,valor:_cartNum(g('cValor'))};
   try{
     if(window.__cartEdit){ await api.patch('compras_cartao',p,'id=eq.'+window.__cartEdit); window.__cartEdit=null; }
     else{ p.criado_por=(typeof currentUser!=='undefined'&&currentUser)?currentUser.name:''; p.conferido=false; await api.post('compras_cartao',p); }
