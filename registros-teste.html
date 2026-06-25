@@ -60,6 +60,7 @@
   .bcolhdr{position:sticky;top:0;background:#fbf6f6;border-bottom:1.5px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;padding:11px 13px;display:flex;align-items:center;gap:8px;font-weight:700;color:var(--vinho-deep);font-size:.92rem;z-index:1}
   .bcolhdr .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
   .bcolhdr .cnt{margin-left:auto;font-size:.74rem;color:var(--vinho);font-weight:700;background:#fff;border:1px solid var(--vinho-muted);border-radius:20px;padding:2px 9px}
+  .bcolhdr .cnt.over{background:#c0392b;color:#fff;border-color:#c0392b}
   .bcolbody{padding:10px;display:flex;flex-direction:column;gap:9px;min-height:60px}
   .bcol.dragover{border-color:var(--vinho)}
   .bcol.dragover .bcolbody{background:var(--vinho-pale);border-radius:0 0 var(--radius) var(--radius)}
@@ -245,6 +246,10 @@ var CATS=['Cozinha','Salão','Bar','Compras','Entregas','Eventos','RH','Manuten�
 var TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Charles','Dudinha','Fernanda','Giulia','Intelecta','Juliana','Luana','Lucas','Mahara','Paola','Tatiane Intelecta'];
 
 var STAGES=[{k:'afazer',label:'A fazer',dot:'#c08a2d'},{k:'fazendo',label:'Fazendo',dot:'#1f6feb'},{k:'feito',label:'Feito',dot:'#1f7a4d'}];
+var WIP_LIMIT=5; // limite suave de cartões em "Fazendo" (só avisa, não bloqueia)
+var CAT_COLORS={'Cozinha':'#d9772e','Salão':'#2f9e7f','Bar':'#8b5cf6','Compras':'#2f7fd9','Entregas':'#0ea5a8','Eventos':'#d6336c','RH':'#c08a2d','Manutenções':'#6b7280','Financeiro':'#1f7a4d','Operacional':'#b4531f','Processos':'#5b6bd6'};
+var CAT_FALLBACK=['#7c3aed','#0ea5a8','#d6336c','#2f7fd9','#b4531f','#1f7a4d','#9333ea','#0891b2'];
+function catColor(c){ if(CAT_COLORS[c]) return CAT_COLORS[c]; var h=0; for(var i=0;i<String(c).length;i++){h=(h*31+String(c).charCodeAt(i))>>>0;} return CAT_FALLBACK[h%CAT_FALLBACK.length]; }
 
 var REG=[], EDIT=null, FUNI='', VIEW='lista';
 var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
@@ -354,12 +359,13 @@ function bcardHTML(f){
   var st=stageOf(f), idx=STAGES.map(function(s){return s.k;}).indexOf(st);
   var hojeStr=new Date().toISOString().slice(0,10);
   var uni=arr(f.unidades).map(function(u){return '<span class="bchip uni">'+esc(u)+'</span>';}).join('');
-  var cat=arr(f.categorias).map(function(c){return '<span class="bchip cat">'+esc(c)+'</span>';}).join('');
+  var cat=arr(f.categorias).map(function(c){var col=catColor(c);return '<span class="bchip" style="background:'+col+'1a;border-color:'+col+'66;color:'+col+';font-weight:600">'+esc(c)+'</span>';}).join('');
   var resp=arr(f.responsaveis);
   var oks=oksOf(f), nok=resp.filter(function(r){return oks[r];}).length;
   var respL=resp.length?('<div class="bresp">👥 '+resp.map(esc).join(', ')+' · OK '+nok+'/'+resp.length+'</div>'):'';
   var prazo=f.prazo?('<div class="bprazo'+(st!=='feito'&&String(f.prazo).slice(0,10)<hojeStr?' atras':'')+'">'+(st!=='feito'&&String(f.prazo).slice(0,10)<hojeStr?'⚠️ ':'🗓 ')+fmtDate(f.prazo)+'</div>'):'';
-  return '<div class="bcard" id="b'+f.id+'" draggable="true" data-id="'+f.id+'" ondragstart="bDragStart(event,'+f.id+')" ondragend="bDragEnd(event)">'
+  var accent=arr(f.categorias).length?catColor(arr(f.categorias)[0]):'#E8D8D8';
+  return '<div class="bcard" id="b'+f.id+'" draggable="true" data-id="'+f.id+'" style="border-left:4px solid '+accent+'" ondragstart="bDragStart(event,'+f.id+')" ondragend="bDragEnd(event)">'
     +'<h4>'+esc(f.titulo||'(sem título)')+'</h4>'
     +((uni||cat)?'<div class="bmeta">'+uni+cat+'</div>':'')
     +respL+prazo
@@ -377,8 +383,11 @@ function renderBoard(box){
   var html='<div class="boardhint">Arraste o cartão entre as colunas (no computador) ou use ◀ ▶ para mover. As mudanças salvam sozinhas.</div>';
   html+='<div class="board">'+STAGES.map(function(s){
     var items=sortF(byStage[s.k]);
+    var isWip=(s.k==='fazendo'&&WIP_LIMIT);
+    var over=(isWip&&items.length>WIP_LIMIT);
+    var cntTxt=isWip?(items.length+'/'+WIP_LIMIT):items.length;
     return '<div class="bcol" data-stage="'+s.k+'" ondragover="bDragOver(event)" ondragleave="bDragLeave(event)" ondrop="bDrop(event,\''+s.k+'\')">'
-      +'<div class="bcolhdr"><span class="dot" style="background:'+s.dot+'"></span>'+s.label+'<span class="cnt">'+items.length+'</span></div>'
+      +'<div class="bcolhdr"><span class="dot" style="background:'+s.dot+'"></span>'+s.label+'<span class="cnt'+(over?' over':'')+'">'+cntTxt+'</span></div>'
       +'<div class="bcolbody">'+(items.length?items.map(bcardHTML).join(''):'<div style="font-size:.74rem;color:var(--muted);text-align:center;padding:14px 6px">—</div>')+'</div>'
       +'</div>';
   }).join('')+'</div>';
@@ -396,10 +405,12 @@ async function setStage(id,stage){
   if(stageOf(f)===stage)return;
   var done=(stage==='feito');
   var em=done?(f.concluido_em||new Date().toISOString()):null;
+  var overWip=false;
+  if(stage==='fazendo'&&WIP_LIMIT){var nf=REG.filter(function(x){return x.id!=id&&x.eh_tarefa&&stageOf(x)==='fazendo';}).length;overWip=(nf+1>WIP_LIMIT);}
   f.etapa=stage;f.concluido=done;f.concluido_em=em;
   if(VIEW==='quadro'){var box=document.getElementById('lista');renderBoard(box);updateBoardCount();var el=document.getElementById('b'+id);if(el){el.classList.add('flash');setTimeout(function(){el.classList.remove('flash');},900);}}
   else render();
-  try{var u=await sb.from('lola_assuntos').update({etapa:stage,concluido:done,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(stage==='feito'?'✓ Feito':(stage==='fazendo'?'▶ Em andamento':'↩ A fazer'));}
+  try{var u=await sb.from('lola_assuntos').update({etapa:stage,concluido:done,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(stage==='feito'?'✓ Feito':(stage==='fazendo'?('▶ Em andamento'+(overWip?' · ⚠️ acima do limite ('+WIP_LIMIT+')':'')):'↩ A fazer'));}
   catch(e){toast('Erro ao mover');}
 }
 function updateBoardCount(){var n=boardFiltered().length;var c=document.getElementById('count');if(c)c.textContent=n+' tarefa(s) no quadro';}
