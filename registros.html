@@ -44,7 +44,7 @@
   .vincbtn{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;font-weight:600;padding:9px 13px;border-radius:11px;border:1.5px solid var(--vinho-muted);background:var(--vinho-pale);color:var(--vinho);cursor:pointer;user-select:none}
   .vincbtn.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
   .vinchint{font-size:.78rem;color:#27508f;background:#eef4ff;border:1px solid #cdddf7;border-radius:9px;padding:8px 11px;margin-top:8px}
-  .viewtoggle{display:flex;gap:7px;margin:0 0 12px}
+  .viewtoggle{display:flex;gap:6px;margin:0 0 10px;max-width:280px}
   .viewtoggle .vt{flex:1;text-align:center;font-size:.84rem;font-weight:600;padding:8px 6px;border-radius:11px;border:1.5px solid var(--vinho-muted);background:#fff;color:var(--vinho-deep);cursor:pointer}
   .viewtoggle .vt.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
   .mapgroup{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
@@ -56,14 +56,14 @@
   /* SECAO LISTA */
   .seclabel{font-family:'Playfair Display',serif;font-style:italic;color:var(--vinho-deep);font-size:1.1rem;margin:6px 0 10px}
   .filters{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:8px}
-  .filters input,.filters select{font-family:inherit;font-size:.83rem;padding:9px 10px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--ink)}
+  .filters input,.filters select{font-family:inherit;font-size:.8rem;padding:7px 8px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--ink)}
   .filters input[type=search]{flex:1;min-width:0}
   .count{font-size:.76rem;color:var(--muted);margin:2px 0 12px}
-  .unibar{display:flex;gap:6px;flex-wrap:nowrap;margin:4px 0 12px}
-  .unibar .ub{flex:1;min-width:0;text-align:center;font-size:.82rem;font-weight:700;padding:9px 4px;border-radius:11px;border:1.5px solid var(--vinho-muted);background:#fff;color:var(--vinho-deep);cursor:pointer;white-space:nowrap}
+  .unibar{display:flex;gap:5px;flex-wrap:nowrap;margin:0;flex:0 0 auto}
+  .unibar .ub{flex:0 0 auto;text-align:center;font-size:.78rem;font-weight:700;padding:7px 11px;border-radius:9px;border:1.5px solid var(--vinho-muted);background:#fff;color:var(--vinho-deep);cursor:pointer;white-space:nowrap}
   .unibar .ub.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
   .feed{display:grid;grid-template-columns:1fr;gap:16px;margin:0}
-  .searchrow{display:flex;gap:7px;align-items:center;flex:1 0 100%}
+  .searchrow{display:flex;gap:7px;align-items:center;flex:1 1 220px;min-width:170px}
   .searchrow input{flex:1;min-width:0}
   .searchrow .btn{flex:0 0 auto;width:auto;min-width:0}
   .mapwrap{display:grid;grid-template-columns:1fr;gap:16px}
@@ -72,10 +72,11 @@
     .mapwrap{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));align-items:start}
   }
   @media(max-width:560px){
-    .filters{display:grid;grid-template-columns:1fr 1fr}
-    .filters .searchrow{grid-column:1/-1;min-width:0}
-    .filters select{width:100%;min-width:0;font-size:.8rem;padding:8px 8px}
-    .filters>.btn{width:100%}
+    .unibar{flex:1 1 100%}
+    .unibar .ub{flex:1}
+    .searchrow{flex:1 1 100%}
+    .filters select{flex:1 1 46%;min-width:0;font-size:.78rem;padding:7px 7px}
+    .filters>.btn{flex:1 1 100%}
   }
   /* CARDS */
   .card{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:13px 14px;display:flex;flex-direction:column;gap:7px}
@@ -112,6 +113,13 @@
   .grouphdr{font-size:.95rem;color:var(--vinho-deep);font-weight:700;border-bottom:2px solid var(--vinho-pale);padding:10px 0 5px;margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline}
   .grouphdr span{font-size:.72rem;color:var(--muted);font-weight:400}
   .empty{text-align:center;color:var(--muted);padding:40px 10px}
+  /* DESDOBRAR INLINE */
+  .ddpanel{border-top:1.5px dashed var(--border);margin-top:4px;padding-top:9px}
+  .ddtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .ddtabs button.ddon{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+  .ddbody textarea,.ddbody input[type=text]{width:100%;font-family:inherit;font-size:.85rem;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;background:var(--cream);color:var(--ink)}
+  .ddbody textarea{min-height:54px;resize:vertical}
+  .ddhint{font-size:.74rem;color:var(--muted);margin-bottom:6px}
   /* MODAL */
   .ov{position:fixed;inset:0;background:rgba(30,10,10,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;overflow-y:auto;padding:20px 12px}
   .ov.show{display:flex}
@@ -137,13 +145,11 @@
 
   <!-- LISTA -->
   <div class="seclabel">Registros já feitos</div>
-  <div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')">📋 Lista</span><span class="vt" data-v="mapa" onclick="setView('mapa')">🗺️ Mapa</span></div>
-
-  <!-- UNIDADE: primeiro corte -->
-  <div class="unibar" id="unibar"></div>
+  <div class="viewtoggle"><span class="vt" data-v="lista" onclick="setView('lista')">📋 Lista</span><span class="vt on" data-v="mapa" onclick="setView('mapa')">🗺️ Mapa</span></div>
 
   <!-- FILTROS -->
   <div class="filters">
+    <div class="unibar" id="unibar"></div>
     <div class="searchrow"><input type="search" id="q" placeholder="🔍 Buscar (título, pessoa, categoria, unidade…)" oninput="render()"><button type="button" class="btn btn-primary btn-sm" onclick="render()">🔍 Buscar</button></div>
     <select id="ftt" onchange="render()"><option value="">Tudo</option><option value="tarefa">Só tarefas</option><option value="aviso">Só avisos</option></select>
     <select id="fcat" onchange="render()"><option value="">Categoria: todas</option></select>
@@ -217,7 +223,7 @@ var UNIDADES=['Lola CCMQ','Lola MAC','Cozinha Central'];
 var CATS=['Cozinha','Salão','Bar','Compras','Entregas','Eventos','RH','Manutenções','Financeiro','Operacional','Processos'];
 var TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Charles','Dudinha','Fernanda','Giulia','Intelecta','Juliana','Luana','Lucas','Mahara','Paola','Tatiane Intelecta'];
 
-var REG=[], EDIT=null, FUNI='', VIEW='lista';
+var REG=[], EDIT=null, FUNI='', VIEW='mapa';
 var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
 var _m={uni:[],cat:[],resp:[],tarefa:false,rel:[]};
 
@@ -303,6 +309,7 @@ function cardHTML(f){
     +(rel?'<div class="rel">🔗 Ligadas: '+rel+'</div>':'')
     +(tags?'<div class="chips">'+tags+'</div>':'')
     +'<div class="cardfoot">'+(f.eh_tarefa?'<button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'↩ Reabrir':'✓ Concluir')+'</button>':'')+'<button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+')">➕ Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')">✏️ Editar</button></div>'
+    +ddPanelHTML(f)
     +'</div>';
 }
 
@@ -425,16 +432,69 @@ function clearQuick(){
   var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
   initQuick();
 }
+function ddPanelHTML(f){
+  return '<div class="ddpanel" id="dd'+f.id+'" style="display:none">'
+    +'<div class="ddtabs">'
+      +'<button class="btn btn-ghost btn-sm" onclick="ddShow('+f.id+',\'obs\')">📝 Observação</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="ddShow('+f.id+',\'tar\')">✅ Criar tarefa</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="ddShow('+f.id+',\'pes\')">👤 Pessoa</button>'
+    +'</div>'
+    +'<div class="ddbody" id="ddb'+f.id+'"></div>'
+  +'</div>';
+}
 function desdobrar(id){
+  var p=document.getElementById('dd'+id);if(!p)return;
+  if(p.style.display!=='none'){p.style.display='none';return;}
+  p.style.display='block';ddShow(id,'obs');
+  p.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function ddShow(id,which){
+  var b=document.getElementById('ddb'+id);if(!b)return;
   var f=REG.find(function(x){return x.id==id;});if(!f)return;
-  _q={uni:arr(f.unidades).slice(),cat:arr(f.categorias).slice(),resp:arr(f.responsaveis).slice(),tarefa:true,parent:f.id,vincular:false,chain:[]};
-  document.getElementById('qTitulo').value='';document.getElementById('qDesc').value='';
-  var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
-  initQuick();
-  openNovo();
-  var _qb=document.getElementById('quickBox');if(_qb)_qb.scrollIntoView({behavior:'smooth',block:'start'});
-  setTimeout(function(){var t=document.getElementById('qTitulo');if(t)t.focus();},250);
-  toast('Nova ficha ligada — preencha o título');
+  var btns=document.querySelectorAll('#dd'+id+' .ddtabs button');
+  Array.prototype.forEach.call(btns,function(bt){bt.classList.remove('ddon');});
+  var idx={obs:0,tar:1,pes:2}[which];if(btns[idx])btns[idx].classList.add('ddon');
+  if(which==='obs'){
+    b.innerHTML='<textarea id="ddo'+id+'" placeholder="Escreva uma observação para esta ficha…"></textarea><div style="text-align:right;margin-top:6px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="ddSaveObs('+id+')">Salvar observação</button></div>';
+    var t=document.getElementById('ddo'+id);if(t)t.focus();
+  }else if(which==='tar'){
+    b.innerHTML='<input type="text" id="ddt'+id+'" placeholder="Título da tarefa ligada a esta ficha…"><div style="text-align:right;margin-top:6px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="ddSaveTar('+id+')">Criar tarefa</button></div>';
+    var t2=document.getElementById('ddt'+id);if(t2)t2.focus();
+  }else{
+    var resp=arr(f.responsaveis);
+    b.innerHTML='<div class="ddhint">Toque para adicionar ou tirar responsável:</div><div class="pick">'+TEAM.map(function(n){var on=resp.indexOf(n)>=0;return '<span class="opt'+(on?' on':'')+'" onclick="ddTogglePes('+id+',\''+esc(n).replace(/'/g,"\\'")+'\')">'+esc(n)+'</span>';}).join('')+'</div>';
+  }
+}
+async function ddSaveObs(id){
+  var t=document.getElementById('ddo'+id);var txt=t?t.value.trim():'';if(!txt){toast('Escreva a observação.');return;}
+  var f=REG.find(function(x){return x.id==id;});if(!f)return;
+  var quem=meuNome()||'equipe';
+  var nova=(f.conteudo?f.conteudo+'\n':'')+'— '+fmtDate(new Date().toISOString())+' ('+quem+'): '+txt;
+  try{var u=await sb.from('lola_assuntos').update({conteudo:nova,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;f.conteudo=nova;toast('✓ Observação adicionada');}
+  catch(e){toast('Erro ao salvar');}
+  render();
+}
+async function ddSaveTar(id){
+  var t=document.getElementById('ddt'+id);var titulo=t?t.value.trim():'';if(!titulo){toast('Dê um título à tarefa.');return;}
+  var f=REG.find(function(x){return x.id==id;});if(!f)return;
+  var p={titulo:titulo,criado_por:meuNome()||null,tipo:'Tarefa',eh_tarefa:true,
+    unidades:arr(f.unidades).slice(),categorias:arr(f.categorias).slice(),pessoas:[],
+    responsaveis:arr(f.responsaveis).slice(),conteudo:null,prazo:null,tags:[],oks:{},concluido:false,
+    relacionados:[id],data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
+  try{
+    var i=await sb.from('lola_assuntos').insert(p).select('id').single();if(i.error)throw i.error;
+    var rel=arr(f.relacionados).slice();if(rel.indexOf(i.data.id)<0){rel.push(i.data.id);await sb.from('lola_assuntos').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',id);}
+    toast('✓ Tarefa criada e ligada');
+  }catch(e){toast('Erro: '+(e.message||e));}
+  await load();
+}
+async function ddTogglePes(id,name){
+  var f=REG.find(function(x){return x.id==id;});if(!f)return;
+  var resp=arr(f.responsaveis).slice();var i=resp.indexOf(name);
+  if(i>=0)resp.splice(i,1);else resp.push(name);
+  try{var u=await sb.from('lola_assuntos').update({responsaveis:resp,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;f.responsaveis=resp;}
+  catch(e){toast('Erro ao atualizar');}
+  ddShow(id,'pes');
 }
 async function quickSave(){
   var titulo=document.getElementById('qTitulo').value.trim();
