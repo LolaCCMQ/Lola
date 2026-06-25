@@ -4,23 +4,32 @@
    item "Lista de Compras" do menu lateral. Reaproveita dbFetch/comprasWrite.
 
    Também (sem tocar no index.html gigante):
-   - diminui ~2pt a fonte do "Compras no Cartão" (CSS escopado abaixo);
+   - diminui a fonte do "Compras no Cartão" (CSS escopado abaixo); o formulário
+     "Nova compra" e a tabela ficam compactos só no desktop;
+   - a Lista de Compras de cima usa o MESMO fundo creme do cartão;
+   - encurta o nome do cartão na tabela (Banrisul/Meliuz/Stone);
    - faz o título do topo (#phModname) mostrar o nome do app clicado mesmo nos
      apps que não estão no mapa NAMES do portal (Atendimento, Avaliações, Eventos). */
 (function () {
   // Esconde o item "Lista de Compras" do menu via CSS !important
   // (o applyMenuPerms do portal reseta display inline, mas nao vence um !important)
-  // + reduz ~2pt a fonte do módulo "Compras no Cartão" pra caber mais coisa na tela.
+  // + reduz a fonte do módulo "Compras no Cartão" pra caber mais coisa na tela.
   try {
     var st = document.createElement('style');
     st.textContent =
       '.nav-item[data-mod="compras"]{display:none !important}' +
-      // ----- Compras no Cartão: fonte ~2pt menor -----
+      // ----- Compras no Cartão: fonte menor (qualquer largura) -----
       '#module-comprascartao h2{font-size:1.3rem !important}' +
       '#module-comprascartao h2 + p{font-size:.72rem !important}' +
       '#module-comprascartao table.cart-table{font-size:.72rem !important}' +
       '#module-comprascartao table.cart-table th{font-size:.58rem !important}' +
-      '#module-comprascartao label{font-size:.6rem !important}';
+      '#module-comprascartao label{font-size:.6rem !important}' +
+      // ----- Só no desktop: form "Nova compra" compacto (~3pt menor) + tabela numa linha só -----
+      '@media(min-width:601px){' +
+      '#module-comprascartao input:not([type=checkbox]),#module-comprascartao select{font-size:13px !important;padding:7px 10px !important}' +
+      '#module-comprascartao table.cart-table td{white-space:nowrap !important;padding:5px 9px !important}' +
+      '#module-comprascartao table.cart-table th{padding:6px 9px !important}' +
+      '}';
     (document.head || document.documentElement).appendChild(st);
   } catch (e) {}
 
@@ -28,6 +37,14 @@
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
+  }
+
+  // Encurta o nome do cartão pra exibição na tabela (o valor salvo no banco continua inteiro)
+  function shortCards(html) {
+    if (typeof html !== 'string') return html;
+    return html.split('Crédito Banrisul').join('Banrisul')
+               .split('Cartão Meliuz').join('Meliuz')
+               .split('Débito Stone').join('Stone');
   }
 
   // Renomeia "Compras no Cartão" -> "Compras" e esconde o item "Lista de Compras"
@@ -64,7 +81,7 @@
     if (!box) {
       box = document.createElement('div');
       box.id = 'cmListaTopo';
-      box.style.cssText = 'flex:0 0 auto;max-height:42vh;overflow-y:auto;background:#fff;border-bottom:3px solid var(--vinho)';
+      box.style.cssText = 'flex:0 0 auto;max-height:42vh;overflow-y:auto;background:var(--cream);border-bottom:1px solid var(--border)';
       panel.insertBefore(box, panel.firstChild);
     }
     var itens = [];
@@ -128,6 +145,14 @@
       setTitleFromNav(mod);
       if (mod === 'comprascartao') renderTopo();
     };
+  } catch (e) {}
+
+  // Embrulha a cartaoLista do portal pra encurtar o nome do cartão na tabela
+  try {
+    if (typeof window.cartaoLista === 'function') {
+      var _cl = window.cartaoLista;
+      window.cartaoLista = function () { return shortCards(_cl.apply(this, arguments)); };
+    }
   } catch (e) {}
 
   // Rede de segurança: se o render do cartão limpar o painel, recoloca a lista no topo
