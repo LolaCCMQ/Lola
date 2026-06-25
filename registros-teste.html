@@ -188,13 +188,13 @@
 
   <!-- LISTA -->
   <div class="seclabel">Registros já feitos</div>
-  <div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')">📋 Lista</span><span class="vt" data-v="mapa" onclick="setView('mapa')">🗺️ Mapa</span><span class="vt" data-v="quadro" onclick="setView('quadro')">🗂️ Quadro</span></div>
+  <div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')">📋 Lista</span><span class="vt" data-v="mapa" onclick="setView('mapa')">🗺️ Mapa</span><span class="vt" data-v="quadro" onclick="setView('quadro')">🗂️ Quadro</span><span class="vt" data-v="atas" onclick="setView('atas')">📓 Atas</span></div>
 
   <!-- UNIDADE: primeiro corte -->
   <div class="unibar" id="unibar"></div>
 
   <!-- FILTROS -->
-  <div class="filters">
+  <div class="filters" id="filtersRow">
     <div class="searchrow"><input type="search" id="q" placeholder="🔍 Buscar (título, pessoa, categoria, unidade…)" oninput="render()"><button type="button" class="btn btn-primary btn-sm" onclick="render()">🔍 Buscar</button></div>
     <select id="ftt" onchange="render()"><option value="">Tudo</option><option value="tarefa">Só tarefas</option><option value="aviso">Só avisos</option></select>
     <select id="fcat" onchange="render()"><option value="">Categoria: todas</option></select>
@@ -210,7 +210,7 @@
     <button class="btn btn-ghost btn-sm" onclick="limpar()">Limpar</button>
   </div>
   <!-- BOTAO + FORM COLAPSAVEL -->
-  <div style="margin:2px 0 14px"><button class="btn btn-primary" id="btnNovo" onclick="toggleNovo()">➕ Adicionar novo registro</button></div>
+  <div style="margin:2px 0 14px" id="novoWrap"><button class="btn btn-primary" id="btnNovo" onclick="toggleNovo()">➕ Adicionar novo registro</button></div>
   <!-- NOVO REGISTRO -->
   <div class="quick" id="quickBox" style="display:none">
     <div class="quickhead"><b>➕ Novo registro</b><span class="dt" id="qData"></span></div>
@@ -277,7 +277,7 @@ var PERSON_PAL=['#A8272A','#2f7fd9','#1f9d55','#8b5cf6','#d6336c','#0ea5a8','#b0
 function personColor(n){ var h=0; for(var i=0;i<String(n).length;i++){h=(h*31+String(n).charCodeAt(i))>>>0;} return PERSON_PAL[h%PERSON_PAL.length]; }
 function inits(n){ n=String(n||'').trim(); if(!n)return '?'; var p=n.split(/\s+/); return (p[0][0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase(); }
 
-var REG=[], EDIT=null, FUNI='', VIEW='lista';
+var REG=[], ATAS=[], EDIT=null, FUNI='', VIEW='lista', _ataEdit=null;
 var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[],desdobrando:false};
 var _m={uni:[],cat:[],resp:[],tarefa:false,rel:[]};
 
@@ -456,6 +456,74 @@ async function setStage(id,stage){
 }
 function updateBoardCount(){var n=boardFiltered().length;var c=document.getElementById('count');if(c)c.textContent=n+' tarefa(s) no quadro';}
 
+/* ====== ATAS DE REUNIÃO (diário) ====== */
+async function loadAtas(){ try{var r=await sb.from('lola_atas').select('*').order('data',{ascending:false}).order('id',{ascending:false});ATAS=r.data||[];}catch(e){ATAS=[];} }
+function ataTitulo(a){ var t=(a.titulo&&a.titulo.trim())||''; if(t)return t; var c=(a.conteudo||'').trim().split('\n')[0]; return c||'(sem texto)'; }
+function renderAtas(box){
+  var c=document.getElementById('count'); if(c)c.textContent=ATAS.length+' ata(s) de reunião';
+  box.innerHTML='<div class="seclabel" style="margin-top:0">📓 Diário de atas</div>'
+    +'<div style="margin:2px 0 14px"><button class="btn btn-primary" id="btnNovaAta" onclick="toggleNovaAta()">➕ Nova ata de reunião</button></div>'
+    +'<div class="quick" id="ataBox" style="display:none">'
+      +'<div class="quickhead"><b id="ataBoxTit">📓 Nova ata</b></div>'
+      +'<div class="lab">Data da reunião</div><input type="date" id="ataData">'
+      +'<div class="lab">Título (opcional)</div><input type="text" id="ataTit" placeholder="Ex.: Reunião de marketing">'
+      +'<div class="lab">O que foi falado</div><textarea id="ataCont" style="min-height:150px" placeholder="Escreva tudo que foi discutido na reunião…"></textarea>'
+      +'<div class="modalfoot" style="margin-top:14px"><button class="btn btn-ghost btn-sm" id="ataDelBtn" onclick="excluirAta()" style="color:#C0392B;display:none">🗑 Excluir</button><button class="btn btn-primary" style="width:auto;margin-left:auto" onclick="salvarAta()">💾 Salvar ata</button></div>'
+    +'</div>'
+    +'<div id="atasLista"></div>';
+  var ad=document.getElementById('ataData'); if(ad&&!ad.value)ad.value=new Date().toISOString().slice(0,10);
+  renderAtasList();
+}
+function renderAtasList(){
+  var box=document.getElementById('atasLista'); if(!box)return;
+  if(!ATAS.length){box.innerHTML='<div class="empty">Nenhuma ata ainda. As fichas do quadro nascem daqui — registre a primeira reunião! 📓</div>';return;}
+  var M=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var html='', curMes='';
+  ATAS.forEach(function(a){
+    var mp=String(a.data||'').slice(0,7).split('-'); var ml=mp.length===2?(M[parseInt(mp[1])-1]+' '+mp[0]):'(sem data)';
+    if(ml!==curMes){curMes=ml;html+='<div class="grouphdr">'+esc(ml)+'</div>';}
+    var cont=a.conteudo?('<div class="conteudo" id="ac'+a.id+'">'+esc(a.conteudo)+'</div><span class="vermais" onclick="var e=document.getElementById(\'ac'+a.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
+    html+='<div class="card" style="margin-bottom:14px">'
+      +'<div class="cardtop"><span class="badge" style="background:#A8272A22;color:#7C1A1C">📓 Ata</span><span class="dt">'+fmtDate(a.data)+'</span></div>'
+      +'<h3>'+esc(ataTitulo(a))+'</h3>'
+      +cont
+      +'<div class="cardfoot"><button class="btn btn-ghost btn-sm" onclick="editarAta('+a.id+')">✏️ Editar</button></div>'
+      +'</div>';
+  });
+  box.innerHTML=html;
+}
+function toggleNovaAta(){
+  var b=document.getElementById('ataBox'); if(!b)return;
+  if(b.style.display==='none'){ _ataEdit=null; document.getElementById('ataBoxTit').textContent='📓 Nova ata'; document.getElementById('ataTit').value=''; document.getElementById('ataCont').value=''; document.getElementById('ataData').value=new Date().toISOString().slice(0,10); document.getElementById('ataDelBtn').style.display='none'; b.style.display=''; document.getElementById('btnNovaAta').textContent='✕ Fechar'; b.scrollIntoView({behavior:'smooth',block:'start'}); var t=document.getElementById('ataCont'); if(t)setTimeout(function(){t.focus();},80); }
+  else { b.style.display='none'; document.getElementById('btnNovaAta').textContent='➕ Nova ata de reunião'; _ataEdit=null; }
+}
+function editarAta(id){
+  var a=ATAS.find(function(x){return x.id==id;}); if(!a)return;
+  _ataEdit=id;
+  var b=document.getElementById('ataBox'); b.style.display=''; document.getElementById('btnNovaAta').textContent='✕ Fechar';
+  document.getElementById('ataBoxTit').textContent='📓 Editar ata';
+  document.getElementById('ataData').value=(a.data||'').slice(0,10);
+  document.getElementById('ataTit').value=a.titulo||'';
+  document.getElementById('ataCont').value=a.conteudo||'';
+  document.getElementById('ataDelBtn').style.display='';
+  b.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function salvarAta(){
+  var cont=document.getElementById('ataCont').value.trim();
+  if(!cont){toast('Escreva o que foi falado.');return;}
+  var p={data:document.getElementById('ataData').value||new Date().toISOString().slice(0,10),titulo:document.getElementById('ataTit').value.trim()||null,conteudo:cont,criado_por:meuNome()||null,updated_at:new Date().toISOString()};
+  try{
+    if(_ataEdit){var u=await sb.from('lola_atas').update(p).eq('id',_ataEdit);if(u.error)throw u.error;}
+    else{var i=await sb.from('lola_atas').insert(p);if(i.error)throw i.error;}
+    _ataEdit=null; await loadAtas(); renderAtas(document.getElementById('lista')); toast('✓ Ata salva');
+  }catch(e){toast('Erro: '+(e.message||e));}
+}
+async function excluirAta(){
+  if(!_ataEdit)return; if(!confirm('Excluir esta ata?'))return;
+  try{var d=await sb.from('lola_atas').delete().eq('id',_ataEdit);if(d.error)throw d.error;_ataEdit=null;await loadAtas();renderAtas(document.getElementById('lista'));toast('Ata excluída');}
+  catch(e){toast('Erro ao excluir');}
+}
+
 function renderUnibar(){
   var labels={'':'Tudo','Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'Central'};
   var opts=[''].concat(UNIDADES);
@@ -465,8 +533,10 @@ function setUni(v){FUNI=v;render();window.scrollTo({top:0,behavior:'smooth'});}
 function setView(v){
   VIEW=v;
   Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);});
-  var qv=(v==='quadro');
+  var qv=(v==='quadro'), at=(v==='atas');
   ['ftt','fsit','grp'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=qv?'none':'';});
+  ['unibar','filtersRow','novoWrap'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=at?'none':'';});
+  if(at){var qb=document.getElementById('quickBox');if(qb)qb.style.display='none';var bt=document.getElementById('btnNovo');if(bt)bt.textContent='➕ Adicionar novo registro';loadAtas().then(function(){render();});return;}
   render();
 }
 function renderMapaView(lst,box){
@@ -502,6 +572,7 @@ function renderMapaView(lst,box){
 function render(){
   renderUnibar();
   var box=document.getElementById('lista');
+  if(VIEW==='atas'){renderAtas(box);return;}
   if(VIEW==='quadro'){renderBoard(box);updateBoardCount();return;}
   var lst=filtered(), grp=document.getElementById('grp').value;
   lst=lst.slice().sort(function(a,b){ if(!!a.concluido!==!!b.concluido) return a.concluido?1:-1; return String(b.data||'').localeCompare(String(a.data||'')); });
