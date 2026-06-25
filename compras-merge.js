@@ -3,6 +3,14 @@
    do módulo "Compras no Cartão", renomeia o menu para "Compras" e esconde o
    item "Lista de Compras" do menu lateral. Reaproveita dbFetch/comprasWrite. */
 (function () {
+  // Esconde o item "Lista de Compras" do menu via CSS !important
+  // (o applyMenuPerms do portal reseta display inline, mas nao vence um !important)
+  try {
+    var st = document.createElement('style');
+    st.textContent = '.nav-item[data-mod="compras"]{display:none !important}';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
