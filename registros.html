@@ -98,16 +98,26 @@
   .resp{font-size:.72rem;color:var(--muted)}
   .oklabel{font-size:.68rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:2px}
   .okrow{display:flex;flex-wrap:wrap;gap:6px}
+  .oklist{display:flex;flex-direction:column;gap:5px}
+  .okitem{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:9px;padding:5px 8px}
+  .okitem.on{background:#f4faf4;border-color:#cfe6cf}
+  .okic{font-size:.9rem;color:#9A7070;width:15px;text-align:center}
+  .okitem.on .okic{color:#2d6a4f}
+  .oknm{flex:1;font-size:.82rem;color:var(--ink)}
+  .okitem.on .oknm{color:#2d6a4f;font-weight:600}
+  .okbtn{font-size:.72rem;font-weight:600;padding:4px 12px;border-radius:8px;border:1.5px solid #2d6a4f;background:#fff;color:#2d6a4f;cursor:pointer;font-family:inherit}
+  .okbtn.okon{background:#2d6a4f;color:#fff;border-color:#2d6a4f}
   .okchip{font-size:.74rem;padding:5px 10px;border-radius:18px;border:1.5px solid #cfe6cf;background:#f4faf4;color:#2d6a4f;cursor:pointer;font-weight:600;user-select:none}
   .okchip.on{background:#2d6a4f;border-color:#2d6a4f;color:#fff}
   .okchip .x{margin-left:4px;font-weight:700}
   .okone{font-size:.8rem;color:#2d6a4f;font-weight:600;display:inline-flex;align-items:center;gap:7px;cursor:pointer}
-  .conteudo{font-size:.84rem;color:#5a4444;white-space:pre-wrap;max-height:4.4em;overflow:hidden}
+  .conteudo{font-size:.84rem;color:#5a4444;white-space:pre-wrap}
   .conteudo.open{max-height:none}
   .vermais{font-size:.72rem;color:var(--vinho);cursor:pointer;font-weight:600}
   .rel{font-size:.74rem;color:var(--muted)}
   .rel a{color:var(--vinho);cursor:pointer;font-weight:600}
-  .cardfoot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+  .cardfoot{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:5px}
+  .cardfoot .btn{padding:5px 9px;font-size:.74rem;min-height:0}
   .btnconcluir{background:#1f7a4d;color:#fff;border:1.5px solid #1f7a4d}
   .btnconcluir.reaberto{background:var(--vinho-pale);color:var(--vinho);border:1.5px solid var(--vinho-muted)}
   .grouphdr{font-size:.95rem;color:var(--vinho-deep);font-weight:700;border-bottom:2px solid var(--vinho-pale);padding:10px 0 5px;margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline}
@@ -286,8 +296,8 @@ function okRow(f){
     return '<div><label class="okone"><input type="checkbox" class="chk" '+(f.concluido?'checked':'')+' onchange="toggleDone('+f.id+',this.checked)"> concluída</label></div>';
   }
   var oks=oksOf(f), n=resp.filter(function(r){return oks[r];}).length;
-  var chips=resp.map(function(r){var on=!!oks[r];return '<span class="okchip'+(on?' on':'')+'" onclick="toggleOk('+f.id+',\''+esc(r).replace(/'/g,"\\'")+'\')">'+(on?'✓ ':'○ ')+esc(r)+'</span>';}).join('');
-  return '<div class="oklabel">OK dos responsáveis ('+n+'/'+resp.length+')</div><div class="okrow">'+chips+'</div>';
+  var rows=resp.map(function(r){var on=!!oks[r];var rr=esc(r).replace(/'/g,"\\'");return '<div class="okitem'+(on?' on':'')+'"><span class="okic">'+(on?'✓':'○')+'</span><span class="oknm">'+esc(r)+'</span><button class="okbtn'+(on?' okon':'')+'" onclick="toggleOk('+f.id+',\''+rr+'\')">'+(on?'deu OK':'Dar OK')+'</button></div>';}).join('');
+  return '<div class="oklabel">OK dos responsáveis ('+n+'/'+resp.length+')</div><div class="oklist">'+rows+'</div>';
 }
 
 function cardHTML(f){
@@ -297,7 +307,7 @@ function cardHTML(f){
   var cat=arr(f.categorias).map(function(c){return '<span class="chip cat" onclick="setF(\'fcat\',\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</span>';}).join('');
   var tags=arr(f.tags).map(function(t){return '<span class="chip tag">#'+esc(t)+'</span>';}).join('');
   var rel=arr(f.relacionados).map(function(id){var r=REG.find(function(x){return x.id==id;});return r?('<a onclick="focar('+r.id+')">'+esc(r.titulo)+'</a>'):'';}).filter(Boolean).join(' · ');
-  var cont=f.conteudo?('<div class="conteudo" id="c'+f.id+'">'+esc(f.conteudo)+'</div><span class="vermais" onclick="var e=document.getElementById(\'c'+f.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
+  var cont=f.conteudo?('<div class="conteudo">'+esc(f.conteudo)+'</div>'):'';
   var bcol=f.eh_tarefa?'#1f6feb':'#6b5d5d', blab=f.eh_tarefa?'✅ Tarefa':'📢 Aviso';
   return '<div class="card'+(f.concluido?' done':'')+'" id="f'+f.id+'">'
     +'<div class="cardtop"><span class="badge" style="background:'+bcol+'22;color:'+bcol+'">'+blab+'</span><span class="dt">'+fmtDate(f.data)+'</span></div>'
@@ -308,7 +318,7 @@ function cardHTML(f){
     +okRow(f)
     +(rel?'<div class="rel">🔗 Ligadas: '+rel+'</div>':'')
     +(tags?'<div class="chips">'+tags+'</div>':'')
-    +'<div class="cardfoot">'+(f.eh_tarefa?'<button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'↩ Reabrir':'✓ Concluir')+'</button>':'')+'<button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+')">➕ Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')">✏️ Editar</button></div>'
+    +'<div class="cardfoot">'+(f.eh_tarefa?'<button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'↩ Reabrir':'✓ Concluir')+'</button>':'')+'<button class="btn btn-ghost btn-sm" onclick="ddOpen('+f.id+',\'obs\')">📝 Obs</button><button class="btn btn-ghost btn-sm" onclick="ddOpen('+f.id+',\'tar\')">📋 Tarefa</button><button class="btn btn-ghost btn-sm" onclick="ddOpen('+f.id+',\'pes\')">👤 Pessoa</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')">✏️ Editar</button></div>'
     +ddPanelHTML(f)
     +'</div>';
 }
@@ -331,23 +341,18 @@ function renderMapaView(lst,box){
   var clusters=Object.keys(g).map(function(k){return g[k];});
   var multi=clusters.filter(function(c){return c.length>1;});
   var solo=clusters.filter(function(c){return c.length===1;}).map(function(c){return c[0];});
-  multi.sort(function(a,b){return b.length-a.length;});
   function sortMembers(arr2){return arr2.slice().sort(function(a,b){if(!!a.concluido!==!!b.concluido)return a.concluido?1:-1;return String(b.data||'').localeCompare(String(a.data||''));});}
+  function subjOf(m){return m.slice().sort(function(a,b){return (a.id||0)-(b.id||0);})[0];}
+  multi.sort(function(a,b){return b.length-a.length;});
   var html='<div class="mapwrap">';
   multi.forEach(function(members){
     members=sortMembers(members);
-    var center=members.find(function(m){return !m.eh_tarefa;});
-    if(center){
-      var branches=members.filter(function(m){return m.id!==center.id;});
-      html+='<div class="mapgroup"><div style="text-align:center"><span class="mtopic" onclick="editar('+center.id+')">💡 '+esc(center.titulo||'(sem título)')+'</span></div>';
-      if(center.conteudo)html+='<div class="mvl"></div><div class="mnote">'+esc(center.conteudo)+'</div>';
-      html+='<div class="mvl"></div><div class="mbranch">'+branches.map(cardHTML).join('')+'</div></div>';
-    } else {
-      html+='<div class="mapgroup"><div class="mgrouptag">🔗 Assunto vinculado · '+members.length+' fichas</div><div class="mbranch">'+members.map(cardHTML).join('')+'</div></div>';
-    }
+    var subj=subjOf(members);
+    var ordered=[subj].concat(members.filter(function(m){return m.id!==subj.id;}));
+    html+='<div class="mapgroup"><div style="text-align:center"><span class="mtopic" onclick="editar('+subj.id+')">💡 '+esc(subj.titulo||'(sem título)')+'</span></div><div class="mgrouptag" style="text-align:center;margin:5px 0 0">assunto geral · '+members.length+' fichas</div><div class="mvl"></div><div class="mbranch">'+ordered.map(cardHTML).join('')+'</div></div>';
   });
   html+='</div>';
-  if(solo.length){html+='<div class="grouphdr">Sem vínculo<span>'+solo.length+'</span></div><div class="feed">'+sortMembers(solo).map(cardHTML).join('')+'</div>';}
+  if(solo.length){html+='<div class="grouphdr">Avulsas<span>'+solo.length+'</span></div><div class="feed">'+sortMembers(solo).map(cardHTML).join('')+'</div>';}
   box.innerHTML=html;
 }
 function render(){
@@ -432,28 +437,16 @@ function clearQuick(){
   var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
   initQuick();
 }
-function ddPanelHTML(f){
-  return '<div class="ddpanel" id="dd'+f.id+'" style="display:none">'
-    +'<div class="ddtabs">'
-      +'<button class="btn btn-ghost btn-sm" onclick="ddShow('+f.id+',\'obs\')">📝 Observação</button>'
-      +'<button class="btn btn-ghost btn-sm" onclick="ddShow('+f.id+',\'tar\')">✅ Criar tarefa</button>'
-      +'<button class="btn btn-ghost btn-sm" onclick="ddShow('+f.id+',\'pes\')">👤 Pessoa</button>'
-    +'</div>'
-    +'<div class="ddbody" id="ddb'+f.id+'"></div>'
-  +'</div>';
-}
-function desdobrar(id){
+function ddPanelHTML(f){return '<div class="ddpanel" id="dd'+f.id+'" style="display:none"><div class="ddbody" id="ddb'+f.id+'"></div></div>';}
+function ddOpen(id,which){
   var p=document.getElementById('dd'+id);if(!p)return;
-  if(p.style.display!=='none'){p.style.display='none';return;}
-  p.style.display='block';ddShow(id,'obs');
+  if(p.style.display!=='none'&&p.getAttribute('data-w')===which){p.style.display='none';return;}
+  p.style.display='block';p.setAttribute('data-w',which);ddShow(id,which);
   p.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function ddShow(id,which){
   var b=document.getElementById('ddb'+id);if(!b)return;
   var f=REG.find(function(x){return x.id==id;});if(!f)return;
-  var btns=document.querySelectorAll('#dd'+id+' .ddtabs button');
-  Array.prototype.forEach.call(btns,function(bt){bt.classList.remove('ddon');});
-  var idx={obs:0,tar:1,pes:2}[which];if(btns[idx])btns[idx].classList.add('ddon');
   if(which==='obs'){
     b.innerHTML='<textarea id="ddo'+id+'" placeholder="Escreva uma observação para esta ficha…"></textarea><div style="text-align:right;margin-top:6px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="ddSaveObs('+id+')">Salvar observação</button></div>';
     var t=document.getElementById('ddo'+id);if(t)t.focus();
