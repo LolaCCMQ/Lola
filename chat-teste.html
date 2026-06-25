@@ -1,0 +1,206 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chat da Equipe · Lola</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--vinho:#A8272A;--vinho-deep:#7C1A1C;--vinho-pale:#F9ECEC;--cream:#FDFAF7;--border:#E8D8D8;--ink:#1E0A0A;--muted:#9A7070;--green:#2D6A4F}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);display:flex;flex-direction:column;height:100vh}
+header{background:#fff;border-bottom:3px solid var(--vinho);padding:12px 16px;flex:0 0 auto}
+header h1{font-family:'Playfair Display',serif;font-style:italic;color:var(--vinho-deep);font-size:1.3rem;line-height:1}
+header .sub{color:var(--muted);font-size:.72rem;margin-top:3px}
+#chatnav{flex:0 0 auto;display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);background:#fff}
+#chatnav .cn{flex:1;background:var(--vinho-pale);border:1px solid var(--border);border-radius:10px;padding:8px;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--vinho-deep);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+#chatnav .cn.active{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+#chatnav .cnt{font-size:.7rem;background:#fff;color:var(--vinho);border-radius:10px;padding:0 6px;font-weight:800;min-width:18px;text-align:center}
+#chatnav .cn.active .cnt{background:rgba(255,255,255,.25);color:#fff}
+#chatnav .reddot{width:8px;height:8px;border-radius:50%;background:#fff;border:1px solid var(--vinho);display:none}
+#dmhead{flex:0 0 auto;display:none;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);background:#fff}
+#dmhead button{background:none;border:none;color:var(--vinho);font-weight:700;cursor:pointer;font-size:.85rem;padding:0}
+#dmhead .av{width:30px;height:30px;border-radius:50%;background:var(--vinho);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.74rem;flex-shrink:0}
+#dmhead .nm{font-weight:700;color:var(--vinho-deep);font-size:.95rem}
+#feed{flex:1 1 auto;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:9px}
+.wrapf{max-width:820px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:9px}
+.daysep{align-self:center;font-size:.66rem;font-weight:700;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:20px;padding:3px 12px;margin:4px 0}
+.msg{max-width:78%;padding:8px 12px;border-radius:14px;background:#fff;border:1px solid var(--border);align-self:flex-start}
+.msg.me{align-self:flex-end;background:var(--vinho);color:#fff;border-color:var(--vinho)}
+.msg .who{font-size:.7rem;font-weight:700;color:var(--vinho-deep);margin-bottom:2px}
+.msg.me .who{display:none}
+.msg .txt{font-size:.9rem;line-height:1.35;white-space:pre-wrap;word-break:break-word}
+.msg .tm{font-size:.62rem;color:var(--muted);margin-top:3px;text-align:right}
+.msg.me .tm{color:#f3d9d9}
+.empty{align-self:center;color:var(--muted);font-size:.85rem;margin-top:30px;text-align:center;line-height:1.5}
+.onlist{max-width:820px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.onrow{display:flex;align-items:center;gap:11px;padding:10px 12px;background:#fff;border:1px solid var(--border);border-radius:12px;cursor:pointer}
+.onrow:hover{border-color:var(--vinho)}
+.onrow .av{width:36px;height:36px;border-radius:50%;background:var(--vinho);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;flex-shrink:0;position:relative}
+.onrow .av .gdot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid #fff}
+.onrow .nm{flex:1;font-weight:600;font-size:.92rem}
+.onrow .ub{background:var(--vinho);color:#fff;border-radius:10px;font-size:.68rem;font-weight:800;padding:2px 8px}
+.onrow .go{color:var(--muted);font-size:1.1rem}
+.composer{flex:0 0 auto;display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:#fff}
+.composer.hide{display:none}
+.composer .cwrap{max-width:820px;width:100%;margin:0 auto;display:flex;gap:8px}
+.composer textarea{flex:1;resize:none;font-family:inherit;font-size:.92rem;padding:10px 12px;border:1.5px solid var(--border);border-radius:12px;background:var(--cream);color:var(--ink);max-height:120px;height:44px}
+.composer button{flex:0 0 auto;background:var(--vinho);color:#fff;border:none;border-radius:12px;padding:0 18px;font-weight:700;font-size:.92rem;cursor:pointer}
+.composer button:active{background:var(--vinho-deep)}
+</style></head>
+<body>
+<header><h1>💬 Chat da Equipe</h1><div class="sub">Mural da equipe Lola — todo mundo vê as mensagens</div></header>
+<nav id="chatnav">
+  <button id="tabEquipe" class="cn active" onclick="setView('equipe')">💬 Equipe</button>
+  <button id="tabOnline" class="cn" onclick="setView('online')">🟢 Online <span class="cnt" id="onCount">0</span> <span class="reddot" id="onRed"></span></button>
+</nav>
+<div id="dmhead"><button onclick="setView('online')">← Voltar</button><span class="av" id="dmAv"></span><span class="nm" id="dmName"></span></div>
+<div id="feed"><div class="empty">Carregando…</div></div>
+<div class="composer" id="composer"><div class="cwrap"><textarea id="inp" rows="1" placeholder="Escreva uma mensagem para a equipe…"></textarea><button onclick="enviar()">Enviar</button></div></div>
+<script>
+var SB_URL="https://mvjbsdpfjhywhaonvpfl.supabase.co";
+var SB_KEY="sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy";
+var sb=window.supabase.createClient(SB_URL,SB_KEY);
+function meuNome(){try{var p=window.parent;if(p&&p!==window&&p.__portalUser&&p.__portalUser.name)return p.__portalUser.name;}catch(e){}try{var s=JSON.parse(localStorage.getItem('lola_session')||'null');if(s&&s.name)return s.name;}catch(e){}return 'Equipe';}
+var EU=meuNome();
+if(new URLSearchParams(location.search).get("embed")==="1"){var _hd=document.querySelector("header");if(_hd)_hd.style.display="none";}
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function pad(n){return String(n).padStart(2,'0');}
+function hhmm(d){return pad(d.getHours())+':'+pad(d.getMinutes());}
+function ini(n){n=String(n||'?').trim();var p=n.split(/\s+/);return ((p[0]||'')[0]||'?').toUpperCase()+((p[1]||'')[0]||'').toUpperCase();}
+function diaLabel(d){var now=new Date();var y=new Date(now);y.setDate(now.getDate()-1);if(d.toDateString()===now.toDateString())return 'Hoje';if(d.toDateString()===y.toDateString())return 'Ontem';return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();}
+
+var view='equipe', dmWith=null;
+var MSGS=[], ONLINE=[], UNREAD={}, DM=[];
+
+function marcarVisto(){try{localStorage.setItem('lola_chat_seen_'+EU.toLowerCase(), new Date().toISOString());}catch(e){}}
+
+/* ===== Presença ===== */
+async function heartbeat(){ try{ await sb.from('lola_presenca').upsert({nome:EU,last_seen:new Date().toISOString()},{onConflict:'nome'}); }catch(e){} }
+async function loadOnline(){
+  try{
+    var cut=new Date(Date.now()-120000).toISOString();
+    var r=await sb.from('lola_presenca').select('nome,last_seen').gte('last_seen',cut).order('nome');
+    ONLINE=(r.data||[]).filter(function(p){return p.nome && String(p.nome).toLowerCase()!==EU.toLowerCase();});
+    var ur=await sb.from('lola_dms').select('de').eq('para',EU).eq('lida',false);
+    var c={}; (ur.data||[]).forEach(function(d){var k=String(d.de||'').toLowerCase();c[k]=(c[k]||0)+1;});
+    UNREAD=c;
+  }catch(e){ ONLINE=[]; UNREAD={}; }
+  atualizarBadge();
+}
+function totalUnread(){var t=0;for(var k in UNREAD)t+=UNREAD[k];return t;}
+function atualizarBadge(){
+  var oc=document.getElementById('onCount'); if(oc)oc.textContent=ONLINE.length;
+  var rd=document.getElementById('onRed'); if(rd)rd.style.display=totalUnread()>0?'inline-block':'none';
+}
+
+/* ===== Mural da equipe ===== */
+async function carregar(scroll){
+  try{
+    var r=await sb.from('lola_chat_msgs').select('*').order('created_at',{ascending:true}).limit(400);
+    if(r.error)throw r.error;
+    MSGS=r.data||[];
+    if(view==='equipe'){render(scroll); if(document.hasFocus())marcarVisto();}
+  }catch(e){}
+}
+
+/* ===== DM 1:1 ===== */
+async function loadDM(scroll){
+  if(!dmWith)return;
+  try{
+    var r1=await sb.from('lola_dms').select('*').eq('de',EU).eq('para',dmWith);
+    var r2=await sb.from('lola_dms').select('*').eq('de',dmWith).eq('para',EU);
+    DM=[].concat(r1.data||[],r2.data||[]).sort(function(a,b){return String(a.created_at).localeCompare(String(b.created_at));});
+    if(view==='dm')render(scroll);
+    var nrd=(r2.data||[]).some(function(m){return !m.lida;});
+    if(nrd){ await sb.from('lola_dms').update({lida:true}).eq('para',EU).eq('de',dmWith).eq('lida',false); }
+  }catch(e){}
+}
+
+/* ===== Render ===== */
+function msgsHTML(arr, autorKey){
+  var html='<div class="wrapf">', lastDay='';
+  arr.forEach(function(m){
+    var d=new Date(m.created_at); var dl=diaLabel(d);
+    if(dl!==lastDay){html+='<div class="daysep">'+esc(dl)+'</div>';lastDay=dl;}
+    var who=m[autorKey]; var me=(String(who||'').toLowerCase()===EU.toLowerCase());
+    html+='<div class="msg'+(me?' me':'')+'"><div class="who">'+esc(who||'?')+'</div><div class="txt">'+esc(m.texto)+'</div><div class="tm">'+hhmm(d)+'</div></div>';
+  });
+  return html+'</div>';
+}
+function render(scroll){
+  var feed=document.getElementById('feed');
+  var wasBottom=feed.scrollHeight-feed.scrollTop-feed.clientHeight<90;
+  if(view==='online'){
+    if(!ONLINE.length){feed.innerHTML='<div class="empty">Ninguém mais online agora.<br>Quem abrir o portal aparece aqui. 👋</div>';return;}
+    var h='<div class="onlist">';
+    ONLINE.forEach(function(p){
+      var u=UNREAD[String(p.nome).toLowerCase()]||0;
+      h+='<div class="onrow" onclick="abrirDM(\''+esc(String(p.nome).replace(/\\/g,"\\\\").replace(/'/g,"\\'"))+'\')">'
+        +'<span class="av">'+esc(ini(p.nome))+'<span class="gdot"></span></span>'
+        +'<span class="nm">'+esc(p.nome)+'</span>'
+        +(u>0?'<span class="ub">'+u+'</span>':'')
+        +'<span class="go">›</span></div>';
+    });
+    feed.innerHTML=h+'</div>';
+    return;
+  }
+  if(view==='dm'){
+    if(!DM.length){feed.innerHTML='<div class="empty">Nenhuma mensagem com '+esc(dmWith)+' ainda.<br>Mande um oi! 👋</div>';}
+    else feed.innerHTML=msgsHTML(DM,'de');
+    if(scroll||wasBottom)feed.scrollTop=feed.scrollHeight;
+    return;
+  }
+  /* equipe */
+  if(!MSGS.length){feed.innerHTML='<div class="empty">Nenhuma mensagem ainda.<br>Seja a primeira a escrever pra equipe! 👋</div>';return;}
+  feed.innerHTML=msgsHTML(MSGS,'autor');
+  if(scroll||wasBottom)feed.scrollTop=feed.scrollHeight;
+}
+
+/* ===== Navegação ===== */
+function setView(v){
+  view=v;
+  document.getElementById('tabEquipe').classList.toggle('active',v==='equipe');
+  document.getElementById('tabOnline').classList.toggle('active',v==='online'||v==='dm');
+  document.getElementById('dmhead').style.display=(v==='dm')?'flex':'none';
+  document.getElementById('composer').classList.toggle('hide',v==='online');
+  var inp=document.getElementById('inp');
+  if(v==='dm'){inp.placeholder='Mensagem para '+dmWith+'…';}
+  else if(v==='equipe'){inp.placeholder='Escreva uma mensagem para a equipe…';dmWith=null;}
+  if(v==='online'){loadOnline().then(function(){render();});}
+  else if(v==='dm'){render(true);loadDM(true);}
+  else {render(true);carregar(true);}
+}
+function abrirDM(nome){
+  dmWith=nome;
+  document.getElementById('dmName').textContent=nome;
+  document.getElementById('dmAv').textContent=ini(nome);
+  DM=[];
+  setView('dm');
+}
+
+/* ===== Enviar ===== */
+async function enviar(){
+  var inp=document.getElementById('inp'); var t=(inp.value||'').trim(); if(!t)return;
+  inp.value=''; inp.style.height='44px';
+  try{
+    if(view==='dm'&&dmWith){ var r=await sb.from('lola_dms').insert({de:EU,para:dmWith,texto:t}); if(r.error)throw r.error; await loadDM(true); }
+    else { var r2=await sb.from('lola_chat_msgs').insert({autor:EU,texto:t}); if(r2.error)throw r2.error; await carregar(true); }
+  }catch(e){ inp.value=t; alert('Erro ao enviar. Tente de novo.'); }
+}
+var inp=document.getElementById('inp');
+inp.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar();} });
+inp.addEventListener('input',function(){ this.style.height='44px'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });
+
+/* ===== Boot + loops ===== */
+heartbeat(); loadOnline();
+carregar(true);
+setInterval(heartbeat,30000);
+setInterval(function(){
+  if(view==='equipe')carregar(false);
+  else if(view==='dm')loadDM(false);
+  else if(view==='online')loadOnline().then(function(){render();});
+  if(view!=='online')loadOnline();
+},5000);
+window.addEventListener('focus',marcarVisto);
+</script>
+</body></html>
