@@ -64,7 +64,7 @@
   .bcolbody{padding:10px;display:flex;flex-direction:column;gap:9px;min-height:60px}
   .bcol.dragover{border-color:var(--vinho)}
   .bcol.dragover .bcolbody{background:var(--vinho-pale);border-radius:0 0 var(--radius) var(--radius)}
-  .bcard{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 11px;display:flex;flex-direction:column;gap:6px;cursor:grab}
+  .bcard{background:#fff;border:2px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
   .bcard:active{cursor:grabbing}
   .bcard.dragging{opacity:.4}
   .bcard.flash{border-color:var(--vinho);box-shadow:0 0 0 3px var(--vinho-pale)}
@@ -80,6 +80,13 @@
   .bmove{font-size:.85rem;font-weight:700;width:32px;height:32px;border-radius:8px;border:1.5px solid var(--vinho-muted);background:var(--vinho-pale);color:var(--vinho);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
   .bmove:disabled{opacity:.3;cursor:default}
   .bedit{margin-left:auto;font-size:.74rem;min-height:0;padding:6px 10px}
+  .bdesc{font-size:.8rem;color:#5a4444;white-space:pre-wrap;line-height:1.4}
+  .bpeople{display:flex;flex-wrap:wrap;gap:4px}
+  .bperson{display:inline-flex;align-items:center;gap:4px;font-size:.64rem;font-weight:600;color:#4a3a3a;background:#faf6f6;border:1px solid var(--border);border-radius:20px;padding:1px 8px 1px 2px}
+  .bperson .bav{width:16px;height:16px;border-radius:50%;color:#fff;font-size:.52rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .bdone{font-size:.72rem;font-weight:600;padding:5px 11px;border-radius:8px;border:1.5px solid #cfe6cf;background:#f4faf4;color:#2d6a4f;cursor:pointer}
+  .bdone:active{background:#2d6a4f;color:#fff}
+  .bedit2{margin-left:auto;font-size:.82rem;padding:5px 10px;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--muted);cursor:pointer}
   .boardhint{font-size:.74rem;color:var(--muted);margin:0 0 10px}
   /* SECAO LISTA */
   .seclabel{font-family:'Playfair Display',serif;font-style:italic;color:var(--vinho-deep);font-size:1.1rem;margin:6px 0 10px}
@@ -247,9 +254,12 @@ var TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Charles','Dudinha','Fernan
 
 var STAGES=[{k:'afazer',label:'A fazer',dot:'#c08a2d'},{k:'fazendo',label:'Fazendo',dot:'#1f6feb'},{k:'feito',label:'Feito',dot:'#1f7a4d'}];
 var WIP_LIMIT=5; // limite suave de cartões em "Fazendo" (só avisa, não bloqueia)
-var CAT_COLORS={'Cozinha':'#d9772e','Salão':'#2f9e7f','Bar':'#8b5cf6','Compras':'#2f7fd9','Entregas':'#0ea5a8','Eventos':'#d6336c','RH':'#c08a2d','Manutenções':'#6b7280','Financeiro':'#1f7a4d','Operacional':'#b4531f','Processos':'#5b6bd6'};
+var CAT_COLORS={'Cozinha':'#e23b3b','Salão':'#d98324','Bar':'#8b5cf6','Compras':'#2f7fd9','Entregas':'#0ea5a8','Eventos':'#d6336c','RH':'#b07d2b','Manutenções':'#6b7280','Financeiro':'#0f766e','Operacional':'#1f9d55','Processos':'#5b6bd6'};
 var CAT_FALLBACK=['#7c3aed','#0ea5a8','#d6336c','#2f7fd9','#b4531f','#1f7a4d','#9333ea','#0891b2'];
 function catColor(c){ if(CAT_COLORS[c]) return CAT_COLORS[c]; var h=0; for(var i=0;i<String(c).length;i++){h=(h*31+String(c).charCodeAt(i))>>>0;} return CAT_FALLBACK[h%CAT_FALLBACK.length]; }
+var PERSON_PAL=['#A8272A','#2f7fd9','#1f9d55','#8b5cf6','#d6336c','#0ea5a8','#b07d2b','#6b7280','#0f766e','#b4531f'];
+function personColor(n){ var h=0; for(var i=0;i<String(n).length;i++){h=(h*31+String(n).charCodeAt(i))>>>0;} return PERSON_PAL[h%PERSON_PAL.length]; }
+function inits(n){ n=String(n||'').trim(); if(!n)return '?'; var p=n.split(/\s+/); return (p[0][0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase(); }
 
 var REG=[], EDIT=null, FUNI='', VIEW='lista';
 var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
@@ -340,14 +350,14 @@ function cardHTML(f){
     +'</div>';
 }
 
-/* ====== QUADRO / KANBAN ====== */
-function stageOf(f){ if(f.concluido) return 'feito'; return (f.etapa==='fazendo')?'fazendo':'afazer'; }
+/* ====== QUADRO POR CATEGORIA ====== */
 function boardFiltered(){
   var q=norm(document.getElementById('q').value),
       ct=document.getElementById('fcat').value,
       rs=(document.getElementById('fresp')||{}).value||'';
   return REG.filter(function(f){
     if(!f.eh_tarefa)return false;
+    if(f.concluido)return false;            // só as que ainda não foram feitas
     if(FUNI && arr(f.unidades).indexOf(FUNI)<0)return false;
     if(rs && arr(f.responsaveis).indexOf(rs)<0)return false;
     if(ct && arr(f.categorias).indexOf(ct)<0)return false;
@@ -355,65 +365,48 @@ function boardFiltered(){
     return true;
   });
 }
-function bcardHTML(f){
-  var st=stageOf(f), idx=STAGES.map(function(s){return s.k;}).indexOf(st);
+function bPeople(f){
+  var resp=arr(f.responsaveis); if(!resp.length)return '';
+  return '<div class="bpeople">'+resp.map(function(r){var col=personColor(r);return '<span class="bperson"><span class="bav" style="background:'+col+'">'+esc(inits(r))+'</span>'+esc(r)+'</span>';}).join('')+'</div>';
+}
+function bcardHTML(f,col){
   var hojeStr=new Date().toISOString().slice(0,10);
   var uni=arr(f.unidades).map(function(u){return '<span class="bchip uni">'+esc(u)+'</span>';}).join('');
-  var cat=arr(f.categorias).map(function(c){var col=catColor(c);return '<span class="bchip" style="background:'+col+'1a;border-color:'+col+'66;color:'+col+';font-weight:600">'+esc(c)+'</span>';}).join('');
-  var resp=arr(f.responsaveis);
-  var oks=oksOf(f), nok=resp.filter(function(r){return oks[r];}).length;
-  var respL=resp.length?('<div class="bresp">👥 '+resp.map(esc).join(', ')+' · OK '+nok+'/'+resp.length+'</div>'):'';
-  var prazo=f.prazo?('<div class="bprazo'+(st!=='feito'&&String(f.prazo).slice(0,10)<hojeStr?' atras':'')+'">'+(st!=='feito'&&String(f.prazo).slice(0,10)<hojeStr?'⚠️ ':'🗓 ')+fmtDate(f.prazo)+'</div>'):'';
-  var accent=arr(f.categorias).length?catColor(arr(f.categorias)[0]):'#E8D8D8';
-  return '<div class="bcard" id="b'+f.id+'" draggable="true" data-id="'+f.id+'" style="border-left:4px solid '+accent+'" ondragstart="bDragStart(event,'+f.id+')" ondragend="bDragEnd(event)">'
+  var atras=f.prazo&&String(f.prazo).slice(0,10)<hojeStr;
+  var prazo=f.prazo?('<div class="bprazo'+(atras?' atras':'')+'">'+(atras?'⚠️ Atrasado: ':'🗓 Prazo: ')+fmtDate(f.prazo)+'</div>'):'';
+  var desc=f.conteudo?('<div class="bdesc">'+esc(f.conteudo)+'</div>'):'';
+  return '<div class="bcard" style="border-color:'+col+'">'
     +'<h4>'+esc(f.titulo||'(sem título)')+'</h4>'
-    +((uni||cat)?'<div class="bmeta">'+uni+cat+'</div>':'')
-    +respL+prazo
+    +desc
+    +(uni?'<div class="bmeta">'+uni+'</div>':'')
+    +bPeople(f)
+    +prazo
     +'<div class="bcardfoot">'
-    +'<button class="bmove" onclick="moveStage('+f.id+',-1)" '+(idx<=0?'disabled':'')+' title="Voltar">◀</button>'
-    +'<button class="bmove" onclick="moveStage('+f.id+',1)" '+(idx>=STAGES.length-1?'disabled':'')+' title="Avançar">▶</button>'
-    +'<button class="btn btn-ghost btn-sm bedit" onclick="editar('+f.id+')">✏️ Editar</button>'
+    +'<button class="bdone" onclick="toggleDone('+f.id+',true)" title="Marcar como feita">✓ Feito</button>'
+    +'<button class="bedit2" onclick="editar('+f.id+')" title="Editar">✏️</button>'
     +'</div></div>';
 }
 function renderBoard(box){
   var lst=boardFiltered();
-  var byStage={afazer:[],fazendo:[],feito:[]};
-  lst.forEach(function(f){byStage[stageOf(f)].push(f);});
-  function sortF(a){return a.slice().sort(function(x,y){return String(y.data||'').localeCompare(String(x.data||''));});}
-  var html='<div class="boardhint">Arraste o cartão entre as colunas (no computador) ou use ◀ ▶ para mover. As mudanças salvam sozinhas.</div>';
-  html+='<div class="board">'+STAGES.map(function(s){
-    var items=sortF(byStage[s.k]);
-    var isWip=(s.k==='fazendo'&&WIP_LIMIT);
-    var over=(isWip&&items.length>WIP_LIMIT);
-    var cntTxt=isWip?(items.length+'/'+WIP_LIMIT):items.length;
-    return '<div class="bcol" data-stage="'+s.k+'" ondragover="bDragOver(event)" ondragleave="bDragLeave(event)" ondrop="bDrop(event,\''+s.k+'\')">'
-      +'<div class="bcolhdr"><span class="dot" style="background:'+s.dot+'"></span>'+s.label+'<span class="cnt'+(over?' over':'')+'">'+cntTxt+'</span></div>'
-      +'<div class="bcolbody">'+(items.length?items.map(bcardHTML).join(''):'<div style="font-size:.74rem;color:var(--muted);text-align:center;padding:14px 6px">—</div>')+'</div>'
+  var groups={}, order=[];
+  lst.forEach(function(f){
+    var cs=arr(f.categorias); if(!cs.length)cs=['(sem categoria)'];
+    cs.forEach(function(c){ if(!groups[c]){groups[c]=[];order.push(c);} groups[c].push(f); });
+  });
+  order.sort(function(a,b){var ia=CATS.indexOf(a),ib=CATS.indexOf(b);ia=ia<0?900:ia;ib=ib<0?900:ib;if(a==='(sem categoria)')ia=1000;if(b==='(sem categoria)')ib=1000;return ia-ib;});
+  if(!order.length){box.innerHTML='<div class="empty">Nenhuma tarefa pendente com esse filtro. 🎉</div>';return;}
+  var html='<div class="boardhint">Tarefas ainda não feitas, agrupadas por categoria · mais recentes primeiro. Toque ✓ pra concluir ou ✏️ pra editar.</div>';
+  html+='<div class="board">'+order.map(function(c){
+    var col=(c==='(sem categoria)')?'#9A7070':catColor(c);
+    var items=groups[c].slice().sort(function(x,y){return String(y.data||'').localeCompare(String(x.data||''));});
+    return '<div class="bcol" style="border-top:4px solid '+col+'">'
+      +'<div class="bcolhdr"><span class="dot" style="background:'+col+'"></span><span style="color:'+col+'">'+esc(c)+'</span><span class="cnt">'+items.length+'</span></div>'
+      +'<div class="bcolbody">'+items.map(function(f){return bcardHTML(f,col);}).join('')+'</div>'
       +'</div>';
   }).join('')+'</div>';
   box.innerHTML=html;
 }
-var _drag=null;
-function bDragStart(e,id){_drag=id;var el=document.getElementById('b'+id);if(el)el.classList.add('dragging');try{e.dataTransfer.setData('text/plain',String(id));e.dataTransfer.effectAllowed='move';}catch(_){}}
-function bDragEnd(e){if(_drag){var el=document.getElementById('b'+_drag);if(el)el.classList.remove('dragging');}_drag=null;Array.prototype.forEach.call(document.querySelectorAll('.bcol'),function(c){c.classList.remove('dragover');});}
-function bDragOver(e){e.preventDefault();try{e.dataTransfer.dropEffect='move';}catch(_){}e.currentTarget.classList.add('dragover');}
-function bDragLeave(e){e.currentTarget.classList.remove('dragover');}
-function bDrop(e,stage){e.preventDefault();e.currentTarget.classList.remove('dragover');var id=_drag;if(!id){try{id=parseInt(e.dataTransfer.getData('text/plain'));}catch(_){}}if(id)setStage(id,stage);}
-function moveStage(id,dir){var f=REG.find(function(x){return x.id==id;});if(!f)return;var ks=STAGES.map(function(s){return s.k;});var idx=ks.indexOf(stageOf(f));var ni=idx+dir;if(ni<0||ni>=STAGES.length)return;setStage(id,STAGES[ni].k);}
-async function setStage(id,stage){
-  var f=REG.find(function(x){return x.id==id;});if(!f)return;
-  if(stageOf(f)===stage)return;
-  var done=(stage==='feito');
-  var em=done?(f.concluido_em||new Date().toISOString()):null;
-  var overWip=false;
-  if(stage==='fazendo'&&WIP_LIMIT){var nf=REG.filter(function(x){return x.id!=id&&x.eh_tarefa&&stageOf(x)==='fazendo';}).length;overWip=(nf+1>WIP_LIMIT);}
-  f.etapa=stage;f.concluido=done;f.concluido_em=em;
-  if(VIEW==='quadro'){var box=document.getElementById('lista');renderBoard(box);updateBoardCount();var el=document.getElementById('b'+id);if(el){el.classList.add('flash');setTimeout(function(){el.classList.remove('flash');},900);}}
-  else render();
-  try{var u=await sb.from('lola_assuntos').update({etapa:stage,concluido:done,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(stage==='feito'?'✓ Feito':(stage==='fazendo'?('▶ Em andamento'+(overWip?' · ⚠️ acima do limite ('+WIP_LIMIT+')':'')):'↩ A fazer'));}
-  catch(e){toast('Erro ao mover');}
-}
-function updateBoardCount(){var n=boardFiltered().length;var c=document.getElementById('count');if(c)c.textContent=n+' tarefa(s) no quadro';}
+function updateBoardCount(){var n=boardFiltered().length;var c=document.getElementById('count');if(c)c.textContent=n+' tarefa(s) pendente(s)';}
 
 function renderUnibar(){
   var labels={'':'Tudo','Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'Central'};
