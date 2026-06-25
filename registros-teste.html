@@ -99,6 +99,11 @@
   .bwrap.flash{box-shadow:0 0 0 3px var(--vinho-pale)}
   .bwrap .card{border:none;border-radius:0}
   .bcattag{font-size:.64rem;font-weight:800;color:#fff;letter-spacing:.4px;text-transform:uppercase;padding:5px 12px}
+  .bwrap .cardfoot{gap:6px;justify-content:flex-start;margin-top:2px}
+  .bwrap .cardfoot .btn{font-size:.7rem;font-weight:600;padding:4px 10px;min-height:0;border-radius:8px;border:1.5px solid var(--cat);background:#fff;color:var(--cat)}
+  .bwrap .cardfoot .btn:active{background:var(--cat);color:#fff}
+  .bwrap .cardfoot .btnconcluir{background:var(--cat);color:#fff;border-color:var(--cat)}
+  .bwrap .cardfoot .btnconcluir.reaberto{background:#fff;color:var(--cat)}
   /* SECAO LISTA */
   .seclabel{font-family:'Playfair Display',serif;font-style:italic;color:var(--vinho-deep);font-size:1.1rem;margin:6px 0 10px}
   .filters{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:8px}
@@ -379,7 +384,7 @@ function boardFiltered(){
 function bcardHTML(f){
   var accent=arr(f.categorias).length?catColor(arr(f.categorias)[0]):'#C9B8B8';
   var tag=arr(f.categorias).length?esc(arr(f.categorias).join(' · ')):'Sem categoria';
-  return '<div class="bwrap" id="bw'+f.id+'" data-id="'+f.id+'" style="border-color:'+accent+'" onpointerdown="bPDown(event,'+f.id+')">'
+  return '<div class="bwrap" id="bw'+f.id+'" data-id="'+f.id+'" style="border-color:'+accent+';--cat:'+accent+'" onpointerdown="bPDown(event,'+f.id+')">'
     +'<div class="bcattag" style="background:'+accent+'">'+tag+'</div>'
     +cardHTML(f)
     +'</div>';
