@@ -1,3 +1,7 @@
+https://raw.githubusercontent.com/LolaCCMQ/Lola/main/eventos-teste.html
+→ https://raw.githubusercontent.com/LolaCCMQ/Lola/main/eventos-teste.html
+Content-Type: text/plain; charset=utf-8
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -277,6 +281,7 @@ const FASES = [
 const SECTIONS = [
   {id:"triagem", kind:"triagemfull", icon:"✅", label:"Triagem", tipos:ALL},
   {id:"info", kind:"form", icon:"📋", label:"Dados", tipos:ALL},
+  {id:"menu", kind:"menu", icon:"🍽️", label:"Menu", tipos:ALL},
   {id:"os", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
   {id:"show", kind:"fase", tipos:["show"]},
   {id:"orc", kind:"orc", icon:"💰", label:"Orçamento e Pagamentos", tipos:ALL},
@@ -436,6 +441,7 @@ function renderDetail(){
     else if(s.kind==='triagemfull'){const a=faseProgress(ev,FASES.find(x=>x.id==='triagem'));const b=faseProgress(ev,FASES.find(x=>x.id==='negociacao'));label=(s.icon||'')+' '+s.label;count=(a.done+b.done)+'/'+(a.tot+b.tot);}
     else if(s.kind==='cozbar'){label=(s.icon||'')+' '+s.label;count=(ev.cozbar||[]).length||'';}
     else if(s.kind==='materiais'){label=(s.icon||'')+' '+s.label;count=(ev.materiais||[]).length||'';}
+    else if(s.kind==='menu'){label=(s.icon||'')+' '+s.label;count=((ev.menu||[]).length+(ev.materiais||[]).length)||'';}
     else if(s.kind==='convidados'){label=(s.icon||'')+' '+s.label;count=(ev.convidados||[]).length||'';}
     else {label=(s.icon||'')+' '+s.label;}
     return {id:s.id,label,count};
@@ -491,6 +497,7 @@ function renderTab(){
   const s=SECTIONS.find(x=>x.id===view.tab)||SECTIONS[0];
   let html='';
   if(s.kind==='form')html=formHTML(ev);
+  else if(s.kind==='menu')html=menuHTML(ev);
   else if(s.kind==='triagemfull'){const f1=FASES.find(x=>x.id==='triagem');const f2=FASES.find(x=>x.id==='negociacao');html=(f1?faseHTML(ev,f1):'')+'<div style="height:16px"></div>'+(f2?faseHTML(ev,f2):'');}
   else if(s.kind==='orc')html=orcHTML(ev);
   else if(s.kind==='cozbar')html=cozbarHTML(ev);
@@ -851,6 +858,93 @@ function buildPrintHTML(ev,withValues,sel){
 }
 function orcTotal(ev){const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});var moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0,mo=(moV*moQ)||(Number(ev.maoObra)||0);var gorj=sub*(Number(ev.gorjeta)||0)/100;var base=sub+mo+gorj;var imp=base*(Number(ev.imposto)||0)/100;return base+imp;}
 function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
+function menuHTML(ev){
+  const pax=Number(ev.pax)||0;
+  const menu=ev.menu||[];
+  const comidas=menu.map((m,i)=>({m,i})).filter(x=>(x.m.cat||'C')==='C');
+  const bebidas=menu.map((m,i)=>({m,i})).filter(x=>x.m.cat==='B');
+  const datalist=FICHAS.map(p=>`<option value="${esc(p.n)}">${esc(p.cat||'')} · ${fmt(p.p)}</option>`).join('');
+  const fichaNote=FICHAS.length?`Itens e preços vêm da <b>ficha técnica + pré-produções</b> (${FICHAS.length} itens). Escolha pela busca que o preço preenche sozinho. Não está na lista? Digite o nome e o preço manualmente.`:`⚠️ Não carregou a ficha técnica do portal — você ainda pode digitar itens e preços manualmente.`;
+  const pg=ev.pag||{};
+  const mats=ev.materiais||[];
+  function grupo(rows,icon,titulo,servLabel){
+    return `<div class="section-title">${icon} ${titulo} ${rows.length?`<span class="hint" style="font-weight:600;text-transform:none;letter-spacing:0">(${rows.length})</span>`:''}</div>
+    <table>
+    <thead><tr><th>Item</th><th style="width:78px">Qtd/pax</th><th style="width:58px">Unid.</th><th style="width:48px">/pax</th><th style="width:88px">Preço un.</th><th class="num" style="width:96px">Total</th><th style="width:160px">${servLabel}</th><th style="width:26px" class="no-print"></th></tr></thead>
+    <tbody>
+    ${rows.length?rows.map(({m,i})=>`<tr>
+    <td class="name">${esc(m.nome)}</td>
+    <td><input type="number" step="0.01" value="${esc(m.qtd)}" onchange="setMenu(${i},'qtd',this.value)"></td>
+    <td><input type="text" value="${esc(m.un||'')}" onchange="setMenu(${i},'un',this.value)" style="width:52px"></td>
+    <td style="text-align:center"><input type="checkbox" style="width:auto" ${m.perPax?'checked':''} onchange="setMenu(${i},'perPax',this.checked)"></td>
+    <td><input type="number" step="0.01" value="${esc(m.preco)}" onchange="setMenu(${i},'preco',this.value)"></td>
+    <td class="num">${fmt(lineTotal(m,pax))}</td>
+    <td><input type="text" value="${esc(m.serv||'')}" placeholder="ex: prato, garfo" onchange="setMenu(${i},'serv',this.value)"></td>
+    <td class="no-print"><button class="del-row" onclick="delMenu(${i})">×</button></td>
+    </tr>`).join(''):`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">Nenhum item de ${titulo.toLowerCase()} ainda.</td></tr>`}
+    </tbody>
+    </table>`;
+  }
+  return `
+  <div class="intro">💡 ${fichaNote}</div>
+  <div class="orc-add no-print">
+  <div class="field" style="max-width:135px"><label>Categoria</label>
+  <select id="addCat"><option value="C">🍽️ Comida</option><option value="B">🥂 Bebida</option><option value="M">📦 Material</option></select></div>
+  <div class="field"><label>Item (ficha, pré-produção ou avulso)</label>
+  <input id="addItem" list="precoslist" placeholder="Digite ou escolha..." onchange="autoPreco()"><datalist id="precoslist">${datalist}</datalist></div>
+  <div class="field" style="max-width:100px"><label>Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"></div>
+  <div class="field" style="max-width:100px"><label>Preço un. (R$)</label><input id="addPreco" type="number" step="0.01" placeholder="auto"></div>
+  <div class="field" style="max-width:88px"><label>Unidade</label><input id="addUn" type="text" placeholder="un/porção"></div>
+  <button class="btn-primary" style="height:38px" onclick="addMenuCat()">+ Adicionar</button>
+  </div>
+  <div class="toolrow no-print"><div class="field" style="max-width:190px"><label>Nº de pax do orçamento</label><input type="number" value="${esc(ev.pax)}" onchange="setOrc('pax',this.value)" placeholder="ex: 50"></div></div>
+  ${grupo(comidas,'🍽️','Produções de comida','Louça / talher')}
+  ${grupo(bebidas,'🥂','Produções de bebidas','Copo / taça')}
+  <div class="section-title">📦 Materiais e utensílios <span class="hint" style="font-weight:600;text-transform:none;letter-spacing:0">(louças, talheres, copos, toalhas, mobiliário…)</span></div>
+  <div class="toolrow no-print">
+  <button class="btn-ghost btn-sm" onclick="addMat()">+ Material</button>
+  <button class="btn-ghost btn-sm" onclick="openLoucasPicker()">🍽️ Escolher do catálogo</button>
+  </div>
+  <table>
+  <thead><tr><th style="width:46px"></th><th>Material</th><th style="width:78px">Qtd</th><th>Observação</th><th style="width:26px" class="no-print"></th></tr></thead>
+  <tbody>
+  ${mats.length?mats.map((r,i)=>`<tr>
+  <td>${r.foto?`<img src="${esc(r.foto)}" style="width:38px;height:38px;object-fit:cover;border-radius:6px">`:''}</td>
+  <td class="name"><input value="${esc(r.item)}" onchange="setMat(${i},'item',this.value)"></td>
+  <td><input type="number" value="${esc(r.qtdSaida)}" onchange="setMat(${i},'qtdSaida',this.value)"></td>
+  <td><input value="${esc(r.obs)}" onchange="setMat(${i},'obs',this.value)"></td>
+  <td class="no-print"><button class="del-row" onclick="delMat(${i})">×</button></td>
+  </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Nenhum material ainda. Use <b>+ Material</b> ou o catálogo de louças.</td></tr>`}
+  </tbody>
+  </table>
+  <div class="no-print" style="margin:18px 0 0;padding:12px 14px;border:1.5px solid var(--vinho-muted);border-radius:12px;background:var(--cream)">
+  <div style="font-weight:700;color:var(--vinho-deep);margin-bottom:8px">Envio à central</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+  <button class="${pg.orcAutorizado?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleAutorizado()">${pg.orcAutorizado?'✅ Menu aprovado':'Marcar menu aprovado'}</button>
+  ${pg.orcAutorizado?(pg.pedidoNum?('<span style="color:#2d6a4f;font-weight:700">🛒 Pedido #'+pg.pedidoNum+' enviado à central ✓</span>'):'<button class="btn-primary btn-sm" onclick="enviarPedidoCentral()">🛒 Enviar produções à central</button>'):'<span style="color:var(--muted);font-size:.85em">Aprove o menu para liberar o envio das produções (comida + bebida) à central.</span>'}
+  </div>
+  </div>`;
+}
+function addMenuCat(){
+  const ev=getEvent(view.id);if(!ev)return;
+  const cat=(document.getElementById('addCat')||{}).value||'C';
+  const nome=(document.getElementById('addItem').value||'').trim();
+  if(cat==='M'){
+    ev.materiais=ev.materiais||[];
+    ev.materiais.push({item:nome,origem:"",qtdSaida:(document.getElementById('addQtd').value||''),saiu:false,qtdVolta:"",voltou:false,obs:"",destino:""});
+    document.getElementById('addItem').value='';
+    save(false);renderTab();renderDetail();return;
+  }
+  if(!nome)return;
+  let preco=document.getElementById('addPreco').value;
+  const qtd=document.getElementById('addQtd').value||1;
+  let un=(document.getElementById('addUn').value||'').trim();
+  let ficha=null;
+  if(!preco){const f=FICHAS.find(p=>p.n.toLowerCase()===nome.toLowerCase());preco=f?f.p:0;if(f){ficha=f.n;if(!un)un=f.un||'';}}
+  ev.menu=ev.menu||[];ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:true,ficha,cat,serv:''});
+  document.getElementById('addItem').value='';document.getElementById('addPreco').value='';
+  save(false);renderTab();renderDetail();
+}
 function orcHTML(ev){
   const pax=Number(ev.pax)||0;
   let sub=0;(ev.menu||[]).forEach(m=>sub+=lineTotal(m,pax));
