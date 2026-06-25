@@ -215,10 +215,10 @@
   <div class="quick" id="quickBox" style="display:none">
     <div class="quickhead"><b>➕ Novo registro</b><span class="dt" id="qData"></span></div>
     <div class="ligada" id="qLigada"></div>
-    <div class="lab">Título</div>
+    <div class="lab" id="qTitLab">Título</div>
     <input type="text" id="qTitulo" placeholder="Ex.: Reunião de cozinha · ou cliente reclamou da comida fria">
-    <div class="lab">Unidade</div><div class="pick" id="qUni"></div>
-    <div class="lab">Categoria</div><div class="pick" id="qCat"></div>
+    <div class="lab" id="qUniLab">Unidade</div><div class="pick" id="qUni"></div>
+    <div class="lab" id="qCatLab">Categoria</div><div class="pick" id="qCat"></div>
     <div class="lab">Descrição</div>
     <textarea id="qDesc" placeholder="Detalhes do registro (opcional)"></textarea>
     <div class="lab">Responsáveis</div><div class="pick" id="qResp"></div>
@@ -278,7 +278,7 @@ function personColor(n){ var h=0; for(var i=0;i<String(n).length;i++){h=(h*31+St
 function inits(n){ n=String(n||'').trim(); if(!n)return '?'; var p=n.split(/\s+/); return (p[0][0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase(); }
 
 var REG=[], EDIT=null, FUNI='', VIEW='lista';
-var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
+var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[],desdobrando:false};
 var _m={uni:[],cat:[],resp:[],tarefa:false,rel:[]};
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -570,23 +570,29 @@ function renderLigada(){
 function clearParent(){_q.parent=null;renderLigada();}
 function toggleVinc(){_q.vincular=!_q.vincular;if(!_q.vincular)_q.chain=[];renderVinc();}
 function renderVinc(){var b=document.getElementById('qVinc');if(!b)return;b.classList.toggle('on',!!_q.vincular);var h=document.getElementById('qVincHint');if(h){if(_q.vincular){h.style.display='block';h.textContent=_q.chain.length?('🔗 '+_q.chain.length+' ficha(s) vinculada(s) neste assunto — a próxima também será. Desligue quando terminar.'):'🔗 As próximas fichas que você salvar ficam vinculadas entre si (mesmo assunto). Desligue quando terminar.';}else{h.style.display='none';}}}
+function applyQuickMode(){
+  var d=!!_q.desdobrando;
+  ['qUniLab','qUni','qCatLab','qCat'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=d?'none':'';});
+  var tl=document.getElementById('qTitLab'); if(tl)tl.textContent=d?'Nova tarefa / observação':'Título';
+  var ti=document.getElementById('qTitulo'); if(ti)ti.placeholder=d?'Ex.: Incluir Moca Quente · ou uma observação do assunto':'Ex.: Reunião de cozinha · ou cliente reclamou da comida fria';
+}
 function initQuick(){
   document.getElementById('qData').textContent='hoje · '+fmtDate(new Date().toISOString());
   pickInto('qUni',UNIDADES,_q.uni); pickInto('qCat',CATS,_q.cat); pickInto('qResp',TEAM,_q.resp);
-  renderSeg('qTipoSeg',_q); renderLigada(); renderVinc();
+  renderSeg('qTipoSeg',_q); renderLigada(); renderVinc(); applyQuickMode();
 }
 function openNovo(){var b=document.getElementById('quickBox');if(b)b.style.display='';var bt=document.getElementById('btnNovo');if(bt)bt.textContent='✕ Fechar';}
 function closeNovo(){var b=document.getElementById('quickBox');if(b)b.style.display='none';var bt=document.getElementById('btnNovo');if(bt)bt.textContent='➕ Adicionar novo registro';}
-function toggleNovo(){var b=document.getElementById('quickBox');if(!b)return;if(b.style.display==='none'){openNovo();var t=document.getElementById('qTitulo');if(t)setTimeout(function(){t.focus();},60);b.scrollIntoView({behavior:'smooth',block:'start'});}else{closeNovo();}}
+function toggleNovo(){var b=document.getElementById('quickBox');if(!b)return;if(b.style.display==='none'){_q.desdobrando=false;applyQuickMode();openNovo();var t=document.getElementById('qTitulo');if(t)setTimeout(function(){t.focus();},60);b.scrollIntoView({behavior:'smooth',block:'start'});}else{closeNovo();}}
 function clearQuick(){
-  _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
+  _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[],desdobrando:false};
   document.getElementById('qTitulo').value='';document.getElementById('qDesc').value='';
   var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
   initQuick();
 }
 function desdobrar(id){
   var f=REG.find(function(x){return x.id==id;});if(!f)return;
-  _q={uni:arr(f.unidades).slice(),cat:arr(f.categorias).slice(),resp:arr(f.responsaveis).slice(),tarefa:true,parent:f.id,vincular:false,chain:[]};
+  _q={uni:arr(f.unidades).slice(),cat:arr(f.categorias).slice(),resp:arr(f.responsaveis).slice(),tarefa:true,parent:f.id,vincular:false,chain:[],desdobrando:true};
   document.getElementById('qTitulo').value='';document.getElementById('qDesc').value='';
   var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
   initQuick();
