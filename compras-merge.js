@@ -4,8 +4,9 @@
    item "Lista de Compras" do menu lateral. Reaproveita dbFetch/comprasWrite.
 
    Também (sem tocar no index.html gigante):
-   - diminui a fonte do "Compras no Cartão" (CSS escopado abaixo); o formulário
-     "Nova compra" e a tabela ficam compactos só no desktop;
+   - diminui a fonte do "Compras no Cartão" (CSS escopado abaixo); no desktop o
+     form "Nova compra" fica compacto e a tabela usa a largura cheia, com as
+     colunas curtas numa linha e a descrição/loja quebrando pra caber TUDO;
    - a Lista de Compras de cima usa o MESMO fundo creme do cartão;
    - encurta o nome do cartão na tabela (Banrisul/Meliuz/Stone);
    - faz o título do topo (#phModname) mostrar o nome do app clicado mesmo nos
@@ -24,11 +25,16 @@
       '#module-comprascartao table.cart-table{font-size:.72rem !important}' +
       '#module-comprascartao table.cart-table th{font-size:.58rem !important}' +
       '#module-comprascartao label{font-size:.6rem !important}' +
-      // ----- Só no desktop: form "Nova compra" compacto (~3pt menor) + tabela numa linha só -----
+      // ----- Só no desktop: form compacto + tabela usando a largura cheia, cabendo tudo -----
       '@media(min-width:601px){' +
+      '#module-comprascartao .cart-wrap{max-width:100% !important}' +
       '#module-comprascartao input:not([type=checkbox]),#module-comprascartao select{font-size:13px !important;padding:7px 10px !important}' +
-      '#module-comprascartao table.cart-table td{white-space:nowrap !important;padding:5px 9px !important}' +
-      '#module-comprascartao table.cart-table th{padding:6px 9px !important}' +
+      '#module-comprascartao table.cart-table td{padding:5px 8px !important}' +
+      '#module-comprascartao table.cart-table th{padding:6px 8px !important}' +
+      // colunas curtas numa linha; "O que comprou" e "Loja" podem quebrar pra caber tudo
+      '#module-comprascartao table.cart-table td[data-label="Data"],#module-comprascartao table.cart-table td[data-label="Empresa"],#module-comprascartao table.cart-table td[data-label="Cartão"],#module-comprascartao table.cart-table td[data-label="Valor"],#module-comprascartao table.cart-table td[data-label="Comp."]{white-space:nowrap !important}' +
+      '#module-comprascartao table.cart-table td.cart-acoes{white-space:nowrap !important}' +
+      '#module-comprascartao table.cart-table td.cart-acoes .btn{padding:4px 8px !important}' +
       '}';
     (document.head || document.documentElement).appendChild(st);
   } catch (e) {}
