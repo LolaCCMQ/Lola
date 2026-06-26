@@ -4,9 +4,9 @@
    item "Lista de Compras" do menu lateral. Reaproveita dbFetch/comprasWrite.
 
    Também (sem tocar no index.html gigante):
-   - diminui a fonte do "Compras no Cartão" (CSS escopado abaixo); no desktop o
-     form "Nova compra" fica compacto e a tabela usa a largura cheia, com as
-     colunas curtas numa linha e a descrição/loja quebrando pra caber TUDO;
+   - diminui a fonte do "Compras no Cartão"; no desktop o form fica compacto e a
+     tabela usa a largura cheia (colunas curtas numa linha, descrição/loja quebram);
+   - no CELULAR cada compra vira um card compacto com campos pareados na mesma linha;
    - a Lista de Compras de cima usa o MESMO fundo creme do cartão;
    - encurta o nome do cartão na tabela (Banrisul/Meliuz/Stone);
    - faz o título do topo (#phModname) mostrar o nome do app clicado mesmo nos
@@ -14,7 +14,7 @@
 (function () {
   // Esconde o item "Lista de Compras" do menu via CSS !important
   // (o applyMenuPerms do portal reseta display inline, mas nao vence um !important)
-  // + reduz a fonte do módulo "Compras no Cartão" pra caber mais coisa na tela.
+  // + ajusta a fonte/layout do módulo "Compras no Cartão" (desktop e celular).
   try {
     var st = document.createElement('style');
     st.textContent =
@@ -31,10 +31,26 @@
       '#module-comprascartao input:not([type=checkbox]),#module-comprascartao select{font-size:13px !important;padding:7px 10px !important}' +
       '#module-comprascartao table.cart-table td{padding:5px 8px !important}' +
       '#module-comprascartao table.cart-table th{padding:6px 8px !important}' +
-      // colunas curtas numa linha; "O que comprou" e "Loja" podem quebrar pra caber tudo
       '#module-comprascartao table.cart-table td[data-label="Data"],#module-comprascartao table.cart-table td[data-label="Empresa"],#module-comprascartao table.cart-table td[data-label="Cartão"],#module-comprascartao table.cart-table td[data-label="Valor"],#module-comprascartao table.cart-table td[data-label="Comp."]{white-space:nowrap !important}' +
       '#module-comprascartao table.cart-table td.cart-acoes{white-space:nowrap !important}' +
       '#module-comprascartao table.cart-table td.cart-acoes .btn{padding:4px 8px !important}' +
+      '}' +
+      // ----- Só no celular: card compacto, campos pareados na mesma linha -----
+      '@media(max-width:600px){' +
+      '#module-comprascartao table.cart-table tr{display:flex !important;flex-wrap:wrap;align-items:flex-start;padding:8px !important;gap:3px 0}' +
+      '#module-comprascartao table.cart-table td{display:block !important;box-sizing:border-box;width:50%;text-align:left !important;padding:1px 6px !important;min-height:0 !important;position:static !important;white-space:normal !important;font-size:.82rem;line-height:1.15}' +
+      '#module-comprascartao table.cart-table td:before{content:attr(data-label);display:block;position:static !important;left:auto !important;top:auto !important;font-size:.52rem;color:var(--muted);font-weight:700;text-transform:uppercase}' +
+      '#module-comprascartao table.cart-table td[data-label="O que comprou"]{order:1;width:100%;font-weight:700;font-size:.92rem}' +
+      '#module-comprascartao table.cart-table td[data-label="Loja"]{order:2}' +
+      '#module-comprascartao table.cart-table td[data-label="Data"]{order:3;white-space:nowrap}' +
+      '#module-comprascartao table.cart-table td[data-label="Valor"]{order:4;white-space:nowrap}' +
+      '#module-comprascartao table.cart-table td[data-label="Comp."]{order:5;white-space:nowrap}' +
+      '#module-comprascartao table.cart-table td[data-label="Empresa"]{order:6}' +
+      '#module-comprascartao table.cart-table td[data-label="Cartão"]{order:7}' +
+      '#module-comprascartao table.cart-table td[data-label="✓ Lançado"]{order:8;width:34%}' +
+      '#module-comprascartao table.cart-table td[data-label="📦 Recebido"]{order:9;width:33%}' +
+      '#module-comprascartao table.cart-table td.cart-acoes{order:10;width:33%;text-align:right !important}' +
+      '#module-comprascartao table.cart-table td.cart-acoes:before{display:none}' +
       '}';
     (document.head || document.documentElement).appendChild(st);
   } catch (e) {}
