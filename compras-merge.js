@@ -6,7 +6,8 @@
    Também (sem tocar no index.html gigante):
    - diminui a fonte do "Compras no Cartão"; no desktop o form fica compacto e a
      tabela usa a largura cheia (colunas curtas numa linha, descrição/loja quebram);
-   - no CELULAR cada compra vira um card compacto com campos pareados na mesma linha;
+   - no CELULAR cada compra vira um CARD bonito: valor em destaque, data/loja
+     discretas, empresa 🏢 e cartão 💳 com ícone, status + ações numa linha só;
    - a Lista de Compras de cima usa o MESMO fundo creme do cartão;
    - encurta o nome do cartão na tabela (Banrisul/Meliuz/Stone);
    - faz o título do topo (#phModname) mostrar o nome do app clicado mesmo nos
@@ -35,22 +36,33 @@
       '#module-comprascartao table.cart-table td.cart-acoes{white-space:nowrap !important}' +
       '#module-comprascartao table.cart-table td.cart-acoes .btn{padding:4px 8px !important}' +
       '}' +
-      // ----- Só no celular: card compacto, campos pareados na mesma linha -----
+      // ----- Só no celular: cada compra vira um CARD limpo -----
       '@media(max-width:600px){' +
-      '#module-comprascartao table.cart-table tr{display:flex !important;flex-wrap:wrap;align-items:flex-start;padding:8px !important;gap:3px 0}' +
-      '#module-comprascartao table.cart-table td{display:block !important;box-sizing:border-box;width:50%;text-align:left !important;padding:1px 6px !important;min-height:0 !important;position:static !important;white-space:normal !important;font-size:.82rem;line-height:1.15}' +
-      '#module-comprascartao table.cart-table td:before{content:attr(data-label);display:block;position:static !important;left:auto !important;top:auto !important;font-size:.52rem;color:var(--muted);font-weight:700;text-transform:uppercase}' +
-      '#module-comprascartao table.cart-table td[data-label="O que comprou"]{order:1;width:100%;font-weight:700;font-size:.92rem}' +
-      '#module-comprascartao table.cart-table td[data-label="Loja"]{order:2}' +
-      '#module-comprascartao table.cart-table td[data-label="Data"]{order:3;white-space:nowrap}' +
-      '#module-comprascartao table.cart-table td[data-label="Valor"]{order:4;white-space:nowrap}' +
-      '#module-comprascartao table.cart-table td[data-label="Comp."]{order:5;white-space:nowrap}' +
-      '#module-comprascartao table.cart-table td[data-label="Empresa"]{order:6}' +
-      '#module-comprascartao table.cart-table td[data-label="Cartão"]{order:7}' +
-      '#module-comprascartao table.cart-table td[data-label="✓ Lançado"]{order:8;width:34%}' +
-      '#module-comprascartao table.cart-table td[data-label="📦 Recebido"]{order:9;width:33%}' +
-      '#module-comprascartao table.cart-table td.cart-acoes{order:10;width:33%;text-align:right !important}' +
-      '#module-comprascartao table.cart-table td.cart-acoes:before{display:none}' +
+      '#module-comprascartao table.cart-table tr{display:flex !important;flex-wrap:wrap;align-items:center;gap:7px 0;padding:13px 15px !important;border:1px solid var(--border) !important;border-radius:16px;margin-bottom:12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05)}' +
+      '#module-comprascartao table.cart-table td{display:block !important;box-sizing:border-box;border:none !important;padding:0 !important;min-height:0 !important;position:static !important;white-space:normal !important;font-size:.82rem;line-height:1.25;color:var(--ink)}' +
+      '#module-comprascartao table.cart-table td:before{display:none !important}' +
+      '#module-comprascartao table.cart-table td[data-label="O que comprou"]{order:1;width:60%;font-weight:700;font-size:1rem;padding-right:8px !important}' +
+      '#module-comprascartao table.cart-table td[data-label="Valor"]{order:2;width:40%;text-align:right !important;font-weight:800;font-size:1.1rem;color:var(--vinho);white-space:nowrap}' +
+      '#module-comprascartao table.cart-table td[data-label="Data"]{order:3;width:40%;font-size:.72rem;color:var(--muted);white-space:nowrap;padding-right:6px !important}' +
+      '#module-comprascartao table.cart-table td[data-label="Data"]:before{display:inline !important;content:"📅 ";opacity:.8}' +
+      '#module-comprascartao table.cart-table td[data-label="Loja"]{order:4;width:60%;font-size:.72rem;color:var(--muted)}' +
+      '#module-comprascartao table.cart-table td[data-label="Loja"]:before{display:inline !important;content:"🏪 ";opacity:.8}' +
+      '#module-comprascartao table.cart-table td[data-label="Empresa"]{order:5;width:38%;font-size:.8rem;font-weight:600;padding-right:6px !important;margin-top:2px}' +
+      '#module-comprascartao table.cart-table td[data-label="Empresa"]:before{display:inline !important;content:"🏢 "}' +
+      '#module-comprascartao table.cart-table td[data-label="Cartão"]{order:6;width:34%;font-size:.8rem;font-weight:600;margin-top:2px}' +
+      '#module-comprascartao table.cart-table td[data-label="Cartão"]:before{display:inline !important;content:"💳 "}' +
+      '#module-comprascartao table.cart-table td[data-label="Comp."]{order:7;width:28%;font-size:.7rem;color:var(--muted);text-align:right !important;margin-top:2px}' +
+      '#module-comprascartao table.cart-table td[data-label="Comp."]:before{display:none !important}' +
+      '#module-comprascartao table.cart-table tr:after{content:"";order:8;width:100%;height:1px;background:var(--border);opacity:.6;margin:7px 0 2px}' +
+      '#module-comprascartao table.cart-table td[data-label="✓ Lançado"]{order:9;width:30%;display:flex !important;align-items:center;gap:6px;font-size:.74rem;color:var(--muted)}' +
+      '#module-comprascartao table.cart-table td[data-label="✓ Lançado"]:before{display:inline !important;content:"Lançado"}' +
+      '#module-comprascartao table.cart-table td[data-label="📦 Recebido"]{order:10;width:33%;display:flex !important;align-items:center;gap:6px;font-size:.74rem;color:var(--muted)}' +
+      '#module-comprascartao table.cart-table td[data-label="📦 Recebido"]:before{display:inline !important;content:"Recebido"}' +
+      '#module-comprascartao table.cart-table td.cart-acoes{order:11;width:37%;text-align:right !important;white-space:nowrap}' +
+      '#module-comprascartao table.cart-table td.cart-acoes:before{display:none !important}' +
+      '#module-comprascartao table.cart-table td input[type=checkbox]{width:17px !important;height:17px !important;accent-color:var(--vinho)}' +
+      '#module-comprascartao table.cart-table td[data-label="✓ Lançado"]:has(input:checked){color:var(--green);font-weight:700}' +
+      '#module-comprascartao table.cart-table td[data-label="📦 Recebido"]:has(input:checked){color:var(--green);font-weight:700}' +
       '}';
     (document.head || document.documentElement).appendChild(st);
   } catch (e) {}
