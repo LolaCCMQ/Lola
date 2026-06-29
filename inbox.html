@@ -275,6 +275,28 @@
     body.detail-open::before{content:'';position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}
     body.detail-open .col-detail{display:block;position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;max-height:84vh;overflow-y:auto;z-index:200;border-left:0;border-radius:18px 18px 0 0;box-shadow:0 -10px 34px rgba(0,0,0,.3);padding-bottom:28px}
     .det-close{display:flex !important;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;margin-bottom:6px;background:var(--brand-soft);color:var(--brand);border:0;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;position:sticky;top:0}
+    /* ===== demais abas (Contatos, Bot, Arquivos, Transmissão): tudo cabe na tela ===== */
+    .view{overflow-x:hidden}
+    .page{padding:16px 14px 80px}
+    .page h1{font-style:normal;font-size:1.5rem}
+    .page .lead{font-size:13px}
+    .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .kpi{flex:initial;padding:12px 13px}
+    .kpi b{font-size:1.5rem}
+    .grid2{grid-template-columns:1fr;gap:14px}
+    .banner{flex-wrap:wrap;font-size:12.5px}
+    .cfilter,.dropfilters{flex-direction:column;align-items:stretch;gap:8px}
+    .cfilter .self,.cfilter .btn-sm,.dropfilters .self{width:100%;min-width:0;flex:1 1 auto}
+    .libgrid{grid-template-columns:1fr 1fr;gap:10px}
+    /* regra Lola: tabela vira card (1 linha = 1 card) */
+    .table{box-shadow:none;background:transparent;border-radius:0}
+    .table thead{display:none}
+    .table tr{display:block;background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;padding:10px 13px;box-shadow:var(--shadow)}
+    .table td{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border:0;font-size:13px;text-align:right}
+    .table td::before{content:attr(data-label);font-weight:700;color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.3px;text-align:left}
+    .table td:first-child{text-align:left;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}
+    .table td:first-child::before{display:none}
+    .table tr.clickrow:hover td{background:transparent}
   }
 </style>
 </head>
@@ -796,8 +818,8 @@ function renderContacts(){
     tr.title='Abrir conversa';tr.onclick=()=>{document.querySelector('.nav button').click();openConvo(c.id);};
     tr.innerHTML=`<td><div class="mini"><div class="ch" style="background:${c.ch==='ig'?chColor.ig:chColor.wa}">${chInitial(c)}<div class="badge ${c.ch}"></div></div>
       <div><b>${esc(c.name)}</b><br><span style="color:var(--ink-soft);font-size:12px">${esc(c.phone||c.handle)}</span></div></div></td>
-      <td>${c.ch==='wa'?'🟢 WhatsApp':'📷 Instagram'}</td><td>${cat?`<span class="cat" style="color:${cat.cor};border-color:${cat.cor}">${cat.label}</span>`:'—'}</td>
-      <td><span class="tag ${s.cls}">${s.label}</span></td><td>${c.time} ›</td>`;
+      <td data-label="Canal">${c.ch==='wa'?'🟢 WhatsApp':'📷 Instagram'}</td><td data-label="Categoria">${cat?`<span class="cat" style="color:${cat.cor};border-color:${cat.cor}">${cat.label}</span>`:'—'}</td>
+      <td data-label="Status"><span class="tag ${s.cls}">${s.label}</span></td><td data-label="Último contato">${c.time} ›</td>`;
     tb.appendChild(tr);
   });
 }
