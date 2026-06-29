@@ -32,6 +32,11 @@ header h1{font-family:'Fraunces',serif;font-style:normal;font-weight:600;color:#
 .quick{background:#fff;border:1.5px solid var(--vinho-muted);border-radius:var(--radius);padding:12px 13px;margin-bottom:16px;box-shadow:0 2px 10px rgba(168,39,42,.06)}
 .quick .lab{font-size:.68rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin:9px 0 5px}
 .quick .lab:first-of-type{margin-top:8px}
+.dropfield{margin-top:9px;border:1.5px solid var(--border);border-radius:10px;padding:8px 11px;background:var(--cream)}
+.dropfield>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;margin:0}
+.dropfield>summary::-webkit-details-marker{display:none}
+.dropfield>summary::after{content:'▾';margin-left:auto;color:var(--muted)}
+.dropfield[open]>summary::after{content:'▴'}
 .quick textarea,.quick input[type=text]{width:100%;font-family:inherit;font-size:.9rem;padding:9px 11px;border:1.5px solid var(--border);border-radius:10px;background:var(--cream);color:var(--ink)}
 .quick textarea{min-height:48px;resize:vertical}
 .quick input[type=date]{font-family:inherit;font-size:.9rem;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--cream);color:var(--ink)}
@@ -220,11 +225,11 @@ header h1{font-family:'Fraunces',serif;font-style:normal;font-weight:600;color:#
 <div class="ligada" id="qLigada"></div>
 <div class="lab">Título</div>
 <input type="text" id="qTitulo" placeholder="Ex.: Reunião de cozinha · ou cliente reclamou da comida fria">
-<div class="lab">Unidade</div><div class="pick" id="qUni"></div>
-<div class="lab">Categoria</div><div class="pick" id="qCat"></div>
+<div id="qUniWrap"><div class="lab">Unidade</div><div class="pick" id="qUni"></div></div>
+<div id="qCatWrap"><div class="lab">Categoria</div><div class="pick" id="qCat"></div></div>
 <div class="lab">Descrição</div>
 <textarea id="qDesc" placeholder="Detalhes do registro (opcional)"></textarea>
-<div class="lab">Responsáveis</div><div class="pick" id="qResp"></div>
+<details class="dropfield" id="qRespDrop"><summary class="lab">Responsáveis <span id="qRespCount" style="font-weight:600;text-transform:none;color:var(--vinho)"></span></summary><div class="pick" id="qResp" style="margin-top:6px"></div></details>
 <div class="lab">Prazo (opcional)</div><input type="date" id="qPrazo">
 <div class="lab">O que é?</div>
 <div class="seg" id="qTipoSeg">
@@ -543,12 +548,12 @@ render(); _refreshFp();
 }
 
 // ---- pickers ----
-function pickInto(id,opts,state){
+function pickInto(id,opts,state,onChange){
 var c=document.getElementById(id);
 c.innerHTML=opts.map(function(o){return '<span class="opt" data-v="'+esc(o)+'">'+esc(o)+'</span>';}).join('');
 Array.prototype.forEach.call(c.querySelectorAll('.opt'),function(el){
 if(state.indexOf(el.getAttribute('data-v'))>=0)el.classList.add('on');
-el.onclick=function(){var v=el.getAttribute('data-v');var i=state.indexOf(v);if(i>=0)state.splice(i,1);else state.push(v);el.classList.toggle('on');};
+el.onclick=function(){var v=el.getAttribute('data-v');var i=state.indexOf(v);if(i>=0)state.splice(i,1);else state.push(v);el.classList.toggle('on');if(onChange)onChange();};
 });
 }
 function renderSeg(id,st){var c=document.getElementById(id);if(!c)return;Array.prototype.forEach.call(c.querySelectorAll('.segbtn'),function(b){b.classList.toggle('on',(b.getAttribute('data-v')==='tarefa')===!!st.tarefa);});}
@@ -563,12 +568,14 @@ else{el.style.display='none';el.innerHTML='';}
 function clearParent(){_q.parent=null;renderLigada();}
 function toggleVinc(){_q.vincular=!_q.vincular;if(!_q.vincular)_q.chain=[];renderVinc();}
 function renderVinc(){var b=document.getElementById('qVinc');if(!b)return;b.classList.toggle('on',!!_q.vincular);var h=document.getElementById('qVincHint');if(h){if(_q.vincular){h.style.display='block';h.textContent=_q.chain.length?('🔗 '+_q.chain.length+' ficha(s) vinculada(s) neste assunto — a próxima também será. Desligue quando terminar.'):'🔗 As próximas fichas que você salvar ficam vinculadas entre si (mesmo assunto). Desligue quando terminar.';}else{h.style.display='none';}}}
+function updateQRespCount(){var el=document.getElementById('qRespCount');if(el)el.textContent=_q.resp.length?('· '+_q.resp.length+' selecionado'+(_q.resp.length>1?'s':'')):'';}
+function setDesdobraMode(on){var u=document.getElementById('qUniWrap'),c=document.getElementById('qCatWrap');if(u)u.style.display=on?'none':'';if(c)c.style.display=on?'none':'';}
 function initQuick(){
 document.getElementById('qData').textContent='hoje · '+fmtDate(new Date().toISOString());
-pickInto('qUni',UNIDADES,_q.uni); pickInto('qCat',CATS,_q.cat); pickInto('qResp',TEAM,_q.resp);
+pickInto('qUni',UNIDADES,_q.uni); pickInto('qCat',CATS,_q.cat); pickInto('qResp',TEAM,_q.resp,updateQRespCount); updateQRespCount();
 renderSeg('qTipoSeg',_q); renderLigada(); renderVinc();
 }
-function openNovo(){var b=document.getElementById('quickBox');if(b)b.style.display='';var bt=document.getElementById('btnNovo');if(bt)bt.textContent='✕ Fechar';}
+function openNovo(){setDesdobraMode(false);var b=document.getElementById('quickBox');if(b)b.style.display='';var bt=document.getElementById('btnNovo');if(bt)bt.textContent='✕ Fechar';}
 function closeNovo(){var b=document.getElementById('quickBox');if(b)b.style.display='none';var bt=document.getElementById('btnNovo');if(bt)bt.innerHTML='<i class="ph-duotone ph-plus"></i> Adicionar novo registro';}
 function toggleNovo(){var b=document.getElementById('quickBox');if(!b)return;if(b.style.display==='none'){openNovo();var t=document.getElementById('qTitulo');if(t)setTimeout(function(){t.focus();},60);b.scrollIntoView({behavior:'smooth',block:'start'});}else{closeNovo();}}
 function clearQuick(){
@@ -584,6 +591,7 @@ document.getElementById('qTitulo').value='';document.getElementById('qDesc').val
 var _qp=document.getElementById('qPrazo');if(_qp)_qp.value='';
 initQuick();
 openNovo();
+setDesdobraMode(true);
 var _qb=document.getElementById('quickBox');if(_qb)_qb.scrollIntoView({behavior:'smooth',block:'start'});
 setTimeout(function(){var t=document.getElementById('qTitulo');if(t)t.focus();},250);
 toast('Nova ficha ligada — preencha o título');
