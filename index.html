@@ -1017,6 +1017,7 @@ var HOME_APPS=[
   ]}
 ];
 function homeOpen(menuKey){ var nav=document.querySelector('[data-menu="'+menuKey+'"]'); if(nav){ nav.click(); } }
+window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.lola==='voltar-menu'){ switchModule('home'); } }catch(_){} });
 function renderHomeApps(){
   var wrap=document.getElementById('homeApps'); if(!wrap) return;
   var html='';
