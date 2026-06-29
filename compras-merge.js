@@ -30,8 +30,48 @@
       '#module-comprascartao .cm-btitle{font-family:Fraunces,serif;font-weight:600;font-style:normal;font-size:1.55rem;line-height:1.1;color:#fff;margin:0}' +
       '#module-comprascartao .cm-bsub{color:rgba(255,255,255,.85);font-size:.82rem;margin-top:3px}' +
       '#cmListaTopo .cm-lista-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 15px}' +
-      // ----- Compras no Cartão: fonte menor (qualquer largura) -----
-      '#module-comprascartao h2{font-size:1.25rem !important;font-family:Fraunces,serif !important;font-style:normal !important;color:var(--vinho) !important}' +
+      // ----- Compras no Cartão: título da seção -----
+      '#module-comprascartao h2{font-size:1.45rem !important;font-family:Fraunces,serif !important;font-style:normal !important;font-weight:600 !important;color:var(--vinho) !important}' +
+      '#module-comprascartao #cartFiltBtn{display:none !important}' +
+      // ----- Card de resumo do mês -----
+      '#module-comprascartao .cc-resumo{background:linear-gradient(135deg,#3566A8,#23528C);color:#fff;border-radius:18px;padding:15px 17px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 14px}' +
+      '#module-comprascartao .cc-rlabel{font-size:.64rem;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.78);font-weight:700;margin-bottom:4px}' +
+      '#module-comprascartao .cc-rval{font-family:Fraunces,serif;font-weight:600;font-size:1.7rem;line-height:1}' +
+      '#module-comprascartao .cc-rright{text-align:right;flex:0 0 auto}' +
+      '#module-comprascartao .cc-ritens{display:inline-block;background:rgba(255,255,255,.20);font-weight:700;font-size:.72rem;padding:5px 11px;border-radius:20px;margin-bottom:6px}' +
+      '#module-comprascartao .cc-rconf{font-size:.72rem;color:rgba(255,255,255,.82)}' +
+      // ----- Filtros em pílula (cartão · mês) -----
+      '#module-comprascartao .cc-filtros{display:flex;gap:10px;margin:4px 0 16px}' +
+      '#module-comprascartao .cc-fpill{flex:1;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:13px;padding:11px 13px;font-family:inherit;font-weight:600;font-size:.85rem;color:#5A463E;cursor:pointer}' +
+      '#module-comprascartao .cc-fpill i{font-size:1.2rem;color:var(--vinho)}' +
+      '#module-comprascartao .cc-fpill .cc-caret{margin-left:auto;color:var(--muted);font-size:.95rem}' +
+      '#module-comprascartao .cc-fpill span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      // ----- Card de lançamento -----
+      '#module-comprascartao .cc-list{max-width:560px}' +
+      '#module-comprascartao .cc-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:15px 16px;margin-bottom:13px;box-shadow:0 1px 2px rgba(42,26,23,.05),0 12px 26px -18px rgba(42,26,23,.22)}' +
+      '#module-comprascartao .cc-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}' +
+      '#module-comprascartao .cc-item{font-weight:700;font-size:1.05rem;color:var(--ink);line-height:1.2}' +
+      '#module-comprascartao .cc-val{font-family:Fraunces,serif;font-weight:600;font-size:1.25rem;color:var(--vinho);white-space:nowrap}' +
+      '#module-comprascartao .cc-data{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:.78rem;margin-top:4px}' +
+      '#module-comprascartao .cc-data i{font-size:1rem}' +
+      '#module-comprascartao .cc-forn{display:flex;align-items:center;gap:8px;background:var(--cream,#FBF7F1);border:1px solid var(--border);border-radius:11px;padding:9px 11px;margin-top:11px;font-size:.86rem;color:#5A463E}' +
+      '#module-comprascartao .cc-forn i{font-size:1.15rem;color:var(--label,#B79A8E)}' +
+      '#module-comprascartao .cc-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}' +
+      '#module-comprascartao .cc-tag{font-weight:600;font-size:.72rem;padding:4px 10px;border-radius:10px}' +
+      '#module-comprascartao .cc-emp{background:#FBEAE7;color:var(--vinho)}' +
+      '#module-comprascartao .cc-tag.cc-card{background:#E6EEF8;color:#2C5AA0}' +
+      '#module-comprascartao .cc-comp{background:#F1EFE8;color:#6B6258}' +
+      '#module-comprascartao .cc-div{height:1px;background:var(--border);margin:13px 0 11px}' +
+      '#module-comprascartao .cc-base{display:flex;align-items:center;justify-content:space-between;gap:10px}' +
+      '#module-comprascartao .cc-status{display:flex;gap:14px;flex-wrap:wrap}' +
+      '#module-comprascartao .cc-chk{display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;color:var(--muted);cursor:pointer}' +
+      '#module-comprascartao .cc-chk input{width:20px;height:20px;accent-color:#2C7A4B;margin:0;cursor:pointer}' +
+      '#module-comprascartao .cc-chk:has(input:checked){color:#2C7A4B;font-weight:700}' +
+      '#module-comprascartao .cc-acts{display:flex;gap:8px}' +
+      '#module-comprascartao .cc-ab{width:38px;height:38px;border-radius:11px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.15rem;cursor:pointer}' +
+      '#module-comprascartao .cc-ab.edit{color:#2C5AA0}' +
+      '#module-comprascartao .cc-ab.del{color:#B5302E;border-color:#F0D4CF}' +
+      '#module-comprascartao .cc-empty{padding:24px 16px;text-align:center;color:var(--muted)}' +
       '#module-comprascartao h2 + p{font-size:.72rem !important}' +
       '#module-comprascartao table.cart-table{font-size:.72rem !important}' +
       '#module-comprascartao table.cart-table th{font-size:.58rem !important}' +
@@ -216,11 +256,67 @@
     };
   } catch (e) {}
 
-  // Embrulha a cartaoLista do portal pra encurtar o nome do cartão na tabela
+  // Encurta o nome do cartão pra exibição (valor salvo continua inteiro)
+  function _ccShort(s) {
+    s = String(s == null ? '' : s);
+    return s.split('Crédito Banrisul').join('Banrisul').split('Cartão Meliuz').join('Meliuz').split('Débito Stone').join('Stone');
+  }
+  // Atualiza o subtítulo da seção (contagem total) após cada render da lista
+  function _ccCount() {
+    try {
+      var el = document.getElementById('cartCount'); if (!el || typeof COMPRAS === 'undefined') return;
+      var n = COMPRAS.length, m = COMPRAS.filter(function (c) { return !c.conferido; }).length;
+      el.textContent = n + ' lançamento' + (n === 1 ? '' : 's') + ' · ' + m + ' a conferir';
+    } catch (e) {}
+  }
+  // Re-render do Cartão no padrão Lola: título + resumo + filtros-pílula + cards
   try {
+    if (typeof window.cartaoCab === 'function') {
+      window.cartaoCab = function () {
+        return '<h2 class="cc-h2">Compras no Cartão</h2>' +
+          '<p style="color:var(--muted);font-size:.82rem;margin:0 0 2px"><span id="cartCount">—</span></p>';
+      };
+    }
     if (typeof window.cartaoLista === 'function') {
-      var _cl = window.cartaoLista;
-      window.cartaoLista = function () { return shortCards(_cl.apply(this, arguments)); };
+      window.cartaoLista = function () {
+        var lst = (typeof cartaoFiltrar === 'function') ? cartaoFiltrar() : (typeof COMPRAS !== 'undefined' ? COMPRAS : []);
+        var F = (typeof CART_F !== 'undefined') ? CART_F : {};
+        var cLab = F.cartao ? _ccShort(F.cartao) : 'Todos os cartões';
+        var mLab = F.mes ? cartMes(F.mes) : 'Todos os meses';
+        var pills = '<div class="cc-filtros">' +
+          '<button class="cc-fpill" onclick="cartaoToggleFiltros()"><i class="ph-duotone ph-credit-card"></i><span>' + _escC(cLab) + '</span><i class="ph-duotone ph-caret-down cc-caret"></i></button>' +
+          '<button class="cc-fpill" onclick="cartaoToggleFiltros()"><i class="ph-duotone ph-calendar-dots"></i><span>' + _escC(mLab) + '</span><i class="ph-duotone ph-caret-down cc-caret"></i></button>' +
+          '</div>';
+        setTimeout(_ccCount, 0);
+        if (!lst.length) return pills + '<div class="cc-empty">Nenhuma compra com esse filtro.</div>';
+        var tot = lst.reduce(function (s, c) { return s + (Number(c.valor) || 0); }, 0);
+        var conf = lst.filter(function (c) { return c.conferido; }).length;
+        var rl = 'Total' + (F.cartao ? (' · ' + _ccShort(F.cartao)) : '') + (F.mes ? (' · ' + cartMes(F.mes)) : '');
+        var resumo = '<div class="cc-resumo"><div><div class="cc-rlabel">' + _escC(rl) + '</div><div class="cc-rval">' + cartBRL(tot) + '</div></div>' +
+          '<div class="cc-rright"><div class="cc-ritens">' + lst.length + ' ' + (lst.length === 1 ? 'item' : 'itens') + '</div><div class="cc-rconf">' + conf + ' conferido' + (conf === 1 ? '' : 's') + '</div></div></div>';
+        var cards = lst.map(function (c) {
+          var h = '<div class="cc-card">';
+          h += '<div class="cc-top"><div class="cc-item">' + _escC(c.descricao || '(sem descrição)') + '</div><div class="cc-val">' + cartBRL(c.valor) + '</div></div>';
+          if (c.data) h += '<div class="cc-data"><i class="ph-duotone ph-calendar-blank"></i> ' + fmtDate(c.data) + '</div>';
+          if (c.loja) h += '<div class="cc-forn"><i class="ph-duotone ph-storefront"></i> ' + _escC(c.loja) + '</div>';
+          var tags = '';
+          if (c.empresa) tags += '<span class="cc-tag cc-emp">' + _escC(c.empresa) + '</span>';
+          if (c.cartao) tags += '<span class="cc-tag cc-card">' + _escC(_ccShort(c.cartao)) + '</span>';
+          if (c.competencia) tags += '<span class="cc-tag cc-comp">' + cartMes(c.competencia) + '</span>';
+          if (tags) h += '<div class="cc-tags">' + tags + '</div>';
+          h += '<div class="cc-div"></div>';
+          h += '<div class="cc-base"><div class="cc-status">' +
+            '<label class="cc-chk"><input type="checkbox" ' + (c.conferido ? 'checked' : '') + ' onchange="cartaoToggleConf(' + c.id + ',this.checked)"> Lançado</label>' +
+            '<label class="cc-chk"><input type="checkbox" ' + (c.recebido ? 'checked' : '') + ' onchange="cartaoToggleReceb(' + c.id + ',this.checked)"> Recebido</label>' +
+            '</div><div class="cc-acts">' +
+            '<button class="cc-ab edit" title="Editar" onclick="cartaoEditar(' + c.id + ')"><i class="ph-duotone ph-pencil-simple"></i></button>' +
+            '<button class="cc-ab del" title="Excluir" onclick="cartaoExcluir(' + c.id + ')"><i class="ph-duotone ph-trash"></i></button>' +
+            '</div></div>';
+          h += '</div>';
+          return h;
+        }).join('');
+        return resumo + pills + '<div class="cc-list">' + cards + '</div>';
+      };
     }
   } catch (e) {}
 
