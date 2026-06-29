@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <style>
   :root{
     --bg:#FBF7F1;--panel:#ffffff;--ink:#2A1A17;--ink-soft:#92837B;--line:#ECE3D9;
@@ -21,16 +22,23 @@
   body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
   .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
-  .topbar{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--grad);border-bottom:none;flex-shrink:0;z-index:20;color:#fff}
+  .topbar{display:flex;flex-direction:column;align-items:stretch;gap:0;padding:13px 16px 12px;background:var(--grad);flex-shrink:0;z-index:20;color:#fff;border-radius:0 0 24px 24px}
+  .ah-bar{display:flex;align-items:center;gap:12px}
+  .ah-titlewrap{flex:1;min-width:0}
+  .ah-menu{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:var(--sans);font-weight:600;font-size:.85rem;padding:8px 14px 8px 10px;border-radius:22px;cursor:pointer}
+  .ah-menu i{font-size:1.1rem}
+  .ah-acts{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .ah-ic{position:relative;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.16);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+  .ah-badge{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;border-radius:9px;background:#fff;color:var(--brand);font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+  .ah-title{font-family:var(--serif);font-weight:600;font-size:1.55rem;line-height:1.12;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ah-sub{color:rgba(255,255,255,.85);font-size:.82rem;margin-top:3px}
   .logo{display:flex;align-items:center;gap:12px}
   .logo .brandlogo{height:42px;width:auto;display:block}
-  .logo .brandlogo path{fill:#fff}
-  .logo .sep{width:1px;height:32px;background:rgba(255,255,255,.4)}
-  .logo .word{font-family:var(--sans);font-weight:600;color:rgba(255,255,255,.85);font-size:10px;letter-spacing:2px;text-transform:uppercase;align-self:center}
-  .nav{display:flex;gap:2px;margin-left:8px}
-  .nav button{border:0;background:transparent;color:rgba(255,255,255,.85);padding:9px 13px;border-radius:9px;font-weight:600;cursor:pointer;font-size:12.5px;font-family:var(--sans)}
+  .logo .word{font-family:var(--sans);font-weight:600;color:rgba(255,255,255,.85);font-size:10px}
+  .nav{display:flex;gap:6px;margin-top:11px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .nav button{flex:0 0 auto;border:0;background:rgba(255,255,255,.16);color:#fff;padding:8px 13px;border-radius:11px;font-weight:600;cursor:pointer;font-size:.78rem;font-family:var(--sans);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+  .nav button i{font-size:1rem}
   .nav button.active{background:#fff;color:var(--brand)}
-  .nav button:hover{background:rgba(255,255,255,.18)}
   .spacer{flex:1}
   .agentbox{display:flex;align-items:center;gap:9px;padding:5px 12px 5px 6px;border:1px solid var(--line);border-radius:30px;background:#fff}
   .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px}
@@ -231,7 +239,18 @@
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="logo">
+    <div class="ah-bar">
+      <button class="ah-menu" onclick="voltarMenu()"><i class="ph-duotone ph-caret-left"></i> Menu</button>
+      <div class="ah-titlewrap">
+        <h1 class="ah-title">Atendimento</h1>
+        <div class="ah-sub" id="ahSub">WhatsApp e Instagram · inbox unificado</div>
+      </div>
+      <div class="ah-acts" id="ahActs">
+        <button class="ah-ic" onclick="ahBusca()" title="Buscar"><i class="ph-duotone ph-magnifying-glass"></i></button>
+        <button class="ah-ic" onclick="ahAvisos()" title="Esperando"><i class="ph-duotone ph-bell"></i><span class="ah-badge" id="ahBadge" style="display:none">0</span></button>
+      </div>
+    </div>
+    <div class="logo" style="display:none">
       <svg class="brandlogo" viewBox="48 42 664 415" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lola Bar CCMQ">
         <path d="M515.2,179.2c-0.2-0.2-0.3-0.6-0.3-1v-18.6c0-0.5,0.1-0.8,0.3-1c0.2-0.2,0.6-0.3,1.1-0.3h9.2c2.3,0,4,0.5,5.2,1.6c1.1,1.1,1.7,2.5,1.7,4.4c0,1-0.2,1.9-0.7,2.6c-0.5,0.8-1.1,1.3-1.9,1.7c2.1,0.7,3.2,2.3,3.2,4.7c0,1.2-0.3,2.3-0.8,3.2c-0.6,1-1.4,1.7-2.5,2.3c-1.1,0.6-2.5,0.8-4.1,0.8h-9.2C515.8,179.5,515.4,179.4,515.2,179.2z M524.6,166.9c0.8,0,1.5-0.2,1.9-0.6c0.5-0.4,0.7-1,0.7-1.8c0-0.9-0.2-1.5-0.6-1.8c-0.4-0.4-1.1-0.5-2-0.5h-4.5v4.8H524.6z M525.1,175.8c0.9,0,1.6-0.2,2-0.7c0.5-0.5,0.7-1.1,0.7-1.9c0-0.9-0.3-1.6-0.8-2c-0.5-0.4-1.2-0.7-2.2-0.7h-4.8v5.3H525.1z"/>
         <path d="M542.3,179c0-0.2,0-0.3,0.1-0.5l8.1-19.3c0.2-0.4,0.3-0.6,0.5-0.7c0.2-0.1,0.4-0.2,0.8-0.2h2.3c0.3,0,0.6,0.1,0.7,0.2c0.2,0.1,0.3,0.4,0.5,0.7l8.1,19.3c0.1,0.2,0.1,0.4,0.1,0.5c0,0.4-0.2,0.5-0.6,0.5h-3.8c-0.3,0-0.5,0-0.6-0.1c-0.1-0.1-0.3-0.3-0.4-0.5l-1.4-3.7H549l-1.4,3.7c-0.1,0.2-0.2,0.4-0.4,0.5c-0.1,0.1-0.4,0.1-0.7,0.1h-3.8C542.5,179.5,542.3,179.4,542.3,179z M555.4,171.6l-2.6-6.8l-2.6,6.8H555.4z"/>
@@ -249,12 +268,12 @@
       <span class="word">Inbox Unificado</span>
     </div>
     <div class="nav">
-      <button class="active" onclick="nav('inbox',this)">💬 Atendimento</button>
-      <button onclick="nav('contacts',this)">👥 Contatos</button>
-      <button onclick="nav('bot',this)">🤖 Bot</button>
-      <button onclick="nav('arquivos',this)">📎 Arquivos</button>
-      <button onclick="nav('bcast',this)">📣 Transmissão</button>
-      <button onclick="window.open('https://calendar.google.com/calendar/u/0/r','_blank')" title="Abre na sua conta Google logada">📅 Agenda de reservas</button>
+      <button class="active" onclick="nav('inbox',this)"><i class="ph-duotone ph-chat-circle-dots"></i> Atendimento</button>
+      <button onclick="nav('contacts',this)"><i class="ph-duotone ph-users"></i> Contatos</button>
+      <button onclick="nav('bot',this)"><i class="ph-duotone ph-robot"></i> Bot</button>
+      <button onclick="nav('arquivos',this)"><i class="ph-duotone ph-paperclip"></i> Arquivos</button>
+      <button onclick="nav('bcast',this)"><i class="ph-duotone ph-megaphone"></i> Transmissão</button>
+      <button onclick="window.open('https://calendar.google.com/calendar/u/0/r','_blank')" title="Abre na sua conta Google logada"><i class="ph-duotone ph-calendar-dots"></i> Agenda</button>
     </div>
     <div class="spacer"></div>
     <div class="agentbox" title="Você responde com seu próprio nome">
@@ -889,6 +908,12 @@ fillSelects();
 loadCategorias().then(()=>{ fillCatSelects(); loadConversas().then(()=>{ if(convos.length) openConvo(convos[0].id); }); });
 subscribeRealtime();
 
+</script>
+<script>
+function voltarMenu(){try{var p=window.parent;if(p&&p!==window){p.postMessage({lola:'voltar-menu'},'*');return;}}catch(e){}try{history.back();}catch(e2){}}
+function ahBusca(){var s=document.querySelector('.search,input[placeholder*="Buscar"]');if(s){try{s.scrollIntoView({block:'center'});}catch(e){}setTimeout(function(){try{s.focus();}catch(e2){}},120);}}
+function ahAvisos(){if(typeof toggleWait==='function'){try{toggleWait();return;}catch(e){}}}
+(function(){try{var a=document.querySelector('.agentbox');var t=document.getElementById('ahActs');if(a&&t)t.appendChild(a);}catch(e){}})();
 </script>
 </body>
 </html>
