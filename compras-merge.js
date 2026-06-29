@@ -59,7 +59,7 @@
       '#module-comprascartao .cc-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}' +
       '#module-comprascartao .cc-tag{font-weight:600;font-size:.72rem;padding:4px 10px;border-radius:10px}' +
       '#module-comprascartao .cc-emp{background:#FBEAE7;color:var(--vinho)}' +
-      '#module-comprascartao .cc-tag.cc-card{background:#E6EEF8;color:#2C5AA0}' +
+      '#module-comprascartao .cc-cartao{background:#E6EEF8;color:#2C5AA0}' +
       '#module-comprascartao .cc-comp{background:#F1EFE8;color:#6B6258}' +
       '#module-comprascartao .cc-div{height:1px;background:var(--border);margin:13px 0 11px}' +
       '#module-comprascartao .cc-base{display:flex;align-items:center;justify-content:space-between;gap:10px}' +
@@ -301,7 +301,7 @@
           if (c.loja) h += '<div class="cc-forn"><i class="ph-duotone ph-storefront"></i> ' + _escC(c.loja) + '</div>';
           var tags = '';
           if (c.empresa) tags += '<span class="cc-tag cc-emp">' + _escC(c.empresa) + '</span>';
-          if (c.cartao) tags += '<span class="cc-tag cc-card">' + _escC(_ccShort(c.cartao)) + '</span>';
+          if (c.cartao) tags += '<span class="cc-tag cc-cartao">' + _escC(_ccShort(c.cartao)) + '</span>';
           if (c.competencia) tags += '<span class="cc-tag cc-comp">' + cartMes(c.competencia) + '</span>';
           if (tags) h += '<div class="cc-tags">' + tags + '</div>';
           h += '<div class="cc-div"></div>';
