@@ -14,13 +14,15 @@
 --grad:linear-gradient(135deg,#B5302E,#7E1E1F);--label:#B79A8E;--body:#5A463E;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Hanken Grotesk',sans-serif;background:var(--cream);color:var(--ink);font-size:15px}
-header{background:var(--vinho);padding:14px 18px 13px;position:static;z-index:30;color:#fff;border-radius:16px 16px 26px 26px;margin:12px 12px 0}
-.hdr-top{display:flex;align-items:center;gap:11px}
-.hdr-back{flex:0 0 auto;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
-.hdr-mid{flex:1;min-width:0}
-header h1{font-family:'Fraunces',serif;font-style:normal;font-weight:600;color:#fff;font-size:1.4rem;line-height:1.05}
-.hdr-count{color:rgba(255,255,255,.85);font-size:.78rem;margin-top:2px}
-.hdr-add{flex:0 0 auto;width:40px;height:40px;border-radius:50%;border:0;background:#fff;color:var(--vinho);font-size:21px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center}
+header{background:linear-gradient(150deg,#B5302E,#871F20);padding:13px 16px 13px;position:static;z-index:30;color:#fff;border-radius:0 0 24px 24px;margin:0}
+.hdr-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.hdr-menu{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:inherit;font-weight:600;font-size:.85rem;padding:8px 14px 8px 10px;border-radius:22px;cursor:pointer}
+.hdr-menu i{font-size:1.1rem}
+.hdr-actions{margin-left:auto;display:flex;gap:8px}
+.hdr-ic{position:relative;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.16);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.hdr-badge{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;border-radius:9px;background:#fff;color:var(--vinho);font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.hdr-title{font-family:'Fraunces',serif;font-weight:600;font-size:1.55rem;line-height:1.12;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-count{color:rgba(255,255,255,.85);font-size:.82rem;margin-top:3px}
 .wrap{max-width:none;margin:0;padding:18px 18px 80px}
 .btn{border:0;border-radius:11px;padding:11px 15px;font-size:.9rem;font-weight:600;cursor:pointer;font-family:inherit;min-height:44px}
 .btn-primary{background:var(--grad);color:#fff;width:100%}
@@ -187,11 +189,15 @@ header{position:static}
 </head>
 <body>
 <header>
-<div class="hdr-top">
-<button class="hdr-back" onclick="voltarMenu()" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
-<div class="hdr-mid"><h1>Reuniões &amp; Tarefas</h1><div class="hdr-count" id="hdrCount"></div></div>
-<button class="hdr-add" onclick="toggleNovo()" title="Novo registro"><i class="ph-duotone ph-plus"></i></button>
+<div class="hdr-row">
+<button class="hdr-menu" onclick="voltarMenu()"><i class="ph-duotone ph-caret-left"></i> Menu</button>
+<div class="hdr-actions">
+<button class="hdr-ic" onclick="hdrBusca()" title="Buscar"><i class="ph-duotone ph-magnifying-glass"></i></button>
+<button class="hdr-ic" onclick="hdrAvisos()" title="Avisos"><i class="ph-duotone ph-bell"></i><span class="hdr-badge" id="hdrBadge" style="display:none">0</span></button>
 </div>
+</div>
+<h1 class="hdr-title">Reuniões &amp; Tarefas</h1>
+<div class="hdr-count" id="hdrCount"></div>
 <div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista</span><span class="vt" data-v="quadro" onclick="setView('quadro')"><i class="ph-duotone ph-kanban"></i> Quadro</span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-map-trifold"></i> Mapa</span><span class="vt" data-v="atas" onclick="setView('atas')"><i class="ph-duotone ph-notebook"></i> Atas</span></div>
 </header>
 
@@ -490,12 +496,17 @@ if(solo.length){html+='<div class="grouphdr">Sem vínculo<span>'+solo.length+'</
 box.innerHTML=html;
 }
 function updateHdrCount(){
-var el=document.getElementById('hdrCount'); if(!el)return;
 var ab=REG.filter(function(f){return f.eh_tarefa&&!f.concluido;}).length;
+var hoje=new Date().toISOString().slice(0,10);
+var atras=REG.filter(function(f){return f.eh_tarefa&&!f.concluido&&f.prazo&&String(f.prazo).slice(0,10)<hoje;}).length;
 var me=norm(meuNome());
 var suas=me?REG.filter(function(f){ if(!f.eh_tarefa||f.concluido)return false; if(arr(f.responsaveis).map(norm).indexOf(me)<0)return false; var oks=oksOf(f); for(var k in oks){if(norm(k)===me)return false;} return true; }).length:0;
-el.textContent=ab+(ab===1?' aberta':' abertas')+(me?(' · '+suas+(suas===1?' sua':' suas')):'');
+var el=document.getElementById('hdrCount');
+if(el){var parts=[ab+(ab===1?' aberta':' abertas')]; if(me)parts.push(suas+(suas===1?' sua':' suas')); if(atras)parts.push(atras+(atras===1?' atrasada':' atrasadas')); el.textContent=parts.join(' · ');}
+var bd=document.getElementById('hdrBadge'); if(bd){var av=REG.filter(function(f){return !f.eh_tarefa;}).length; if(av>0){bd.style.display='';bd.textContent=av>99?'99+':av;}else{bd.style.display='none';}}
 }
+function hdrBusca(){var q=document.getElementById('q');if(q){try{q.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}setTimeout(function(){q.focus();},120);}}
+function hdrAvisos(){if(VIEW!=='lista')setView('lista');setF('ftt','aviso');}
 function render(){
 renderUnibar();
 updateHdrCount();
