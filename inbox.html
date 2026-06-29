@@ -297,6 +297,12 @@
     .table td:first-child{text-align:left;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}
     .table td:first-child::before{display:none}
     .table tr.clickrow:hover td{background:transparent}
+    /* Transmissão: 2 colunas (etiquetas + campanha) viram 1 */
+    .bcast{flex-direction:column;gap:14px}
+    .bcast .left,.bcast .right{width:100%}
+    /* Bot e cards: caber e quebrar */
+    .card{padding:14px;max-width:100%}
+    .msgitem .top{flex-wrap:wrap;gap:6px}
   }
 </style>
 </head>
