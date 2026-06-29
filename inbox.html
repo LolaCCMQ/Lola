@@ -305,6 +305,14 @@
     .grid2>*{min-width:0}
     .msgitem,.msgitem textarea,.inp{max-width:100%}
     .msgitem .top{flex-wrap:wrap;gap:6px}
+    /* Regras por palavra-chave: empilhar e deixar a lista longa quebrar */
+    .rule{flex-direction:column;align-items:stretch;gap:6px;position:relative}
+    .rule .kw{white-space:normal;overflow-wrap:anywhere;align-self:flex-start}
+    .rule .arrow{display:none}
+    .rule .r{flex:none;width:100%}
+    .rule .x{position:absolute;top:8px;right:8px}
+    /* trava geral: nenhum texto/lista estoura a largura da tela */
+    .page,.page *{overflow-wrap:anywhere}
   }
 </style>
 </head>
