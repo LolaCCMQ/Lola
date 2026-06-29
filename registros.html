@@ -14,8 +14,23 @@
 --grad:linear-gradient(135deg,#B5302E,#7E1E1F);--label:#B79A8E;--body:#5A463E;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Hanken Grotesk',sans-serif;background:var(--cream);color:var(--ink);font-size:15px}
-header{background:linear-gradient(150deg,#B5302E,#871F20);padding:13px 16px 13px;position:static;z-index:30;color:#fff;border-radius:0 0 24px 24px;margin:0}
+header{background:linear-gradient(150deg,#B5302E,#871F20);padding:13px 16px 13px;position:sticky;top:0;z-index:30;color:#fff;border-radius:0 0 24px 24px;margin:0;transition:padding .25s}
 .hdr-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.hdr-title-sm{font-family:'Fraunces',serif;font-weight:600;font-size:1.04rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;opacity:0;transition:max-width .25s,opacity .2s}
+.hdr-title{max-height:48px;opacity:1;transition:max-height .25s,opacity .2s,margin .25s}
+.hdr-count{max-height:24px;opacity:1;transition:max-height .25s,opacity .2s,margin .25s}
+header.is-compact{padding-top:9px;padding-bottom:0}
+header.is-compact .hdr-row{margin-bottom:8px}
+header.is-compact .hdr-title{max-height:0;opacity:0;margin:0}
+header.is-compact .hdr-count{max-height:0;opacity:0;margin:0}
+header.is-compact .hdr-title-sm{max-width:58vw;opacity:1}
+.toolrow{display:flex;gap:9px;margin:2px 0 12px}
+.filtros-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#fff;border:1.5px solid var(--border);border-radius:13px;padding:11px;font-family:inherit;font-weight:600;font-size:.88rem;color:var(--body);cursor:pointer;min-height:44px}
+.filtros-btn.open{border-color:var(--vinho);color:var(--vinho)}
+.filtros-btn i{font-size:1.05rem}
+.filtros-pin{background:var(--vinho);color:#fff;font-size:.66rem;font-weight:800;border-radius:20px;padding:1px 7px}
+.novo-btn{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;background:var(--grad);color:#fff;border:0;border-radius:13px;padding:11px 16px;font-weight:600;font-size:.88rem;cursor:pointer;min-height:44px}
+.novo-btn i{font-size:1.05rem}
 .hdr-menu{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:inherit;font-weight:600;font-size:.85rem;padding:8px 14px 8px 10px;border-radius:22px;cursor:pointer}
 .hdr-menu i{font-size:1.1rem}
 .hdr-actions{margin-left:auto;display:flex;gap:8px}
@@ -150,7 +165,7 @@ header{background:linear-gradient(150deg,#B5302E,#871F20);padding:13px 16px 13px
 .kok b{color:#1f7a4d}
 .kbtns{display:flex;gap:6px;flex-wrap:wrap}
 @media(max-width:720px){
-header{position:static}
+header{position:sticky;top:0}
 .board{display:flex;grid-template-columns:none;overflow-x:auto;gap:12px;padding-bottom:8px;scroll-snap-type:x mandatory}
 .kcol{flex:0 0 84%;scroll-snap-align:start}
 }
@@ -191,6 +206,7 @@ header{position:static}
 <header>
 <div class="hdr-row">
 <button class="hdr-menu" onclick="voltarMenu()"><i class="ph-duotone ph-caret-left"></i> Menu</button>
+<span class="hdr-title-sm">Reuniões &amp; Tarefas</span>
 <div class="hdr-actions">
 <button class="hdr-ic" onclick="hdrBusca()" title="Buscar"><i class="ph-duotone ph-magnifying-glass"></i></button>
 <button class="hdr-ic" onclick="hdrAvisos()" title="Avisos"><i class="ph-duotone ph-bell"></i><span class="hdr-badge" id="hdrBadge" style="display:none">0</span></button>
@@ -205,10 +221,16 @@ header{position:static}
 
 <!-- LISTA -->
 
+<!-- BARRA DE FERRAMENTAS: Filtros (acordeão) + Novo -->
+<div class="toolrow">
+<button class="filtros-btn" id="btnFiltros" onclick="toggleFiltros()"><i class="ph-duotone ph-funnel"></i> Filtros <span class="filtros-pin" id="filtrosPin" style="display:none">0</span></button>
+<button class="novo-btn" id="btnNovo" onclick="toggleNovo()"><i class="ph-duotone ph-plus"></i> Novo</button>
+</div>
+
+<!-- FILTROS (recolhíveis) -->
+<div id="filtrosBox" style="display:none">
 <!-- UNIDADE: primeiro corte -->
 <div class="unibar" id="unibar"></div>
-
-<!-- FILTROS -->
 <div class="filters">
 <div class="searchrow"><input type="search" id="q" placeholder="🔍 Buscar (título, pessoa, categoria, unidade…)" oninput="render()"><button type="button" class="btn btn-primary btn-sm" onclick="render()"><i class="ph-duotone ph-magnifying-glass"></i> Buscar</button></div>
 <select id="ftt" onchange="render()"><option value="">Tudo</option><option value="tarefa">Só tarefas</option><option value="aviso">Só avisos</option></select>
@@ -224,8 +246,7 @@ header{position:static}
 </select>
 <button class="btn btn-ghost btn-sm" onclick="limpar()">Limpar</button>
 </div>
-<!-- BOTAO + FORM COLAPSAVEL -->
-<div style="margin:2px 0 14px"><button class="btn btn-primary" id="btnNovo" onclick="toggleNovo()"><i class="ph-duotone ph-plus"></i> Adicionar novo registro</button></div>
+</div><!-- /filtrosBox -->
 <!-- NOVO REGISTRO -->
 <div class="quick" id="quickBox" style="display:none">
 <div class="quickhead"><b>Novo registro</b><span class="dt" id="qData"></span></div>
@@ -510,6 +531,7 @@ function hdrAvisos(){if(VIEW!=='lista')setView('lista');setF('ftt','aviso');}
 function render(){
 renderUnibar();
 updateHdrCount();
+updateFiltrosPin();
 var lst=filtered(), grp=document.getElementById('grp').value;
 lst=lst.slice().sort(function(a,b){ if(!!a.concluido!==!!b.concluido) return a.concluido?1:-1; return String(b.data||'').localeCompare(String(a.data||'')); });
 var _ab=lst.filter(function(c){return c.eh_tarefa&&!c.concluido;}).length;
@@ -535,6 +557,12 @@ return '<div class="grouphdr">'+esc(k)+'<span>'+groups[k].length+'</span></div><
 
 function setF(id,v){var e=document.getElementById(id);if(e)e.value=v;render();window.scrollTo({top:0,behavior:'smooth'});}
 function limpar(){FUNI='';['q','ftt','fcat','fsit','fresp'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});document.getElementById('grp').value='none';render();}
+function toggleFiltros(){var b=document.getElementById('filtrosBox'),btn=document.getElementById('btnFiltros');if(!b)return;var show=(b.style.display==='none');b.style.display=show?'block':'none';if(btn)btn.classList.toggle('open',show);}
+function activeFilterCount(){var n=0;var q=document.getElementById('q');if(q&&q.value.trim())n++;['ftt','fcat','fresp','fsit'].forEach(function(id){var e=document.getElementById(id);if(e&&e.value)n++;});var g=document.getElementById('grp');if(g&&g.value&&g.value!=='none')n++;if(typeof FUNI!=='undefined'&&FUNI)n++;return n;}
+function updateFiltrosPin(){var p=document.getElementById('filtrosPin');if(!p)return;var n=activeFilterCount();if(n>0){p.style.display='';p.textContent=n;}else{p.style.display='none';}}
+(function(){var hd=null,ticking=false,compact=false;function apply(){ticking=false;var y=window.scrollY||(document.documentElement&&document.documentElement.scrollTop)||0;var want=y>40;if(want===compact)return;compact=want;if(!hd)hd=document.querySelector('header');if(hd)hd.classList.toggle('is-compact',compact);try{if(window.parent&&window.parent!==window)window.parent.postMessage({lola:'lista-scroll',compact:compact},'*');}catch(e){}}
+function onScroll(){if(ticking)return;ticking=true;requestAnimationFrame(apply);}
+window.addEventListener('scroll',onScroll,{passive:true});})();
 function focar(id){limpar();setTimeout(function(){var el=document.getElementById('f'+id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash');setTimeout(function(){el.classList.remove('flash');},1800);}},60);}
 
 async function toggleOk(id,name){
