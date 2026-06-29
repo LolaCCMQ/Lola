@@ -277,7 +277,7 @@
     .det-close{display:flex !important;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;margin-bottom:6px;background:var(--brand-soft);color:var(--brand);border:0;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;position:sticky;top:0}
     /* ===== demais abas (Contatos, Bot, Arquivos, Transmissão): tudo cabe na tela ===== */
     .view{overflow-x:hidden}
-    .page{padding:16px 14px 80px}
+    .page{padding:16px 14px 80px;overflow-x:hidden}
     .page h1{font-style:normal;font-size:1.5rem}
     .page .lead{font-size:13px}
     .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -301,7 +301,9 @@
     .bcast{flex-direction:column;gap:14px}
     .bcast .left,.bcast .right{width:100%}
     /* Bot e cards: caber e quebrar */
-    .card{padding:14px;max-width:100%}
+    .card{padding:14px;max-width:100%;min-width:0}
+    .grid2>*{min-width:0}
+    .msgitem,.msgitem textarea,.inp{max-width:100%}
     .msgitem .top{flex-wrap:wrap;gap:6px}
   }
 </style>
