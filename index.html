@@ -864,6 +864,13 @@
       <div class="module-panel" id="module-tarefas"><iframe id="tarefasFrame" title="Reuniões & Tarefas" src="https://equipelola.net/registros.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
 
       <div class="module-panel" id="module-diario">
+        <div style="background:linear-gradient(150deg,#B5302E,#871F20);color:#fff;padding:13px 16px 14px;border-radius:0 0 24px 24px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <button onclick="switchModule('home')" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:'Hanken Grotesk',sans-serif;font-weight:600;font-size:.85rem;padding:8px 14px 8px 10px;border-radius:22px;cursor:pointer"><i class="ph-duotone ph-caret-left" style="font-size:1.1rem"></i> Menu</button>
+          </div>
+          <h1 style="font-family:'Fraunces',serif;font-weight:600;font-style:normal;font-size:1.55rem;line-height:1.12;color:#fff;margin:0">Diário de Gerentes</h1>
+          <div style="color:rgba(255,255,255,.85);font-size:.84rem;margin-top:3px">Briefing e checklist do turno</div>
+        </div>
         <!-- LOGIN -->
 <div class="screen" id="screen-login">
   <div class="page-title">Briefing diário</div>
@@ -1947,6 +1954,7 @@ function _avCol(r,nome){ var i=AV_HEAD.findIndex(function(h){return h.toLowerCas
 function _avNota(r){ var v=_avCol(r,'nota').replace(',','.'); var m=v.match(/[0-9]+(\.[0-9]+)?/); return m?parseFloat(m[0]):null; }
 function _avTemas(r){ return _avCol(r,'tema').split(/[,;·\/|]+/).map(function(s){return s.trim();}).filter(Boolean); }
 function avEstrelas(n){ n=Math.round(n||0); return '★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n); }
+function avFocusBusca(){var i=document.querySelector('#module-avaliacoes input');if(i){try{i.scrollIntoView({block:'center'});}catch(e){}setTimeout(function(){try{i.focus();}catch(e){}},100);}}
 async function renderAvaliacoes(){
   var panel=document.getElementById('module-avaliacoes'); if(!panel) return;
   panel.style.overflowY='auto';
@@ -1991,8 +1999,17 @@ function avRender(){
   var dist=[0,0,0,0,0]; notas.forEach(function(n){ var k=Math.round(n); if(k>=1&&k<=5)dist[k-1]++; });
   var temasCount={}; AV_ROWS.forEach(function(r){ _avTemas(r).forEach(function(tm){ temasCount[tm]=(temasCount[tm]||0)+1; }); });
   var temasOrd=Object.keys(temasCount).sort(function(a,b){return temasCount[b]-temasCount[a];});
-  var h='<div style="padding:22px 26px;max-width:1100px">';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div><h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin:0">Avaliações</h2><p style="color:var(--muted);font-size:.84rem;margin:2px 0 0">Direto da planilha — atualiza sozinho.</p></div><button class="btn btn-ghost btn-sm" onclick="renderAvaliacoes()">🔄 Atualizar</button></div>';
+  var h='<div style="background:linear-gradient(150deg,#B5302E,#871F20);color:#fff;padding:13px 16px 14px;border-radius:0 0 24px 24px">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+    +'<button onclick="switchModule(\'home\')" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:\'Hanken Grotesk\',sans-serif;font-weight:600;font-size:.85rem;padding:8px 14px 8px 10px;border-radius:22px;cursor:pointer"><i class="ph-duotone ph-caret-left" style="font-size:1.1rem"></i> Menu</button>'
+    +'<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'
+    +'<button title="Buscar" onclick="avFocusBusca()" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.16);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem"><i class="ph-duotone ph-magnifying-glass"></i></button>'
+    +'<button onclick="renderAvaliacoes()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:\'Hanken Grotesk\',sans-serif;font-weight:600;font-size:.8rem;padding:8px 14px;border-radius:13px;cursor:pointer"><i class="ph-duotone ph-arrows-clockwise"></i> Atualizar</button>'
+    +'</div></div>'
+    +'<h1 style="font-family:\'Fraunces\',serif;font-weight:600;font-style:normal;font-size:1.55rem;line-height:1.12;color:#fff;margin:0">Avaliações</h1>'
+    +'<div style="color:rgba(255,255,255,.85);font-size:.84rem;margin-top:3px">'+media.toFixed(2).replace('.',',')+' ★ · '+AV_ROWS.length+' avaliações</div>'
+    +'</div>';
+  h+='<div style="padding:22px 26px;max-width:1100px">';
   // resumo
   h+='<div style="display:flex;gap:14px;flex-wrap:wrap;margin:16px 0">';
   h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 20px;text-align:center;min-width:150px"><div style="font-size:2.2rem;font-weight:800;color:var(--vinho);line-height:1">'+media.toFixed(2).replace('.',',')+'</div><div style="color:#e6a700;font-size:1.1rem;letter-spacing:2px">'+avEstrelas(media)+'</div><div style="font-size:.74rem;color:var(--muted);margin-top:4px">'+AV_ROWS.length+' avaliações</div></div>';
