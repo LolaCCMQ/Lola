@@ -144,6 +144,23 @@ header .sub{color:rgba(255,255,255,.82);font-size:.78rem;margin-top:5px}
 .board{display:flex;grid-template-columns:none;overflow-x:auto;gap:12px;padding-bottom:8px;scroll-snap-type:x mandatory}
 .kcol{flex:0 0 84%;scroll-snap-align:start}
 }
+/* PAINEL DA FICHA */
+.fp-ov{position:fixed;inset:0;background:rgba(30,10,10,.5);display:none;z-index:70}
+.fp-ov.show{display:block}
+.fp{position:absolute;top:0;right:0;height:100%;width:440px;max-width:92vw;background:#fff;box-shadow:-12px 0 44px rgba(0,0,0,.28);overflow-y:auto;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s}
+.fp-ov.show .fp{transform:translateX(0)}
+@media(max-width:560px){.fp{width:100%;max-width:100%}}
+.fp-head{position:sticky;top:0;background:var(--grad);color:#fff;padding:15px 16px;display:flex;align-items:flex-start;gap:10px;z-index:2}
+.fp-x{margin-left:auto;background:rgba(255,255,255,.2);border:0;color:#fff;width:32px;height:32px;border-radius:9px;font-size:15px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.fp-body{padding:14px 16px;flex:1}
+.fp-sec{margin-bottom:16px}
+.fp-sec h4{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.fp-meta{font-size:.84rem;color:var(--body)}
+.fp-obs{border:1px solid var(--border);border-radius:11px;padding:9px 11px;margin-bottom:8px;background:var(--cream)}
+.fp-obs .who{font-size:.72rem;color:var(--muted);font-weight:600;margin-bottom:3px}
+.fp-obs .txt{font-size:.86rem;color:var(--ink);white-space:pre-wrap}
+.fp-foot{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ata-card h3{cursor:default}
 /* MODAL */
 .ov{position:fixed;inset:0;background:rgba(30,10,10,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;overflow-y:auto;padding:20px 12px}
 .ov.show{display:flex}
@@ -176,7 +193,7 @@ header .sub{color:rgba(255,255,255,.82);font-size:.78rem;margin-top:5px}
 
 <!-- LISTA -->
 <div class="seclabel">Registros já feitos</div>
-<div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista</span><span class="vt" data-v="quadro" onclick="setView('quadro')"><i class="ph-duotone ph-kanban"></i> Quadro</span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-map-trifold"></i> Mapa</span></div>
+<div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista</span><span class="vt" data-v="quadro" onclick="setView('quadro')"><i class="ph-duotone ph-kanban"></i> Quadro</span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-map-trifold"></i> Mapa</span><span class="vt" data-v="atas" onclick="setView('atas')"><i class="ph-duotone ph-notebook"></i> Atas</span></div>
 
 <!-- UNIDADE: primeiro corte -->
 <div class="unibar" id="unibar"></div>
@@ -245,6 +262,8 @@ header .sub{color:rgba(255,255,255,.82);font-size:.78rem;margin-top:5px}
 </div>
 </div>
 </div>
+<!-- PAINEL DA FICHA -->
+<div class="fp-ov" id="fpov" onclick="if(event.target===this)fecharFicha()"><div class="fp" id="fp"></div></div>
 <div id="toast"></div>
 
 <script>
@@ -262,7 +281,7 @@ function subjColor(f){var cs=arr(f.categorias);for(var i=0;i<cs.length;i++){if(C
 function catColor(c){return CAT_COLORS[c]||'#7E1E1F';}
 function uniShort(u){return ({'Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'CENTRAL'})[u]||u;}
 
-var REG=[], EDIT=null, FUNI='', VIEW='lista';
+var REG=[], ATAS=[], EDIT=null, FUNI='', VIEW='lista';
 var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
 var _m={uni:[],cat:[],resp:[],tarefa:false,rel:[]};
 
@@ -280,6 +299,7 @@ function meuNome(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&
 async function load(){
 try{ var r=await sb.from('lola_assuntos').select('*').order('data',{ascending:false,nullsFirst:false}).order('id',{ascending:false}); REG=r.data||[]; }
 catch(e){ document.getElementById('lista').innerHTML='<div class="empty">Erro: '+esc(e.message||e)+'</div>'; return; }
+try{ var ra=await sb.from('lola_atas').select('*').eq('avulsa',false); ATAS=ra.data||[]; }catch(e){ ATAS=[]; }
 popFiltros(); render();
 }
 function applyUrlFilters(){
@@ -342,7 +362,7 @@ var cont=f.conteudo?('<div class="conteudo" id="c'+f.id+'">'+esc(f.conteudo)+'</
 var bcol=f.eh_tarefa?'#1f7a4d':'#6b5d5d', blab=f.eh_tarefa?'<i class="ph-duotone ph-check-square"></i> Tarefa':'<i class="ph-duotone ph-megaphone"></i> Aviso';
 return '<div class="card'+(f.concluido?' done':'')+'" id="f'+f.id+'">'
 +'<div class="cardtop"><span class="badge" style="background:'+bcol+'22;color:'+bcol+'">'+blab+'</span><span class="dt">'+fmtDate(f.data)+'</span></div>'
-+'<h3>'+esc(f.titulo||'(sem título)')+'</h3>'
++'<h3 onclick="abrirFicha('+f.id+')" style="cursor:pointer">'+esc(f.titulo||'(sem título)')+'</h3>'
 +((uni||cat)?'<div class="chips">'+uni+cat+'</div>':'')
 +cont
 +prazoH
@@ -353,8 +373,29 @@ return '<div class="card'+(f.concluido?' done':'')+'" id="f'+f.id+'">'
 +'</div>';
 }
 
+/* ===== ATAS (diário de reuniões) ===== */
+function renderAtasView(box){
+var atas=(ATAS||[]).slice().sort(function(a,b){return String(b.date||String(b.created_at||'').slice(0,10)).localeCompare(String(a.date||String(a.created_at||'').slice(0,10)));});
+if(!atas.length){box.innerHTML='<div class="empty">Nenhuma ata registrada ainda.</div>';return;}
+var groups={},order=[];
+atas.forEach(function(a){var d=(a.date&&a.date.length>=7)?a.date:String(a.created_at||'').slice(0,10);var k=mesLabel(d);if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(a);});
+box.innerHTML=order.map(function(k){return '<div class="grouphdr">'+esc(k)+'<span>'+groups[k].length+'</span></div><div class="feed">'+groups[k].map(ataCardHTML).join('')+'</div>';}).join('');
+}
+function ataCardHTML(a){
+var n=REG.filter(function(f){return String(f.ata_id||'')===String(a.id);}).length;
+var d=a.date?fmtDate(a.date):(a.created_at?fmtDate(String(a.created_at).slice(0,10)):'');
+var cont=a.conteudo?('<div class="conteudo" id="ata'+a.id+'">'+esc(a.conteudo)+'</div><span class="vermais" onclick="var e=document.getElementById(\'ata'+a.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
+return '<div class="card ata-card">'
++'<div class="cardtop"><span class="badge" style="background:#6B4FA822;color:#6B4FA8"><i class="ph-duotone ph-notebook"></i> Ata</span><span class="dt">'+esc(d)+'</span></div>'
++'<h3>'+esc(a.title||'(sem título)')+'</h3>'
++(a.autor_nome?'<div class="resp"><i class="ph-duotone ph-user"></i> '+esc(a.autor_nome)+'</div>':'')
++cont
++(n?'<div class="rel"><i class="ph-duotone ph-link"></i> '+n+' assunto(s) ligado(s)</div>':'')
++'</div>';
+}
+
 /* ===== QUADRO (kanban) ===== */
-function kStatus(f){ if(f.concluido) return 'concluidas'; var oks=oksOf(f); var resp=arr(f.responsaveis); var n=resp.filter(function(r){return oks[r];}).length; return n>0?'andamento':'afazer'; }
+function kStatus(f){ if(f.concluido||f.etapa==='feito') return 'concluidas'; if(f.etapa==='fazendo') return 'andamento'; if(f.etapa==='afazer') return 'afazer'; var oks=oksOf(f); var resp=arr(f.responsaveis); return (resp.filter(function(r){return oks[r];}).length>0)?'andamento':'afazer'; }
 function kcardHTML(f){
 var col=subjColor(f);
 var uni=arr(f.unidades)[0]?(' · '+uniShort(arr(f.unidades)[0])):'';
@@ -371,7 +412,7 @@ var btns=f.concluido
  :'<button class="btn btn-sm btnconcluir" onclick="toggleDone('+f.id+',true)"><i class="ph-duotone ph-check"></i> Concluir</button><button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+')"><i class="ph-duotone ph-arrows-split"></i> Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')"><i class="ph-duotone ph-pencil-simple"></i> Editar</button>';
 return '<div class="kcard'+(f.concluido?' done':'')+'" draggable="true" ondragstart="kDragStart(event,'+f.id+')" ondragend="kDragEnd(event)">'
  +'<div class="kbar" style="background:'+col+'"><span>'+esc(assunto.toUpperCase())+esc(uni)+'</span><span class="kmove"><i class="ph-duotone ph-caret-left" onclick="kArrow('+f.id+',-1)"></i><i class="ph-duotone ph-caret-right" onclick="kArrow('+f.id+',1)"></i></span></div>'
- +'<div class="kbody">'+tag+'<h4>'+esc(f.titulo||'(sem título)')+'</h4>'
+ +'<div class="kbody">'+tag+'<h4 onclick="abrirFicha('+f.id+')" style="cursor:pointer">'+esc(f.titulo||'(sem título)')+'</h4>'
  +(pills?'<div class="chips">'+pills+'</div>':'')
  +desc+okline
  +'<div class="kbtns">'+btns+'</div></div></div>';
@@ -396,11 +437,15 @@ function kOver(e){e.preventDefault();e.currentTarget.classList.add('dragover');}
 function kLeave(e){e.currentTarget.classList.remove('dragover');}
 function kDrop(e,col){e.preventDefault();e.currentTarget.classList.remove('dragover');var id=_kDragId;if(id==null){try{id=e.dataTransfer.getData('text/plain');}catch(x){}}if(id==null)return;kSetCol(id,col);}
 function kArrow(id,dir){var f=REG.find(function(x){return x.id==id;});if(!f)return;var order=['afazer','andamento','concluidas'];var i=order.indexOf(kStatus(f));var ni=Math.max(0,Math.min(2,i+dir));kSetCol(id,order[ni]);event.stopPropagation();}
-function kSetCol(id,col){
+async function kSetCol(id,col){
 var f=REG.find(function(x){return x.id==id;});if(!f)return;
-if(col==='concluidas'){ if(!f.concluido) toggleDone(id,true); else render(); return; }
-if(f.concluido){ toggleDone(id,false); return; }
-render();
+var etapaMap={afazer:'afazer',andamento:'fazendo',concluidas:'feito'};
+var et=etapaMap[col], done=(col==='concluidas');
+var em=done?(f.concluido_em||new Date().toISOString()):null;
+f.etapa=et; f.concluido=done; f.concluido_em=em;
+render(); _refreshFp();
+try{ var u=await sb.from('lola_assuntos').update({etapa:et,concluido:done,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id); if(u.error)throw u.error; toast(done?'✓ Concluído':(col==='andamento'?'Em andamento':'A fazer')); }
+catch(e){ toast('Erro ao mover'); }
 }
 
 function renderUnibar(){
@@ -447,6 +492,7 @@ lst=lst.slice().sort(function(a,b){ if(!!a.concluido!==!!b.concluido) return a.c
 var _ab=lst.filter(function(c){return c.eh_tarefa&&!c.concluido;}).length;
 document.getElementById('count').textContent=lst.length+' registro(s)'+(_ab?(' · '+_ab+' tarefa(s) a fazer'):'');
 var box=document.getElementById('lista');
+if(VIEW==='atas'){renderAtasView(box);return;}
 if(VIEW==='quadro'){renderQuadroView(lst,box);return;}
 if(VIEW==='mapa'){renderMapaView(lst,box);return;}
 if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
@@ -472,20 +518,22 @@ async function toggleOk(id,name){
 var f=REG.find(function(x){return x.id==id;});if(!f)return;
 var oks=Object.assign({},oksOf(f));
 if(oks[name])delete oks[name]; else oks[name]=new Date().toISOString();
-var resp=arr(f.responsaveis), done=resp.length>0&&resp.every(function(r){return oks[r];});
+var resp=arr(f.responsaveis), nok=resp.filter(function(r){return oks[r];}).length, done=resp.length>0&&nok===resp.length;
 var em=done?new Date().toISOString():null;
-f.oks=oks;f.concluido=done;f.concluido_em=em;
-try{var u=await sb.from('lola_assuntos').update({oks:oks,concluido:done,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(done?'✓ Tarefa concluída':'OK atualizado');}
+var et=done?'feito':(nok>0?'fazendo':'afazer');
+f.oks=oks;f.concluido=done;f.concluido_em=em;f.etapa=et;
+try{var u=await sb.from('lola_assuntos').update({oks:oks,concluido:done,concluido_em:em,etapa:et,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(done?'✓ Tarefa concluída':'OK atualizado');}
 catch(e){toast('Erro ao atualizar');}
-render();
+render(); _refreshFp();
 }
 async function toggleDone(id,ck){
 var f=REG.find(function(x){return x.id==id;});
 var em=ck?new Date().toISOString():null;
-if(f){f.concluido=ck;f.concluido_em=em;}
-try{var u=await sb.from('lola_assuntos').update({concluido:ck,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(ck?'✓ Concluído':'Reaberto');}
+var et=ck?'feito':'afazer';
+if(f){f.concluido=ck;f.concluido_em=em;f.etapa=et;}
+try{var u=await sb.from('lola_assuntos').update({concluido:ck,concluido_em:em,etapa:et,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(ck?'✓ Concluído':'Reaberto');}
 catch(e){toast('Erro ao atualizar');}
-render();
+render(); _refreshFp();
 }
 
 // ---- pickers ----
@@ -555,6 +603,48 @@ if(rel.indexOf(novo)<0){rel.push(novo);await sb.from('lola_assuntos').update({re
 if(_q.vincular){_q.chain.push(novo);_q.parent=null;document.getElementById('qDesc').value='';await load();renderVinc();toast('✓ Vinculado ('+_q.chain.length+') — escreva a próxima');window.scrollTo({top:0,behavior:'smooth'});}
 else{clearQuick();closeNovo();await load();toast('✓ Registrado');window.scrollTo({top:0,behavior:'smooth'});}
 }catch(e){toast('Erro: '+(e.message||e));}
+}
+
+// ---- painel da ficha ----
+var _fpId=null;
+function fecharFicha(){var o=document.getElementById('fpov');if(o)o.classList.remove('show');_fpId=null;}
+function _refreshFp(){ if(_fpId!=null){ var f=REG.find(function(x){return x.id==_fpId;}); if(f) abrirFicha(_fpId); else fecharFicha(); } }
+function abrirFicha(id){
+var f=REG.find(function(x){return x.id==id;});if(!f)return;
+_fpId=id;
+var uni=arr(f.unidades).map(function(u){return '<span class="chip uni">'+esc(u)+'</span>';}).join('');
+var cat=arr(f.categorias).map(function(c){return '<span class="chip cat" style="color:'+catColor(c)+'">'+esc(c)+'</span>';}).join('');
+var badge=f.eh_tarefa?'<span class="badge" style="background:rgba(255,255,255,.2);color:#fff"><i class="ph-duotone ph-check-square"></i> Tarefa</span>':'<span class="badge" style="background:rgba(255,255,255,.2);color:#fff"><i class="ph-duotone ph-megaphone"></i> Aviso</span>';
+var resp=arr(f.responsaveis), oks=oksOf(f), nok=resp.filter(function(r){return oks[r];}).length;
+var okhtml=resp.length?('<div class="oklabel">OK dos responsáveis ('+nok+'/'+resp.length+')</div><div class="okrow">'+resp.map(function(r){var on=!!oks[r];return '<span class="okchip'+(on?' on':'')+'" onclick="toggleOk('+f.id+',\''+esc(r).replace(/'/g,"\\'")+'\')">'+(on?'✓ ':'○ ')+esc(r)+'</span>';}).join('')+'</div>'):'<div class="fp-meta" style="color:var(--muted)">Sem responsáveis definidos.</div>';
+var obs=Array.isArray(f.observacoes)?f.observacoes:[];
+var obshtml=obs.length?obs.slice().reverse().map(function(o){return '<div class="fp-obs"><div class="who">'+esc(o.autor||'—')+' · '+fmtDate(String(o.data||'').slice(0,10))+'</div><div class="txt">'+esc(o.texto||'')+'</div></div>';}).join(''):'<div class="fp-meta" style="color:var(--muted)">Nenhuma observação ainda.</div>';
+var quem=(f.criado_por?esc(f.criado_por):'Alguém')+' &rarr; '+(resp.length?resp.map(esc).join(', '):'(sem responsáveis)');
+var hojeStr=new Date().toISOString().slice(0,10);
+var prazoTxt=f.prazo?((!f.concluido&&String(f.prazo).slice(0,10)<hojeStr?'⚠️ Atrasado: ':'Prazo: ')+fmtDate(f.prazo)):'Sem prazo';
+var statusTxt=f.concluido?'Concluída':(kStatus(f)==='andamento'?'Em andamento':'A fazer');
+var html='<div class="fp-head"><div><div class="chips" style="margin-bottom:7px">'+badge+'</div><div style="font-family:\'Fraunces\',serif;font-weight:600;font-size:1.18rem;line-height:1.2">'+esc(f.titulo||'(sem título)')+'</div></div><button class="fp-x" onclick="fecharFicha()"><i class="ph-duotone ph-x"></i></button></div>'
++'<div class="fp-body">'
++((uni||cat)?'<div class="fp-sec"><div class="chips">'+uni+cat+'</div></div>':'')
++'<div class="fp-sec"><h4>Quem abriu pra quem</h4><div class="fp-meta">'+quem+'</div><div class="fp-meta" style="color:var(--muted);margin-top:3px">Criado em '+fmtDate(f.data)+'</div></div>'
++(f.conteudo?('<div class="fp-sec"><h4>Descrição</h4><div class="fp-meta" style="white-space:pre-wrap">'+esc(f.conteudo)+'</div></div>'):'')
++(f.eh_tarefa?('<div class="fp-sec">'+okhtml+'</div>'):'')
++'<div class="fp-sec"><h4>Observações</h4>'+obshtml+'<textarea id="fpObs" placeholder="Escrever uma observação…" style="width:100%;margin-top:8px;min-height:54px;font-family:inherit;font-size:.88rem;padding:9px 11px;border:1.5px solid var(--border);border-radius:10px;background:var(--cream);color:var(--ink)"></textarea><button class="btn btn-ghost btn-sm" style="margin-top:7px" onclick="addObs('+f.id+')"><i class="ph-duotone ph-chat-text"></i> Adicionar observação</button></div>'
++'<div class="fp-sec"><h4>Desdobrar</h4><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="fecharFicha();desdobrar('+f.id+')"><i class="ph-duotone ph-arrows-split"></i> Nova tarefa ligada</button><button class="btn btn-ghost btn-sm" onclick="var t=document.getElementById(\'fpObs\');if(t)t.focus()"><i class="ph-duotone ph-chat-text"></i> Observação</button></div></div>'
++'</div>'
++'<div class="fp-foot"><div class="fp-meta"><b>'+statusTxt+'</b> · '+prazoTxt+'</div><div style="margin-left:auto;display:flex;gap:8px">'+(f.eh_tarefa?('<button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'<i class="ph-duotone ph-arrow-u-up-left"></i> Reabrir':'<i class="ph-duotone ph-check"></i> Concluir')+'</button>'):'')+'<button class="btn btn-ghost btn-sm" onclick="fecharFicha();editar('+f.id+')"><i class="ph-duotone ph-pencil-simple"></i> Editar</button></div></div>';
+document.getElementById('fp').innerHTML=html;
+document.getElementById('fpov').classList.add('show');
+}
+async function addObs(id){
+var ta=document.getElementById('fpObs');if(!ta)return;var txt=ta.value.trim();if(!txt){toast('Escreva a observação.');return;}
+var f=REG.find(function(x){return x.id==id;});if(!f)return;
+var obs=Array.isArray(f.observacoes)?f.observacoes.slice():[];
+obs.push({autor:meuNome()||'—',data:new Date().toISOString(),texto:txt});
+f.observacoes=obs;
+try{var u=await sb.from('lola_assuntos').update({observacoes:obs,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast('Observação adicionada');}
+catch(e){toast('Erro ao salvar observação');}
+abrirFicha(id);
 }
 
 // ---- edit modal ----
