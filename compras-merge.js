@@ -57,7 +57,7 @@
       '#module-comprascartao .cc-forn{display:flex;align-items:center;gap:8px;background:var(--cream,#FBF7F1);border:1px solid var(--border);border-radius:11px;padding:9px 11px;margin-top:11px;font-size:.86rem;color:#5A463E}' +
       '#module-comprascartao .cc-forn i{font-size:1.15rem;color:var(--label,#B79A8E)}' +
       '#module-comprascartao .cc-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}' +
-      '#module-comprascartao .cc-tag{font-weight:600;font-size:.72rem;padding:4px 10px;border-radius:10px}' +
+      '#module-comprascartao .cc-tag{display:inline-flex;align-items:center;line-height:1;font-weight:600;font-size:.72rem;padding:6px 11px;border-radius:10px}' +
       '#module-comprascartao .cc-emp{background:#FBEAE7;color:var(--vinho)}' +
       '#module-comprascartao .cc-cartao{background:#E6EEF8;color:#2C5AA0}' +
       '#module-comprascartao .cc-comp{background:#F1EFE8;color:#6B6258}' +
@@ -201,7 +201,7 @@
     }
     var aComprar = (itens || []).filter(function (i) { return !i.comprado; });
     var h = '<div style="padding:14px 14px 4px;max-width:680px"><div class="cm-lista-card">';
-    h += '<h3 style="font-family:Fraunces,serif;color:var(--vinho);font-style:normal;font-weight:600;font-size:1.2rem;margin:0 0 4px">Lista de Compras</h3>';
+    h += '<h3 style="font-family:Fraunces,serif;color:var(--vinho);font-style:normal;font-weight:600;font-size:1.45rem;margin:0 0 4px">Lista de Compras</h3>';
     h += '<p style="color:var(--muted);font-size:.72rem;margin:0 0 12px">O caderninho da equipe — itens comprados saem da lista automaticamente.</p>';
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">';
     h += '<input id="cmItem" placeholder="O que precisa comprar?" onkeydown="if(event.key===\'Enter\')window.__cmAdd()" style="flex:2;min-width:150px;font-family:inherit;font-size:.85rem;border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;background:#fff;color:var(--ink)">';
