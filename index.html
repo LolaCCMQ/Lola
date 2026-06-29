@@ -1940,7 +1940,7 @@ function cartaoExportar(){
 }
 
 /* ===== Avaliações Google ===== */
-var AV_HEAD=[], AV_ROWS=[], AV_URL='', AV_F={nota:'',tema:'',q:''}, AV_RESP={};
+var AV_HEAD=[], AV_ROWS=[], AV_URL='', AV_F={nota:'',tema:'',q:'',periodo:'tudo'}, AV_RESP={};
 function _csvParse(text){
   var rows=[],row=[],cur='',inq=false;
   for(var i=0;i<text.length;i++){ var ch=text[i];
@@ -1954,6 +1954,9 @@ function _avCol(r,nome){ var i=AV_HEAD.findIndex(function(h){return h.toLowerCas
 function _avNota(r){ var v=_avCol(r,'nota').replace(',','.'); var m=v.match(/[0-9]+(\.[0-9]+)?/); return m?parseFloat(m[0]):null; }
 function _avTemas(r){ return _avCol(r,'tema').split(/[,;·\/|]+/).map(function(s){return s.trim();}).filter(Boolean); }
 function avEstrelas(n){ n=Math.round(n||0); return '★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n); }
+function _avAvatarColor(s){ var arr=[['#FBE3DD','#A82A2A'],['#E6EEF8','#2C5AA0'],['#E6F3EA','#2C7A4B'],['#F3E9D4','#9A6B1E'],['#EFE6F6','#7A4FA3'],['#FBEAF0','#B23A6B']]; var h=0; s=String(s||''); for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;} return arr[Math.abs(h)%arr.length]; }
+function _avIniciais(s){ s=String(s||'').trim(); if(!s)return '?'; var p=s.split(/\s+/); return ((p[0][0]||'')+(p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
+function _avRel(r){ var s=(_avCol(r,'data')||'')+''; var p=s.split('/'); if(p.length!==3) return s; var d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0])); if(isNaN(d.getTime()))return s; var dias=Math.floor((Date.now()-d.getTime())/86400000); if(dias<=0)return 'hoje'; if(dias===1)return 'ontem'; if(dias<30)return 'há '+dias+' dias'; if(dias<60)return 'há 1 mês'; if(dias<365)return 'há '+Math.floor(dias/30)+' meses'; var an=Math.floor(dias/365); return 'há '+an+(an===1?' ano':' anos'); }
 function avFocusBusca(){var i=document.querySelector('#module-avaliacoes input');if(i){try{i.scrollIntoView({block:'center'});}catch(e){}setTimeout(function(){try{i.focus();}catch(e){}},100);}}
 async function renderAvaliacoes(){
   var panel=document.getElementById('module-avaliacoes'); if(!panel) return;
@@ -1965,7 +1968,7 @@ async function renderAvaliacoes(){
     var r=await fetch(AV_URL,{cache:'no-store'}); var txt=await r.text();
     var rows=_csvParse(txt).filter(function(x){return x.some(function(c){return (c||'').trim();});});
     AV_HEAD=rows[0]||[]; AV_ROWS=rows.slice(1);
-    try{ var rr=await api.get('avaliacoes_respostas','select=review_key,resposta,respondido')||[]; AV_RESP={}; rr.forEach(function(x){ AV_RESP[x.review_key]={resposta:x.resposta||'',respondido:!!x.respondido}; }); }catch(e){ AV_RESP={}; }
+    try{ var rr=await api.get('avaliacoes_respostas','select=review_key,resposta,respondido,respondido_por')||[]; AV_RESP={}; rr.forEach(function(x){ AV_RESP[x.review_key]={resposta:x.resposta||'',respondido:!!x.respondido,por:x.respondido_por||''}; }); }catch(e){ AV_RESP={}; }
     avRender();
   }catch(e){ panel.innerHTML='<div style="padding:24px 26px;max-width:640px"><p style="color:var(--vinho)">Não consegui carregar a planilha (verifique se ela está <b>Publicada na web</b> e se o link é o CSV).</p><button class="btn btn-ghost btn-sm" onclick="avTrocarLink()">Trocar link</button></div>'; }
 }
@@ -1984,7 +1987,7 @@ async function avSalvarUrl(){
   renderAvaliacoes();
 }
 function avTrocarLink(){ AV_URL=''; avConfig(); }
-function _avDataNum(r){var s=(_avCol(r,'data')||'')+'';var p=s.split('/');if(p.length!==3)return 0;return parseInt(p[2]+('0'+p[1]).slice(-2)+('0'+p[0]).slice(-2))||0;}function avSetDataIni(v){AV_F.dini=v?parseInt(v.split('-').join('')):0;avRender();}function avSetDataFim(v){AV_F.dfim=v?parseInt(v.split('-').join('')):0;avRender();}function avAtalhoData(dias){if(!dias){AV_F.dini=0;AV_F.dfim=0;}else{var now=new Date();function nm(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();}var d0=new Date(now);d0.setDate(d0.getDate()-(dias-1));AV_F.dini=nm(d0);AV_F.dfim=nm(now);}avRender();}function avFiltrar(){
+function _avDataNum(r){var s=(_avCol(r,'data')||'')+'';var p=s.split('/');if(p.length!==3)return 0;return parseInt(p[2]+('0'+p[1]).slice(-2)+('0'+p[0]).slice(-2))||0;}function avSetDataIni(v){AV_F.dini=v?parseInt(v.split('-').join('')):0;avRender();}function avSetDataFim(v){AV_F.dfim=v?parseInt(v.split('-').join('')):0;avRender();}function avAtalhoData(dias){if(!dias){AV_F.dini=0;AV_F.dfim=0;}else{var now=new Date();function nm(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();}var d0=new Date(now);d0.setDate(d0.getDate()-(dias-1));AV_F.dini=nm(d0);AV_F.dfim=nm(now);}AV_F.periodo=dias?String(dias):'tudo';avRender();}function avFiltrar(){
   return AV_ROWS.filter(function(r){ var _dn=_avDataNum(r); if(_dn){ if(AV_F.dini&&_dn<AV_F.dini)return false; if(AV_F.dfim&&_dn>AV_F.dfim)return false; }
     if(AV_F.nota){ var n=_avNota(r); if(Math.round(n||0)!==parseInt(AV_F.nota)) return false; }
     if(AV_F.tema){ if(_avTemas(r).map(function(s){return s.toLowerCase();}).indexOf(AV_F.tema.toLowerCase())<0) return false; }
@@ -1999,6 +2002,14 @@ function avRender(){
   var dist=[0,0,0,0,0]; notas.forEach(function(n){ var k=Math.round(n); if(k>=1&&k<=5)dist[k-1]++; });
   var temasCount={}; AV_ROWS.forEach(function(r){ _avTemas(r).forEach(function(tm){ temasCount[tm]=(temasCount[tm]||0)+1; }); });
   var temasOrd=Object.keys(temasCount).sort(function(a,b){return temasCount[b]-temasCount[a];});
+  var _d7=(function(){var d=new Date();d.setDate(d.getDate()-7);return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();})();
+  var semana=AV_ROWS.filter(function(r){return _avDataNum(r)>=_d7;}).length;
+  var _ym=(function(){var d=new Date();return d.getFullYear()*100+(d.getMonth()+1);})();
+  var _ymP=(function(){var d=new Date();d.setMonth(d.getMonth()-1);return d.getFullYear()*100+(d.getMonth()+1);})();
+  function _avYM(r){var s=(_avCol(r,'data')||'').split('/');return s.length===3?(parseInt(s[2])*100+parseInt(s[1])):0;}
+  var _cM=[],_pM=[]; AV_ROWS.forEach(function(r){var n=_avNota(r);if(n==null)return;var m=_avYM(r);if(m===_ym)_cM.push(n);else if(m===_ymP)_pM.push(n);});
+  var _aC=_cM.length?_cM.reduce(function(s,x){return s+x;},0)/_cM.length:null, _aP=_pM.length?_pM.reduce(function(s,x){return s+x;},0)/_pM.length:null;
+  var trend=(_aC!=null&&_aP!=null)?(Math.abs(_aC-_aP)<0.1?'média estável vs. mês passado':(_aC>_aP?'média subindo vs. mês passado':'média caindo vs. mês passado')):'';
   var h='<div style="background:linear-gradient(150deg,#B5302E,#871F20);color:#fff;padding:13px 16px 14px;border-radius:0 0 24px 24px">'
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
     +'<button onclick="switchModule(\'home\')" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:\'Hanken Grotesk\',sans-serif;font-weight:600;font-size:.85rem;padding:8px 14px 8px 10px;border-radius:22px;cursor:pointer"><i class="ph-duotone ph-caret-left" style="font-size:1.1rem"></i> Menu</button>'
@@ -2009,22 +2020,24 @@ function avRender(){
     +'<h1 style="font-family:\'Fraunces\',serif;font-weight:600;font-style:normal;font-size:1.55rem;line-height:1.12;color:#fff;margin:0">Avaliações</h1>'
     +'<div style="color:rgba(255,255,255,.85);font-size:.84rem;margin-top:3px">'+media.toFixed(2).replace('.',',')+' ★ · '+AV_ROWS.length+' avaliações</div>'
     +'</div>';
-  h+='<div style="padding:22px 26px;max-width:1100px">';
+  h+='<div style="padding:16px;max-width:680px">';
   // resumo
-  h+='<div style="display:flex;gap:14px;flex-wrap:wrap;margin:16px 0">';
-  h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 20px;text-align:center;min-width:150px"><div style="font-size:2.2rem;font-weight:800;color:var(--vinho);line-height:1">'+media.toFixed(2).replace('.',',')+'</div><div style="color:#e6a700;font-size:1.1rem;letter-spacing:2px">'+avEstrelas(media)+'</div><div style="font-size:.74rem;color:var(--muted);margin-top:4px">'+AV_ROWS.length+' avaliações</div></div>';
   var maxd=Math.max.apply(null,dist.concat([1]));
-  h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px 18px;flex:1;min-width:220px">';
-  for(var s=5;s>=1;s--){ var pc=Math.round(dist[s-1]/maxd*100); h+='<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:.8rem"><span style="width:38px;color:#e6a700">'+s+'★</span><div style="flex:1;background:#f0eae6;border-radius:6px;height:10px;overflow:hidden"><div style="width:'+pc+'%;height:100%;background:var(--vinho)"></div></div><span style="width:30px;text-align:right;color:var(--muted)">'+dist[s-1]+'</span></div>'; }
-  h+='</div>';
-  if(temasOrd.length){ h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px 18px;min-width:200px"><div style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Temas mais citados</div>'+temasOrd.slice(0,6).map(function(tm){return '<span onclick="AV_F.tema=\''+_escA(tm)+'\';avRender()" style="display:inline-block;cursor:pointer;background:var(--vinho-pale);color:var(--vinho);border-radius:20px;padding:3px 10px;font-size:.76rem;margin:2px">'+_escC(tm)+' ('+temasCount[tm]+')</span>';}).join('')+'</div>'; }
+  h+='<div style="background:#fff;border:1px solid var(--border);border-radius:18px;padding:16px 17px;margin:4px 0 18px;box-shadow:0 1px 2px rgba(42,26,23,.05),0 12px 26px -18px rgba(42,26,23,.22)">';
+  h+='<div style="display:flex;gap:16px;align-items:center">';
+  h+='<div style="flex:0 0 auto;text-align:center"><div style="font-family:Fraunces,serif;font-weight:600;font-size:2.9rem;line-height:.9;color:var(--ink)">'+media.toFixed(1).replace('.',',')+'</div><div style="color:#E6A700;font-size:.95rem;letter-spacing:1px;margin-top:3px">'+avEstrelas(media)+'</div><div style="color:var(--muted);font-size:.72rem;margin-top:3px">'+AV_ROWS.length+' avaliações</div></div>';
+  h+='<div style="flex:1;min-width:0">';
+  for(var s=5;s>=1;s--){ var pc=Math.round(dist[s-1]/maxd*100); h+='<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:.76rem"><span style="width:26px;color:#5A463E">'+s+'★</span><div style="flex:1;background:#F1EAE3;border-radius:6px;height:9px;overflow:hidden"><div style="width:'+pc+'%;height:100%;background:#E6A700;border-radius:6px"></div></div><span style="width:30px;text-align:right;color:var(--muted)">'+dist[s-1]+'</span></div>'; }
+  h+='</div></div>';
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-top:13px;padding-top:12px;border-top:1px solid var(--border)"><span style="display:inline-flex;align-items:center;gap:5px;background:#E6F3EA;color:#2C7A4B;font-weight:700;font-size:.76rem;padding:5px 11px;border-radius:20px"><i class="ph-duotone ph-trend-up"></i> +'+semana+' esta semana</span>'+(trend?'<span style="font-size:.76rem;color:var(--muted)">'+trend+'</span>':'')+'</div>';
   h+='</div>';
   // filtros
-  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'
-    +'<input id="avQ" placeholder="🔍 buscar (autor, comentário...)" value="'+_escA(AV_F.q)+'" oninput="AV_F.q=this.value;avListaRefresh()" style="'+_hin('flex:1;min-width:180px')+'">'+'<input type="date" onchange="avSetDataIni(this.value)" title="De" style="'+_hin()+'">'+'<input type="date" onchange="avSetDataFim(this.value)" title="Até" style="'+_hin()+'">'+'<button class="btn btn-ghost btn-sm" onclick="avAtalhoData(7)">7 dias</button>'+'<button class="btn btn-ghost btn-sm" onclick="avAtalhoData(30)">30 dias</button>'+'<button class="btn btn-ghost btn-sm" onclick="avAtalhoData(0)">Tudo</button>'
-    +'<select id="avNota" onchange="AV_F.nota=this.value;avRender()" style="'+_hin()+'"><option value="">Todas as notas</option>'+[5,4,3,2,1].map(function(n){return '<option value="'+n+'"'+(AV_F.nota==n?' selected':'')+'>'+n+' estrelas</option>';}).join('')+'</select>'
-    +'<select id="avTema" onchange="AV_F.tema=this.value;avRender()" style="'+_hin()+'"><option value="">Todos os temas</option>'+temasOrd.map(function(tm){return '<option'+(AV_F.tema===tm?' selected':'')+'>'+_escC(tm)+'</option>';}).join('')+'</select>'
-    +(((AV_F.nota||AV_F.tema||AV_F.q))?'<button class="btn btn-ghost btn-sm" onclick="AV_F={nota:\'\',tema:\'\',q:\'\'};avRender()">Limpar</button>':'')
+  h+='<div style="display:flex;gap:9px;margin-bottom:10px">';
+  [['7','7 dias',7],['30','30 dias',30],['tudo','Tudo',0]].forEach(function(p){ var on=(AV_F.periodo||'tudo')===p[0]; h+='<button onclick="avAtalhoData('+p[2]+')" style="flex:1;text-align:center;border:1px solid '+(on?'var(--vinho)':'var(--border)')+';background:'+(on?'var(--vinho)':'#fff')+';color:'+(on?'#fff':'#5A463E')+';border-radius:13px;padding:11px 6px;font-family:inherit;font-weight:600;font-size:.85rem;cursor:pointer">'+p[1]+'</button>'; });
+  h+='</div>';
+  h+='<div style="display:flex;gap:9px;margin-bottom:4px">'
+    +'<select id="avNota" onchange="AV_F.nota=this.value;avRender()" style="flex:1;'+_hin()+'"><option value="">Todas as notas</option>'+[5,4,3,2,1].map(function(n){return '<option value="'+n+'"'+(AV_F.nota==n?' selected':'')+'>'+n+' estrelas</option>';}).join('')+'</select>'
+    +'<select id="avTema" onchange="AV_F.tema=this.value;avRender()" style="flex:1;'+_hin()+'"><option value="">Todos os temas</option>'+temasOrd.map(function(tm){return '<option'+(AV_F.tema===tm?' selected':'')+'>'+_escC(tm)+'</option>';}).join('')+'</select>'
     +'</div>';
   h+='<div id="avLista">'+avLista()+'</div>';
   h+='<div style="margin-top:10px;font-size:.72rem;color:var(--muted)"><a href="#" onclick="avTrocarLink();return false;" style="color:var(--muted)">trocar link da planilha</a></div>';
@@ -2032,20 +2045,31 @@ function avRender(){
 }
 function avLista(){
   var lst=avFiltrar();
-  if(!lst.length) return '<div style="padding:16px;color:var(--muted);text-align:center">Nenhuma avaliação com esse filtro.</div>';
-  var h='<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">'+lst.length+' avaliação(ões) · 👆 clique numa avaliação para responder / marcar como respondida</div>';
-  h+='<div style="overflow-x:auto;max-width:100%"><table style="min-width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;font-size:.84rem">';
-  h+='<thead><tr style="background:var(--vinho-pale)">'+AV_HEAD.map(function(x){return '<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted);white-space:nowrap">'+_escC(x)+'</th>';}).join('')+'<th style="text-align:left;padding:8px 10px;font-size:.66rem;text-transform:uppercase;color:var(--muted)">Resposta</th></tr></thead><tbody>';
-  lst.forEach(function(r){
-    var _k=avKey(r); var _done=AV_RESP[_k]&&AV_RESP[_k].respondido;
-    h+='<tr onclick="avResponder(\''+_k+'\')" style="border-top:1px solid var(--border);cursor:pointer;'+(_done?'background:#e6f6ec;border-left:4px solid #1d6b43':'')+'" onmouseover="this.style.background=\'var(--vinho-pale)\'" onmouseout="this.style.background=\''+(_done?'#f1f9f4':'')+'\'">'+AV_HEAD.map(function(hd,ci){
-      var v=r[ci]||''; var low=hd.toLowerCase();
-      if(low.indexOf('nota')>=0){ var n=_avNota(r); return '<td style="padding:8px 10px;color:#e6a700;white-space:nowrap">'+(n!=null?avEstrelas(n)+' '+n:_escC(v))+'</td>'; }
-      var wrap=(low.indexOf('coment')>=0)?'min-width:240px':'white-space:nowrap';
-      return '<td style="padding:8px 10px;'+wrap+'">'+_escC(v)+'</td>';
-    }).join('')+avRowResp(r)+'</tr>';
-  });
-  h+='</tbody></table></div>'; return h;
+  if(!lst.length) return '<div style="padding:18px;color:var(--muted);text-align:center">Nenhuma avaliação com esse filtro.</div>';
+  var ord=lst.slice().sort(function(a,b){return _avDataNum(b)-_avDataNum(a);});
+  var pend=ord.filter(function(r){ var k=avKey(r); var done=AV_RESP[k]&&AV_RESP[k].respondido; return !done && (_avCol(r,'coment')||'').trim(); });
+  var h='<div style="font-size:.82rem;color:var(--muted);margin:6px 2px 14px"><b style="color:var(--ink)">'+lst.length+' avaliações</b> · toque numa pra responder ou marcar como respondida</div>';
+  if(pend.length){ h+='<div style="font-size:.74rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:6px 2px 10px"><i class="ph-duotone ph-warning" style="color:#E6A700;font-size:1rem;vertical-align:-2px"></i> Precisam de resposta ('+pend.length+')</div>'+pend.map(avCard).join(''); }
+  h+='<div style="font-size:.74rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:18px 2px 10px"><i class="ph-duotone ph-clock-counter-clockwise" style="font-size:1rem;vertical-align:-2px"></i> Avaliações recentes</div>'+ord.map(avCard).join('');
+  return h;
+}
+function avCard(r){
+  var k=avKey(r); var st=AV_RESP[k]||{}; var done=st.respondido; var por=st.por||'';
+  var autor=_avCol(r,'autor')||'Anônimo'; var nota=_avNota(r); var coment=(_avCol(r,'coment')||'').trim();
+  var fonte=_avCol(r,'fonte')||'Google'; var ic=_avAvatarColor(autor);
+  var h='<div onclick="avResponder(\''+k+'\')" style="background:#fff;border:1px solid var(--border);'+((!done&&coment)?'border-left:4px solid #E6A700;':'')+'border-radius:18px;padding:15px 16px;margin-bottom:13px;cursor:pointer;box-shadow:0 1px 2px rgba(42,26,23,.05),0 12px 26px -18px rgba(42,26,23,.22)">';
+  h+='<div style="display:flex;align-items:flex-start;gap:11px">';
+  h+='<div style="flex:0 0 auto;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;background:'+ic[0]+';color:'+ic[1]+'">'+_escC(_avIniciais(autor))+'</div>';
+  h+='<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.98rem;color:var(--ink);line-height:1.15">'+_escC(autor)+'</div><div style="display:flex;align-items:center;gap:5px;color:var(--muted);font-size:.74rem;margin-top:2px"><i class="ph-duotone ph-google-logo" style="font-size:.95rem"></i> '+_escC(fonte)+' · '+_avRel(r)+'</div></div>';
+  h+='<div style="flex:0 0 auto;color:#E6A700;font-size:.92rem;letter-spacing:1px;white-space:nowrap">'+(nota!=null?avEstrelas(nota):'')+'</div>';
+  h+='</div>';
+  if(coment) h+='<div style="font-size:.9rem;color:#5A463E;line-height:1.45;margin-top:11px">'+_escC(coment)+'</div>';
+  h+='<div style="height:1px;background:var(--border);margin:13px 0 11px"></div>';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">';
+  if(done){ h+='<span style="display:flex;align-items:center;gap:6px;color:#2C7A4B;font-size:.8rem;font-weight:600"><i class="ph-duotone ph-arrow-bend-up-left"></i> Respondida'+(por?(' por '+_escC(por)):'')+'</span><span style="display:inline-flex;align-items:center;gap:5px;background:#E6F3EA;color:#2C7A4B;font-weight:700;font-size:.74rem;padding:5px 11px;border-radius:20px"><i class="ph-duotone ph-check-circle"></i> resolvido</span>'; }
+  else { h+='<span style="display:flex;align-items:center;gap:6px;color:#B79A8E;font-size:.8rem;font-weight:600"><i class="ph-duotone ph-chat-circle-dots"></i> '+(coment?'Sem resposta':'Sem comentário')+'</span><span style="display:inline-flex;align-items:center;gap:6px;background:var(--vinho);color:#fff;font-weight:600;font-size:.82rem;padding:9px 15px;border-radius:12px">Responder <i class="ph-duotone ph-arrow-right"></i></span>'; }
+  h+='</div></div>';
+  return h;
 }
 function _avHash(s){ var h=0; s=String(s); for(var i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; } return 'r'+(h>>>0); }
 function avKey(r){ return _avHash(_avCol(r,'autor')+'|'+_avCol(r,'data')+'|'+_avCol(r,'coment')); }
@@ -2081,11 +2105,12 @@ function avCopiar(){ var ta=document.getElementById('avResp'); if(!ta)return; va
 async function avSalvarResp(k){
   var ta=document.getElementById('avResp'); var done=document.getElementById('avDone');
   var resposta=ta?ta.value:''; var respondido=done?done.checked:false;
+  var quem=(typeof currentUser!=='undefined'&&currentUser)?currentUser.name:''; var por=respondido?quem:null;
   try{
     var ex=await api.get('avaliacoes_respostas','select=id&review_key=eq.'+encodeURIComponent(k));
-    if(ex&&ex.length){ await api.patch('avaliacoes_respostas',{resposta:resposta,respondido:respondido,updated_at:new Date().toISOString()},'review_key=eq.'+encodeURIComponent(k)); }
-    else{ await api.post('avaliacoes_respostas',{review_key:k,resposta:resposta,respondido:respondido}); }
-    AV_RESP[k]={resposta:resposta,respondido:respondido};
+    if(ex&&ex.length){ await api.patch('avaliacoes_respostas',{resposta:resposta,respondido:respondido,respondido_por:por,updated_at:new Date().toISOString()},'review_key=eq.'+encodeURIComponent(k)); }
+    else{ await api.post('avaliacoes_respostas',{review_key:k,resposta:resposta,respondido:respondido,respondido_por:por}); }
+    AV_RESP[k]={resposta:resposta,respondido:respondido,por:por||''};
     avCloseModal(); if(typeof avListaRefresh==='function')avListaRefresh(); showToast('✓ Salvo');
   }catch(e){ showToast('Erro ao salvar'); }
 }
