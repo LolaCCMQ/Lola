@@ -684,7 +684,7 @@ async function loadMessages(id){
   msgsByConvo[id]=(data||[]).map(r=>{
     const isIn = r.direcao==='in';
     const from = isIn ? 'in' : (r.autor_tipo==='bot' ? 'bot' : 'out');
-    const file = (r.tipo && r.tipo!=='text' && r.midia_url) ? {tipo:(r.tipo==='image'||r.tipo==='imagem')?'img':'pdf', nome:(r.conteudo||r.tipo)} : null;
+    const file = (r.tipo && r.tipo!=='text' && r.midia_url) ? {tipo:r.tipo, nome:(r.conteudo||''), url:r.midia_url} : null;
     return { from, who:r.atendente_nome||(from==='bot'?'Bot Lola':''), txt:r.conteudo||'', t:fmtTime(r.created_at), file };
   });
   if(activeId===id) renderThread(id);
@@ -697,11 +697,27 @@ function renderThread(id){
   m.scrollTop=m.scrollHeight;
 }
 function reloadThread(){ if(activeId) loadMessages(activeId); }
+function renderFile(f){
+  const url=(f.url||'').toString();
+  const http=/^https?:\/\//i.test(url);
+  const t=(f.tipo||'').toLowerCase();
+  const cap=f.nome?`<div class="txt">${esc(f.nome)}</div>`:'';
+  if(http && (t==='image'||t==='imagem'||t==='img'||t==='sticker'))
+    return `<a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="" style="max-width:230px;max-height:280px;border-radius:12px;display:block"></a>${cap}`;
+  if(http && t==='audio')
+    return `<audio controls src="${esc(url)}" style="max-width:240px"></audio>${cap}`;
+  if(http && t==='video')
+    return `<video controls src="${esc(url)}" style="max-width:230px;max-height:280px;border-radius:12px;display:block"></video>${cap}`;
+  if(http)
+    return `<div class="file"><a href="${esc(url)}" target="_blank" rel="noopener">📄 ${esc(f.nome||'arquivo')}</a></div>`;
+  const ic=(t==='document'||t==='pdf')?'📄':(t==='audio'?'🎧':(t==='video'?'🎬':'🖼️'));
+  return `<div class="file"><span>${ic}</span> ${esc(f.nome||t||'anexo')}</div>`;
+}
 function bubble(msg){
   const d=document.createElement('div');d.className='msg '+msg.from;let who='';
   if(msg.from==='out')who=`<div class="who">${esc(msg.who||currentAgent)}</div>`;
   if(msg.from==='bot')who=`<div class="who">${esc(msg.who||'Bot Lola')}<span class="botflag">AUTO</span></div>`;
-  const body=msg.file?`<div class="file"><span>${msg.file.tipo==='pdf'?'📄':'🖼️'}</span> ${esc(msg.file.nome)}</div>`:`<div class="txt">${esc(msg.txt)}</div>`;
+  const body=msg.file?renderFile(msg.file):`<div class="txt">${esc(msg.txt)}</div>`;
   d.innerHTML=`${who}${body}<div class="t">${msg.t}</div>`;return d;
 }
 
