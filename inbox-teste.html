@@ -73,7 +73,10 @@
   .cprev{font-size:13px;font-weight:500;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
   .badge{flex-shrink:0;min-width:19px;height:19px;padding:0 6px;border-radius:20px;background:var(--brand);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
   .crow3{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
-  .pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+  .pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .mtabs{display:none}
+  .mtab{flex:0 0 auto;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;background:var(--neutral);color:#5a666e;border:0;white-space:nowrap}
+  .mtab.active{background:var(--brand-tint);color:var(--brand);font-weight:700}
   .tag{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:var(--neutral);color:#6a7681}
   .empty{padding:30px 16px;text-align:center;color:var(--ink3);font-size:13px}
 
@@ -176,6 +179,10 @@
     body.chat-open .col-list{display:none}
     .list-head{padding:20px 18px 10px}
     .lh-title{display:none}.lh-title-m{display:block}.lh-sub{display:none}
+    .mtabs{display:flex;gap:6px;overflow-x:auto;margin-top:12px;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+    .mtabs::-webkit-scrollbar{display:none}
+    .ch-line1{flex-wrap:wrap;gap:6px}
+    .chpill,.pill{flex-shrink:0}
     .search{height:44px;border-radius:13px}
     .circ.big{width:52px !important;height:52px !important;font-size:19px !important}
     .cname{font-size:16px}.cprev{font-size:14px}.ctime{font-size:12px}
@@ -221,9 +228,17 @@
           </div>
           <button class="compose" title="Nova conversa">✎</button>
         </div>
+        <div class="mtabs">
+          <button class="mtab active">💬 Atendimento</button>
+          <button class="mtab" onclick="toast('Contatos: em breve nesta versão de teste')">Contatos</button>
+          <button class="mtab" onclick="toast('Bot: em breve nesta versão de teste')">Bot</button>
+          <button class="mtab" onclick="toast('Arquivos: use o 📎 no chat por enquanto')">Arquivos</button>
+          <button class="mtab" onclick="toast('Transmissão: em breve nesta versão de teste')">Transmissão</button>
+          <button class="mtab" onclick="window.open('https://calendar.google.com/calendar/u/0/r','_blank')">Agenda</button>
+        </div>
         <div class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input id="searchInput" placeholder="Buscar conversa, cliente ou telefone…" oninput="renderList()">
+          <input id="searchInput" placeholder="Buscar em conversas e mensagens…" oninput="onSearchInput(this.value)">
         </div>
         <div class="filters" id="filters"></div>
       </div>
@@ -238,7 +253,7 @@
         <div class="libpop" id="libpop"></div>
         <div class="comp-top">
           <div class="sendas">Respondendo como <b id="sendAsName">Bianca</b> — a assinatura vai junto</div>
-          <div class="bottoggle">Bot automático <div class="switch" id="botSwitch" onclick="toggleBot()"></div></div>
+          <div class="bottoggle">Robô Lola <div class="switch" id="botSwitch" onclick="toggleBot()"></div></div>
         </div>
         <div class="quick" id="quick"></div>
         <div class="inputrow">
@@ -297,6 +312,7 @@ function avColor(s){ let h=0,str=(s||'?'); for(let i=0;i<str.length;i++) h=(h*31
 const esc=s=>(s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 let convos=[], msgsByConvo={}, activeId=null, filter='todas', waitOnly=false;
+let msgMatchIds=null, searchTimer=null;
 let catList=[]; // {id,label,cor}
 let myReplies=[], qrEditingId=null, qrSeeding=false;
 let biblioteca=[];
@@ -364,7 +380,7 @@ function renderList(){
   const arr=convos.filter(c=>{
     if(waitOnly&&!isWaiting(c)) return false;
     if(filter!=='todas'&&c.canal!==filter) return false;
-    if(q&&!(c.name.toLowerCase().includes(q)||(c.contato||'').toLowerCase().includes(q))) return false;
+    if(q){ const hit = c.name.toLowerCase().includes(q)||(c.contato||'').toLowerCase().includes(q)||(c.preview||'').toLowerCase().includes(q)||(msgMatchIds&&msgMatchIds.has(c.id)); if(!hit) return false; }
     return true;
   });
   box.innerHTML='';
@@ -381,6 +397,8 @@ function renderList(){
   });
 }
 function toggleWait(){ waitOnly=!waitOnly; renderList(); }
+function onSearchInput(v){ renderList(); clearTimeout(searchTimer); const q=(v||'').trim(); if(q.length<2){ msgMatchIds=null; return; } searchTimer=setTimeout(()=>msgSearch(q),260); }
+async function msgSearch(q){ try{ const { data }=await sb.from('wa_mensagens').select('conversa_id').ilike('conteudo','%'+q+'%').limit(3000); msgMatchIds=new Set((data||[]).map(r=>r.conversa_id)); renderList(); }catch(e){ console.warn('busca msgs',e); } }
 
 /* ===== abrir conversa ===== */
 async function openConvo(id){
@@ -490,21 +508,27 @@ async function setCat(id){ const c=convos.find(x=>x.id===activeId); if(!c)return
 async function saveContact(){ const c=convos.find(x=>x.id===activeId); if(!c||c.salvo)return; c.salvo=true; await sb.from('wa_contatos').update({salvo:true}).eq('id',c.contato_id); renderDrawer(); toast(c.name+' salvo nos contatos ✓'); }
 
 /* ===== respostas rápidas pessoais ===== */
-const QR_DEFAULTS=[{titulo:'👋 Saudação',texto:'Olá! Aqui é a '+(ME.name||'Equipe Lola')+', da Lola 💚 Como posso te ajudar?'},{titulo:'📄 Vou enviar proposta',texto:'Vou montar uma proposta e já te retorno, tá? 🙌'},{titulo:'✅ Reserva confirmada',texto:'Prontinho, sua reserva está confirmada! Qualquer coisa é só chamar por aqui 🌿'}];
+const QR_DEFAULTS=[ // 5 modelos de exemplo — ficam dentro de "Minhas respostas" (cada atendente edita as suas)
+  {titulo:'👋 Saudação',texto:'Olá! Aqui é a '+(ME.name||'Equipe Lola')+', da Lola 💚 Como posso te ajudar?'},
+  {titulo:'✅ Reserva confirmada',texto:'Prontinho, sua reserva está confirmada! Qualquer coisa é só chamar por aqui 🌿'},
+  {titulo:'⏰ Horário',texto:'Nosso time atende todos os dias, das 9h às 18h. Já registrei sua mensagem e retornamos no próximo horário útil 💚'},
+  {titulo:'🎉 Eventos',texto:'Que legal seu interesse em fazer um evento com a gente! Já vou te passar as opções de pacotes 🎉'},
+  {titulo:'📄 Vou enviar proposta',texto:'Vou montar uma proposta e já te retorno, tá? 🙌'}
+];
 function myKey(){ return (ME&&ME.id)?String(ME.id):('nome:'+((ME&&ME.name)?ME.name:'Atendente')); }
 async function loadMyReplies(){
   const key=myKey();
   const { data, error }=await sb.from('wa_respostas_rapidas').select('*').eq('atendente_id',key).order('ordem',{ascending:true}).order('created_at',{ascending:true});
   if(error){ console.warn('respostas',error); myReplies=[]; renderQuick(); return; }
-  if((!data||!data.length)&&!qrSeeding){ qrSeeding=true; await sb.from('wa_respostas_rapidas').insert(QR_DEFAULTS.map((r,i)=>({atendente_id:key,titulo:r.titulo,texto:r.texto,ordem:i}))); qrSeeding=false; return loadMyReplies(); }
+  if(QR_DEFAULTS.length&&(!data||!data.length)&&!qrSeeding){ qrSeeding=true; await sb.from('wa_respostas_rapidas').insert(QR_DEFAULTS.map((r,i)=>({atendente_id:key,titulo:r.titulo,texto:r.texto,ordem:i}))); qrSeeding=false; return loadMyReplies(); }
   myReplies=data||[]; renderQuick();
 }
 function renderQuick(){
   const q=document.getElementById('quick'); if(!q) return; q.innerHTML='';
   const mine=document.createElement('button'); mine.className='qchip mine'; mine.textContent='⚙️ Minhas respostas'; mine.onclick=openQrEditor; q.appendChild(mine);
   const lib=document.createElement('button'); lib.className='qchip'; lib.textContent='📎 Arquivos'; lib.onclick=toggleLibPop; q.appendChild(lib);
-  myReplies.forEach(r=>{ const b=document.createElement('button'); b.className='qchip'; b.textContent=r.titulo; b.title=r.texto; b.onclick=()=>insertQR(r.texto); q.appendChild(b); });
 }
+function useReply(id){ const r=myReplies.find(x=>x.id===id); if(!r) return; insertQR(r.texto); closeQrEditor(); }
 function insertQR(t){ const i=document.getElementById('composerInput'); i.value=t; i.focus(); }
 function openQrEditor(){ qrEditingId=null; renderQrEditor(); document.getElementById('qrEditor').classList.add('show'); }
 function closeQrEditor(){ document.getElementById('qrEditor').classList.remove('show'); renderQuick(); }
@@ -521,11 +545,12 @@ function renderQrEditor(){
       const save=document.createElement('button'); save.className='mini save'; save.textContent='Salvar'; save.onclick=()=>qrSave(r.id,ti.value,ta.value);
       row.appendChild(cancel); row.appendChild(save); it.appendChild(ti); it.appendChild(ta); it.appendChild(row);
     } else {
+      it.style.cursor='pointer'; it.title='Tocar para usar esta resposta'; it.onclick=()=>useReply(r.id);
       const top=document.createElement('div'); top.className='qi-top';
       const nm=document.createElement('div'); nm.className='qi-nm'; nm.textContent=r.titulo||'(sem título)';
       const acts=document.createElement('div'); acts.className='qi-acts';
-      const ed=document.createElement('button'); ed.className='ic'; ed.textContent='✏️'; ed.onclick=()=>qrEdit(r.id);
-      const dl=document.createElement('button'); dl.className='ic del'; dl.textContent='🗑️'; dl.onclick=()=>qrDel(r.id);
+      const ed=document.createElement('button'); ed.className='ic'; ed.textContent='✏️'; ed.onclick=(e)=>{e.stopPropagation();qrEdit(r.id);};
+      const dl=document.createElement('button'); dl.className='ic del'; dl.textContent='🗑️'; dl.onclick=(e)=>{e.stopPropagation();qrDel(r.id);};
       acts.appendChild(ed); acts.appendChild(dl); top.appendChild(nm); top.appendChild(acts);
       const pv=document.createElement('div'); pv.className='qi-pv'; pv.textContent=r.texto||'';
       it.appendChild(top); it.appendChild(pv);
