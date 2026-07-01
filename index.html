@@ -683,11 +683,13 @@
   }
 </style>
 <style>.portal-content,.module-panel,.module-panel.active,#module-avaliacoes,#module-avaliacoes *{min-width:0!important;}#module-avaliacoes{max-width:100%;}
-/* ===== Compras — faixa do compras-merge.js → cabeçalho v2 (override) ===== */
-#module-comprascartao .cm-bhead{background:transparent !important;border-bottom:1px solid #EFE6DC !important;border-radius:0 !important;color:var(--ink) !important;padding:12px 16px !important}
-#module-comprascartao .cm-btitle{color:var(--vinho) !important;font-style:normal !important}
-#module-comprascartao .cm-bsub{color:#8A7A72 !important}
-#module-comprascartao .cm-bmenu{background:#fff !important;border:1px solid var(--border) !important;color:var(--vinho) !important;border-radius:13px !important}
+/* ===== Compras — faixa do compras-merge.js → cabeçalho v2 (override, layout em linha) ===== */
+#module-comprascartao .cm-bhead{background:transparent !important;border-bottom:1px solid #EFE6DC !important;border-radius:0 !important;color:var(--ink) !important;padding:12px 16px !important;display:grid !important;grid-template-columns:auto 1fr auto !important;grid-template-areas:"menu title acts" "menu sub acts" !important;align-items:center !important;column-gap:10px !important;row-gap:0 !important}
+#module-comprascartao .cm-bhead-row{display:contents !important}
+#module-comprascartao .cm-bmenu{grid-area:menu !important;background:#fff !important;border:1px solid var(--border) !important;color:var(--vinho) !important;border-radius:13px !important;margin:0 !important;align-self:center !important}
+#module-comprascartao .cm-btitle{grid-area:title !important;color:var(--vinho) !important;font-style:normal !important;margin:0 !important;line-height:1.05 !important}
+#module-comprascartao .cm-bsub{grid-area:sub !important;color:#8A7A72 !important;margin:0 !important}
+#module-comprascartao .cm-bacts{grid-area:acts !important;display:flex !important;gap:8px !important;margin:0 !important;align-self:center !important}
 #module-comprascartao .cm-bic{background:#fff !important;border:1px solid var(--border) !important;color:var(--vinho) !important;border-radius:13px !important}
 /* ===== Compras no Cartão — mobile ===== */
 #module-comprascartao .cart-filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
