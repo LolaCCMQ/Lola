@@ -169,6 +169,61 @@
   .qr-item .mini.save{background:var(--brand);border-color:var(--brand);color:#fff}
   .qr-add{background:var(--brand);color:#fff;border:0;border-radius:13px;height:46px;width:100%;font-weight:700;font-size:14px;margin-top:2px}
 
+  /* views / páginas */
+  .view{flex:1;display:flex;min-height:0;overflow:hidden}
+  .view.hidden{display:none}
+  .page{flex:1;overflow-y:auto;padding:26px 32px;background:var(--bg)}
+  .page h1{margin:0 0 4px;font-family:var(--serif);font-weight:600;font-size:24px;color:var(--brand)}
+  .page .lead{color:var(--ink2);margin:0 0 20px;max-width:720px;font-size:13.5px}
+  .pageback{display:none}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 4px;font-family:var(--serif);font-weight:600;font-size:16px}
+  .card .desc{color:var(--ink2);font-size:13px;margin:0 0 14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  label.fl{display:block;font-size:12px;font-weight:700;color:var(--ink2);margin:12px 0 5px}
+  .inp{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;background:var(--neutral)}
+  textarea.inp{resize:vertical;min-height:54px}
+  .btn-primary{background:var(--brand);color:#fff;border:0;border-radius:11px;padding:10px 16px;font-weight:700}
+  .btn-sm{font-size:12px;padding:6px 11px;border-radius:9px;border:1px solid var(--line);background:#fff;font-weight:600;color:#5a666e}
+  .banner{background:var(--brand-tint);border:1px solid #f3c7c7;border-radius:12px;padding:14px 16px;display:flex;gap:12px;align-items:center;margin-bottom:18px;font-size:13px}
+  .banner .tagn{background:var(--brand);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;flex-shrink:0}
+  .kpis{display:flex;gap:14px;margin-bottom:20px}
+  .kpi{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi b{font-size:24px;display:block;font-family:var(--serif);color:var(--brand)}
+  .kpi span{color:var(--ink2);font-size:12px}
+  .cfilter{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  .self{font:inherit;font-size:12.5px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+  .cfilter .self{min-width:150px}
+  .table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  .table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2);padding:12px 14px;border-bottom:1px solid var(--line);background:var(--neutral)}
+  .table td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px}
+  .table tr:last-child td{border-bottom:0}
+  .table tr.clickrow{cursor:pointer}.table tr.clickrow:hover td{background:#faf7f2}
+  .mini{display:flex;align-items:center;gap:9px}
+  .msgitem{background:var(--neutral);border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px}
+  .msgitem .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .msgitem .nm{font-weight:700;font-size:13px}.msgitem .acts{display:flex;gap:6px}
+  .msgitem textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px;font:inherit;background:#fff;resize:vertical;min-height:46px}
+  .rulelist{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+  .rule{display:flex;align-items:center;gap:10px;background:var(--neutral);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13px}
+  .rule .kw{font-weight:700;color:var(--brand);background:var(--brand-tint);padding:2px 8px;border-radius:6px;white-space:nowrap}
+  .rule .arrow{color:var(--ink2)}.rule .r{flex:1;color:var(--ink2)}.rule .x{cursor:pointer;color:var(--ink2);font-weight:700;padding:0 4px}
+  .libcat{margin-bottom:24px}
+  .libcat h3{font-family:var(--serif);font-size:18px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+  .libcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+  .libcard .row{display:flex;align-items:center;gap:10px}
+  .libcard .nm{font-weight:700;font-size:13.5px}.libcard .meta{font-size:11.5px;color:var(--ink2)}
+  .libcard .actions{display:flex;gap:8px;margin-top:auto}
+  .libcard .send-lib{flex:1;background:var(--brand);color:#fff;border:0;border-radius:9px;padding:8px;font-weight:700;font-size:12.5px}
+  .bcast{display:flex;gap:18px;align-items:flex-start}
+  .bcast .left{width:300px;flex-shrink:0}.bcast .right{flex:1}
+  .taglist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .tagitem{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;cursor:pointer}
+  .tagitem.active{border-color:var(--brand);background:var(--brand-tint)}
+  .tagitem .nm{font-weight:700;font-size:13.5px}.tagitem .ct{font-size:11.5px;color:var(--ink2)}
+  .note{font-size:12.5px;background:var(--neutral);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--ink2)}
+
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:11px 18px;border-radius:11px;opacity:0;transition:.25s;z-index:80;pointer-events:none}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
   @media(max-width:640px){
@@ -193,6 +248,26 @@
     .field{border-radius:22px;min-height:46px}.send{width:46px;height:46px;border-radius:50%}
     .drawer{width:100vw}
     .libpop{left:14px;right:14px;width:auto;bottom:150px}
+    /* páginas no mobile */
+    .page{padding:52px 16px 80px}
+    .page h1{font-size:22px}
+    .pageback{display:inline-flex;align-items:center;gap:4px;background:var(--brand-tint);color:var(--brand);border:0;border-radius:20px;padding:7px 14px;font-weight:700;font-size:13px;margin-bottom:12px}
+    .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .kpi{padding:12px 13px}.kpi b{font-size:22px}
+    .grid2{grid-template-columns:1fr;gap:14px}
+    .banner{flex-wrap:wrap;font-size:12.5px}
+    .cfilter{flex-direction:column;align-items:stretch;gap:8px}
+    .cfilter .self,.cfilter .btn-sm{width:100%;min-width:0}
+    .libgrid{grid-template-columns:1fr 1fr;gap:10px}
+    .bcast{flex-direction:column;gap:14px}.bcast .left,.bcast .right{width:100%}
+    .table{box-shadow:none;background:transparent;border-radius:0}
+    .table thead{display:none}
+    .table tr{display:block;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;padding:10px 13px;box-shadow:var(--shadow)}
+    .table td{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border:0;font-size:13px;text-align:right}
+    .table td::before{content:attr(data-label);font-weight:700;color:var(--ink2);font-size:11px;text-transform:uppercase;letter-spacing:.3px;text-align:left}
+    .table td:first-child{text-align:left;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}
+    .table td:first-child::before{display:none}
+    .table tr.clickrow:hover td{background:transparent}
   }
 </style>
 </head>
@@ -201,11 +276,11 @@
   <div class="topbar">
     <button class="menu-back" onclick="voltarMenu()"><i class="ph" style="font-style:normal">‹</i> Menu</button>
     <div class="tabs">
-      <button class="tab active" onclick="toast('Você já está no Atendimento')">💬 Atendimento</button>
-      <button class="tab" onclick="toast('Contatos: em breve nesta versão de teste')">Contatos</button>
-      <button class="tab" onclick="toast('Bot: em breve nesta versão de teste')">Bot</button>
-      <button class="tab" onclick="toast('Arquivos: use o 📎 no chat por enquanto')">Arquivos</button>
-      <button class="tab" onclick="toast('Transmissão: em breve nesta versão de teste')">Transmissão</button>
+      <button class="tab active" data-nav="inbox" onclick="nav('inbox')">💬 Atendimento</button>
+      <button class="tab" data-nav="contacts" onclick="nav('contacts')">Contatos</button>
+      <button class="tab" data-nav="bot" onclick="nav('bot')">Bot</button>
+      <button class="tab" data-nav="arquivos" onclick="nav('arquivos')">Arquivos</button>
+      <button class="tab" data-nav="bcast" onclick="nav('bcast')">Transmissão</button>
       <button class="tab" onclick="window.open('https://calendar.google.com/calendar/u/0/r','_blank')">Agenda</button>
     </div>
     <div class="top-right">
@@ -218,6 +293,7 @@
   </div>
 
   <div class="workspace">
+   <div class="view" id="view-inbox">
     <div class="col-list">
       <div class="list-head">
         <div class="lh-row">
@@ -229,11 +305,11 @@
           <button class="compose" title="Nova conversa">✎</button>
         </div>
         <div class="mtabs">
-          <button class="mtab active">💬 Atendimento</button>
-          <button class="mtab" onclick="toast('Contatos: em breve nesta versão de teste')">Contatos</button>
-          <button class="mtab" onclick="toast('Bot: em breve nesta versão de teste')">Bot</button>
-          <button class="mtab" onclick="toast('Arquivos: use o 📎 no chat por enquanto')">Arquivos</button>
-          <button class="mtab" onclick="toast('Transmissão: em breve nesta versão de teste')">Transmissão</button>
+          <button class="mtab active" data-nav="inbox" onclick="nav('inbox')">💬 Atendimento</button>
+          <button class="mtab" data-nav="contacts" onclick="nav('contacts')">Contatos</button>
+          <button class="mtab" data-nav="bot" onclick="nav('bot')">Bot</button>
+          <button class="mtab" data-nav="arquivos" onclick="nav('arquivos')">Arquivos</button>
+          <button class="mtab" data-nav="bcast" onclick="nav('bcast')">Transmissão</button>
           <button class="mtab" onclick="window.open('https://calendar.google.com/calendar/u/0/r','_blank')">Agenda</button>
         </div>
         <div class="search">
@@ -265,6 +341,87 @@
         </div>
       </div>
     </div>
+   </div><!-- /view-inbox -->
+
+    <!-- CONTATOS -->
+    <div class="view hidden" id="view-contacts">
+      <div class="page">
+        <button class="pageback" onclick="nav('inbox')">‹ Conversas</button>
+        <h1>Lista de contatos</h1>
+        <p class="lead">Clientes salvos a partir das conversas. Clique num contato para abrir a conversa. Use os filtros para encontrar rápido.</p>
+        <div class="kpis">
+          <div class="kpi"><b id="kpiTotal">0</b><span>Contatos salvos</span></div>
+          <div class="kpi"><b id="kpiWa">0</b><span>Via WhatsApp</span></div>
+          <div class="kpi"><b id="kpiIg">0</b><span>Via Instagram</span></div>
+          <div class="kpi"><b id="kpiGoogle">0</b><span>Via Google</span></div>
+        </div>
+        <div class="cfilter">
+          <select class="self" id="cDia" onchange="renderContacts()"><option value="">Qualquer data</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="7d">Últimos 7 dias</option></select>
+          <select class="self" id="cStatus" onchange="renderContacts()"><option value="">Todas as etiquetas</option></select>
+          <select class="self" id="cCanal" onchange="renderContacts()"><option value="">Todos os canais</option><option value="wa">WhatsApp</option><option value="google">Google</option><option value="ig">Instagram</option></select>
+          <select class="self" id="cCat" onchange="renderContacts()"><option value="">Todas as categorias</option></select>
+          <button class="btn-sm" onclick="clearContactFilters()">Limpar</button>
+        </div>
+        <table class="table">
+          <thead><tr><th>Cliente</th><th>Canal</th><th>Categoria</th><th>Status</th><th>Último contato</th></tr></thead>
+          <tbody id="contactsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BOT -->
+    <div class="view hidden" id="view-bot">
+      <div class="page">
+        <button class="pageback" onclick="nav('inbox')">‹ Conversas</button>
+        <h1>Configuração do Bot</h1>
+        <p class="lead">Crie, edite e remova respostas automáticas. O bot atende fora do horário e nas primeiras mensagens; quando um atendente assume, ele se cala naquela conversa.</p>
+        <div class="banner"><span class="tagn">IMPORTANTE</span><div>WhatsApp e Instagram permitem resposta livre só dentro de <strong>24h</strong> após a última mensagem do cliente. Fora dessa janela, é preciso usar <strong>modelos aprovados pela Meta</strong>.</div></div>
+        <div class="grid2">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center"><h3>Mensagens padrão</h3><button class="btn-sm" onclick="addMsg()">+ Nova mensagem</button></div>
+            <p class="desc">Edite o texto direto no campo. Clique em salvar para guardar.</p>
+            <div id="msgList"></div>
+          </div>
+          <div class="card">
+            <h3>Regras por palavra-chave</h3>
+            <p class="desc">Quando a mensagem do cliente contém a palavra, o bot responde e aplica a categoria.</p>
+            <div class="rulelist" id="ruleList"></div>
+            <label class="fl">Adicionar nova regra</label>
+            <input class="inp" id="newRuleKw" placeholder="palavra-chave (ex.: estacionamento)">
+            <input class="inp" id="newRuleResp" style="margin-top:6px" placeholder="resposta automática">
+            <button class="btn-primary" style="margin-top:12px" onclick="addRule()">Adicionar regra</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARQUIVOS -->
+    <div class="view hidden" id="view-arquivos">
+      <div class="page">
+        <button class="pageback" onclick="nav('inbox')">‹ Conversas</button>
+        <h1>Arquivos</h1>
+        <p class="lead">Os materiais que vocês mais enviam, num lugar só. No chat, toque em "📎 Arquivos" e mande pro cliente em 2 toques.</p>
+        <div id="libContent"></div>
+      </div>
+    </div>
+
+    <!-- TRANSMISSÃO -->
+    <div class="view hidden" id="view-bcast">
+      <div class="page">
+        <button class="pageback" onclick="nav('inbox')">‹ Conversas</button>
+        <h1>Lista de transmissão</h1>
+        <p class="lead">Crie uma etiqueta (ex.: <em>Dia dos Namorados 2026</em>), selecione vários contatos e envie a mesma mensagem pra todos de uma vez.</p>
+        <div class="banner"><span class="tagn">ATENÇÃO</span><div>Envios em massa para quem está fora da janela de 24h usam <strong>modelos aprovados pela Meta</strong>. O sistema cuida disso na hora do envio.</div></div>
+        <div class="bcast">
+          <div class="left">
+            <div style="display:flex;justify-content:space-between;align-items:center"><strong>Etiquetas</strong><button class="btn-sm" onclick="addTag()">+ Nova etiqueta</button></div>
+            <div class="taglist" id="tagList"></div>
+          </div>
+          <div class="right" id="bcastRight"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -577,6 +734,100 @@ async function toggleLibPop(){
   p.innerHTML=html; p.classList.add('show');
 }
 function sendFile(id){ const b=biblioteca.find(x=>x.id===id); if(!b)return; document.getElementById('libpop').classList.remove('show'); document.getElementById('composerInput').value=b.nome+(b.url?'\n'+b.url:''); toast('Arquivo no campo — confira e envie'); }
+
+/* ===== navegação entre abas ===== */
+function nav(v){
+  document.querySelectorAll('.tab,.mtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('[data-nav="'+v+'"]').forEach(t=>t.classList.add('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));
+  const view=document.getElementById('view-'+v); if(view) view.classList.remove('hidden');
+  document.body.classList.remove('chat-open');
+  if(v==='contacts'){ fillSelects(); fillCatSelects(); renderContacts(); }
+  if(v==='bot') renderBot();
+  if(v==='arquivos') renderLib();
+  if(v==='bcast') renderBcast();
+}
+
+/* ===== helpers de página ===== */
+function elv(id){ const e=document.getElementById(id); return e?e.value:''; }
+function setTxt(id,t){ const e=document.getElementById(id); if(e) e.textContent=t; }
+function diaOf(ts){ if(!ts) return 'old'; const d=new Date(ts); if(isToday(d)) return 'hoje'; if(isYesterday(d)) return 'ontem'; const diff=(Date.now()-d.getTime())/86400000; return diff<=7?'7d':'old'; }
+function fillSelects(){ const s=document.getElementById('cStatus'); if(s) s.innerHTML='<option value="">Todas as etiquetas</option>'+STORDER.map(k=>'<option value="'+k+'">'+ST[k].label+'</option>').join(''); }
+function fillCatSelects(){ const cc=document.getElementById('cCat'); if(cc) cc.innerHTML='<option value="">Todas as categorias</option>'+catList.map(c=>'<option value="'+c.id+'">'+esc(c.label)+'</option>').join(''); }
+function clearContactFilters(){ ['cDia','cStatus','cCanal','cCat'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';}); renderContacts(); }
+
+/* ===== Contatos ===== */
+function smallAvatar(c){ return '<div class="avw"><div class="circ" style="width:34px;height:34px;font-size:13px;background:'+c.corAvatar+'">'+esc(c.iniciais)+'</div><span class="selo" style="width:15px;height:15px;background:'+CH[c.canal].cor+'">'+seloSvg(c.canal)+'</span></div>'; }
+function renderContacts(){
+  const tb=document.getElementById('contactsBody'); if(!tb) return; tb.innerHTML='';
+  const fDia=elv('cDia'),fSt=elv('cStatus'),fCa=elv('cCanal'),fCt=elv('cCat');
+  const saved=convos.filter(c=>c.salvo);
+  setTxt('kpiTotal',saved.length); setTxt('kpiWa',saved.filter(c=>c.canal==='wa').length); setTxt('kpiIg',saved.filter(c=>c.canal.indexOf('ig')===0).length); setTxt('kpiGoogle',saved.filter(c=>c.canal==='google').length);
+  const rows=saved.filter(c=>{
+    const dia=diaOf(c._ts);
+    if(fDia==='hoje'&&dia!=='hoje')return false;
+    if(fDia==='ontem'&&dia!=='ontem')return false;
+    if(fDia==='7d'&&!(dia==='hoje'||dia==='ontem'||dia==='7d'))return false;
+    if(fSt&&c.status!==fSt)return false;
+    if(fCa==='wa'&&c.canal!=='wa')return false;
+    if(fCa==='ig'&&c.canal.indexOf('ig')!==0)return false;
+    if(fCa==='google'&&c.canal!=='google')return false;
+    if(fCt&&c.cat!==fCt)return false;
+    return true;
+  });
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--ink3);padding:24px">Nenhum contato salvo com esses filtros.</td></tr>'; return; }
+  rows.forEach(c=>{
+    const cat=catObj(c.cat); const tr=document.createElement('tr'); tr.className='clickrow'; tr.title='Abrir conversa';
+    tr.onclick=()=>{ nav('inbox'); openConvo(c.id); };
+    tr.innerHTML='<td><div class="mini">'+smallAvatar(c)+'<div><b>'+esc(c.name)+'</b><br><span style="color:var(--ink2);font-size:12px">'+esc(c.contato)+'</span></div></div></td>'+
+      '<td data-label="Canal">'+CH[c.canal].label+'</td>'+
+      '<td data-label="Categoria">'+(cat?'<span class="tag">'+esc(cat.label)+'</span>':'—')+'</td>'+
+      '<td data-label="Status">'+statusPill(c.status)+'</td>'+
+      '<td data-label="Último contato">'+esc(c.hora)+' ›</td>';
+    tb.appendChild(tr);
+  });
+}
+
+/* ===== Bot (wa_templates) ===== */
+let templates=[];
+async function loadTemplates(){ const { data }=await sb.from('wa_templates').select('*').order('nome'); templates=data||[]; }
+function renderBot(){
+  loadTemplates().then(()=>{
+    const padroes=templates.filter(t=>t.categoria!=='palavra_chave'), regras=templates.filter(t=>t.categoria==='palavra_chave');
+    const ml=document.getElementById('msgList'); if(ml){ ml.innerHTML=''; padroes.forEach(t=>{ const d=document.createElement('div'); d.className='msgitem'; d.innerHTML='<div class="top"><span class="nm">'+esc(t.nome)+(t.ativo===false?' (inativa)':'')+'</span><div class="acts"><button class="btn-sm" onclick="saveTemplate(\''+t.id+'\')">Salvar</button><button class="btn-sm" onclick="delTemplate(\''+t.id+'\')">Excluir</button></div></div><textarea id="tpl_'+t.id+'">'+esc(t.conteudo||'')+'</textarea>'; ml.appendChild(d); }); }
+    const rl=document.getElementById('ruleList'); if(rl){ rl.innerHTML=''; if(!regras.length) rl.innerHTML='<div class="rule"><span class="r">Nenhuma regra por palavra-chave.</span></div>'; regras.forEach(t=>{ const d=document.createElement('div'); d.className='rule'; d.innerHTML='<span class="kw">'+esc(t.gatilho||'')+'</span><span class="arrow">→</span><span class="r">'+esc((t.conteudo||'').slice(0,70))+'…</span><span class="x" onclick="delTemplate(\''+t.id+'\')">✕</span>'; rl.appendChild(d); }); }
+  });
+}
+async function saveTemplate(id){ const ta=document.getElementById('tpl_'+id); if(!ta) return; await sb.from('wa_templates').update({conteudo:ta.value}).eq('id',id); toast('Mensagem do bot salva ✓'); }
+async function delTemplate(id){ if(!confirm('Excluir esta mensagem/regra do bot?'))return; await sb.from('wa_templates').delete().eq('id',id); renderBot(); toast('Removido ✓'); }
+async function addMsg(){ const nome=prompt('Nome da nova mensagem padrão:','Nova mensagem'); if(!nome)return; await sb.from('wa_templates').insert({nome,categoria:'resposta_rapida',conteudo:'',ativo:true}); renderBot(); toast('Mensagem criada ✓'); }
+async function addRule(){ const kw=elv('newRuleKw').trim(),resp=elv('newRuleResp').trim(); if(!kw||!resp){toast('Preencha palavra-chave e resposta');return;} await sb.from('wa_templates').insert({nome:'Palavra-chave: '+kw,categoria:'palavra_chave',gatilho:kw,conteudo:resp,ativo:true}); document.getElementById('newRuleKw').value=''; document.getElementById('newRuleResp').value=''; renderBot(); toast('Regra adicionada ✓'); }
+
+/* ===== Arquivos (página) ===== */
+function renderLib(){
+  loadBiblioteca().then(()=>{
+    const box=document.getElementById('libContent'); if(!box) return; box.innerHTML='';
+    libCats.forEach(cat=>{ const items=biblioteca.filter(b=>b.cat===cat.id); if(!items.length)return; const cards=items.map(b=>'<div class="libcard"><div class="row"><div class="ficon f-'+b.tipo+'">'+(b.tipo==='pdf'?'📄':'🖼️')+'</div><div><div class="nm">'+esc(b.nome)+'</div><div class="meta">'+esc(b.meta)+'</div></div></div><div class="actions"><button class="send-lib" onclick="goSendFile(\''+b.id+'\')">Enviar no chat</button></div></div>').join(''); box.insertAdjacentHTML('beforeend','<div class="libcat"><h3>'+cat.icon+' '+cat.label+'</h3><div class="libgrid">'+cards+'</div></div>'); });
+    if(!biblioteca.length) box.innerHTML='<div class="empty">Nenhum arquivo ainda. (Tabela wa_biblioteca vazia.)</div>';
+  });
+}
+function goSendFile(id){ if(!activeId){ toast('Abra uma conversa primeiro (aba Atendimento).'); return; } nav('inbox'); sendFile(id); }
+
+/* ===== Transmissão (wa_etiquetas) ===== */
+let etiquetas=[], activeTag=0;
+async function loadEtiquetas(){ const { data }=await sb.from('wa_etiquetas').select('*, wa_etiqueta_contatos(contato_id)').order('created_at',{ascending:false}); etiquetas=(data||[]).map(t=>({id:t.id,nome:t.nome,cor:t.cor,qtd:(t.wa_etiqueta_contatos||[]).length})); }
+function renderBcast(){
+  loadEtiquetas().then(()=>{
+    const tl=document.getElementById('tagList'); if(!tl) return; tl.innerHTML='';
+    if(!etiquetas.length) tl.innerHTML='<div class="ct" style="color:var(--ink2);padding:8px">Nenhuma etiqueta ainda.</div>';
+    etiquetas.forEach((t,i)=>{ const d=document.createElement('div'); d.className='tagitem'+(i===activeTag?' active':''); d.onclick=()=>{activeTag=i;renderBcast();}; d.innerHTML='<div><div class="nm">🏷️ '+esc(t.nome)+'</div><div class="ct">'+t.qtd+' contatos</div></div><span style="color:var(--ink2)">›</span>'; tl.appendChild(d); });
+    const t=etiquetas[activeTag]; const right=document.getElementById('bcastRight'); if(!right) return;
+    if(!t){ right.innerHTML='<div class="card">Crie ou selecione uma etiqueta.</div>'; return; }
+    right.innerHTML='<div class="card"><h3>'+esc(t.nome)+'</h3><p class="desc">'+t.qtd+' contato(s) nesta etiqueta. Escreva a mensagem da campanha.</p><label class="fl">Mensagem da transmissão</label><textarea class="inp" id="bcastMsg" placeholder="Ex.: Feliz Dia dos Namorados! 💕..."></textarea><button class="btn-primary" style="margin-top:12px" onclick="sendBcast()">📣 Registrar transmissão</button><div class="note" style="margin-top:10px">Envio em massa fora da janela de 24h exige <b>modelo aprovado pela Meta</b>. Esta ação registra a campanha; o disparo em massa será ligado quando os modelos estiverem aprovados.</div></div>';
+  });
+}
+async function sendBcast(){ const t=etiquetas[activeTag]; if(!t){toast('Selecione uma etiqueta');return;} const msg=elv('bcastMsg').trim(); if(!msg){toast('Escreva a mensagem');return;} await sb.from('wa_transmissoes').insert({etiqueta_id:t.id,nome:t.nome,mensagem:msg,canal:'whatsapp',total:t.qtd,enviadas:0,status:'rascunho',criado_por:currentAgent}); toast('Transmissão registrada (rascunho) ✓'); }
+async function addTag(){ const nome=prompt('Nome da nova etiqueta de transmissão:','Dia dos Namorados 2026'); if(!nome)return; await sb.from('wa_etiquetas').insert({nome}); activeTag=0; renderBcast(); toast('Etiqueta criada ✓ Adicione contatos a ela pelas conversas.'); }
 
 /* ===== toast ===== */
 let tt; function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('show'),2600); }
