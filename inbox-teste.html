@@ -91,7 +91,10 @@
   .ch-sub{font-size:12.5px;font-weight:500;color:var(--ink2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ch-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
   .ch-ic{width:38px;height:38px;border-radius:11px;border:0;background:transparent;display:grid;place-items:center;color:#54656f}.ch-ic:hover{background:var(--neutral)}
-  .ch-save{display:none;border:0;background:transparent;color:var(--brand);padding:6px}.ch-save svg{width:24px;height:24px}
+  .ch-save{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--brand);padding:7px;border-radius:11px;cursor:pointer}
+  .ch-save:hover{background:var(--neutral)}
+  .ch-save.saved{color:var(--green)}
+  .ch-save svg{width:22px;height:22px}
   .btn-det{display:inline-flex;align-items:center;gap:7px;background:var(--neutral);border:0;border-radius:11px;padding:9px 13px;font-size:13px;font-weight:600;color:#3f4b52}.btn-det svg{width:17px;height:17px}
 
   .messages{flex:1;overflow-y:auto;padding:26px 8%;display:flex;flex-direction:column;gap:10px;min-height:0;background-image:radial-gradient(rgba(164,36,47,.05) 1px,transparent 1px);background-size:22px 22px}
@@ -129,7 +132,7 @@
   .libpop.show{display:block}
   .libpop .h{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2);padding:6px 8px 4px;font-weight:700}
   .libpop .it{display:flex;align-items:center;gap:9px;padding:8px;border-radius:9px;cursor:pointer}.libpop .it:hover{background:var(--neutral)}
-  .ficon{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:14px;flex-shrink:0;color:#fff}.f-pdf{background:#d6453d}.f-img{background:#2d8a6b}
+  .ficon{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:14px;flex-shrink:0;color:#fff}.f-pdf{background:#d6453d}.f-img{background:#2d8a6b}.f-link{background:#2c5aa0}.f-arquivo{background:#7d8b93}
 
   .empty-chat{flex:1;display:grid;place-items:center;color:var(--ink2);font-size:14px;text-align:center;padding:0 30px}
 
@@ -184,6 +187,7 @@
   .inp{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;background:var(--neutral)}
   textarea.inp{resize:vertical;min-height:54px}
   .btn-primary{background:var(--brand);color:#fff;border:0;border-radius:11px;padding:10px 16px;font-weight:700}
+  .btn-ghost{background:#fff;border:1px solid var(--brand);color:var(--brand);border-radius:11px;padding:9px 14px;font-weight:700}
   .btn-sm{font-size:12px;padding:6px 11px;border-radius:9px;border:1px solid var(--line);background:#fff;font-weight:600;color:#5a666e}
   .banner{background:var(--brand-tint);border:1px solid #f3c7c7;border-radius:12px;padding:14px 16px;display:flex;gap:12px;align-items:center;margin-bottom:18px;font-size:13px}
   .banner .tagn{background:var(--brand);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;flex-shrink:0}
@@ -401,6 +405,21 @@
         <button class="pageback" onclick="nav('inbox')">‹ Conversas</button>
         <h1>Arquivos</h1>
         <p class="lead">Os materiais que vocês mais enviam, num lugar só. No chat, toque em "📎 Arquivos" e mande pro cliente em 2 toques.</p>
+        <div class="card" style="margin-bottom:22px;max-width:560px">
+          <h3>Adicionar material</h3>
+          <label class="fl">Categoria</label>
+          <select class="self" id="afCat" style="width:100%"></select>
+          <label class="fl">Nome (opcional — se vazio, usa o nome do arquivo)</label>
+          <input class="inp" id="afNome" placeholder="Ex: Cardápio 2026">
+          <div style="margin-top:12px">
+            <button class="btn-primary" onclick="document.getElementById('afFile').click()">📎 Anexar arquivo</button>
+            <input type="file" id="afFile" style="display:none" onchange="uploadArquivo(this)">
+          </div>
+          <div style="border-top:1px solid var(--line);margin:16px 0 12px"></div>
+          <label class="fl">Ou adicionar um link</label>
+          <input class="inp" id="afUrl" placeholder="https://…">
+          <button class="btn-ghost" style="margin-top:10px" onclick="addLink()">🔗 Adicionar link</button>
+        </div>
         <div id="libContent"></div>
       </div>
     </div>
@@ -497,6 +516,8 @@ function avatarHtml(c,big){
 }
 function statusPill(id){ const s=ST[id]; if(!s) return ""; return '<span class="pill" style="color:'+s.cor+';background:'+s.cor+'18">'+s.label+'</span>'; }
 function chPill(k){ const ch=CH[k]; return '<span class="chpill" style="color:'+ch.fg+';background:'+ch.bg+'">'+seloTint(k,ch.fg)+ch.label+'</span>'; }
+function catPill(c){ const cat=catObj(c.cat); if(!cat) return ''; return '<span class="pill" style="color:'+cat.cor+';background:'+cat.cor+'18">'+esc(cat.label)+'</span>'; }
+function saveIcon(saved){ return saved ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>'; }
 
 /* ===== filtros ===== */
 function renderFilters(){
@@ -565,11 +586,11 @@ async function openConvo(id){
   document.getElementById('chatHead').innerHTML=
     '<button class="ch-back" onclick="backToList()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>'+
     avatarHtml({corAvatar:c.corAvatar,iniciais:c.iniciais,canal:c.canal})+
-    '<div class="ch-info"><div class="ch-line1"><span class="ch-name">'+esc(c.name)+'</span>'+chPill(c.canal)+statusPill(c.status)+'</div>'+
+    '<div class="ch-info"><div class="ch-line1"><span class="ch-name">'+esc(c.name)+'</span>'+chPill(c.canal)+statusPill(c.status)+catPill(c)+'</div>'+
     '<div class="ch-sub">'+esc(c.contato)+'</div></div>'+
     '<div class="ch-actions">'+
       '<button class="ch-ic" onclick="reloadThread()" title="Atualizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg></button>'+
-      '<button class="ch-save" onclick="saveContact()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></button>'+
+      '<button class="ch-save'+(c.salvo?' saved':'')+'" onclick="saveContact()" title="'+(c.salvo?'Salvo nos contatos':'Adicionar aos contatos')+'">'+saveIcon(c.salvo)+'</button>'+
       '<button class="btn-det" onclick="openDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg> Detalhes</button>'+
     '</div>';
   document.getElementById('botSwitch').classList.toggle('on',c.bot);
@@ -662,7 +683,7 @@ function renderDrawer(){
 }
 async function setStatus(k){ const c=convos.find(x=>x.id===activeId); if(!c)return; c.status=k; await sb.from('wa_conversas').update({status:k,updated_at:new Date().toISOString()}).eq('id',activeId); renderDrawer(); openConvo(c.id); toast('Etiqueta: '+ST[k].label); }
 async function setCat(id){ const c=convos.find(x=>x.id===activeId); if(!c)return; const novo=c.cat===id?null:id; c.cat=novo; await sb.from('wa_conversas').update({categoria:novo,updated_at:new Date().toISOString()}).eq('id',activeId); renderDrawer(); renderList(); }
-async function saveContact(){ const c=convos.find(x=>x.id===activeId); if(!c||c.salvo)return; c.salvo=true; await sb.from('wa_contatos').update({salvo:true}).eq('id',c.contato_id); renderDrawer(); toast(c.name+' salvo nos contatos ✓'); }
+async function saveContact(){ const c=convos.find(x=>x.id===activeId); if(!c||c.salvo)return; c.salvo=true; await sb.from('wa_contatos').update({salvo:true}).eq('id',c.contato_id); const b=document.querySelector('.ch-save'); if(b){ b.classList.add('saved'); b.title='Salvo nos contatos'; b.innerHTML=saveIcon(true); } renderDrawer(); toast(c.name+' salvo nos contatos ✓'); }
 
 /* ===== respostas rápidas pessoais ===== */
 const QR_DEFAULTS=[ // 5 modelos de exemplo — ficam dentro de "Minhas respostas" (cada atendente edita as suas)
@@ -723,7 +744,7 @@ async function qrAdd(){ const key=myKey(); const ordem=myReplies.length?Math.max
 
 /* ===== biblioteca (popup Arquivos) ===== */
 const libCats=[{id:'pacotes',label:'Pacotes de eventos',icon:'🎉'},{id:'cardapio',label:'Cardápio / Menu',icon:'🍽️'},{id:'ambiente',label:'Fotos do ambiente',icon:'📸'},{id:'precos',label:'Tabela de preços',icon:'💲'},{id:'outros',label:'Outros',icon:'📂'}];
-async function loadBiblioteca(){ const { data }=await sb.from('wa_biblioteca').select('*').eq('ativo',true).order('ordem',{ascending:true}); biblioteca=(data||[]).map(b=>({id:b.id,nome:b.nome,cat:b.categoria||'outros',tipo:(b.tipo==='imagem'||b.tipo==='img')?'img':'pdf',meta:[(b.tipo||'').toUpperCase(),b.tamanho].filter(Boolean).join(' · '),url:b.url})); }
+async function loadBiblioteca(){ const { data }=await sb.from('wa_biblioteca').select('*').eq('ativo',true).order('created_at',{ascending:false}); biblioteca=(data||[]).map(b=>({id:b.id,nome:b.nome,cat:b.categoria||'outros',tipo:(b.tipo==='imagem'||b.tipo==='img')?'img':(b.tipo==='link'?'link':'pdf'),meta:[(b.tipo||'').toUpperCase(),b.tamanho].filter(Boolean).join(' · '),url:b.url})); }
 async function toggleLibPop(){
   const p=document.getElementById('libpop');
   if(p.classList.contains('show')){ p.classList.remove('show'); return; }
@@ -804,14 +825,42 @@ async function addMsg(){ const nome=prompt('Nome da nova mensagem padrão:','Nov
 async function addRule(){ const kw=elv('newRuleKw').trim(),resp=elv('newRuleResp').trim(); if(!kw||!resp){toast('Preencha palavra-chave e resposta');return;} await sb.from('wa_templates').insert({nome:'Palavra-chave: '+kw,categoria:'palavra_chave',gatilho:kw,conteudo:resp,ativo:true}); document.getElementById('newRuleKw').value=''; document.getElementById('newRuleResp').value=''; renderBot(); toast('Regra adicionada ✓'); }
 
 /* ===== Arquivos (página) ===== */
+function libIcon(t){ return t==='pdf'?'📄':(t==='link'?'🔗':'🖼️'); }
+function fillAfCat(){ const s=document.getElementById('afCat'); if(s&&!s.options.length) s.innerHTML=libCats.map(c=>'<option value="'+c.id+'">'+c.icon+' '+c.label+'</option>').join(''); }
 function renderLib(){
+  fillAfCat();
   loadBiblioteca().then(()=>{
     const box=document.getElementById('libContent'); if(!box) return; box.innerHTML='';
-    libCats.forEach(cat=>{ const items=biblioteca.filter(b=>b.cat===cat.id); if(!items.length)return; const cards=items.map(b=>'<div class="libcard"><div class="row"><div class="ficon f-'+b.tipo+'">'+(b.tipo==='pdf'?'📄':'🖼️')+'</div><div><div class="nm">'+esc(b.nome)+'</div><div class="meta">'+esc(b.meta)+'</div></div></div><div class="actions"><button class="send-lib" onclick="goSendFile(\''+b.id+'\')">Enviar no chat</button></div></div>').join(''); box.insertAdjacentHTML('beforeend','<div class="libcat"><h3>'+cat.icon+' '+cat.label+'</h3><div class="libgrid">'+cards+'</div></div>'); });
-    if(!biblioteca.length) box.innerHTML='<div class="empty">Nenhum arquivo ainda. (Tabela wa_biblioteca vazia.)</div>';
+    libCats.forEach(cat=>{ const items=biblioteca.filter(b=>b.cat===cat.id); if(!items.length)return; const cards=items.map(b=>'<div class="libcard"><div class="row"><div class="ficon f-'+b.tipo+'">'+libIcon(b.tipo)+'</div><div style="min-width:0"><div class="nm">'+esc(b.nome)+'</div><div class="meta">'+esc(b.meta||(b.tipo==='link'?'LINK':''))+'</div></div></div><div class="actions"><button class="send-lib" onclick="goSendFile(\''+b.id+'\')">Enviar no chat</button><button class="btn-sm" title="Remover" onclick="delArquivo(\''+b.id+'\')">🗑️</button></div></div>').join(''); box.insertAdjacentHTML('beforeend','<div class="libcat"><h3>'+cat.icon+' '+cat.label+'</h3><div class="libgrid">'+cards+'</div></div>'); });
+    if(!biblioteca.length) box.innerHTML='<div class="empty">Nenhum arquivo ainda. Use o painel acima para anexar um arquivo ou adicionar um link.</div>';
   });
 }
 function goSendFile(id){ if(!activeId){ toast('Abra uma conversa primeiro (aba Atendimento).'); return; } nav('inbox'); sendFile(id); }
+async function uploadArquivo(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  const cat=elv('afCat')||'outros'; const nomeIn=elv('afNome').trim();
+  toast('Enviando arquivo…');
+  const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const ext=(f.name.split('.').pop()||'').toLowerCase();
+  const path='biblioteca/'+Date.now()+'_'+safe;
+  const up=await sb.storage.from('anexos').upload(path,f,{upsert:false,contentType:f.type||undefined});
+  if(up.error){ toast('Falha no upload: '+up.error.message); input.value=''; return; }
+  const url=sb.storage.from('anexos').getPublicUrl(path).data.publicUrl;
+  let tipo='arquivo'; if((f.type||'').startsWith('image/')) tipo='imagem'; else if(ext==='pdf') tipo='pdf';
+  const tamanho=(f.size>=1048576)?((f.size/1048576).toFixed(1)+' MB'):(Math.round(f.size/1024)+' KB');
+  const { error }=await sb.from('wa_biblioteca').insert({nome:nomeIn||f.name,categoria:cat,tipo,url,tamanho,ativo:true,ordem:0});
+  input.value=''; const n=document.getElementById('afNome'); if(n) n.value='';
+  if(error){ toast('Subiu, mas não salvou na lista: '+error.message); return; }
+  toast('Arquivo adicionado ✓'); renderLib();
+}
+async function addLink(){
+  const cat=elv('afCat')||'outros'; const nome=elv('afNome').trim(); const url=elv('afUrl').trim();
+  if(!url){ toast('Cole o link (URL)'); return; }
+  const { error }=await sb.from('wa_biblioteca').insert({nome:nome||url,categoria:cat,tipo:'link',url,ativo:true,ordem:0});
+  if(error){ toast('Não salvou: '+error.message); return; }
+  const n=document.getElementById('afNome'); if(n)n.value=''; const u=document.getElementById('afUrl'); if(u)u.value='';
+  toast('Link adicionado ✓'); renderLib();
+}
+async function delArquivo(id){ if(!confirm('Remover este material da lista?'))return; await sb.from('wa_biblioteca').update({ativo:false}).eq('id',id); toast('Removido ✓'); renderLib(); }
 
 /* ===== Transmissão (wa_etiquetas) ===== */
 let etiquetas=[], activeTag=0;
