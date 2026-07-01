@@ -14,15 +14,16 @@
 --grad:linear-gradient(135deg,#B5302E,#7E1E1F);--label:#B79A8E;--body:#5A463E;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Hanken Grotesk',sans-serif;background:var(--cream);color:var(--ink);font-size:15px}
-header{background:linear-gradient(150deg,#B5302E,#871F20);padding:13px 16px 13px;position:static;z-index:30;color:#fff;border-radius:0 0 24px 24px;margin:0}
-.hdr-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
-.hdr-menu{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:inherit;font-weight:600;font-size:.85rem;padding:8px 14px 8px 10px;border-radius:22px;cursor:pointer}
-.hdr-menu i{font-size:1.1rem}
-.hdr-actions{margin-left:auto;display:flex;gap:8px}
-.hdr-ic{position:relative;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.16);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
-.hdr-badge{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;border-radius:9px;background:#fff;color:var(--vinho);font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
-.hdr-title{font-family:'Fraunces',serif;font-weight:600;font-size:1.55rem;line-height:1.12;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hdr-count{color:rgba(255,255,255,.85);font-size:.82rem;margin-top:3px}
+header{background:transparent;padding:12px 15px;position:static;z-index:30;color:var(--ink);border-radius:0;border-bottom:1px solid #EFE6DC;margin:0}
+.hdr-row{display:flex;align-items:center;gap:10px}
+.hdr-menu{width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);color:var(--vinho);border-radius:13px;cursor:pointer;padding:0}
+.hdr-menu i{font-size:1.25rem}
+.hdr-mid{flex:1;min-width:0}
+.hdr-actions{display:flex;gap:8px}
+.hdr-ic{position:relative;width:40px;height:40px;flex-shrink:0;border-radius:13px;background:#fff;border:1px solid var(--border);color:var(--vinho);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.hdr-badge{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;background:var(--vinho);color:#fff;font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.hdr-title{font-family:'Fraunces',serif;font-weight:600;font-size:1.25rem;line-height:1.05;color:var(--vinho);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-count{color:#8A7A72;font-size:.78rem;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wrap{max-width:none;margin:0;padding:18px 18px 80px}
 .btn{border:0;border-radius:11px;padding:11px 15px;font-size:.9rem;font-weight:600;cursor:pointer;font-family:inherit;min-height:44px}
 .btn-primary{background:var(--grad);color:#fff;width:100%}
@@ -59,9 +60,9 @@ header{background:linear-gradient(150deg,#B5302E,#871F20);padding:13px 16px 13px
 .vincbtn.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
 .vinchint{font-size:.78rem;color:#27508f;background:#eef4ff;border:1px solid #cdddf7;border-radius:9px;padding:8px 11px;margin-top:8px}
 .viewtoggle{display:flex;gap:6px;margin:11px 0 0}
-.viewtoggle .vt{flex:1;text-align:center;font-size:.8rem;font-weight:600;padding:8px 4px;border-radius:11px;border:0;background:rgba(255,255,255,.16);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap}
+.viewtoggle .vt{flex:1;text-align:center;font-size:.8rem;font-weight:600;padding:8px 4px;border-radius:11px;border:0;background:#fff;color:var(--vinho);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;box-shadow:inset 0 0 0 1px #E9DDD0}
 .viewtoggle .vt i{font-size:1.02rem}
-.viewtoggle .vt.on{background:#fff;color:var(--vinho)}
+.viewtoggle .vt.on{background:var(--vinho);color:#fff;box-shadow:none}
 .mapgroup{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
 .mtopic{background:var(--vinho);color:#fff;border-radius:12px;padding:9px 14px;font-size:.96rem;font-weight:600;display:inline-block;cursor:pointer;max-width:100%}
 .mvl{width:2px;height:14px;background:var(--vinho-muted);margin:6px auto}
@@ -106,7 +107,10 @@ header{background:linear-gradient(150deg,#B5302E,#871F20);padding:13px 16px 13px
 .card .dt{font-size:.7rem;color:var(--muted);white-space:nowrap}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
 .chip{font-size:.69rem;padding:3px 9px;border-radius:18px;border:1px solid var(--border);background:var(--cream);cursor:pointer;white-space:nowrap}
-.chip.uni{background:#fff4f4;border-color:var(--vinho-muted);color:var(--vinho-deep);font-weight:600}
+.chip.uni{background:#F6E7E5;border-color:#E4C8C0;color:#7E1E1F;font-weight:600}
+.chip.u-ccmq{background:#FBE4E0;border-color:#F1C7C0;color:#C0392B}
+.chip.u-mac{background:#E6F3EA;border-color:#C9E6D4;color:#2C7A4B}
+.chip.u-central{background:#E6EEF8;border-color:#CBD9EE;color:#2C5AA0}
 .chip.cat{background:#fff;border:1.4px solid currentColor;font-weight:600}
 .chip.tag{background:#fff9db;border-color:#eedf9b;color:#7a6500}
 .resp{font-size:.72rem;color:var(--muted)}
@@ -190,14 +194,14 @@ header{position:static}
 <body>
 <header>
 <div class="hdr-row">
-<button class="hdr-menu" onclick="voltarMenu()"><i class="ph-duotone ph-caret-left"></i> Menu</button>
-<div class="hdr-actions">
+<button class="hdr-menu" onclick="voltarMenu()" title="Menu"><i class="ph-duotone ph-caret-left"></i></button>
+<div class="hdr-mid">
+<h1 class="hdr-title">Reuniões &amp; Tarefas</h1>
+<div class="hdr-count" id="hdrCount"></div>
+</div>
 <button class="hdr-ic" onclick="hdrBusca()" title="Buscar"><i class="ph-duotone ph-magnifying-glass"></i></button>
 <button class="hdr-ic" onclick="hdrAvisos()" title="Avisos"><i class="ph-duotone ph-bell"></i><span class="hdr-badge" id="hdrBadge" style="display:none">0</span></button>
 </div>
-</div>
-<h1 class="hdr-title">Reuniões &amp; Tarefas</h1>
-<div class="hdr-count" id="hdrCount"></div>
 <div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista</span><span class="vt" data-v="quadro" onclick="setView('quadro')"><i class="ph-duotone ph-kanban"></i> Quadro</span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-map-trifold"></i> Mapa</span><span class="vt" data-v="atas" onclick="setView('atas')"><i class="ph-duotone ph-notebook"></i> Atas</span></div>
 </header>
 
@@ -290,6 +294,7 @@ var CAT_COLORS={'Operacional':'#2C7A4B','Manutenções':'#6B6258','Compras':'#2C
 function subjColor(f){var cs=arr(f.categorias);for(var i=0;i<cs.length;i++){if(CAT_COLORS[cs[i]])return CAT_COLORS[cs[i]];}return '#7E1E1F';}
 function catColor(c){return CAT_COLORS[c]||'#7E1E1F';}
 function uniShort(u){return ({'Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'CENTRAL'})[u]||u;}
+function uniCls(u){u=(u||'');return u.indexOf('CCMQ')>=0?'u-ccmq':u.indexOf('MAC')>=0?'u-mac':u.indexOf('Central')>=0?'u-central':'';}
 
 var REG=[], ATAS=[], EDIT=null, FUNI='', VIEW='lista';
 var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
@@ -364,7 +369,7 @@ return '<div class="oklabel">OK dos responsáveis ('+n+'/'+resp.length+')</div><
 function cardHTML(f){
 var hojeStr=new Date().toISOString().slice(0,10);
 var prazoH=f.prazo?('<div class="prazo'+(!f.concluido&&String(f.prazo).slice(0,10)<hojeStr?' atras':'')+'">'+(!f.concluido&&String(f.prazo).slice(0,10)<hojeStr?'⚠️ Atrasado: ':'🗓 Prazo: ')+fmtDate(f.prazo)+'</div>'):'';
-var uni=arr(f.unidades).map(function(u){return '<span class="chip uni" onclick="setUni(\''+esc(u).replace(/'/g,"\\'")+'\')">'+esc(u)+'</span>';}).join('');
+var uni=arr(f.unidades).map(function(u){return '<span class="chip uni '+uniCls(u)+'" onclick="setUni(\''+esc(u).replace(/'/g,"\\'")+'\')">'+esc(u)+'</span>';}).join('');
 var cat=arr(f.categorias).map(function(c){return '<span class="chip cat" style="color:'+catColor(c)+'" onclick="setF(\'fcat\',\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</span>';}).join('');
 var tags=arr(f.tags).map(function(t){return '<span class="chip tag">#'+esc(t)+'</span>';}).join('');
 var rel=arr(f.relacionados).map(function(id){var r=REG.find(function(x){return x.id==id;});return r?('<a onclick="focar('+r.id+')">'+esc(r.titulo)+'</a>'):'';}).filter(Boolean).join(' · ');
@@ -410,7 +415,7 @@ function kcardHTML(f){
 var col=subjColor(f);
 var uni=arr(f.unidades)[0]?(' · '+uniShort(arr(f.unidades)[0])):'';
 var assunto=arr(f.categorias)[0]?arr(f.categorias)[0]:(f.eh_tarefa?'Tarefa':'Aviso');
-var pills=arr(f.unidades).map(function(u){return '<span class="chip uni">'+esc(u)+'</span>';}).join('')
+var pills=arr(f.unidades).map(function(u){return '<span class="chip uni '+uniCls(u)+'">'+esc(u)+'</span>';}).join('')
  +arr(f.categorias).map(function(c){return '<span class="chip cat" style="color:'+catColor(c)+'">'+esc(c)+'</span>';}).join('');
 var resp=arr(f.responsaveis), oks=oksOf(f), n=resp.filter(function(r){return oks[r];}).length;
 var okline=resp.length?('<div class="kok">OK dos responsáveis (<b>'+n+'</b>/'+resp.length+')</div>'):'';
@@ -638,7 +643,7 @@ function _refreshFp(){ if(_fpId!=null){ var f=REG.find(function(x){return x.id==
 function abrirFicha(id){
 var f=REG.find(function(x){return x.id==id;});if(!f)return;
 _fpId=id;
-var uni=arr(f.unidades).map(function(u){return '<span class="chip uni">'+esc(u)+'</span>';}).join('');
+var uni=arr(f.unidades).map(function(u){return '<span class="chip uni '+uniCls(u)+'">'+esc(u)+'</span>';}).join('');
 var cat=arr(f.categorias).map(function(c){return '<span class="chip cat" style="color:'+catColor(c)+'">'+esc(c)+'</span>';}).join('');
 var badge=f.eh_tarefa?'<span class="badge" style="background:rgba(255,255,255,.2);color:#fff"><i class="ph-duotone ph-check-square"></i> Tarefa</span>':'<span class="badge" style="background:rgba(255,255,255,.2);color:#fff"><i class="ph-duotone ph-megaphone"></i> Aviso</span>';
 var resp=arr(f.responsaveis), oks=oksOf(f), nok=resp.filter(function(r){return oks[r];}).length;
