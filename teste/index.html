@@ -1800,12 +1800,12 @@ async function renderCartao(){
   try{ COMPRAS=await api.get('compras_cartao','select=*&order=data.desc.nullslast,id.desc')||[]; }catch(e){ COMPRAS=[]; }
   cartaoRender();
 }
-function cartaoCab(){ return '<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">Compras no Cartão</h2><p style="color:var(--muted);font-size:.84rem">Registre cada compra · ✓ = lançado no Financeiro · 📦 = item recebido.</p>'; }
+function cartaoCab(){ return '<div style="background:transparent;border-bottom:1px solid #EFE6DC;padding:12px 16px;display:flex;align-items:center;gap:10px"><button onclick="switchModule(\'home\')" title="Menu" style="width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);color:var(--vinho);border-radius:13px;cursor:pointer;font-size:1.25rem"><i class="ph-duotone ph-caret-left"></i></button><div style="flex:1;min-width:0"><div style="font-family:\'Fraunces\',serif;font-weight:600;font-style:normal;font-size:1.4rem;line-height:1.05;color:var(--vinho)">Compras no Cartão</div><div style="color:#8A7A72;font-size:.8rem;font-weight:600;margin-top:1px">Registre cada compra · ✓ = lançado no Financeiro · 📦 = item recebido.</div></div></div>'; }
 function cartaoRender(){
   var panel=document.getElementById('module-comprascartao'); if(!panel) return;
   var ed=window.__cartEdit?COMPRAS.find(function(x){return x.id===window.__cartEdit;}):null;
   var hoje=new Date().toISOString().slice(0,10), mesAtual=hoje.slice(0,7);
-  var h='<div class="cart-wrap" style="padding:22px 26px;max-width:1000px">'+cartaoCab();
+  var h=cartaoCab()+'<div class="cart-wrap" style="padding:22px 26px;max-width:1000px">';
   // formulário
   h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px;margin:14px 0 16px">';
   h+='<div style="font-weight:700;margin-bottom:10px;color:var(--vinho-deep)">'+(ed?('✏️ Editando compra'):'➕ Nova compra')+'</div>';
@@ -1825,7 +1825,7 @@ function cartaoRender(){
   // filtros (recolhíveis — somem por padrão pra não parecer "campos duplicados" no celular)
   var _fAtivos=!!(CART_F.status||CART_F.empresa||CART_F.cartao||CART_F.mes||CART_F.de||CART_F.ate);
   var _fAberto=window.__cartFiltAberto||_fAtivos;
-  h+='<button class="btn btn-ghost btn-sm" id="cartFiltBtn" onclick="cartaoToggleFiltros()" style="margin-bottom:10px">🔍 Filtros'+(_fAtivos?' <span style="color:var(--vinho);font-weight:800">•</span>':'')+'</button>';
+  h+='<button class="btn btn-ghost btn-sm" id="cartFiltBtn" onclick="cartaoToggleFiltros()" style="margin-bottom:10px"><i class="ph-duotone ph-magnifying-glass"></i> Filtros'+(_fAtivos?' <span style="color:var(--vinho);font-weight:800">•</span>':'')+'</button>';
   h+='<div id="cartFiltrosBox" class="cart-filtros" style="'+(_fAberto?'':'display:none;')+'">'
     +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Status</label><select id="fStatus" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todas</option><option value="pend"'+(CART_F.status==='pend'?' selected':'')+'>⏳ Pendentes</option><option value="conf"'+(CART_F.status==='conf'?' selected':'')+'>✓ Conferidas</option><option value="nrec"'+(CART_F.status==='nrec'?' selected':'')+'>📦 A receber</option></select></div>'
     +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Empresa</label><select id="fEmp" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todas</option>'+CART_EMPRESAS.map(function(o){return '<option'+(CART_F.empresa===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
@@ -2140,9 +2140,10 @@ async function renderCompras(){
   catch(e){ panel.innerHTML='<div style="padding:24px;color:var(--muted)">Não foi possível carregar a lista.</div>'; return; }
   const aComprar=(itens||[]).filter(i=>!i.comprado), comprados=(itens||[]).filter(i=>i.comprado);
   const sec='font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:14px 0 8px';
-  let html='<div style="padding:22px 26px;max-width:680px">';
-  html+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:4px">Lista de Compras</h2>';
-  html+='<p style="color:var(--muted);font-size:.84rem;margin-bottom:16px">O caderninho da equipe — todos podem adicionar e marcar como comprado.</p>';
+  let html='<div style="background:transparent;border-bottom:1px solid #EFE6DC;padding:12px 16px;display:flex;align-items:center;gap:10px">'
+    +'<button onclick="switchModule(\'home\')" title="Menu" style="width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);color:var(--vinho);border-radius:13px;cursor:pointer;font-size:1.25rem"><i class="ph-duotone ph-caret-left"></i></button>'
+    +'<div style="flex:1;min-width:0"><div style="font-family:\'Fraunces\',serif;font-weight:600;font-style:normal;font-size:1.4rem;line-height:1.05;color:var(--vinho)">Lista de Compras</div><div style="color:#8A7A72;font-size:.8rem;font-weight:600;margin-top:1px">O caderninho da equipe — todos podem adicionar e marcar como comprado.</div></div></div>';
+  html+='<div style="padding:22px 26px;max-width:680px">';
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">';
   html+='<input id="lcItem" placeholder="O que precisa comprar?" onkeydown="if(event.key===\'Enter\')addCompra()" style="flex:2;min-width:150px;font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;background:#fff;color:var(--ink)">';
   html+='<input id="lcQtd" placeholder="Qtd (opcional)" onkeydown="if(event.key===\'Enter\')addCompra()" style="flex:1;min-width:100px;font-family:inherit;font-size:.9rem;border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;background:#fff;color:var(--ink)">';
