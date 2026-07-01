@@ -2013,16 +2013,13 @@ function avRender(){
   var _cM=[],_pM=[]; AV_ROWS.forEach(function(r){var n=_avNota(r);if(n==null)return;var m=_avYM(r);if(m===_ym)_cM.push(n);else if(m===_ymP)_pM.push(n);});
   var _aC=_cM.length?_cM.reduce(function(s,x){return s+x;},0)/_cM.length:null, _aP=_pM.length?_pM.reduce(function(s,x){return s+x;},0)/_pM.length:null;
   var trend=(_aC!=null&&_aP!=null)?(Math.abs(_aC-_aP)<0.1?'média estável vs. mês passado':(_aC>_aP?'média subindo vs. mês passado':'média caindo vs. mês passado')):'';
-  var h='<div style="background:linear-gradient(150deg,#B5302E,#871F20);color:#fff;padding:13px 16px 14px;border-radius:0 0 24px 24px">'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
-    +'<button onclick="switchModule(\'home\')" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:\'Hanken Grotesk\',sans-serif;font-weight:600;font-size:.85rem;padding:8px 14px 8px 10px;border-radius:22px;cursor:pointer"><i class="ph-duotone ph-caret-left" style="font-size:1.1rem"></i> Menu</button>'
-    +'<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'
-    +'<button title="Buscar" onclick="avFocusBusca()" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.16);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem"><i class="ph-duotone ph-magnifying-glass"></i></button>'
-    +'<button onclick="renderAvaliacoes()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:\'Hanken Grotesk\',sans-serif;font-weight:600;font-size:.8rem;padding:8px 14px;border-radius:13px;cursor:pointer"><i class="ph-duotone ph-arrows-clockwise"></i> Atualizar</button>'
-    +'</div></div>'
-    +'<h1 style="font-family:\'Fraunces\',serif;font-weight:600;font-style:normal;font-size:1.55rem;line-height:1.12;color:#fff;margin:0">Avaliações</h1>'
-    +'<div style="color:rgba(255,255,255,.85);font-size:.84rem;margin-top:3px">'+media.toFixed(2).replace('.',',')+' ★ · '+AV_ROWS.length+' avaliações</div>'
-    +'</div>';
+  var h='<div style="background:transparent;border-bottom:1px solid #EFE6DC;padding:12px 16px">'
+    +'<div style="display:flex;align-items:center;gap:9px">'
+    +'<button onclick="switchModule(\'home\')" title="Menu" style="width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);color:var(--vinho);border-radius:13px;cursor:pointer;font-size:1.25rem"><i class="ph-duotone ph-caret-left"></i></button>'
+    +'<div style="flex:1;min-width:0"><div style="font-family:\'Fraunces\',serif;font-weight:600;font-style:normal;font-size:1.4rem;line-height:1.05;color:var(--vinho);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Avaliações</div><div style="color:#8A7A72;font-size:.8rem;font-weight:600;margin-top:1px">'+media.toFixed(2).replace('.',',')+' ★ · '+AV_ROWS.length+' avaliações</div></div>'
+    +'<button title="Buscar" onclick="avFocusBusca()" style="width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);color:var(--vinho);border-radius:13px;cursor:pointer;font-size:1.15rem"><i class="ph-duotone ph-magnifying-glass"></i></button>'
+    +'<button title="Atualizar" onclick="renderAvaliacoes()" style="width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);color:var(--vinho);border-radius:13px;cursor:pointer;font-size:1.15rem"><i class="ph-duotone ph-arrows-clockwise"></i></button>'
+    +'</div></div>';
   h+='<div style="padding:16px;max-width:680px">';
   // resumo
   var maxd=Math.max.apply(null,dist.concat([1]));
