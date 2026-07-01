@@ -4614,5 +4614,26 @@ document.addEventListener('click',function(e){var p=document.getElementById('cha
 (function(){function ct(){if(window.__portalUser)loadChatUnread();}setTimeout(ct,1800);setInterval(ct,15000);})();
 </script>
 <div id="toast"></div>
+<script>
+/* Compras: tira o título "Lista de Compras" de dentro do card (fica acima; card envolve só campo+itens) */
+(function(){
+  function fixLista(){
+    var card=document.querySelector('#cmListaTopo .cm-lista-card');
+    if(!card) return;
+    var wrap=card.parentNode;
+    var h3=card.querySelector(':scope>h3');
+    var p=card.querySelector(':scope>p');
+    if(h3) wrap.insertBefore(h3, card);
+    if(p) wrap.insertBefore(p, card);
+  }
+  function attach(){
+    var mp=document.getElementById('module-comprascartao');
+    if(mp && !mp.__lf){ mp.__lf=1; new MutationObserver(fixLista).observe(mp,{childList:true,subtree:true}); }
+    fixLista();
+  }
+  if(document.readyState!=='loading') attach(); else document.addEventListener('DOMContentLoaded',attach);
+  setInterval(attach, 2000);
+})();
+</script>
 </body>
 </html>
