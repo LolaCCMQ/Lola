@@ -658,6 +658,8 @@ async function sendMsg(){
   }catch(e){ console.error(e); toast('Falha ao enviar'); inp.value=txt; }
   inp.disabled=false; inp.focus();
   await loadMessages(activeId); await loadConversas();
+  // Atualiza a etiqueta na hora no cabeçalho e no painel (a resposta marca 'respondido')
+  try{ const cc=convos.find(x=>x.id===activeId); const line=document.querySelector('#chatHead .ch-line1'); if(cc&&line){ line.innerHTML='<span class="ch-name">'+esc(cc.name)+'</span>'+chPill(cc.canal)+statusPill(cc.status)+catPill(cc); } renderDrawer(); }catch(_e){}
 }
 async function toggleBot(){
   const c=convos.find(x=>x.id===activeId); if(!c) return; c.bot=!c.bot;
