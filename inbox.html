@@ -314,7 +314,7 @@
             <div class="lh-title-m">Conversas</div>
             <div class="lh-sub">WhatsApp · Google · Instagram · inbox unificado</div>
           </div>
-          <button class="compose" title="Nova conversa">✎</button>
+          <button class="compose" title="Nova conversa" onclick="openNovaConversa()">✎</button>
         </div>
         <div class="mtabs">
           <button class="mtab active" data-nav="inbox" onclick="nav('inbox')">💬 Atendimento</button>
@@ -455,6 +455,18 @@
 <div class="backdrop" id="backdrop" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer"></div>
 
+<div class="qredit" id="novaConversa">
+  <div class="box">
+    <div class="qredit-head"><div class="h">Nova conversa</div><button class="close" onclick="closeNovaConversa()">✕</button></div>
+    <div class="qredit-sub">Cadastre um número novo. A primeira mensagem é a mensagem-modelo aprovada — quando a pessoa responder, você escreve normal.</div>
+    <label style="font-size:12px;font-weight:700;color:#5a666e">Nome (opcional)</label>
+    <input id="nc_nome" class="inp" placeholder="Ex.: Ana" style="margin:4px 0 12px">
+    <label style="font-size:12px;font-weight:700;color:#5a666e">Telefone com DDD</label>
+    <input id="nc_fone" class="inp" inputmode="numeric" placeholder="51 99999-9999" style="margin:4px 0 12px">
+    <div style="background:var(--brand-tint);color:#7a2e33;font-size:12px;border-radius:10px;padding:9px 11px;margin-bottom:14px">Será enviada: <b>"Oi, aqui é do Lola, podemos continuar com o atendimento? É só responder por aqui."</b></div>
+    <button id="nc_btn" class="qr-add" onclick="criarNovaConversa()">Criar e enviar</button>
+  </div>
+</div>
 <div class="qredit" id="qrEditor">
   <div class="box">
     <div class="qredit-head"><div class="h">Minhas respostas prontas</div><button class="close" onclick="closeQrEditor()">✕</button></div>
@@ -721,6 +733,36 @@ function renderQuick(){
 }
 function useReply(id){ const r=myReplies.find(x=>x.id===id); if(!r) return; insertQR(r.texto); closeQrEditor(); }
 function insertQR(t){ const i=document.getElementById('composerInput'); i.value=t; i.focus(); }
+/* ===== Nova conversa (cadastra número novo + envia a mensagem-modelo) ===== */
+function openNovaConversa(){ const m=document.getElementById('novaConversa'); if(!m)return; const n=document.getElementById('nc_nome'); const f=document.getElementById('nc_fone'); if(n)n.value=''; if(f)f.value=''; m.classList.add('show'); setTimeout(()=>{try{f&&f.focus();}catch(e){}},60); }
+function closeNovaConversa(){ const m=document.getElementById('novaConversa'); if(m) m.classList.remove('show'); }
+async function criarNovaConversa(){
+  const nome=(document.getElementById('nc_nome').value||'').trim();
+  let fone=(document.getElementById('nc_fone').value||'').replace(/\D/g,'');
+  if(fone.length<10){ toast('Digite o telefone com DDD'); return; }
+  if(!fone.startsWith('55')) fone='55'+fone;
+  const btn=document.getElementById('nc_btn'); if(btn){ btn.disabled=true; btn.textContent='Enviando…'; }
+  try{
+    // contato: cria ou reaproveita pelo wa_id
+    let ct=(await sb.from('wa_contatos').select('id').eq('wa_id',fone).limit(1).maybeSingle()).data;
+    if(!ct){ ct=(await sb.from('wa_contatos').insert({wa_id:fone,telefone:fone,nome:nome||null,canal:'whatsapp',salvo:true}).select('id').single()).data; }
+    else if(nome){ await sb.from('wa_contatos').update({nome,salvo:true}).eq('id',ct.id); }
+    if(!ct){ toast('Não consegui criar o contato'); return; }
+    // conversa whatsapp: cria ou reaproveita
+    let cv=(await sb.from('wa_conversas').select('id').eq('contato_id',ct.id).eq('canal','whatsapp').limit(1).maybeSingle()).data;
+    if(!cv){ cv=(await sb.from('wa_conversas').insert({contato_id:ct.id,canal:'whatsapp',status:'nao-respondido',bot_ativo:false,nao_lidas:0}).select('id').single()).data; }
+    if(!cv){ toast('Não consegui abrir a conversa'); return; }
+    // envia a mensagem-modelo (contato novo => fora da janela => template)
+    const r=await fetch(SB_URL+'/functions/v1/wa-send',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},body:JSON.stringify({conversa_id:cv.id,texto:'Oi, aqui é do Lola, podemos continuar com o atendimento? É só responder por aqui.',atendente_id:ME.id,atendente_nome:currentAgent})});
+    const j=await r.json().catch(()=>({}));
+    closeNovaConversa();
+    await loadConversas();
+    if(cv.id) openConvo(cv.id);
+    if(j&&j.ok){ toast('Contato criado e mensagem enviada ✓'); }
+    else { toast('Contato criado, mas o envio falhou: '+((j&&j.erro)?'a Meta ainda não aprovou o modelo':'verifique a conexão')); }
+  }catch(e){ console.error(e); toast('Falha ao criar conversa'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Criar e enviar'; } }
+}
 function openQrEditor(){ qrEditingId=null; renderQrEditor(); document.getElementById('qrEditor').classList.add('show'); }
 function closeQrEditor(){ document.getElementById('qrEditor').classList.remove('show'); renderQuick(); }
 function renderQrEditor(){
