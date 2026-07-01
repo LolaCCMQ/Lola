@@ -110,6 +110,8 @@
   .msg.bot{align-self:flex-end;background:#fdf3e6;border:1px solid #f2ddbf;border-radius:16px 16px 5px 16px}
   .msg.bot .who{color:#b07a2a;display:inline-flex;align-items:center;gap:6px}
   .autoflag{background:var(--brand-tint);color:var(--brand);font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:5px}
+  .msg-del{border:0;background:transparent;cursor:pointer;font-size:11px;padding:0;margin-right:6px;opacity:.55}
+  .msg-del:hover{opacity:1}
 
   .composer{flex-shrink:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 22px 16px;position:relative}
   .comp-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
@@ -606,7 +608,7 @@ async function loadMessages(id){
   msgsByConvo[id]=(data||[]).map(r=>{
     const isIn=r.direcao==='in'; const kind= isIn?'in':(r.autor_tipo==='bot'?'bot':'out');
     const file=(r.tipo&&r.tipo!=='text'&&r.midia_url)?{tipo:r.tipo,nome:(r.conteudo||''),url:r.midia_url}:null;
-    return { kind, who:r.atendente_nome||(kind==='bot'?'Bot Lola':currentAgent), texto:r.conteudo||'', hora:fmtTime(r.created_at), file };
+    return { id:r.id, kind, who:r.atendente_nome||(kind==='bot'?'Bot Lola':currentAgent), texto:r.conteudo||'', hora:fmtTime(r.created_at), file };
   });
   if(activeId===id) renderThread(id);
 }
@@ -620,11 +622,13 @@ function renderThread(id){
     if(msg.kind==='out') who='<div class="who">'+esc(msg.who||currentAgent)+'</div>';
     if(msg.kind==='bot') who='<div class="who">'+esc(msg.who||'Bot Lola')+'<span class="autoflag">AUTO</span></div>';
     const body=msg.file?fileHtml(msg.file):'<div class="tx">'+esc(msg.texto)+'</div>';
-    d.innerHTML=who+body+'<div class="hr">'+esc(msg.hora)+'</div>';
+    const del=((msg.kind==='out'||msg.kind==='bot')&&msg.id)?'<button class="msg-del" title="Excluir mensagem" onclick="delMsg(\''+msg.id+'\')">🗑️</button>':'';
+    d.innerHTML=who+body+'<div class="hr">'+del+esc(msg.hora)+'</div>';
     m.appendChild(d);
   });
   m.scrollTop=m.scrollHeight;
 }
+async function delMsg(id){ if(!confirm('Excluir esta mensagem? Ela some do atendimento (não apaga no WhatsApp do cliente).'))return; const { error }=await sb.from('wa_mensagens').delete().eq('id',id); if(error){ toast('Não excluiu: '+error.message); return; } if(activeId) await loadMessages(activeId); loadConversas(); toast('Mensagem excluída ✓'); }
 function fileHtml(f){
   const url=(f.url||'').toString(), t=(f.tipo||'').toLowerCase();
   if(/^https?:\/\//i.test(url)&&(t==='image'||t==='imagem'||t==='img'||t==='sticker')) return '<a href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" style="max-width:220px;border-radius:12px;display:block"></a>';
