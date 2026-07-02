@@ -893,8 +893,8 @@
   <input class="input-field" id="gerente-nome" placeholder="Ex: Ana, Carlos..." />
   <label class="field-label">Turno</label>
   <div class="turno-select">
-    <div class="turno-btn" id="turno-dia" onclick="selectTurno('dia')">☀️ Dia</div>
-    <div class="turno-btn" id="turno-noite" onclick="selectTurno('noite')">🌙 Noite</div>
+    <div class="turno-btn" id="turno-dia" onclick="selectTurno('dia')"><i class="ph-duotone ph-sun"></i> Dia</div>
+    <div class="turno-btn" id="turno-noite" onclick="selectTurno('noite')"><i class="ph-duotone ph-moon"></i> Noite</div>
   </div>
   <label class="field-label">Clima do dia</label>
   <select class="input-field" id="clima-select" style="margin-bottom:12px;">
@@ -909,8 +909,8 @@
     <option value="muito_vento">💨 Muito vento</option>
   </select>
   <button class="btn-primary" onclick="doLogin()">Entrar e preencher checklist</button>
-  <button class="btn-outline" onclick="goHistorico()">📅 Histórico</button>
-  <button class="btn-outline" onclick="goReuniao()">📋 Observações da semana</button>
+  <button class="btn-outline" onclick="goHistorico()"><i class="ph-duotone ph-calendar-dots"></i> Histórico</button>
+  <button class="btn-outline" onclick="goReuniao()"><i class="ph-duotone ph-clipboard-text"></i> Observações da semana</button>
 </div>
 
 <!-- CHECKLIST -->
@@ -4282,7 +4282,7 @@ function doLogin() {
       <div style="font-size:11px;color:var(--muted);margin-top:2px;">${nome}</div>
     </div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;">
-      <span class="badge ${currentTurno==='dia'?'badge-dia':'badge-noite'}">${currentTurno==='dia'?'☀️ Dia':'🌙 Noite'}</span>
+      <span class="badge ${currentTurno==='dia'?'badge-dia':'badge-noite'}">${currentTurno==='dia'?'<i class="ph-duotone ph-sun"></i> Dia':'<i class="ph-duotone ph-moon"></i> Noite'}</span>
       <span class="badge badge-clima">${CLIMA_LABELS[clima]}</span>
     </div>`;
   showScreen('screen-checklist'); __diario_renderTopbar_disabled('checklist'); renderSection(currentSection);
@@ -4408,7 +4408,7 @@ function showDayRecords(dateKey){
       const pct=total?Math.round(done/total*100):0;
       return `<div class="card card-clickable" onclick="showDetailFromKey('${r.id}')">
         <div class="card-badges">
-          <span class="badge ${r.turno==='dia'?'badge-dia':'badge-noite'}">${r.turno==='dia'?'☀️ Dia':'🌙 Noite'}</span>
+          <span class="badge ${r.turno==='dia'?'badge-dia':'badge-noite'}">${r.turno==='dia'?'<i class="ph-duotone ph-sun"></i> Dia':'<i class="ph-duotone ph-moon"></i> Noite'}</span>
           <span class="badge badge-clima">${CLIMA_LABELS[r.clima]||r.clima}</span>
           <span class="badge ${pct===100?'badge-ok':'badge-partial'}">${pct===100?'✓ Completo':pct+'%'}</span>
         </div>
@@ -4439,7 +4439,7 @@ function showDetailRecord(r){
   document.getElementById('day-detail-content').innerHTML=`
     <div class="card" style="margin-bottom:1rem;">
       <div class="card-badges">
-        <span class="badge ${r.turno==='dia'?'badge-dia':'badge-noite'}">${r.turno==='dia'?'☀️ Dia':'🌙 Noite'}</span>
+        <span class="badge ${r.turno==='dia'?'badge-dia':'badge-noite'}">${r.turno==='dia'?'<i class="ph-duotone ph-sun"></i> Dia':'<i class="ph-duotone ph-moon"></i> Noite'}</span>
         <span class="badge badge-clima">${CLIMA_LABELS[r.clima]||r.clima}</span>
         <span class="badge ${pct===100?'badge-ok':'badge-partial'}">${pct===100?'✓ Completo':pct+'%'}</span>
       </div>
@@ -4520,7 +4520,7 @@ function renderReuniao(){
         const dt=new Date(+y,+m-1,+d);
         dayObs.forEach(r=>{
           html+=`<div class="obs-entry">
-            <div class="obs-entry-meta">${DIAS_FULL[dt.getDay()]}, ${d}/${m} · ${r.gerente} · ${r.turno==='dia'?'☀️ Dia':'🌙 Noite'} · ${CLIMA_LABELS[r.clima]||r.clima}</div>
+            <div class="obs-entry-meta">${DIAS_FULL[dt.getDay()]}, ${d}/${m} · ${r.gerente} · ${r.turno==='dia'?'<i class="ph-duotone ph-sun"></i> Dia':'<i class="ph-duotone ph-moon"></i> Noite'} · ${CLIMA_LABELS[r.clima]||r.clima}</div>
             <div class="obs-entry-text">${r.obs}</div>
           </div>`;
         });
