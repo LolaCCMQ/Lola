@@ -355,6 +355,8 @@
         </div>
         <div class="quick" id="quick"></div>
         <div class="inputrow">
+          <input type="file" id="composerFile" style="display:none" onchange="anexarArquivo(this)">
+          <button onclick="document.getElementById('composerFile').click()" title="Anexar arquivo" style="width:44px;height:44px;border-radius:50%;border:0;background:var(--neutral);display:grid;place-items:center;color:#54656f;cursor:pointer;flex-shrink:0"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
           <div class="field">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg>
             <textarea id="composerInput" rows="1" placeholder="Escreva uma mensagem…" onkeydown="onComposerKey(event)"></textarea>
@@ -841,6 +843,21 @@ async function toggleLibPop(){
   p.innerHTML=html; p.classList.add('show');
 }
 function sendFile(id){ const b=biblioteca.find(x=>x.id===id); if(!b)return; document.getElementById('libpop').classList.remove('show'); document.getElementById('composerInput').value=b.nome+(b.url?'\n'+b.url:''); toast('Arquivo no campo — confira e envie'); }
+async function anexarArquivo(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  if(!activeId){ toast('Abra uma conversa primeiro.'); input.value=''; return; }
+  if(f.size>16*1048576){ toast('Arquivo muito grande (máx 16 MB).'); input.value=''; return; }
+  toast('Enviando arquivo…');
+  const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path='enviadas/'+Date.now()+'_'+safe;
+  const up=await sb.storage.from('anexos').upload(path,f,{upsert:false,contentType:f.type||undefined});
+  if(up.error){ toast('Falha no upload: '+up.error.message); input.value=''; return; }
+  const url=sb.storage.from('anexos').getPublicUrl(path).data.publicUrl;
+  const ta=document.getElementById('composerInput');
+  ta.value=(ta.value?ta.value+'\n':'')+f.name+'\n'+url;
+  ta.focus(); input.value='';
+  toast('Arquivo anexado — confira e envie ✓');
+}
 
 /* ===== navegação entre abas ===== */
 function nav(v){
