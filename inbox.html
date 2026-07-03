@@ -296,7 +296,7 @@
     <div class="tabs">
       <button class="tab active" data-nav="inbox" onclick="nav('inbox')">💬 Atendimento</button>
       <button class="tab" data-nav="contacts" onclick="nav('contacts')">Contatos</button>
-      <button class="tab" data-nav="bot" onclick="nav('bot')">Bot</button>
+      <button class="tab" data-nav="bot" onclick="nav('bot')">Robô Lola</button>
       <button class="tab" data-nav="arquivos" onclick="nav('arquivos')">Arquivos</button>
       <button class="tab" data-nav="bcast" onclick="nav('bcast')">Transmissão</button>
       <button class="tab" onclick="window.open('https://calendar.google.com/calendar/u/0/r','_blank')">Agenda</button>
@@ -328,7 +328,7 @@
         <div class="mtabs">
           <button class="mtab active" data-nav="inbox" onclick="nav('inbox')">💬 Atendimento</button>
           <button class="mtab" data-nav="contacts" onclick="nav('contacts')">Contatos</button>
-          <button class="mtab" data-nav="bot" onclick="nav('bot')">Bot</button>
+          <button class="mtab" data-nav="bot" onclick="nav('bot')">Robô Lola</button>
           <button class="mtab" data-nav="arquivos" onclick="nav('arquivos')">Arquivos</button>
           <button class="mtab" data-nav="bcast" onclick="nav('bcast')">Transmissão</button>
           <button class="mtab" onclick="window.open('https://calendar.google.com/calendar/u/0/r','_blank')">Agenda</button>
@@ -338,6 +338,7 @@
           <input id="searchInput" placeholder="Buscar em conversas e mensagens…" oninput="onSearchInput(this.value)">
         </div>
         <div class="filters" id="filters"></div>
+        <div class="filters" id="statusFilters" style="margin-top:8px"></div>
       </div>
       <div id="waitWrap"></div>
       <div class="list" id="list"><div class="empty">Carregando conversas…</div></div>
@@ -394,7 +395,7 @@
     <div class="view hidden" id="view-bot">
       <div class="page">
         <button class="pageback" onclick="nav('inbox')">‹ Conversas</button>
-        <h1>Configuração do Bot</h1>
+        <h1>Configuração do Robô Lola</h1>
         <p class="lead">Crie, edite e remova respostas automáticas. O bot atende fora do horário e nas primeiras mensagens; quando um atendente assume, ele se cala naquela conversa.</p>
         <div class="banner"><span class="tagn">IMPORTANTE</span><div>WhatsApp e Instagram permitem resposta livre só dentro de <strong>24h</strong> após a última mensagem do cliente. Fora dessa janela, é preciso usar <strong>modelos aprovados pela Meta</strong>.</div></div>
         <div class="grid2">
@@ -516,7 +517,7 @@ const AVCOL=['#bf9330','#b4433a','#4b6b8a','#c66a3d','#8a9440','#8a5a9c','#1f8a5
 function avColor(s){ let h=0,str=(s||'?'); for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))>>>0; return AVCOL[h%AVCOL.length]; }
 const esc=s=>(s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-let convos=[], msgsByConvo={}, activeId=null, filter='todas', waitOnly=false;
+let convos=[], msgsByConvo={}, activeId=null, filter='todas', waitOnly=false, statusFilter=null;
 let msgMatchIds=null, searchTimer=null;
 let catList=[]; // {id,label,cor}
 let myReplies=[], qrEditingId=null, qrSeeding=false;
@@ -554,6 +555,11 @@ function renderFilters(){
   const chips=[{k:'todas',label:'Todas',cor:'#a4242f',bg:'#fbe9ea',fg:'#a4242f'}].concat(Object.keys(CH).map(k=>({k,label:CH[k].curto,cor:CH[k].cor,bg:CH[k].bg,fg:CH[k].fg})));
   chips.forEach(c=>{ const b=document.createElement('button'); b.className='fchip'+(filter===c.k?' active':''); b.textContent=c.label; if(filter===c.k){b.style.background=c.cor;b.style.color='#fff';}else{b.style.background=c.bg;b.style.color=c.fg;} b.onclick=()=>{filter=c.k;renderFilters();renderList();}; wrap.appendChild(b); });
 }
+function renderStatusFilters(){
+  const wrap=document.getElementById('statusFilters'); if(!wrap) return; wrap.innerHTML='';
+  const chips=[{k:null,label:'Todos',bg:'#f2f4f6',fg:'#5a666e',cor:'#7a848b'}].concat(STORDER.map(k=>({k,label:ST[k].label,bg:ST[k].cor+'14',fg:ST[k].cor,cor:ST[k].cor})));
+  chips.forEach(c=>{ const b=document.createElement('button'); b.className='fchip'+(statusFilter===c.k?' active':''); b.textContent=c.label; if(statusFilter===c.k){b.style.background=c.cor;b.style.color='#fff';}else{b.style.background=c.bg;b.style.color=c.fg;} b.onclick=()=>{statusFilter=c.k;renderStatusFilters();renderList();}; wrap.appendChild(b); });
+}
 
 /* ===== espera +1h ===== */
 const ESPERA=60*60*1000;
@@ -587,6 +593,7 @@ function renderList(){
   if(wb){ wb.style.display=(waiting||waitOnly)?'grid':'none'; wb.classList.toggle('on',waitOnly); wb.title=(waiting+' esperando há +1h')+(waitOnly?' · ver todas':''); const wc=document.getElementById('waitCount'); if(wc) wc.textContent=waiting; }
   const arr=convos.filter(c=>{
     if(waitOnly&&!isWaiting(c)) return false;
+    if(statusFilter&&c.status!==statusFilter) return false;
     if(filter!=='todas'&&c.canal!==filter) return false;
     if(q){ const hit = c.name.toLowerCase().includes(q)||(c.contato||'').toLowerCase().includes(q)||(c.preview||'').toLowerCase().includes(q)||(msgMatchIds&&msgMatchIds.has(c.id)); if(!hit) return false; }
     return true;
@@ -637,7 +644,7 @@ async function loadMessages(id){
   msgsByConvo[id]=(data||[]).map(r=>{
     const isIn=r.direcao==='in'; const kind= isIn?'in':(r.autor_tipo==='bot'?'bot':'out');
     const file=(r.tipo&&r.tipo!=='text'&&r.midia_url)?{tipo:r.tipo,nome:(r.conteudo||''),url:r.midia_url}:null;
-    return { id:r.id, kind, who:r.atendente_nome||(kind==='bot'?'Bot Lola':currentAgent), texto:r.conteudo||'', hora:fmtTime(r.created_at), file };
+    return { id:r.id, kind, who:kind==='bot'?'Robô Lola':(r.atendente_nome||currentAgent), texto:r.conteudo||'', hora:fmtTime(r.created_at), file };
   });
   if(activeId===id) renderThread(id);
 }
@@ -649,7 +656,7 @@ function renderThread(id){
     const d=document.createElement('div'); d.className='msg '+msg.kind;
     let who='';
     if(msg.kind==='out') who='<div class="who">'+esc(msg.who||currentAgent)+'</div>';
-    if(msg.kind==='bot') who='<div class="who">'+esc(msg.who||'Bot Lola')+'<span class="autoflag">AUTO</span></div>';
+    if(msg.kind==='bot') who='<div class="who">'+esc(msg.who||'Robô Lola')+'<span class="autoflag">AUTO</span></div>';
     const body=msg.file?fileHtml(msg.file):'<div class="tx">'+esc(msg.texto)+'</div>';
     const del=((msg.kind==='out'||msg.kind==='bot')&&msg.id)?'<button class="msg-del" title="Excluir mensagem" onclick="delMsg(\''+msg.id+'\')">🗑️</button>':'';
     d.innerHTML=who+body+'<div class="hr">'+del+esc(msg.hora)+'</div>';
@@ -889,9 +896,11 @@ function renderBot(){
   loadTemplates().then(()=>{
     const padroes=templates.filter(t=>t.categoria!=='palavra_chave'), regras=templates.filter(t=>t.categoria==='palavra_chave');
     const ml=document.getElementById('msgList'); if(ml){ ml.innerHTML=''; padroes.forEach(t=>{ const d=document.createElement('div'); d.className='msgitem'; d.innerHTML='<div class="top"><span class="nm">'+esc(t.nome)+(t.ativo===false?' (inativa)':'')+'</span><div class="acts"><button class="btn-sm" onclick="saveTemplate(\''+t.id+'\')">Salvar</button><button class="btn-sm" onclick="delTemplate(\''+t.id+'\')">Excluir</button></div></div><textarea id="tpl_'+t.id+'">'+esc(t.conteudo||'')+'</textarea>'; ml.appendChild(d); }); }
-    const rl=document.getElementById('ruleList'); if(rl){ rl.innerHTML=''; if(!regras.length) rl.innerHTML='<div class="rule"><span class="r">Nenhuma regra por palavra-chave.</span></div>'; regras.forEach(t=>{ const d=document.createElement('div'); d.className='rule'; d.innerHTML='<span class="kw">'+esc(t.gatilho||'')+'</span><span class="arrow">→</span><span class="r">'+esc((t.conteudo||'').slice(0,70))+'…</span><span class="x" onclick="delTemplate(\''+t.id+'\')">✕</span>'; rl.appendChild(d); }); }
+    const rl=document.getElementById('ruleList'); if(rl){ rl.innerHTML=''; if(!regras.length) rl.innerHTML='<div class="rule"><span class="r">Nenhuma regra por palavra-chave.</span></div>'; regras.forEach(t=>{ const d=document.createElement('div'); d.className='rule'; d.setAttribute('data-id',t.id); d.innerHTML='<span class="kw">'+esc(t.gatilho||'')+'</span><span class="arrow">→</span><span class="r">'+esc((t.conteudo||'').slice(0,70))+'…</span><span class="x xedit" onclick="editRule(\''+t.id+'\')" title="Editar">✎</span><span class="x" onclick="delTemplate(\''+t.id+'\')" title="Excluir">✕</span>'; rl.appendChild(d); }); }
   });
 }
+function editRule(id){ const t=templates.find(x=>String(x.id)===String(id)); if(!t) return; const row=document.querySelector('#ruleList .rule[data-id="'+id+'"]'); if(!row) return; row.style.alignItems='stretch'; row.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;width:100%"><input id="edKw_'+id+'" class="inp" placeholder="palavras-chave, separadas por vírgula"><textarea id="edResp_'+id+'" class="inp" rows="3" placeholder="resposta do bot" style="resize:vertical"></textarea><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn-sm" onclick="renderBot()">Cancelar</button><button class="btn-sm" style="background:var(--brand);color:#fff;border-color:var(--brand)" onclick="saveRule(\''+id+'\')">Salvar</button></div></div>'; var k=document.getElementById('edKw_'+id); var r=document.getElementById('edResp_'+id); if(k)k.value=t.gatilho||''; if(r)r.value=t.conteudo||''; }
+async function saveRule(id){ const kw=(document.getElementById('edKw_'+id)||{}).value||''; const resp=(document.getElementById('edResp_'+id)||{}).value||''; if(!kw.trim()||!resp.trim()){ toast('Preencha palavra-chave e resposta'); return; } await sb.from('wa_templates').update({gatilho:kw.trim(), conteudo:resp.trim(), nome:'Palavra-chave: '+kw.trim()}).eq('id',id); renderBot(); toast('Regra atualizada ✓'); }
 async function saveTemplate(id){ const ta=document.getElementById('tpl_'+id); if(!ta) return; await sb.from('wa_templates').update({conteudo:ta.value}).eq('id',id); toast('Mensagem do bot salva ✓'); }
 async function delTemplate(id){ if(!confirm('Excluir esta mensagem/regra do bot?'))return; await sb.from('wa_templates').delete().eq('id',id); renderBot(); toast('Removido ✓'); }
 async function addMsg(){ const nome=prompt('Nome da nova mensagem padrão:','Nova mensagem'); if(!nome)return; await sb.from('wa_templates').insert({nome,categoria:'resposta_rapida',conteudo:'',ativo:true}); renderBot(); toast('Mensagem criada ✓'); }
@@ -970,7 +979,7 @@ function subscribeRealtime(){
 }
 
 /* ===== init ===== */
-applyAgentUI(); renderFilters();
+applyAgentUI(); renderFilters(); renderStatusFilters();
 if(!refreshPortalUser()){ let n=25; const t=setInterval(()=>{ if(refreshPortalUser()){clearInterval(t);} else if(--n<=0){ clearInterval(t); loadMyReplies(); } },600); }
 loadCategorias().then(()=>{ loadConversas().then(()=>{ if(convos.length){ openConvo(convos[0].id); document.body.classList.remove('chat-open'); } }); });
 subscribeRealtime();
