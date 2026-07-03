@@ -63,6 +63,9 @@ header{background:transparent;padding:12px 15px;position:static;z-index:30;color
 .viewtoggle .vt{flex:1;text-align:center;font-size:.8rem;font-weight:600;padding:8px 4px;border-radius:11px;border:0;background:#fff;color:var(--vinho);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;box-shadow:inset 0 0 0 1px #E9DDD0}
 .viewtoggle .vt i{font-size:1.02rem}
 .viewtoggle .vt.on{background:var(--vinho);color:#fff;box-shadow:none}
+.viewtoggle .vt .vt-star{display:none;font-size:.92rem;opacity:.5;cursor:pointer;margin-left:2px}
+.viewtoggle .vt.on .vt-star{display:inline-block;color:#fff}
+.viewtoggle .vt .vt-star.fav{display:inline-block;color:#E0A81E;opacity:1}
 .mapgroup{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
 .mtopic{background:var(--vinho);color:#fff;border-radius:12px;padding:9px 14px;font-size:.96rem;font-weight:600;display:inline-block;cursor:pointer;max-width:100%}
 .mvl{width:2px;height:14px;background:var(--vinho-muted);margin:6px auto}
@@ -96,6 +99,10 @@ header{background:transparent;padding:12px 15px;position:static;z-index:30;color
 /* CARDS */
 .card{background:#fff;border:1.5px solid var(--border);border-radius:20px;padding:14px 15px;display:flex;flex-direction:column;gap:7px;box-shadow:0 10px 28px rgba(168,42,42,.12);min-width:0;overflow-wrap:anywhere}
 .card.flash{border-color:var(--vinho);box-shadow:0 0 0 3px var(--vinho-pale)}
+.card.destaque{border-color:#EAD08A;animation:lolaGold 1.8s ease-in-out infinite}
+.kcard.destaque{border-color:#EAD08A;animation:lolaGold 1.8s ease-in-out infinite}
+@keyframes lolaGold{0%,100%{box-shadow:0 10px 28px rgba(168,42,42,.10),0 0 0 0 rgba(224,168,30,0)}50%{box-shadow:0 10px 28px rgba(168,42,42,.10),0 0 16px 2px rgba(224,168,30,.55)}}
+.btnfx.on{color:#B8862B;background:#FBF0DD;border-color:#EAD08A}
 .card.done{opacity:.5}
 .card.done h3{text-decoration:line-through}
 .chk{width:20px;height:20px;cursor:pointer;accent-color:var(--vinho);flex-shrink:0;vertical-align:middle}
@@ -174,6 +181,20 @@ header{position:static}
 .fp-obs .who{font-size:.72rem;color:var(--muted);font-weight:600;margin-bottom:3px}
 .fp-obs .txt{font-size:.86rem;color:var(--ink);white-space:pre-wrap}
 .fp-foot{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mov-ov{position:fixed;inset:0;background:rgba(30,10,10,.5);display:none;z-index:75}
+.mov-ov.show{display:block}
+.mov-panel{position:absolute;top:0;right:0;height:100%;width:min(420px,92vw);background:var(--cream);display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,.2)}
+.mov-head{position:sticky;top:0;background:var(--grad);color:#fff;padding:15px 16px;display:flex;align-items:center;gap:10px}
+.mov-head h3{font-family:'Fraunces',serif;font-weight:600;font-size:1.1rem}
+.mov-x{margin-left:auto;background:rgba(255,255,255,.2);border:0;color:#fff;width:32px;height:32px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mov-body{padding:12px 14px;overflow:auto;flex:1}
+.mov-empty{font-size:.85rem;color:var(--muted);text-align:center;padding:30px 10px}
+.mov-row{background:#fff;border:1px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:10px;cursor:pointer}
+.mov-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px}
+.mov-dt{font-size:.7rem;color:var(--muted);white-space:nowrap}
+.mov-title{font-family:'Fraunces',serif;font-weight:600;font-size:.98rem;color:var(--ink);line-height:1.25}
+.mov-sub{font-size:.76rem;color:var(--body);margin-top:4px;display:flex;gap:5px;align-items:flex-start}
+.mov-sub i{color:var(--vinho);font-size:.9rem;flex-shrink:0;margin-top:1px}
 .ata-card h3{cursor:default}
 /* MODAL */
 .ov{position:fixed;inset:0;background:rgba(30,10,10,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;overflow-y:auto;padding:20px 12px}
@@ -200,9 +221,9 @@ header{position:static}
 <div class="hdr-count" id="hdrCount"></div>
 </div>
 <button class="hdr-ic" onclick="hdrBusca()" title="Buscar"><i class="ph-duotone ph-magnifying-glass"></i></button>
-<button class="hdr-ic" onclick="hdrAvisos()" title="Avisos"><i class="ph-duotone ph-bell"></i><span class="hdr-badge" id="hdrBadge" style="display:none">0</span></button>
+<button class="hdr-ic" onclick="abrirMovimentacoes()" title="Movimentações recentes"><i class="ph-duotone ph-bell"></i><span class="hdr-badge" id="hdrBadge" style="display:none">0</span></button>
 </div>
-<div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista</span><span class="vt" data-v="quadro" onclick="setView('quadro')"><i class="ph-duotone ph-kanban"></i> Quadro</span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-map-trifold"></i> Mapa</span><span class="vt" data-v="atas" onclick="setView('atas')"><i class="ph-duotone ph-notebook"></i> Atas</span></div>
+<div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('lista')"></i></span><span class="vt" data-v="quadro" onclick="setView('quadro')"><i class="ph-duotone ph-kanban"></i> Quadro<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('quadro')"></i></span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-map-trifold"></i> Mapa<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('mapa')"></i></span><span class="vt" data-v="atas" onclick="setView('atas')"><i class="ph-duotone ph-notebook"></i> Atas<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('atas')"></i></span></div>
 </header>
 
 <div class="wrap">
@@ -278,6 +299,7 @@ header{position:static}
 </div>
 <!-- PAINEL DA FICHA -->
 <div class="fp-ov" id="fpov" onclick="if(event.target===this)fecharFicha()"><div class="fp" id="fp"></div></div>
+<div class="mov-ov" id="movov" onclick="if(event.target===this)fecharMov()"><div class="mov-panel"><div class="mov-head"><i class="ph-duotone ph-bell"></i><h3>Movimentações recentes</h3><button class="mov-x" onclick="fecharMov()"><i class="ph-duotone ph-x"></i></button></div><div class="mov-body" id="movbody"></div></div></div>
 <div id="toast"></div>
 
 <script>
@@ -375,7 +397,7 @@ var tags=arr(f.tags).map(function(t){return '<span class="chip tag">#'+esc(t)+'<
 var rel=arr(f.relacionados).map(function(id){var r=REG.find(function(x){return x.id==id;});return r?('<a onclick="focar('+r.id+')">'+esc(r.titulo)+'</a>'):'';}).filter(Boolean).join(' · ');
 var cont=f.conteudo?('<div class="conteudo" id="c'+f.id+'">'+esc(f.conteudo)+'</div><span class="vermais" onclick="var e=document.getElementById(\'c'+f.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
 var bcol=f.eh_tarefa?'#1f7a4d':'#6b5d5d', blab=f.eh_tarefa?'<i class="ph-duotone ph-check-square"></i> Tarefa':'<i class="ph-duotone ph-megaphone"></i> Aviso';
-return '<div class="card'+(f.concluido?' done':'')+'" id="f'+f.id+'">'
+return '<div class="card'+(f.concluido?' done':'')+(f.destaque?' destaque':'')+'" id="f'+f.id+'">'
 +'<div class="cardtop"><span class="badge" style="background:'+bcol+'22;color:'+bcol+'">'+blab+'</span><span class="dt">'+fmtDate(f.data)+'</span></div>'
 +'<h3 onclick="abrirFicha('+f.id+')" style="cursor:pointer">'+esc(f.titulo||'(sem título)')+'</h3>'
 +((uni||cat)?'<div class="chips">'+uni+cat+'</div>':'')
@@ -384,7 +406,7 @@ return '<div class="card'+(f.concluido?' done':'')+'" id="f'+f.id+'">'
 +okRow(f)
 +(rel?'<div class="rel"><i class="ph-duotone ph-link"></i> Ligadas: '+rel+'</div>':'')
 +(tags?'<div class="chips">'+tags+'</div>':'')
-+'<div class="cardfoot">'+(f.eh_tarefa?'<button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'<i class="ph-duotone ph-arrow-u-up-left"></i> Reabrir':'<i class="ph-duotone ph-check"></i> Concluir')+'</button>':'')+'<button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+')"><i class="ph-duotone ph-arrows-split"></i> Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')"><i class="ph-duotone ph-pencil-simple"></i> Editar</button></div>'
++'<div class="cardfoot">'+(f.eh_tarefa?'<button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'<i class="ph-duotone ph-arrow-u-up-left"></i> Reabrir':'<i class="ph-duotone ph-check"></i> Concluir')+'</button>':'')+'<button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+')"><i class="ph-duotone ph-arrows-split"></i> Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')"><i class="ph-duotone ph-pencil-simple"></i> Editar</button>'+(ehAdmin()?'<button class="btn btn-ghost btn-sm btnfx'+(f.destaque?' on':'')+'" onclick="toggleDestaque('+f.id+','+(f.destaque?'false':'true')+')"><i class="ph-duotone ph-star"></i> '+(f.destaque?'Tirar destaque':'Destacar')+'</button>':'')+'</div>'
 +'</div>';
 }
 
@@ -425,12 +447,12 @@ var tag=f.concluido?'<span class="ktag" style="color:#1f7a4d;background:#E6F3EA"
 var btns=f.concluido
  ?'<button class="btn btn-ghost btn-sm" onclick="toggleDone('+f.id+',false)"><i class="ph-duotone ph-arrow-u-up-left"></i> Reabrir</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')"><i class="ph-duotone ph-pencil-simple"></i> Editar</button>'
  :'<button class="btn btn-sm btnconcluir" onclick="toggleDone('+f.id+',true)"><i class="ph-duotone ph-check"></i> Concluir</button><button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+')"><i class="ph-duotone ph-arrows-split"></i> Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')"><i class="ph-duotone ph-pencil-simple"></i> Editar</button>';
-return '<div class="kcard'+(f.concluido?' done':'')+'" draggable="true" ondragstart="kDragStart(event,'+f.id+')" ondragend="kDragEnd(event)">'
+return '<div class="kcard'+(f.concluido?' done':'')+(f.destaque?' destaque':'')+'" draggable="true" ondragstart="kDragStart(event,'+f.id+')" ondragend="kDragEnd(event)">'
  +'<div class="kbar" style="background:'+col+'"><span>'+esc(assunto.toUpperCase())+esc(uni)+'</span><span class="kmove"><i class="ph-duotone ph-caret-left" onclick="kArrow('+f.id+',-1)"></i><i class="ph-duotone ph-caret-right" onclick="kArrow('+f.id+',1)"></i></span></div>'
  +'<div class="kbody">'+tag+'<h4 onclick="abrirFicha('+f.id+')" style="cursor:pointer">'+esc(f.titulo||'(sem título)')+'</h4>'
  +(pills?'<div class="chips">'+pills+'</div>':'')
  +desc+okline
- +'<div class="kbtns">'+btns+'</div></div></div>';
+ +'<div class="kbtns">'+btns+(ehAdmin()?'<button class="btn btn-ghost btn-sm btnfx'+(f.destaque?' on':'')+'" onclick="toggleDestaque('+f.id+','+(f.destaque?'false':'true')+')"><i class="ph-duotone ph-star"></i></button>':'')+'</div></div></div>';
 }
 function renderQuadroView(lst,box){
 var tarefas=lst.filter(function(f){return f.eh_tarefa;});
@@ -469,7 +491,7 @@ var opts=[''].concat(UNIDADES);
 document.getElementById('unibar').innerHTML=opts.map(function(u){return '<div class="ub'+(FUNI===u?' on':'')+'" onclick="setUni(\''+u.replace(/'/g,"\\'")+'\')">'+esc(labels[u]||u)+'</div>';}).join('');
 }
 function setUni(v){FUNI=v;render();window.scrollTo({top:0,behavior:'smooth'});}
-function setView(v){VIEW=v;Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);});render();}
+function setView(v){VIEW=v;Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);});try{updateViewStars();}catch(e){}render();}
 function renderMapaView(lst,box){
 if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
 var inSet={}; lst.forEach(function(f){inSet[f.id]=f;});
@@ -508,7 +530,7 @@ var me=norm(meuNome());
 var suas=me?REG.filter(function(f){ if(!f.eh_tarefa||f.concluido)return false; if(arr(f.responsaveis).map(norm).indexOf(me)<0)return false; var oks=oksOf(f); for(var k in oks){if(norm(k)===me)return false;} return true; }).length:0;
 var el=document.getElementById('hdrCount');
 if(el){var parts=[ab+(ab===1?' aberta':' abertas')]; if(me)parts.push(suas+(suas===1?' sua':' suas')); if(atras)parts.push(atras+(atras===1?' atrasada':' atrasadas')); el.textContent=parts.join(' · ');}
-var bd=document.getElementById('hdrBadge'); if(bd){var av=REG.filter(function(f){return !f.eh_tarefa;}).length; if(av>0){bd.style.display='';bd.textContent=av>99?'99+':av;}else{bd.style.display='none';}}
+try{updateMovBadge();}catch(e){}
 }
 function hdrBusca(){var q=document.getElementById('q');if(q){try{q.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}setTimeout(function(){q.focus();},120);}}
 function hdrAvisos(){if(VIEW!=='lista')setView('lista');setF('ftt','aviso');}
@@ -560,6 +582,14 @@ var em=ck?new Date().toISOString():null;
 var et=ck?'feito':'afazer';
 if(f){f.concluido=ck;f.concluido_em=em;f.etapa=et;}
 try{var u=await sb.from('lola_assuntos').update({concluido:ck,concluido_em:em,etapa:et,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(ck?'✓ Concluído':'Reaberto');}
+catch(e){toast('Erro ao atualizar');}
+render(); _refreshFp();
+}
+function ehAdmin(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.role==='admin')return true;}catch(e){}return false;}
+async function toggleDestaque(id,on){
+var f=REG.find(function(x){return x.id==id;});
+if(f){f.destaque=on;}
+try{var u=await sb.from('lola_assuntos').update({destaque:on,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(on?'✨ Tarefa destacada':'Destaque removido');}
 catch(e){toast('Erro ao atualizar');}
 render(); _refreshFp();
 }
@@ -639,6 +669,50 @@ else{clearQuick();closeNovo();await load();toast('✓ Registrado');window.scroll
 // ---- painel da ficha ----
 var _fpId=null;
 function fecharFicha(){var o=document.getElementById('fpov');if(o)o.classList.remove('show');_fpId=null;}
+
+/* ===== Visualização favorita (por login) ===== */
+var FAV_VIEW=null;
+function meuId(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.id)return pp.__portalUser.id;}catch(e){}return null;}
+function viewLabel(v){return {lista:'Lista',quadro:'Quadro',mapa:'Mapa',atas:'Atas'}[v]||v;}
+function updateViewStars(){Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){var v=b.getAttribute('data-v');var st=b.querySelector('.vt-star');if(st)st.classList.toggle('fav',FAV_VIEW===v);});}
+async function initViewFav(){var uid=meuId();if(!uid){updateViewStars();return;}try{var r=await sb.rpc('portal_pref_get',{p_user_id:uid,p_key:'reg_view_fav'});var v=r&&r.data;if(v&&['lista','quadro','mapa','atas'].indexOf(v)>=0){FAV_VIEW=v;setView(v);}}catch(e){}updateViewStars();}
+async function toggleViewFav(v){var uid=meuId();if(!uid){toast('Faça login no portal para favoritar');return;}FAV_VIEW=(FAV_VIEW===v)?null:v;updateViewStars();try{await sb.rpc('portal_pref_set',{p_user_id:uid,p_key:'reg_view_fav',p_val:FAV_VIEW||''});}catch(e){}toast(FAV_VIEW?('★ '+viewLabel(v)+' será sua visualização padrão'):'Visualização padrão removida');}
+
+/* ===== Sino: movimentações recentes ===== */
+function movStateTag(f){
+  if(f.concluido) return {t:'Concluída',c:'#1f7a4d',bg:'#E6F3EA',ic:'check-circle'};
+  if(!f.eh_tarefa) return {t:'Aviso',c:'#6b5d5d',bg:'#efe9e6',ic:'megaphone'};
+  var oks=oksOf(f),resp=arr(f.responsaveis),n=resp.filter(function(r){return oks[r];}).length;
+  if(n>0) return {t:'Em andamento',c:'#9A6B1E',bg:'#FBF0DD',ic:'clock'};
+  return {t:'A fazer',c:'#B5302E',bg:'#FBEAE7',ic:'circle-dashed'};
+}
+function movRowHTML(f){
+  var st=movStateTag(f);
+  var resp=arr(f.responsaveis),oks=oksOf(f),okNames=resp.filter(function(r){return oks[r];});
+  var okline=resp.length?('<div class="mov-sub"><i class="ph-duotone ph-check"></i> OK '+okNames.length+'/'+resp.length+(okNames.length?': '+okNames.map(esc).join(', '):'')+'</div>'):'';
+  var obs=arr(f.observacoes),last=obs.length?obs[obs.length-1]:null;
+  var obsline=last?('<div class="mov-sub"><i class="ph-duotone ph-chat-text"></i> '+esc(last.autor||'—')+': '+esc(String(last.texto||'').slice(0,70))+'</div>'):'';
+  var when=fmtDate(String(f.updated_at||f.data||'').slice(0,10));
+  return '<div class="mov-row" onclick="fecharMov();abrirFicha('+f.id+')">'
+    +'<div class="mov-top"><span class="badge" style="background:'+st.bg+';color:'+st.c+'"><i class="ph-duotone ph-'+st.ic+'"></i> '+st.t+'</span><span class="mov-dt">'+when+'</span></div>'
+    +'<div class="mov-title">'+esc(f.titulo||'(sem título)')+'</div>'+okline+obsline+'</div>';
+}
+function abrirMovimentacoes(){
+  var box=document.getElementById('movbody');if(!box)return;
+  var lst=REG.slice().sort(function(a,b){return String(b.updated_at||b.data||'').localeCompare(String(a.updated_at||a.data||''));}).slice(0,25);
+  box.innerHTML=lst.length?lst.map(movRowHTML).join(''):'<div class="mov-empty">Nenhuma movimentação ainda.</div>';
+  var o=document.getElementById('movov');if(o)o.classList.add('show');
+  try{localStorage.setItem('reg_mov_seen',new Date().toISOString());}catch(e){}
+  updateMovBadge();
+}
+function fecharMov(){var o=document.getElementById('movov');if(o)o.classList.remove('show');}
+function updateMovBadge(){
+  var bd=document.getElementById('hdrBadge');if(!bd)return;
+  var seen=null;try{seen=localStorage.getItem('reg_mov_seen');}catch(e){}
+  var since=seen?new Date(seen).getTime():(Date.now()-24*3600*1000);
+  var n=REG.filter(function(f){var t=new Date(f.updated_at||f.data||0).getTime();return t>since;}).length;
+  if(n>0){bd.style.display='';bd.textContent=n>99?'99+':n;}else{bd.style.display='none';}
+}
 function _refreshFp(){ if(_fpId!=null){ var f=REG.find(function(x){return x.id==_fpId;}); if(f) abrirFicha(_fpId); else fecharFicha(); } }
 function abrirFicha(id){
 var f=REG.find(function(x){return x.id==id;});if(!f)return;
@@ -733,7 +807,7 @@ catch(e){toast('Erro ao excluir');}
 }
 document.getElementById('ov').addEventListener('click',function(e){if(e.target===this)fechar();});
 
-initQuick(); load().then(function(){try{applyUrlFilters();}catch(e){}});
+initQuick(); load().then(function(){try{applyUrlFilters();}catch(e){} try{initViewFav();}catch(e){} try{updateMovBadge();}catch(e){}});
 </script>
 </body>
 </html>

@@ -676,6 +676,10 @@
   .app-card:hover { transform:translateY(-2px); box-shadow:0 10px 22px -12px rgba(42,26,23,.32); }
   .app-tile { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; line-height:1; }
   .app-card b { font-size:0.92rem; font-weight:600; color:var(--ink); line-height:1.18; }
+  .app-card-wrap { position:relative; }
+  .fav-star { position:absolute; top:8px; right:8px; width:30px; height:30px; border:none; background:transparent; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:19px; line-height:1; cursor:pointer; color:#CBBBAF; padding:0; z-index:2; transition:background .12s ease, color .12s ease; }
+  .fav-star.on { color:#E0A81E; }
+  .fav-star:hover { background:rgba(42,26,23,.06); }
   @media (max-width:600px){
     .home-apps { margin-bottom:18px; }
     .app-grid { grid-template-columns:repeat(3,1fr); gap:11px; }
@@ -1049,23 +1053,58 @@ var HOME_APPS=[
     {m:'usuarios', label:'Usuários', icon:'identification-card', col:'#6B4FA8', bg:'#F0EAF7'}
   ]}
 ];
+var FAVS=[];
+var APP_BY_MENU={}; HOME_APPS.forEach(function(g){g.items.forEach(function(a){ if(!APP_BY_MENU[a.m]) APP_BY_MENU[a.m]=a; });});
 function homeOpen(menuKey){ var nav=document.querySelector('[data-menu="'+menuKey+'"]'); if(nav){ nav.click(); } }
 window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.lola==='voltar-menu'){ switchModule('home'); } }catch(_){} });
+function appCardHTML(a){
+  var fav=FAVS.indexOf(a.m)>=0;
+  return '<div class="app-card-wrap">'
+    +'<button class="app-card" onclick="homeOpen(\''+a.m+'\')">'
+    +'<span class="app-tile" style="background:'+a.bg+';color:'+a.col+'"><i class="ph-duotone ph-'+a.icon+'"></i></span>'
+    +'<b>'+a.label+'</b></button>'
+    +'<button class="fav-star'+(fav?' on':'')+'" title="'+(fav?'Remover dos favoritos':'Favoritar')+'" aria-label="'+(fav?'Remover dos favoritos':'Favoritar')+'" onclick="toggleFav(\''+a.m+'\',event)"><i class="ph-duotone ph-star"></i></button>'
+    +'</div>';
+}
 function renderHomeApps(){
   var wrap=document.getElementById('homeApps'); if(!wrap) return;
   var html='';
+  var favCards='';
+  FAVS.forEach(function(mk){
+    var a=APP_BY_MENU[mk]; if(!a) return;
+    var nav=document.querySelector('[data-menu="'+mk+'"]');
+    if(!nav || nav.style.display==='none') return;
+    favCards+=appCardHTML(a);
+  });
+  if(favCards){ html+='<div class="home-group"><div class="home-group-title"><i class="ph-duotone ph-star" style="color:#E0A81E;font-size:.9rem"></i> Favoritos</div><div class="app-grid">'+favCards+'</div></div>'; }
   HOME_APPS.forEach(function(grp){
     var cards='';
     grp.items.forEach(function(a){
       var nav=document.querySelector('[data-menu="'+a.m+'"]');
       if(!nav || nav.style.display==='none') return;
-      cards+='<button class="app-card" onclick="homeOpen(\''+a.m+'\')">'
-        +'<span class="app-tile" style="background:'+a.bg+';color:'+a.col+'"><i class="ph-duotone ph-'+a.icon+'"></i></span>'
-        +'<b>'+a.label+'</b></button>';
+      cards+=appCardHTML(a);
     });
     if(cards){ html+='<div class="home-group"><div class="home-group-title">'+grp.g+'</div><div class="app-grid">'+cards+'</div></div>'; }
   });
   wrap.innerHTML=html;
+}
+async function loadFavs(){
+  try{
+    var u=window.__portalUser; if(!u||!u.id){ FAVS=[]; return; }
+    var r=await fetch(`${PORTAL_URL}/rest/v1/rpc/portal_fav_list`,{method:'POST',headers:{'Content-Type':'application/json','apikey':PORTAL_KEY,'Authorization':'Bearer '+PORTAL_KEY},body:JSON.stringify({p_user_id:u.id})});
+    var d=await r.json(); FAVS=Array.isArray(d)?d:[];
+  }catch(e){ FAVS=[]; }
+  try{ renderHomeApps(); }catch(_){}
+}
+async function toggleFav(menuKey,ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  var u=window.__portalUser; if(!u||!u.id) return;
+  var on=FAVS.indexOf(menuKey)<0;
+  if(on){ FAVS.push(menuKey); } else { FAVS=FAVS.filter(function(k){return k!==menuKey;}); }
+  try{ renderHomeApps(); }catch(_){}
+  try{
+    await fetch(`${PORTAL_URL}/rest/v1/rpc/portal_fav_toggle`,{method:'POST',headers:{'Content-Type':'application/json','apikey':PORTAL_KEY,'Authorization':'Bearer '+PORTAL_KEY},body:JSON.stringify({p_user_id:u.id,p_menu:menuKey,p_on:on})});
+  }catch(e){}
 }
 
 async function sha256hex(msg){
@@ -2224,6 +2263,7 @@ function startPortal(){
     el.style.display=userCan(el.getAttribute('data-minrole'))?'':'none';
   });
   if(typeof applyMenuPerms==='function')applyMenuPerms();
+  try{ loadFavs(); }catch(e){}
   try{
     if(typeof TEAM!=='undefined'){
       const match=TEAM.find(t=>t.name===u.name);
