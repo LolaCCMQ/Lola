@@ -106,6 +106,8 @@
     .sidebar.collapsed .sb-toggle i { transform:rotate(180deg); }
   }
   @media (max-width:768px) { .sb-toggle { display:none; } }
+  #navTip { position:fixed; transform:translateY(-50%); background:#2a1a17; color:#fff; padding:5px 10px; border-radius:8px; font-size:0.8rem; font-weight:500; white-space:nowrap; z-index:2000; pointer-events:none; opacity:0; transition:opacity 0.12s; box-shadow:0 6px 18px rgba(0,0,0,0.22); }
+  #navTip.show { opacity:1; }
   .sb-divider { height:1px; background:var(--border); margin:5px 8px; }
 
   /* CONTENT AREA */
@@ -1112,6 +1114,7 @@ function applyCollapse(on){ var sb=document.getElementById('sidebar'); if(!sb)re
 function userCollapsePref(){ try{ return localStorage.getItem('sbCollapsed')==='1'; }catch(_){ return false; } }
 function toggleCollapse(){ var sb=document.getElementById('sidebar'); if(!sb)return; var on=!sb.classList.contains('collapsed'); applyCollapse(on); try{ localStorage.setItem('sbCollapsed', on?'1':'0'); }catch(_){} }
 try{ applyCollapse(userCollapsePref()); }catch(_){}
+try{ document.querySelectorAll('#sidebar .nav-item').forEach(function(it){ it.addEventListener('mouseenter',function(){ var sb=document.getElementById('sidebar'); if(!sb||!sb.classList.contains('collapsed'))return; var nl=it.querySelector('.nl'); if(!nl)return; var tip=document.getElementById('navTip'); if(!tip){tip=document.createElement('div');tip.id='navTip';document.body.appendChild(tip);} tip.textContent=nl.textContent.trim(); var r=it.getBoundingClientRect(); tip.style.left=(r.right+8)+'px'; tip.style.top=(r.top+r.height/2)+'px'; tip.classList.add('show'); }); it.addEventListener('mouseleave',function(){ var tip=document.getElementById('navTip'); if(tip)tip.classList.remove('show'); }); }); }catch(_){}
 function switchModule(mod){ try{ applyCollapse(mod==='inbox'?true:userCollapsePref()); }catch(_){}
   document.querySelectorAll('.module-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item[data-mod]').forEach(n=>n.classList.remove('active'));
