@@ -556,10 +556,16 @@ function renderFilters(){
   chips.forEach(c=>{ const b=document.createElement('button'); b.className='fchip'+(filter===c.k?' active':''); b.textContent=c.label; if(filter===c.k){b.style.background=c.cor;b.style.color='#fff';}else{b.style.background=c.bg;b.style.color=c.fg;} b.onclick=()=>{filter=c.k;renderFilters();renderList();}; wrap.appendChild(b); });
 }
 function renderStatusFilters(){
-  const wrap=document.getElementById('statusFilters'); if(!wrap) return; wrap.innerHTML='';
-  const chips=[{k:null,label:'Todos',bg:'#f2f4f6',fg:'#5a666e',cor:'#7a848b'}].concat(STORDER.map(k=>({k,label:ST[k].label,bg:ST[k].cor+'14',fg:ST[k].cor,cor:ST[k].cor})));
-  chips.forEach(c=>{ const b=document.createElement('button'); b.className='fchip'+(statusFilter===c.k?' active':''); b.textContent=c.label; if(statusFilter===c.k){b.style.background=c.cor;b.style.color='#fff';}else{b.style.background=c.bg;b.style.color=c.fg;} b.onclick=()=>{statusFilter=c.k;renderStatusFilters();renderList();}; wrap.appendChild(b); });
+  const wrap=document.getElementById('statusFilters'); if(!wrap) return;
+  const s = statusFilter ? ST[statusFilter] : null;
+  const label = s ? s.label : 'Todos os status';
+  const cor = s ? s.cor : '#7a848b';
+  const bg = s ? (s.cor+'14') : '#f2f4f6';
+  wrap.innerHTML = '<button id="stFilterBtn" onclick="openStatusFilterPop(event)" style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:7px 13px;border-radius:20px;border:0;cursor:pointer;background:'+bg+';color:'+cor+'"><span style="width:7px;height:7px;border-radius:50%;background:'+cor+';display:inline-block;flex-shrink:0"></span>'+esc(label)+' <span style="opacity:.55;font-size:10px">▼</span></button>';
 }
+function openStatusFilterPop(e){ e.stopPropagation(); let pop=document.getElementById('stFilterPop'); if(!pop){ pop=document.createElement('div'); pop.id='stFilterPop'; pop.className='catpop'; document.body.appendChild(pop); } const opts=[{k:null,label:'Todos os status',cor:'#7a848b'}].concat(STORDER.map(k=>({k,label:ST[k].label,cor:ST[k].cor}))); pop.innerHTML=opts.map(o=>{ const seld=statusFilter===o.k; const st=seld?('background:'+o.cor+';color:#fff;border-color:'+o.cor):('color:'+o.cor+';background:'+o.cor+'14;border-color:'+o.cor+'26'); return '<button class="dr-chip" style="'+st+'" onclick="setStatusFilter('+(o.k?("'"+o.k+"'"):'null')+')">'+esc(o.label)+'</button>'; }).join(''); const r=e.currentTarget.getBoundingClientRect(); pop.style.left=Math.max(10,Math.min(r.left,window.innerWidth-290))+'px'; pop.style.top=(r.bottom+6)+'px'; pop.classList.add('show'); }
+function setStatusFilter(k){ statusFilter=k; const p=document.getElementById('stFilterPop'); if(p)p.classList.remove('show'); renderStatusFilters(); renderList(); }
+document.addEventListener('click',function(ev){ const p=document.getElementById('stFilterPop'); if(p&&p.classList.contains('show')&&!p.contains(ev.target)&&!ev.target.closest('#stFilterBtn')) p.classList.remove('show'); });
 
 /* ===== espera +1h ===== */
 const ESPERA=60*60*1000;
