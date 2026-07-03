@@ -333,6 +333,7 @@ function oksOf(f){return (f.oks&&typeof f.oks==='object'&&!Array.isArray(f.oks))
 function voltarMenu(){try{var pp=window.parent;if(pp&&pp!==window){pp.postMessage({lola:'voltar-menu'},'*');return;}}catch(e){} try{history.back();}catch(e2){}}
 
 function meuNome(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.name)return pp.__portalUser.name;}catch(e){}return "";}
+function logAtv(acao,f,detalhe){try{sb.from('lola_atividades').insert({quem:meuNome()||null,acao:acao,alvo_tipo:(f&&f.eh_tarefa)?'tarefa':'registro',alvo_id:f?(f.id||null):null,alvo_titulo:f?String(f.titulo||'').slice(0,120):null,detalhe:detalhe||null}).then(function(){},function(){});}catch(e){}}
 async function load(){
 try{ var r=await sb.from('lola_assuntos').select('*').order('data',{ascending:false,nullsFirst:false}).order('id',{ascending:false}); REG=r.data||[]; }
 catch(e){ document.getElementById('lista').innerHTML='<div class="empty">Erro: '+esc(e.message||e)+'</div>'; return; }
@@ -342,6 +343,7 @@ popFiltros(); render();
 function applyUrlFilters(){
 try{
 var p=new URLSearchParams(location.search);
+if(p.get('novo')==='1'){setTimeout(function(){try{setQTipo(true);openNovo();}catch(e){}},250);}
 var op=p.get("open"); if(op){ setTimeout(function(){ try{ if(typeof focar==="function") focar(op); }catch(e){} },200); return; }
 var resp=p.get('resp'), sit=p.get('sit'), changed=false;
 if(resp){var fr=document.getElementById('fresp'); if(fr){ fr.value=resp; if(fr.value!==resp){ var o=document.createElement('option'); o.value=resp; o.textContent=resp; fr.appendChild(o); fr.value=resp; } changed=true; } }
@@ -481,7 +483,7 @@ var et=etapaMap[col], done=(col==='concluidas');
 var em=done?(f.concluido_em||new Date().toISOString()):null;
 f.etapa=et; f.concluido=done; f.concluido_em=em;
 render(); _refreshFp();
-try{ var u=await sb.from('lola_assuntos').update({etapa:et,concluido:done,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id); if(u.error)throw u.error; toast(done?'✓ Concluído':(col==='andamento'?'Em andamento':'A fazer')); }
+try{ var u=await sb.from('lola_assuntos').update({etapa:et,concluido:done,concluido_em:em,updated_at:new Date().toISOString()}).eq('id',id); if(u.error)throw u.error; toast(done?'✓ Concluído':(col==='andamento'?'Em andamento':'A fazer')); logAtv(done?'concluiu':(col==='andamento'?'moveu para Em andamento':'moveu para A fazer'),f); }
 catch(e){ toast('Erro ao mover'); }
 }
 
@@ -572,7 +574,7 @@ var resp=arr(f.responsaveis), nok=resp.filter(function(r){return oks[r];}).lengt
 var em=done?new Date().toISOString():null;
 var et=done?'feito':(nok>0?'fazendo':'afazer');
 f.oks=oks;f.concluido=done;f.concluido_em=em;f.etapa=et;
-try{var u=await sb.from('lola_assuntos').update({oks:oks,concluido:done,concluido_em:em,etapa:et,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(done?'✓ Tarefa concluída':'OK atualizado');}
+try{var u=await sb.from('lola_assuntos').update({oks:oks,concluido:done,concluido_em:em,etapa:et,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(done?'✓ Tarefa concluída':'OK atualizado');logAtv(oks[name]?'deu OK':'desfez o OK',f);if(done)logAtv('concluiu',f);}
 catch(e){toast('Erro ao atualizar');}
 render(); _refreshFp();
 }
@@ -581,7 +583,7 @@ var f=REG.find(function(x){return x.id==id;});
 var em=ck?new Date().toISOString():null;
 var et=ck?'feito':'afazer';
 if(f){f.concluido=ck;f.concluido_em=em;f.etapa=et;}
-try{var u=await sb.from('lola_assuntos').update({concluido:ck,concluido_em:em,etapa:et,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(ck?'✓ Concluído':'Reaberto');}
+try{var u=await sb.from('lola_assuntos').update({concluido:ck,concluido_em:em,etapa:et,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(ck?'✓ Concluído':'Reaberto');logAtv(ck?'concluiu':'reabriu',f);}
 catch(e){toast('Erro ao atualizar');}
 render(); _refreshFp();
 }
@@ -589,7 +591,7 @@ function ehAdmin(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&
 async function toggleDestaque(id,on){
 var f=REG.find(function(x){return x.id==id;});
 if(f){f.destaque=on;}
-try{var u=await sb.from('lola_assuntos').update({destaque:on,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(on?'✨ Tarefa destacada':'Destaque removido');}
+try{var u=await sb.from('lola_assuntos').update({destaque:on,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast(on?'✨ Tarefa destacada':'Destaque removido');logAtv(on?'destacou':'tirou o destaque de',f);}
 catch(e){toast('Erro ao atualizar');}
 render(); _refreshFp();
 }
@@ -656,6 +658,7 @@ relacionados:liga.slice(),data:new Date().toISOString().slice(0,10),updated_at:n
 try{
 var i=await sb.from('lola_assuntos').insert(p).select('id').single();if(i.error)throw i.error;
 var novo=i.data.id;
+logAtv('criou',{id:novo,titulo:titulo,eh_tarefa:ehT},_q.resp.length?('para '+_q.resp.join(', ')):null);
 for(var li=0;li<liga.length;li++){
 var pf=REG.find(function(x){return x.id==liga[li];});
 var rel=pf?arr(pf.relacionados).slice():[];
@@ -747,7 +750,7 @@ var f=REG.find(function(x){return x.id==id;});if(!f)return;
 var obs=Array.isArray(f.observacoes)?f.observacoes.slice():[];
 obs.push({autor:meuNome()||'—',data:new Date().toISOString(),texto:txt});
 f.observacoes=obs;
-try{var u=await sb.from('lola_assuntos').update({observacoes:obs,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast('Observação adicionada');}
+try{var u=await sb.from('lola_assuntos').update({observacoes:obs,updated_at:new Date().toISOString()}).eq('id',id);if(u.error)throw u.error;toast('Observação adicionada');logAtv('comentou em',f);}
 catch(e){toast('Erro ao salvar observação');}
 abrirFicha(id);
 }
@@ -789,6 +792,9 @@ pessoas:arr(ex.pessoas),relacionados:_m.rel.slice(),oks:oks,concluido:done,concl
 updated_at:new Date().toISOString()};
 try{
 var u=await sb.from('lola_assuntos').update(p).eq('id',EDIT);if(u.error)throw u.error;
+var _oldR=arr(ex.responsaveis),_addR=newResp.filter(function(r){return _oldR.indexOf(r)<0;}),_remR=_oldR.filter(function(r){return newResp.indexOf(r)<0;});
+if(_addR.length||_remR.length){logAtv('reatribuiu',{id:EDIT,titulo:titulo,eh_tarefa:_m.tarefa},(_remR.length?('saiu: '+_remR.join(', ')):'')+(_remR.length&&_addR.length?' · ':'')+(_addR.length?('entrou: '+_addR.join(', ')):''));}
+else{logAtv('editou',{id:EDIT,titulo:titulo,eh_tarefa:_m.tarefa});}
 // desvincular dos dois lados
 var oldRel=arr(ex.relacionados).map(String), newRel=_m.rel.map(String);
 var removed=oldRel.filter(function(x){return newRel.indexOf(x)<0;});
@@ -802,7 +808,8 @@ fechar();await load();toast('✓ Salvo');
 }
 async function delAtual(){
 if(!EDIT)return;if(!confirm('Excluir este registro?'))return;
-try{var d=await sb.from('lola_assuntos').delete().eq('id',EDIT);if(d.error)throw d.error;fechar();await load();toast('Excluído');}
+var _fx=REG.find(function(x){return x.id==EDIT;});
+try{var d=await sb.from('lola_assuntos').delete().eq('id',EDIT);if(d.error)throw d.error;if(_fx)logAtv('excluiu',_fx);fechar();await load();toast('Excluído');}
 catch(e){toast('Erro ao excluir');}
 }
 document.getElementById('ov').addEventListener('click',function(e){if(e.target===this)fechar();});
