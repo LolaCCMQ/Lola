@@ -542,8 +542,8 @@ function saveIcon(saved){ return saved ? '<svg viewBox="0 0 24 24" fill="none" s
 /* ===== filtros ===== */
 function renderFilters(){
   const wrap=document.getElementById('filters'); wrap.innerHTML='';
-  const chips=[{k:'todas',label:'Todas',cor:'#a4242f'}].concat(Object.keys(CH).map(k=>({k,label:CH[k].curto,cor:CH[k].cor})));
-  chips.forEach(c=>{ const b=document.createElement('button'); b.className='fchip'+(filter===c.k?' active':''); b.textContent=c.label; if(filter===c.k)b.style.background=c.cor; b.onclick=()=>{filter=c.k;renderFilters();renderList();}; wrap.appendChild(b); });
+  const chips=[{k:'todas',label:'Todas',cor:'#a4242f',bg:'#fbe9ea',fg:'#a4242f'}].concat(Object.keys(CH).map(k=>({k,label:CH[k].curto,cor:CH[k].cor,bg:CH[k].bg,fg:CH[k].fg})));
+  chips.forEach(c=>{ const b=document.createElement('button'); b.className='fchip'+(filter===c.k?' active':''); b.textContent=c.label; if(filter===c.k){b.style.background=c.cor;b.style.color='#fff';}else{b.style.background=c.bg;b.style.color=c.fg;} b.onclick=()=>{filter=c.k;renderFilters();renderList();}; wrap.appendChild(b); });
 }
 
 /* ===== espera +1h ===== */
