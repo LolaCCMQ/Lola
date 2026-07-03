@@ -90,6 +90,10 @@
   .ch-name{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chpill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .chpill svg{width:11px;height:11px}
+  .chaddtag{width:22px;height:22px;border-radius:50%;border:1px dashed #d6b9b9;background:#fff;color:var(--brand);font-size:15px;line-height:1;display:inline-grid;place-items:center;cursor:pointer;flex-shrink:0;padding:0}
+  .chaddtag:hover{background:var(--brand-tint)}
+  .catpop{position:fixed;z-index:60;background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);padding:9px;display:none;flex-wrap:wrap;gap:6px;max-width:290px}
+  .catpop.show{display:flex}
   .ch-sub{font-size:12.5px;font-weight:500;color:var(--ink2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ch-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
   .ch-ic{width:38px;height:38px;border-radius:11px;border:0;background:transparent;display:grid;place-items:center;color:#54656f}.ch-ic:hover{background:var(--neutral)}
@@ -612,7 +616,7 @@ async function openConvo(id){
   document.getElementById('chatHead').innerHTML=
     '<button class="ch-back" onclick="backToList()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>'+
     avatarHtml({corAvatar:c.corAvatar,iniciais:c.iniciais,canal:c.canal})+
-    '<div class="ch-info"><div class="ch-line1"><span class="ch-name">'+esc(c.name)+'</span>'+chPill(c.canal)+statusPill(c.status)+catPill(c)+'</div>'+
+    '<div class="ch-info"><div class="ch-line1"><span class="ch-name">'+esc(c.name)+'</span>'+chPill(c.canal)+statusPill(c.status)+catPill(c)+chAddBtn()+'</div>'+
     '<div class="ch-sub">'+esc(c.contato)+'</div></div>'+
     '<div class="ch-actions">'+
       '<button class="ch-ic" onclick="reloadThread()" title="Atualizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg></button>'+
@@ -677,7 +681,7 @@ async function sendMsg(){
   inp.disabled=false; inp.focus();
   await loadMessages(activeId); await loadConversas();
   // Atualiza a etiqueta na hora no cabeçalho e no painel (a resposta marca 'respondido')
-  try{ const cc=convos.find(x=>x.id===activeId); const line=document.querySelector('#chatHead .ch-line1'); if(cc&&line){ line.innerHTML='<span class="ch-name">'+esc(cc.name)+'</span>'+chPill(cc.canal)+statusPill(cc.status)+catPill(cc); } renderDrawer(); }catch(_e){}
+  try{ const cc=convos.find(x=>x.id===activeId); const line=document.querySelector('#chatHead .ch-line1'); if(cc&&line){ line.innerHTML='<span class="ch-name">'+esc(cc.name)+'</span>'+chPill(cc.canal)+statusPill(cc.status)+catPill(cc)+chAddBtn(); } renderDrawer(); }catch(_e){}
 }
 async function toggleBot(){
   const c=convos.find(x=>x.id===activeId); if(!c) return; c.bot=!c.bot;
@@ -713,7 +717,11 @@ function renderDrawer(){
       '<div class="dr-drow"><span>Atendente</span><b>'+esc(currentAgent)+'</b></div></div>';
 }
 async function setStatus(k){ const c=convos.find(x=>x.id===activeId); if(!c)return; c.status=k; await sb.from('wa_conversas').update({status:k,updated_at:new Date().toISOString()}).eq('id',activeId); renderDrawer(); openConvo(c.id); toast('Etiqueta: '+ST[k].label); }
-async function setCat(id){ const c=convos.find(x=>x.id===activeId); if(!c)return; const novo=c.cat===id?null:id; c.cat=novo; await sb.from('wa_conversas').update({categoria:novo,updated_at:new Date().toISOString()}).eq('id',activeId); renderDrawer(); renderList(); }
+async function setCat(id){ const c=convos.find(x=>x.id===activeId); if(!c)return; const novo=c.cat===id?null:id; c.cat=novo; await sb.from('wa_conversas').update({categoria:novo,updated_at:new Date().toISOString()}).eq('id',activeId); renderDrawer(); renderList(); try{ const line=document.querySelector('#chatHead .ch-line1'); if(line){ line.innerHTML='<span class="ch-name">'+esc(c.name)+'</span>'+chPill(c.canal)+statusPill(c.status)+catPill(c)+chAddBtn(); } }catch(_e){} }
+function chAddBtn(){ return '<button class="chaddtag" title="Adicionar etiqueta" onclick="openCatPop(event)">+</button>'; }
+function openCatPop(e){ e.stopPropagation(); const c=convos.find(x=>x.id===activeId); if(!c) return; let pop=document.getElementById('catPop'); if(!pop){ pop=document.createElement('div'); pop.id='catPop'; pop.className='catpop'; document.body.appendChild(pop); } pop.innerHTML=catList.map(cat=>{ const sel=c.cat===cat.id; const style=sel?'background:#a4242f;color:#fff;border-color:#a4242f':''; return '<button class="dr-chip" style="'+style+'" onclick="setCat(\''+cat.id+'\');closeCatPop()">'+esc(cat.label)+'</button>'; }).join('')+'<button class="dr-chip dr-catnew" onclick="closeCatPop();addCategoria()">+ Nova</button>'; const r=e.currentTarget.getBoundingClientRect(); pop.style.left=Math.max(10,Math.min(r.left,window.innerWidth-300))+'px'; pop.style.top=(r.bottom+6)+'px'; pop.classList.add('show'); }
+function closeCatPop(){ const p=document.getElementById('catPop'); if(p) p.classList.remove('show'); }
+document.addEventListener('click',function(ev){ const p=document.getElementById('catPop'); if(p&&p.classList.contains('show')&&!p.contains(ev.target)&&!ev.target.closest('.chaddtag')) p.classList.remove('show'); });
 async function saveContact(){ const c=convos.find(x=>x.id===activeId); if(!c||c.salvo)return; c.salvo=true; await sb.from('wa_contatos').update({salvo:true}).eq('id',c.contato_id); const b=document.querySelector('.ch-save'); if(b){ b.classList.add('saved'); b.title='Salvo nos contatos'; b.innerHTML=saveIcon(true); } renderDrawer(); toast(c.name+' salvo nos contatos ✓'); }
 
 /* ===== respostas rápidas pessoais ===== */
