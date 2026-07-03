@@ -674,9 +674,21 @@ function renderThread(id){
 }
 async function delMsg(id){ if(!confirm('Excluir esta mensagem? Ela some do atendimento (não apaga no WhatsApp do cliente).'))return; const { error }=await sb.from('wa_mensagens').delete().eq('id',id); if(error){ toast('Não excluiu: '+error.message); return; } if(activeId) await loadMessages(activeId); loadConversas(); toast('Mensagem excluída ✓'); }
 function fileHtml(f){
-  const url=(f.url||'').toString(), t=(f.tipo||'').toLowerCase();
-  if(/^https?:\/\//i.test(url)&&(t==='image'||t==='imagem'||t==='img'||t==='sticker')) return '<a href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" style="max-width:220px;border-radius:12px;display:block"></a>';
-  return '<div class="file">📄 '+esc(f.nome||'arquivo')+'</div>';
+  const url=(f.url||'').toString(), t=(f.tipo||'').toLowerCase(), nome=esc(f.nome||'');
+  const http=/^https?:\/\//i.test(url);
+  const isImg=(t==='image'||t==='imagem'||t==='img'||t==='sticker');
+  const isAud=(t==='audio'||t==='voice'||t==='ptt');
+  const isVid=(t==='video');
+  const isPdf=(t==='pdf'||t==='document'&&/\.pdf(\?|$)/i.test(url)||/\.pdf(\?|$)/i.test(url)||/\.pdf$/i.test(nome));
+  if(http&&isImg) return '<a href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" style="max-width:220px;border-radius:12px;display:block"></a>';
+  if(http&&isAud) return '<audio controls preload="none" src="'+esc(url)+'" style="max-width:240px;height:40px"></audio>';
+  if(http&&isVid) return '<a href="'+esc(url)+'" target="_blank" rel="noopener"><video src="'+esc(url)+'" controls preload="metadata" style="max-width:240px;border-radius:12px;display:block"></video></a>';
+  if(http){
+    const cls=isPdf?'f-pdf':'f-link', glyph=isPdf?'PDF':'⬇';
+    const titulo=(nome&&nome!=='arquivo')?nome:(isPdf?'Documento PDF':'Arquivo recebido');
+    return '<a class="file" href="'+esc(url)+'" target="_blank" rel="noopener" download style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;max-width:250px"><span class="ficon '+cls+'" style="font-size:'+(isPdf?'10':'15')+'px;font-weight:700">'+glyph+'</span><span style="display:flex;flex-direction:column;min-width:0"><b style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+titulo+'</b><span style="font-size:11px;color:#8a97a0">Toque para abrir / baixar</span></span></a>';
+  }
+  return '<div class="file">📄 '+(nome||'arquivo')+'</div>';
 }
 function reloadThread(){ if(activeId) loadMessages(activeId); }
 function backToList(){ document.body.classList.remove('chat-open'); }
