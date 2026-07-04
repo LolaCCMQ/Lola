@@ -320,7 +320,7 @@ header{position:static}
 <button class="btn btn-ghost btn-sm" onclick="limpar()">Limpar</button>
 </div>
 <!-- BOTAO + FORM COLAPSAVEL -->
-<div style="margin:2px 0 14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" id="btnNovo" onclick="toggleNovo()"><i class="ph-duotone ph-plus"></i> Adicionar novo registro</button><button class="btn btn-ghost" id="btnRoteiro" onclick="abrirRoteiro()"><i class="ph-duotone ph-book-open-text"></i> Manuais</button></div>
+<div style="margin:2px 0 14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" id="btnNovo" onclick="toggleNovo()"><i class="ph-duotone ph-plus"></i> Adicionar novo registro</button><button class="btn btn-ghost" id="btnRoteiro" onclick="abrirRoteiro()"><i class="ph-duotone ph-book-open-text"></i> Manual do Lola</button></div>
 <!-- NOVO REGISTRO -->
 <div class="quick" id="quickBox" style="display:none">
 <div class="quickhead"><b>Novo registro</b><span class="dt" id="qData"></span></div>
@@ -620,23 +620,24 @@ ov.style.display='flex';
 var ms=_manuais();
 if(!ms.length){try{await _seedManualPrato();await carregarBlocoCounts();ms=_manuais();}catch(e){}}
 window.__ms=ms;
-ov.innerHTML='<div style="background:#FBF7F1;border:1px solid #ECE3D9;border-radius:16px;max-width:420px;width:100%;padding:18px 18px 16px;max-height:85vh;overflow:auto">'
-+'<div style="font-family:Fraunces,serif;font-weight:600;font-size:1.1rem;color:var(--vinho);margin-bottom:4px"><i class="ph-duotone ph-book-open-text"></i> Manuais do Lola</div>'
-+'<div style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Como fazer as coisas no Lola, passo a passo. Escolha um manual e ele vira um cartão com a lista pra ir dando check.</div>'
-+'<div class="lab">Manual</div><select id="rotSel" onchange="rotPrev()" style="width:100%;font-family:inherit;font-size:.9rem;padding:9px 11px;border:1.5px solid var(--border);border-radius:10px">'+ms.map(function(r,i){return '<option value="'+i+'">'+esc(r.nome)+' ('+r.passos.length+' passos)</option>';}).join('')+'</select>'
-+'<div class="lab">Nome (de qual item/dia se trata)</div><input type="text" id="rotNome" placeholder="Ex.: Risoto de limão · Fechamento 04/07" style="width:100%">'
-+'<div style="font-size:.78rem;color:var(--muted);margin-top:10px;line-height:1.7" id="rotPrev"></div>'
-+'<div style="display:flex;gap:8px;margin-top:14px;justify-content:space-between"><button class="btn btn-ghost btn-sm" onclick="novoManual()"><i class="ph-duotone ph-plus"></i> Novo manual</button><span style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'rotov\').style.display=\'none\'">Cancelar</button><button class="btn btn-primary btn-sm" onclick="criarRoteiro(this)"><i class="ph-duotone ph-plus"></i> Criar</button></span></div></div>';
-rotPrev();
-setTimeout(function(){var t=document.getElementById('rotNome');if(t)t.focus();},100);
+ov.innerHTML='<div style="background:#FBF7F1;border:1px solid #ECE3D9;border-radius:16px;max-width:440px;width:100%;padding:18px 18px 16px;max-height:85vh;overflow:auto">'
++'<div style="font-family:Fraunces,serif;font-weight:600;font-size:1.15rem;color:var(--vinho);margin-bottom:4px"><i class="ph-duotone ph-book-open-text"></i> Manual do Lola</div>'
++'<div style="font-size:.8rem;color:var(--muted);margin-bottom:10px">Como fazer as coisas no Lola. Toque num manual pra ver o passo a passo; "usar" cria a checklist na lista pra ir dando check.</div>'
++(ms.length?ms.map(function(r,i){
+return '<div style="background:#fff;border:1px solid #ECE3D9;border-radius:13px;margin-bottom:8px;overflow:hidden">'
++'<div style="display:flex;align-items:center;gap:9px;padding:11px 13px;cursor:pointer" onclick="var p=document.getElementById(\'mpass'+i+'\');p.style.display=p.style.display===\'none\'?\'block\':\'none\'">'
++'<i class="ph-duotone ph-book-bookmark" style="color:var(--vinho)"></i><b style="flex:1;font-size:.92rem">'+esc(r.nome)+'</b><span style="font-size:.72rem;color:var(--muted)">'+r.passos.length+' passos</span><i class="ph-duotone ph-caret-down" style="color:#B79A8E"></i></div>'
++'<div id="mpass'+i+'" style="display:none;border-top:1px solid #EFE6DC;padding:10px 13px">'
++'<div style="font-size:.82rem;color:#5A463E;line-height:1.8">'+r.passos.map(function(p,j){return (j+1)+'. '+esc(p);}).join('<br>')+'</div>'
++'<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="criarRoteiro(this,'+i+')"><i class="ph-duotone ph-list-checks"></i> Usar — criar checklist</button>'
++'</div></div>';
+}).join(''):'<div class="empty">Nenhum manual ainda.</div>')
++'<div style="display:flex;gap:8px;margin-top:10px;justify-content:space-between"><button class="btn btn-ghost btn-sm" onclick="novoManual()"><i class="ph-duotone ph-plus"></i> Novo manual</button><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'rotov\').style.display=\'none\'">Fechar</button></div></div>';
 }
-function rotPrev(){var i=parseInt((document.getElementById('rotSel')||{}).value||'0',10);var r=(window.__ms||[])[i];var el=document.getElementById('rotPrev');if(el&&r)el.innerHTML=r.passos.map(function(p,j){return (j+1)+'. '+esc(p);}).join('<br>');}
-async function criarRoteiro(btn){
+async function criarRoteiro(btn,idx){
 try{
-var i=parseInt(document.getElementById('rotSel').value||'0',10);
-var r=(window.__ms||[])[i];if(!r){toast('Escolha um manual.');return;}
-var nome=(document.getElementById('rotNome').value||'').trim();
-if(!nome){toast('Dê um nome (ex.: qual prato, qual dia).');return;}
+var r=(window.__ms||[])[idx];if(!r){toast('Manual não encontrado.');return;}
+var hj=new Date();var nome=String(hj.getDate()).padStart(2,'0')+'/'+String(hj.getMonth()+1).padStart(2,'0');
 if(btn){btn.disabled=true;btn.textContent='Criando…';}
 var pai=await sb.from('lola_assuntos').insert({titulo:r.nome+' — '+nome,criado_por:quemSou()||null,tipo:'Tarefa',eh_tarefa:true,unidades:[],categorias:['Processos'],pessoas:[],responsaveis:[],conteudo:null,prazo:null,tags:['roteiro'],oks:{},concluido:false,relacionados:[],data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()}).select('id').single();
 if(pai.error)throw pai.error;
@@ -646,7 +647,7 @@ logAtv('criou',{id:fid,titulo:r.nome+' — '+nome,eh_tarefa:true},'do manual, '+
 document.getElementById('rotov').style.display='none';
 await carregarBlocoCounts(); await load();
 toast('✓ Manual na lista — vá dando check nos passos');
-}catch(e){toast('Erro: '+(e.message||e));if(btn){btn.disabled=false;btn.textContent='Criar';}}
+}catch(e){toast('Erro: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='<i class="ph-duotone ph-list-checks"></i> Usar — criar checklist';}}
 }
 async function novoManual(){
 var nome=prompt('Nome do novo manual (ex.: Fechamento de caixa):');if(!nome||!nome.trim())return;
@@ -713,26 +714,34 @@ return '<div class="card'+(seen?' done':'')+'" style="--cor:#6B4FA8"><div class=
 box.innerHTML=html;
 }
 /* ===== SÓCIAS (privado admin) ===== */
-function renderSociasView(box){
+async function renderSociasView(box){
 if(!ehAdmin()){box.innerHTML='<div class="empty">Área restrita às sócias administradoras.</div>';return;}
-var its=REG.filter(function(f){return arr(f.tags).indexOf('socias')>=0;});
-its.sort(function(a,b){if(!!a.concluido!==!!b.concluido)return a.concluido?1:-1;return String(b.data||'').localeCompare(String(a.data||''));});
-var form='<div class="quick" style="display:block;margin-bottom:14px"><div class="quickhead"><b><i class="ph-duotone ph-lock-key"></i> Nova entre sócias</b><span class="dt">só admins veem</span></div>'
-+'<div class="lab">O que precisa ser feito</div><input type="text" id="socTitulo" placeholder="Ex.: revisar contrato do contador">'
-+'<div class="lab">Pra quem</div><div id="socQuem" style="display:flex;gap:6px;flex-wrap:wrap">'+['Bianca','Mahara'].map(function(n){return '<span class="okchip" data-n="'+n+'" onclick="this.classList.toggle(\'on\')">'+n+'</span>';}).join('')+'</div>'
-+'<div class="lab">Observaçãozinha (opcional)</div><textarea id="socObs" rows="2" style="width:100%;font-family:inherit;font-size:.88rem;padding:9px 11px;border:1.5px solid var(--border);border-radius:10px" placeholder="Contexto rápido"></textarea>'
-+'<div style="margin-top:9px"><button class="btn btn-primary btn-sm" onclick="sociasSalvar()"><i class="ph-duotone ph-plus"></i> Criar</button></div></div>';
-var lista=its.length?('<div class="feed">'+its.map(cardHTML).join('')+'</div>'):'<div class="empty">Nada entre sócias por enquanto.</div>';
-box.innerHTML=form+lista;
+box.innerHTML='<div class="empty">Carregando…</div>';
+try{var r=await sb.from('lola_blocos_itens').select('*').eq('assunto','socias').order('created_at',{ascending:true});window.__socItens=r.data||[];}catch(e){box.innerHTML='<div class="empty">Não deu pra carregar.</div>';return;}
+_socRender(box);
 }
-async function sociasSalvar(){
-var t=(document.getElementById('socTitulo').value||'').trim();if(!t){toast('Dê um título.');return;}
-var quem=Array.prototype.slice.call(document.querySelectorAll('#socQuem .okchip.on')).map(function(e){return e.getAttribute('data-n');});
-if(!quem.length){toast('Escolha pra quem (Bianca, Mahara ou as duas).');return;}
-var obs=(document.getElementById('socObs').value||'').trim();
-var p={titulo:t,criado_por:meuNome()||null,tipo:'Tarefa',eh_tarefa:true,unidades:[],categorias:[],pessoas:[],responsaveis:quem,conteudo:obs||null,prazo:null,tags:['socias'],oks:{},concluido:false,relacionados:[],data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
-try{var i=await sb.from('lola_assuntos').insert(p).select('id').single();if(i.error)throw i.error;await load();setView('socias');toast('✓ Criada (só entre sócias)');}catch(e){toast('Erro: '+(e.message||e));}
+function _socRender(box){
+box=box||document.getElementById('lista');if(!box||VIEW!=='socias')return;
+var its=window.__socItens||[];
+var notas=its.filter(function(i){return i.tipo==='nota';});
+var lista=its.filter(function(i){return i.tipo!=='nota';});
+var abertos=lista.filter(function(i){return !i.feito;}),feitos=lista.filter(function(i){return i.feito;});
+var h='<div class="grouphdr"><i class="ph-duotone ph-lock-key"></i> Só você e a Mahara veem isto</div>';
+h+='<div class="grouphdr" style="margin-top:6px">Anotações<span>'+notas.length+'</span></div>';
+h+=notas.map(function(n){return '<div class="bloco-nota" id="socn'+n.id+'"><div class="bn-tx">'+esc(n.texto).replace(/\n/g,'<br>')+(n.criado_por?('<div style="font-size:.68rem;color:#B79A8E;margin-top:3px">'+esc(n.criado_por)+'</div>'):'')+'</div><div class="bn-acts"><button onclick="socDel('+n.id+')"><i class="ph-duotone ph-trash"></i></button></div></div>';}).join('');
+h+='<div class="bloco-add"><textarea id="socNovaNota" rows="2" placeholder="Anotação entre sócias…"></textarea><button class="btn btn-ghost btn-sm" onclick="socAddNota()"><i class="ph-duotone ph-plus"></i> Guardar nota</button></div>';
+h+='<div class="grouphdr" style="display:flex;justify-content:space-between;margin-top:14px"><span>Tarefas · '+abertos.length+'</span>'+(feitos.length?('<span class="bloco-limpar" onclick="socLimpar()">limpar concluídas ('+feitos.length+')</span>'):'')+'</div>';
+h+='<div class="bloco-lista" style="background:#fff;border:1px solid #ECE3D9;border-radius:13px;padding:4px 12px">';
+h+=abertos.concat(feitos).map(function(i){return '<div class="bl-row'+(i.feito?' done':'')+'"><span class="bl-chk'+(i.feito?' on':'')+'" onclick="socToggle('+i.id+','+(i.feito?'false':'true')+')">'+(i.feito?'✓':'')+'</span><span class="bl-tx">'+esc(i.texto)+(i.criado_por?('<div class="bl-meta">de '+esc(i.criado_por)+(i.feito&&i.feito_por?(' · feito por '+esc(i.feito_por)):'')+'</div>'):'')+'</span><button class="bl-del" onclick="socDel('+i.id+')">✕</button></div>';}).join('');
+h+='<div class="bl-row"><span class="bl-plus" onclick="socAddItem()"><i class="ph-duotone ph-plus"></i></span><input id="socNovoItem" placeholder="adicionar tarefa…" onkeydown="if(event.key===\'Enter\')socAddItem()"></div></div>';
+box.innerHTML=h;
 }
+async function _socReload(){try{var r=await sb.from('lola_blocos_itens').select('*').eq('assunto','socias').order('created_at',{ascending:true});window.__socItens=r.data||[];_socRender();}catch(e){}}
+async function socAddNota(){var t=(document.getElementById('socNovaNota').value||'').trim();if(!t)return;try{await sb.from('lola_blocos_itens').insert({assunto:'socias',tipo:'nota',texto:t,criado_por:quemSou()||null});await _socReload();}catch(e){toast('Erro');}}
+async function socAddItem(){var el=document.getElementById('socNovoItem');var t=(el.value||'').trim();if(!t)return;try{await sb.from('lola_blocos_itens').insert({assunto:'socias',tipo:'item',texto:t,criado_por:quemSou()||null});await _socReload();setTimeout(function(){var n=document.getElementById('socNovoItem');if(n)n.focus();},80);}catch(e){toast('Erro');}}
+async function socToggle(id,on){try{await sb.from('lola_blocos_itens').update({feito:on,feito_por:on?(quemSou()||null):null,updated_at:new Date().toISOString()}).eq('id',id);(window.__socItens||[]).forEach(function(i){if(i.id===id){i.feito=on;i.feito_por=on?(quemSou()||null):null;}});_socRender();}catch(e){toast('Erro');}}
+async function socDel(id){if(!confirm('Excluir?'))return;try{await sb.from('lola_blocos_itens').delete().eq('id',id);window.__socItens=(window.__socItens||[]).filter(function(i){return i.id!==id;});_socRender();}catch(e){toast('Erro');}}
+async function socLimpar(){if(!confirm('Limpar as tarefas concluídas?'))return;try{await sb.from('lola_blocos_itens').delete().eq('assunto','socias').eq('tipo','item').eq('feito',true);await _socReload();}catch(e){toast('Erro');}}
 function _sociasPill(){try{var sv=document.querySelector('.vt-socias');if(sv&&ehAdmin())sv.style.display='';}catch(e){}}
 setTimeout(_sociasPill,1500);setInterval(_sociasPill,6000);
 function updateHdrCount(){
