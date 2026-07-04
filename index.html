@@ -7,7 +7,6 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23FDFAF7%22%2F%3E%3Cpath%20d%3D%22M16%2016V3a13%2013%200%200%201%2013%2013z%22%20fill%3D%22%23A8272A%22%2F%3E%3Cpath%20d%3D%22M16%2016h13a13%2013%200%200%201-13%2013z%22%20fill%3D%22%237C1A1C%22%2F%3E%3Cpath%20d%3D%22M16%2016v13A13%2013%200%200%201%203%2016z%22%20fill%3D%22%23A8272A%22%2F%3E%3Cpath%20d%3D%22M16%2016H3A13%2013%200%200%201%2016%203z%22%20fill%3D%22%237C1A1C%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%223%22%20fill%3D%22%23FDFAF7%22%2F%3E%3C%2Fsvg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
-  <script defer src="compras-merge.js"></script>
 <style>
 /* chat oculto */ #phChat,#chatPop,.nav-item[data-mod="chat"]{display:none !important}
   :root {
@@ -805,7 +804,7 @@
       <nav class="ph-nav" id="phNav">
         <button data-nav="home" class="active" onclick="switchModule('home')">Início</button>
         <button data-nav="tarefas" onclick="switchModule('tarefas')">Tarefas</button>
-        <button data-nav="comprascartao" onclick="switchModule('comprascartao')">Compras</button>
+        <button data-nav="compras" onclick="switchModule('compras')">Compras</button>
         <button data-nav="inbox" onclick="switchModule('inbox')">Atendimento</button>
         <button onclick="openSidebar()">Mais <i class="ph-duotone ph-caret-down" style="font-size:.72rem"></i></button>
       </nav>
@@ -898,7 +897,7 @@
     <!-- V3: Suas tarefas + Últimas atividades -->
     <div class="hv3-grid">
       <section>
-        <div class="hv3-sec-head"><span class="hv3-label">Suas tarefas · <span id="dashTaskCount">—</span></span><button class="hv3-link" onclick="switchModule('tarefas')">Ver todas →</button></div>
+        <div class="hv3-sec-head"><span class="hv3-label">Suas tarefas · <span id="dashTaskCount">—</span></span><button class="hv3-link" onclick="abrirMinhasTarefas()">Ver todas →</button></div>
         <div id="dashTasks" class="hv3-list"><div class="dash-card-loading">Carregando...</div></div>
         <button class="hv3-cta" onclick="abrirNovaTarefaV3()"><i class="ph-duotone ph-plus"></i> Nova tarefa</button>
       </section>
@@ -2911,7 +2910,7 @@ window.openLolaMAC=function(){try{
 </script>
 <script>
 async function loadBellCount(){ try{ var u=window.__portalUser; if(!u||typeof dbFetch!=="function") return; var nameLC=(u.name||"").toLowerCase(); var tasks=await dbFetch("lola_assuntos","select=id,responsaveis,oks&eh_tarefa=eq.true&concluido=eq.false"); var mine=(tasks||[]).filter(function(t){ var r=t.responsaveis; if(typeof r==="string"){try{r=JSON.parse(r);}catch(e){r=[];}} if(!Array.isArray(r)||!r.some(function(x){return String(x).toLowerCase()===nameLC;})) return false; var o=t.oks; if(typeof o==="string"){try{o=JSON.parse(o);}catch(e){o={};}} if(o&&typeof o==="object"){for(var k in o){if(String(k).toLowerCase()===nameLC) return false;}} return true; }); var b=document.getElementById("phBellBadge"); if(b){ b.textContent=mine.length>99?"99+":String(mine.length); b.style.display=mine.length>0?"flex":"none"; } }catch(e){} }
-function abrirMinhasTarefas(){ try{ if(typeof switchModule==="function") switchModule("tarefas"); var u=window.__portalUser; var f=document.getElementById("tarefasFrame"); if(f&&u){ f.dataset.loaded="1"; f.src="https://equipelola.net/registros.html?resp="+encodeURIComponent(u.name||"")+"&sit=abertas&t="+Date.now(); } }catch(e){} }
+function abrirMinhasTarefas(){ try{ if(typeof switchModule==="function") switchModule("tarefas"); var f=document.getElementById("tarefasFrame"); if(f){ f.dataset.loaded="1"; f.src="https://equipelola.net/registros.html?view=minhas&t="+Date.now(); } }catch(e){} }
 (function(){ function tick(){ if(window.__portalUser) loadBellCount(); } setTimeout(tick,1600); setInterval(tick,60000); })();
 </script>
 <script>
@@ -2924,7 +2923,7 @@ document.addEventListener('click',function(e){var m=document.getElementById('phB
 </script>
 <script>/* V3: atividades + nav topo */
 function abrirNovaTarefaV3(){try{switchModule('tarefas');var f=document.getElementById('tarefasFrame');if(f){f.dataset.loaded='1';f.src='https://equipelola.net/registros.html?novo=1&t='+Date.now();}}catch(e){}}
-async function loadDashAtividades(){var el=document.getElementById('dashAtividades');if(!el)return;try{var rows=await dbFetch('lola_atividades','select=quem,acao,alvo_tipo,alvo_titulo,detalhe,created_at&order=created_at.desc&limit=10');if(!rows||!rows.length){el.innerHTML='<div class="dash-card-empty">Sem atividades ainda.</div>';return;}el.innerHTML=rows.map(function(a){var quem=a.quem?esc2(a.quem):'Alguém';var tit=a.alvo_titulo?esc2(String(a.alvo_titulo).split('\n')[0].slice(0,64)):'';var det=a.detalhe?(' <span class="hv3-det">('+esc2(a.detalhe)+')</span>'):'';var when=(typeof bellWhen==='function'&&a.created_at)?bellWhen(a.created_at):'';return '<div class="hv3-item"><div class="hv3-item-txt"><b>'+quem+'</b> '+esc2(a.acao)+' <span class="hv3-tit">'+tit+'</span>'+det+'</div><span class="hv3-when">'+when+'</span></div>';}).join('');}catch(e){el.innerHTML='<div class="dash-card-empty">—</div>';}}
+async function loadDashAtividades(){var el=document.getElementById('dashAtividades');if(!el)return;try{var rows=await dbFetch('lola_atividades','select=quem,acao,alvo_tipo,alvo_titulo,detalhe,created_at&order=created_at.desc&limit=10');if(!rows||!rows.length){el.innerHTML='<div class="dash-card-empty">Sem atividades ainda.</div>';return;}el.innerHTML=rows.map(function(a){var quem=a.quem?esc2(a.quem):'<span class="hv3-det">registro antigo ·</span>';var tit=a.alvo_titulo?esc2(String(a.alvo_titulo).split('\n')[0].slice(0,64)):'';var det=a.detalhe?(' <span class="hv3-det">('+esc2(a.detalhe)+')</span>'):'';var when=(typeof bellWhen==='function'&&a.created_at)?bellWhen(a.created_at):'';return '<div class="hv3-item"><div class="hv3-item-txt"><b>'+quem+'</b> '+esc2(a.acao)+' <span class="hv3-tit">'+tit+'</span>'+det+'</div><span class="hv3-when">'+when+'</span></div>';}).join('');}catch(e){el.innerHTML='<div class="dash-card-empty">—</div>';}}
 (function(){
 if(typeof switchModule==='function'){var _s3=switchModule;switchModule=function(m){var r=_s3.apply(this,arguments);try{if(typeof closeSidebar==='function')closeSidebar();document.querySelectorAll('#phNav [data-nav]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-nav')===m);});}catch(e){}return r;};}
 function syncPhNav(){try{document.querySelectorAll('#phNav [data-nav]').forEach(function(b){var it=document.querySelector('.nav-item[data-mod="'+b.getAttribute('data-nav')+'"]');if(it){b.style.display=(getComputedStyle(it).display==='none')?'none':'';}});}catch(e){}}
