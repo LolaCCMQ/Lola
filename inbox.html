@@ -140,6 +140,12 @@
   .libpop.show{display:block}
   .libpop .h{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2);padding:6px 8px 4px;font-weight:700}
   .libpop .it{display:flex;align-items:center;gap:9px;padding:8px;border-radius:9px;cursor:pointer}.libpop .it:hover{background:var(--neutral)}
+  .emojipop{position:absolute;bottom:82px;left:76px;width:308px;background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);padding:10px;display:none;z-index:31}
+  .emojipop.show{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}
+  .emojipop button{border:0;background:transparent;font-size:21px;line-height:1;padding:6px 0;border-radius:8px;cursor:pointer}
+  .emojipop button:hover{background:var(--neutral)}
+  .field .emoji-open{cursor:pointer}
+  @media(max-width:900px){.emojipop{left:14px;right:14px;width:auto}}
   .ficon{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:14px;flex-shrink:0;color:#fff}.f-pdf{background:#d6453d}.f-img{background:#2d8a6b}.f-link{background:#2c5aa0}.f-arquivo{background:#7d8b93}
 
   .empty-chat{flex:1;display:grid;place-items:center;color:var(--ink2);font-size:14px;text-align:center;padding:0 30px}
@@ -413,6 +419,7 @@
       <div class="messages" id="messages"><div class="empty-chat">Selecione uma conversa para começar.</div></div>
       <div class="composer" id="composer" style="display:none">
         <div class="libpop" id="libpop"></div>
+        <div class="emojipop" id="emojiPop"></div>
         <div class="comp-top">
           <div class="sendas">Respondendo como <b id="sendAsName">Bianca</b> — a assinatura vai junto</div>
           <div class="bottoggle">Robô Lola <div class="switch" id="botSwitch" onclick="toggleBot()"></div></div>
@@ -422,7 +429,7 @@
           <input type="file" id="composerFile" style="display:none" onchange="anexarArquivo(this)">
           <button onclick="document.getElementById('composerFile').click()" title="Anexar arquivo" style="width:44px;height:44px;border-radius:50%;border:0;background:var(--neutral);display:grid;place-items:center;color:#54656f;cursor:pointer;flex-shrink:0"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
           <div class="field">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg>
+            <svg class="emoji-open" onclick="toggleEmojiPop(event)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg>
             <textarea id="composerInput" rows="1" placeholder="Escreva uma mensagem…" onkeydown="onComposerKey(event)"></textarea>
           </div>
           <button class="send" onclick="sendMsg()"><svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2.5-7.5L3 11z" fill="#fff"/></svg></button>
@@ -772,6 +779,24 @@ function backToList(){ document.body.classList.remove('chat-open'); }
 
 /* ===== enviar ===== */
 function onComposerKey(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMsg(); } }
+const EMOJIS=['😀','😄','😊','🙂','😉','😍','🥰','😘','😅','😂','🤩','😎','🤗','🙏','👍','👏','🙌','💪','🤝','✌️','❤️','🧡','💛','💚','💙','💜','✨','⭐','🎉','🥳','🍷','🍺','🍻','🥂','🍹','☕','🍽️','🥗','🍰','😋','📅','⏰','📍','✅','❗','❓','🌟','🌹'];
+function toggleEmojiPop(ev){
+  if(ev)ev.stopPropagation();
+  const p=document.getElementById('emojiPop');
+  if(!p.innerHTML)p.innerHTML=EMOJIS.map(e=>'<button type="button" onclick="insertEmoji(\''+e+'\',event)">'+e+'</button>').join('');
+  p.classList.toggle('show');
+}
+function insertEmoji(e,ev){
+  if(ev)ev.stopPropagation();
+  const inp=document.getElementById('composerInput');
+  const s=inp.selectionStart||inp.value.length, t=inp.selectionEnd||inp.value.length;
+  inp.value=inp.value.slice(0,s)+e+inp.value.slice(t);
+  const pos=s+e.length; inp.focus(); try{inp.setSelectionRange(pos,pos);}catch(_){}
+}
+document.addEventListener('click',function(ev){
+  const p=document.getElementById('emojiPop');
+  if(p&&p.classList.contains('show')&&!p.contains(ev.target))p.classList.remove('show');
+});
 async function sendMsg(){
   const inp=document.getElementById('composerInput'); const txt=inp.value.trim(); if(!txt||!activeId) return;
   inp.value=''; inp.disabled=true;
