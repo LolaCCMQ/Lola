@@ -191,8 +191,12 @@ function render(){
   var resto=ativos.filter(function(i){return abaixo.indexOf(i)<0;});
   var h='';
   if(abaixo.length)h+='<div class="grouphdr alerta">Abaixo do mínimo · '+abaixo.length+'</div><div class="feed">'+abaixo.map(cardHTML).join('')+'</div>';
-  h+='<div class="grouphdr">Itens · '+resto.length+'</div>';
-  h+=resto.length?('<div class="feed">'+resto.map(cardHTML).join('')+'</div>'):'<div class="empty">Nenhum item com esses filtros.</div>';
+  if(!resto.length)h+='<div class="empty">Nenhum item com esses filtros.</div>';
+  CATS.forEach(function(c){
+    var g=resto.filter(function(i){return i.categoria===c.k;});
+    if(!g.length)return;
+    h+='<div class="grouphdr" style="color:'+c.cor+'">'+c.nome+' · '+g.length+'</div><div class="feed">'+g.map(cardHTML).join('')+'</div>';
+  });
   if(inativos.length)h+='<div class="grouphdr">Descartados · '+inativos.length+'</div><div class="feed">'+inativos.map(cardHTML).join('')+'</div>';
   document.getElementById('lista').innerHTML=h;
   var tot=ITENS.filter(function(i){return i.ativo!==false;}).length;
