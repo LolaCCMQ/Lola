@@ -1,1 +1,2 @@
 gatilho de deploy — pode apagar (03/07/2026)
+novo gatilho 04/07/2026
