@@ -245,6 +245,8 @@ header{position:static}
   .cardfoot{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .cardfoot::-webkit-scrollbar{display:none}
   .cardfoot .btn{flex-shrink:0;white-space:nowrap}
+  .cardfoot .btn-ic{width:38px;min-width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem}
+  .cardfoot .btn-ic.btnfx.on{color:#B8860B;background:#FDF3D8}
   .freqbar{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
   .freq span{display:block;margin-top:2px}
   .card.destaque{background:#FFFCF2;border-color:#E0A81E;box-shadow:0 0 0 1.5px #E0A81E}
@@ -498,7 +500,7 @@ return '<div class="card'+(f.concluido?' done':'')+(f.destaque?' destaque':'')+'
 +(arr(f.tags).indexOf('roteiro')>=0?'':okRow(f))
 +(rel?'<div class="rel"><i class="ph-duotone ph-link"></i> Ligadas: '+rel+'</div>':'')
 +(tags?'<div class="chips">'+tags+'</div>':'')
-+'<div class="cardfoot"><button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'<i class="ph-duotone ph-arrow-u-up-left"></i> Reabrir':(f.eh_tarefa?'<i class="ph-duotone ph-check"></i> Concluir':'<i class="ph-duotone ph-check"></i> Resolver'))+'</button><button class="btn btn-ghost btn-sm" onclick="desdobrar('+f.id+',event)"><i class="ph-duotone ph-arrows-split"></i> Desdobrar</button><button class="btn btn-ghost btn-sm" onclick="editar('+f.id+')"><i class="ph-duotone ph-pencil-simple"></i> Editar</button>'+(ehAdmin()?'<button class="btn btn-ghost btn-sm btnfx'+(f.destaque?' on':'')+'" onclick="toggleDestaque('+f.id+','+(f.destaque?'false':'true')+')"><i class="ph-duotone ph-star"></i> '+(f.destaque?'Tirar':'Destacar')+'</button>':'')+'<button class="btn btn-ghost btn-sm" style="color:#B5302E" onclick="excluirCard('+f.id+')"><i class="ph-duotone ph-trash"></i> Excluir</button></div>'
++'<div class="cardfoot"><button class="btn btn-sm btnconcluir'+(f.concluido?' reaberto':'')+'" onclick="toggleDone('+f.id+','+(f.concluido?'false':'true')+')">'+(f.concluido?'<i class="ph-duotone ph-arrow-u-up-left"></i> Reabrir':(f.eh_tarefa?'<i class="ph-duotone ph-check"></i> Concluir':'<i class="ph-duotone ph-check"></i> Resolver'))+'</button><button class="btn btn-ghost btn-sm btn-ic" title="Desdobrar" onclick="desdobrar('+f.id+',event)"><i class="ph-duotone ph-arrows-split"></i></button><button class="btn btn-ghost btn-sm btn-ic" title="Editar" onclick="editar('+f.id+')"><i class="ph-duotone ph-pencil-simple"></i></button>'+(ehAdmin()?'<button class="btn btn-ghost btn-sm btn-ic btnfx'+(f.destaque?' on':'')+'" title="'+(f.destaque?'Tirar destaque':'Destacar')+'" onclick="toggleDestaque('+f.id+','+(f.destaque?'false':'true')+')"><i class="ph-duotone ph-star"></i></button>':'')+'<button class="btn btn-ghost btn-sm btn-ic" title="Excluir" style="color:#B5302E" onclick="excluirCard('+f.id+')"><i class="ph-duotone ph-trash"></i></button></div>'
 +'</div>';
 }
 
