@@ -6,7 +6,7 @@
 <title>Atendimento · Equipe Lola</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -288,13 +288,62 @@
     .rule .kw{white-space:normal}
   }
 </style>
+<style id="lolaV3">
+  :root{
+    --bg:#FBF7F1;--panel:#FBF7F1;--line:#EFE6DC;--line2:#EFE6DC;--line3:#EFE6DC;
+    --neutral:#F7EFE6;--chatbg:#FBF7F1;
+    --ink:#2A1A17;--ink2:#8A7A72;--ink3:#B79A8E;--thumb:#D9CCC0;
+    --brand:#A82A2A;--brand-tint:#FBEAE7;
+    --sans:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --shadow:0 10px 30px -18px rgba(42,26,23,.35);
+  }
+  .topbar{background:transparent;border-bottom:1px solid #EFE6DC}
+  .tab{background:none;border-radius:0;padding:8px 3px;margin:0 7px;color:#8A7A72;font-weight:600}
+  .tab.active{background:none;color:#2A1A17;box-shadow:inset 0 -2px 0 #A82A2A;font-weight:600}
+  .menu-back{background:#fff;border:1px solid #ECE3D9;border-radius:13px;color:#A82A2A}
+  .col-list{background:transparent;border-right:1px solid #EFE6DC}
+  .lh-title{font-family:'Fraunces',serif;font-weight:600;font-size:20px;color:#A82A2A;letter-spacing:0}
+  .compose,.waitbtn{background:#fff;border:1px solid #ECE3D9;border-radius:13px;color:#A82A2A}
+  .waitbtn.on{background:#A82A2A;color:#fff;border-color:#A82A2A}
+  .search{background:#fff;border:1px solid #ECE3D9;border-radius:13px}
+  .fchip{border-radius:10px}
+  .mtab{border-radius:10px;background:#fff;border:1px solid #ECE3D9;color:#5A463E}
+  .mtab.active{background:#A82A2A;color:#fff;border-color:#A82A2A}
+  .list{padding:4px 14px 14px}
+  .convo{background:#fff;border:1px solid #ECE3D9;border-radius:14px;margin-bottom:7px;padding:10px 12px}
+  .convo:hover{background:#fff;border-color:#D9CCC0}
+  .convo.active{background:#fff;border-color:#A82A2A;box-shadow:inset 0 0 0 1px #A82A2A}
+  .cname{font-weight:600}
+  .grp-lbl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#B79A8E;font-weight:600;margin:12px 4px 7px}
+  .list .grp-lbl:first-child{margin-top:4px}
+  .convo.resolved{opacity:.62}
+  .convo.resolved:hover,.convo.resolved.active{opacity:1}
+  .ctime.espera{color:#B5302E;font-weight:700}
+  .chat-head{background:transparent;border-bottom:1px solid #EFE6DC;height:66px}
+  .messages{background-image:none;padding:22px 7%}
+  .msg{box-shadow:none;border-radius:13px}
+  .msg.in{background:#fff;border:1px solid #ECE3D9;border-radius:13px 13px 13px 5px}
+  .msg.out{background:#F7EFE6;border:1px solid #EFE2D2;border-radius:13px 13px 5px 13px}
+  .msg.bot{background:#F7EFE6;border:1px solid #EFE2D2;border-radius:13px 13px 5px 13px}
+  .msg.bot .who{color:#8A7A72}
+  .daysep{background:transparent;border:1px solid #EFE6DC;color:#B79A8E;text-transform:uppercase;letter-spacing:.06em;font-size:10px}
+  .composer{background:transparent;border-top:1px solid #EFE6DC}
+  .field{background:#fff;border:1px solid #ECE3D9;border-radius:13px}
+  .send{border-radius:50%;box-shadow:none}
+  .send:hover{background:#7E1E1F}
+  .qchip{border-radius:10px;background:#fff;border:1px solid #ECE3D9;color:#5A463E}
+  .btn-det,.ch-ic,.ch-save{border-radius:13px}
+  .tag{background:#F7EFE6;color:#8A7A72;border-radius:8px}
+  .pill,.chpill{border-radius:8px}
+  .badge{font-weight:600}
+</style>
 </head>
 <body>
 <div class="app">
   <div class="topbar">
     <button class="menu-back" onclick="voltarMenu()"><i class="ph" style="font-style:normal">‹</i> Menu</button>
     <div class="tabs">
-      <button class="tab active" data-nav="inbox" onclick="nav('inbox')">💬 Atendimento</button>
+      <button class="tab active" data-nav="inbox" onclick="nav('inbox')">Conversas</button>
       <button class="tab" data-nav="contacts" onclick="nav('contacts')">Contatos</button>
       <button class="tab" data-nav="bot" onclick="nav('bot')">Robô Lola</button>
       <button class="tab" data-nav="arquivos" onclick="nav('arquivos')">Arquivos</button>
@@ -326,7 +375,7 @@
           </div>
         </div>
         <div class="mtabs">
-          <button class="mtab active" data-nav="inbox" onclick="nav('inbox')">💬 Atendimento</button>
+          <button class="mtab active" data-nav="inbox" onclick="nav('inbox')">Conversas</button>
           <button class="mtab" data-nav="contacts" onclick="nav('contacts')">Contatos</button>
           <button class="mtab" data-nav="bot" onclick="nav('bot')">Robô Lola</button>
           <button class="mtab" data-nav="arquivos" onclick="nav('arquivos')">Arquivos</button>
@@ -554,7 +603,7 @@ function saveIcon(saved){ return saved ? '<svg viewBox="0 0 24 24" fill="none" s
 /* ===== filtros ===== */
 function renderFilters(){
   const wrap=document.getElementById('filters'); wrap.innerHTML='';
-  const chips=[{k:'todas',label:'Todas',cor:'#a4242f',bg:'#fbe9ea',fg:'#a4242f'}].concat(Object.keys(CH).map(k=>({k,label:CH[k].curto,cor:CH[k].cor,bg:CH[k].bg,fg:CH[k].fg})));
+  const chips=[{k:'todas',label:'Todas',cor:'#A82A2A',bg:'#FBEAE7',fg:'#A82A2A'}].concat(Object.keys(CH).map(k=>({k,label:CH[k].curto,cor:CH[k].cor,bg:CH[k].bg,fg:CH[k].fg})));
   chips.forEach(c=>{ const b=document.createElement('button'); b.className='fchip'+(filter===c.k?' active':''); b.textContent=c.label; if(filter===c.k){b.style.background=c.cor;b.style.color='#fff';}else{b.style.background=c.bg;b.style.color=c.fg;} b.onclick=()=>{filter=c.k;renderFilters();renderList();}; wrap.appendChild(b); });
 }
 function renderStatusFilters(){
@@ -608,17 +657,30 @@ function renderList(){
   });
   box.innerHTML='';
   if(!arr.length){ box.innerHTML='<div class="empty">Nenhuma conversa com esses filtros.</div>'; return; }
-  arr.forEach(c=>{
-    const el=document.createElement('div'); el.className='convo'+(c.id===activeId?' active':''); el.onclick=()=>openConvo(c.id);
-    el.innerHTML=avatarHtml(c)+
-      '<div class="cbody">'+
-        '<div class="crow1"><span class="cname">'+esc(c.name)+'</span><span class="ctime'+(c.unread?' unread':'')+'">'+esc(c.hora)+'</span></div>'+
-        '<div class="crow2"><span class="cprev">'+esc(c.preview)+'</span>'+(c.unread?'<span class="badge">'+c.unread+'</span>':'')+'</div>'+
-        '<div class="crow3">'+statusPill(c.status)+(c.cat?'<span class="tag">'+esc((catObj(c.cat)||{label:c.cat}).label)+'</span>':'')+'</div>'+
-      '</div>';
-    box.appendChild(el);
+  const GRUPOS=[
+    {t:'Precisam de resposta', urg:true, f:c=>c.status==='nao-respondido'||c.status==='nao-lido'},
+    {t:'Aguardando cliente', f:c=>c.status==='aguardando-retorno'||c.status==='aguardando-proposta'},
+    {t:'Respondidas', res:true, f:c=>true}
+  ];
+  const usados=new Set();
+  GRUPOS.forEach(g=>{
+    const its=arr.filter(c=>!usados.has(c.id)&&g.f(c)); its.forEach(c=>usados.add(c.id));
+    if(!its.length) return;
+    const lb=document.createElement('div'); lb.className='grp-lbl'; lb.textContent=g.t+' · '+its.length; box.appendChild(lb);
+    its.forEach(c=>{
+      const el=document.createElement('div'); el.className='convo'+(c.id===activeId?' active':'')+(g.res?' resolved':''); el.onclick=()=>openConvo(c.id);
+      const tHtml=g.urg?('<span class="ctime espera">'+esc(esperaTxt(c))+'</span>'):('<span class="ctime'+(c.unread?' unread':'')+'">'+esc(c.hora)+'</span>');
+      el.innerHTML=avatarHtml(c)+
+        '<div class="cbody">'+
+          '<div class="crow1"><span class="cname">'+esc(c.name)+'</span>'+tHtml+'</div>'+
+          '<div class="crow2"><span class="cprev">'+esc(c.preview)+'</span>'+(c.unread?'<span class="badge">'+c.unread+'</span>':'')+'</div>'+
+          '<div class="crow3">'+statusPill(c.status)+(c.cat?'<span class="tag">'+esc((catObj(c.cat)||{label:c.cat}).label)+'</span>':'')+'</div>'+
+        '</div>';
+      box.appendChild(el);
+    });
   });
 }
+function esperaTxt(c){ if(!c._ts) return c.hora||''; const m=Math.round((Date.now()-new Date(c._ts).getTime())/60000); if(m<1) return 'agora'; if(m<60) return 'há '+m+' min'; const h=Math.round(m/60); if(h<24) return 'há '+h+' h'; return 'há '+Math.round(h/24)+' d'; }
 function toggleWait(){ waitOnly=!waitOnly; renderList(); }
 function onSearchInput(v){ renderList(); clearTimeout(searchTimer); const q=(v||'').trim(); if(q.length<2){ msgMatchIds=null; return; } searchTimer=setTimeout(()=>msgSearch(q),260); }
 async function msgSearch(q){ try{ const { data }=await sb.from('wa_mensagens').select('conversa_id').ilike('conteudo','%'+q+'%').limit(3000); msgMatchIds=new Set((data||[]).map(r=>r.conversa_id)); renderList(); }catch(e){ console.warn('busca msgs',e); } }
