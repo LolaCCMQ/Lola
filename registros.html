@@ -632,7 +632,8 @@ return '<div style="background:#fff;border:1px solid #ECE3D9;border-radius:13px;
 +'<i class="ph-duotone ph-book-bookmark" style="color:var(--vinho)"></i><b style="flex:1;font-size:.92rem">'+esc(r.nome)+'</b><span style="font-size:.72rem;color:var(--muted)">'+r.passos.length+' passos</span><i class="ph-duotone ph-caret-down" style="color:#B79A8E"></i></div>'
 +'<div id="mpass'+i+'" style="display:none;border-top:1px solid #EFE6DC;padding:10px 13px">'
 +'<div style="font-size:.82rem;color:#5A463E;line-height:1.8">'+r.passos.map(function(p,j){return (j+1)+'. '+esc(p);}).join('<br>')+'</div>'
-+'<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="criarRoteiro(this,'+i+')"><i class="ph-duotone ph-list-checks"></i> Usar — criar checklist</button>'
++'<div class="lab" style="margin-top:10px">Do que se trata?</div><input type="text" id="rotNome'+i+'" placeholder="Ex.: Risoto de limão siciliano" style="width:100%" onclick="event.stopPropagation()">'
++'<button class="btn btn-primary btn-sm" style="margin-top:9px" onclick="criarRoteiro(this,'+i+')"><i class="ph-duotone ph-list-checks"></i> Usar — criar checklist</button>'
 +'</div></div>';
 }).join(''):'<div class="empty">Nenhum manual ainda.</div>')
 +'<div style="display:flex;gap:8px;margin-top:10px;justify-content:space-between"><button class="btn btn-ghost btn-sm" onclick="novoManual()"><i class="ph-duotone ph-plus"></i> Novo manual</button><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'rotov\').style.display=\'none\'">Fechar</button></div></div>';
@@ -640,7 +641,9 @@ return '<div style="background:#fff;border:1px solid #ECE3D9;border-radius:13px;
 async function criarRoteiro(btn,idx){
 try{
 var r=(window.__ms||[])[idx];if(!r){toast('Manual não encontrado.');return;}
-var hj=new Date();var nome=String(hj.getDate()).padStart(2,'0')+'/'+String(hj.getMonth()+1).padStart(2,'0');
+var inp=document.getElementById('rotNome'+idx);
+var nome=(inp&&inp.value||'').trim();
+if(!nome){toast('Diga do que se trata — ex.: Risoto de limão');if(inp)inp.focus();return;}
 if(btn){btn.disabled=true;btn.textContent='Criando…';}
 var pai=await sb.from('lola_assuntos').insert({titulo:r.nome+' — '+nome,criado_por:quemSou()||null,tipo:'Tarefa',eh_tarefa:true,unidades:[],categorias:['Processos'],pessoas:[],responsaveis:[],conteudo:null,prazo:null,tags:['roteiro'],oks:{},concluido:false,relacionados:[],data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()}).select('id').single();
 if(pai.error)throw pai.error;
