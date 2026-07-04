@@ -237,6 +237,11 @@ header{position:static}
   .freq b{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem;color:var(--fc,#8A7A72);display:block;line-height:1.15}
   .freq span{font-size:.66rem;font-weight:600;color:#5A463E;letter-spacing:.02em}
   .freq.on{box-shadow:inset 0 0 0 1.5px var(--fc,#8A7A72)}
+  @media(max-width:640px){
+    .hdr-title{font-size:1.12rem!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.15}
+    .hdr-count{font-size:.66rem!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+    .hdr-ic{width:38px!important;height:38px!important;flex-shrink:0}
+  }
   .cardfoot{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .cardfoot::-webkit-scrollbar{display:none}
   .cardfoot .btn{flex-shrink:0;white-space:nowrap}
@@ -632,7 +637,7 @@ return '<div style="background:#fff;border:1px solid #ECE3D9;border-radius:13px;
 +'<i class="ph-duotone ph-book-bookmark" style="color:var(--vinho)"></i><b style="flex:1;font-size:.92rem">'+esc(r.nome)+'</b><span style="font-size:.72rem;color:var(--muted)">'+r.passos.length+' passos</span><i class="ph-duotone ph-caret-down" style="color:#B79A8E"></i></div>'
 +'<div id="mpass'+i+'" style="display:none;border-top:1px solid #EFE6DC;padding:10px 13px">'
 +'<div style="font-size:.82rem;color:#5A463E;line-height:1.8">'+r.passos.map(function(p,j){return (j+1)+'. '+esc(p);}).join('<br>')+'</div>'
-+'<div class="lab" style="margin-top:10px">Do que se trata?</div><input type="text" id="rotNome'+i+'" placeholder="Ex.: Risoto de limão siciliano" style="width:100%" onclick="event.stopPropagation()">'
++'<div class="lab" style="margin-top:10px;font-size:.8rem;color:#5A463E">Do que se trata?</div><input type="text" id="rotNome'+i+'" placeholder="Ex.: Risoto de limão siciliano" style="width:100%;font-size:1.05rem;padding:13px 14px;border:2px solid var(--vinho);border-radius:12px;background:#fff" onclick="event.stopPropagation()">'
 +'<button class="btn btn-primary btn-sm" style="margin-top:9px" onclick="criarRoteiro(this,'+i+')"><i class="ph-duotone ph-list-checks"></i> Usar — criar checklist</button>'
 +'</div></div>';
 }).join(''):'<div class="empty">Nenhum manual ainda.</div>')
@@ -828,8 +833,8 @@ renderFreqBar();
 updateHdrCount();
 var lst=filtered(), grp=document.getElementById('grp').value;
 var _hj=new Date().toISOString().slice(0,10);
-function _rank(f){ if(f.concluido) return 3; if(f.destaque) return 0; if(f.eh_tarefa&&f.prazo&&String(f.prazo).slice(0,10)<_hj) return 1; return 2; }
-lst=lst.slice().sort(function(a,b){ var ra=_rank(a),rb=_rank(b); if(ra!==rb) return ra-rb; return String(b.data||'').localeCompare(String(a.data||'')); });
+function _rank(f){ if(f.concluido) return 9; if(f.destaque) return 0; return 1; }
+lst=lst.slice().sort(function(a,b){ var ra=_rank(a),rb=_rank(b); if(ra!==rb) return ra-rb; var d=String(b.data||'').localeCompare(String(a.data||'')); if(d!==0) return d; return (b.id||0)-(a.id||0); });
 var _ab=lst.filter(function(c){return c.eh_tarefa&&!c.concluido;}).length;
 document.getElementById('count').textContent=lst.length+' registro(s)'+(_ab?(' · '+_ab+' tarefa(s) a fazer'):'');
 var box=document.getElementById('lista');
