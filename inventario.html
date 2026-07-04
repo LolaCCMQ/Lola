@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventário · Equipe Lola</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --cream:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC;
+  --vinho:#A82A2A; --vinho-deep:#7E1E1F;
+  --ink:#2A1A17; --ink2:#5A463E; --muted:#8A7A72; --rotulo:#B79A8E;
+  --alerta:#B5302E; --alerta-bg:#FBEAE7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Hanken Grotesk',sans-serif;background:var(--cream);color:var(--ink);font-size:15px;min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:.92rem;color:var(--ink);background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;outline:0;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--vinho)}
+.wrap{max-width:1020px;margin:0 auto;padding:0 14px 60px}
+.hdr{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--fio)}
+.hdr-ic{width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);color:var(--vinho);border-radius:13px;font-size:1.15rem;position:relative;border-style:solid}
+.hdr-tit{flex:1;min-width:0}
+.hdr-tit h1{font-family:'Fraunces',serif;font-weight:600;font-size:1.25rem;color:var(--vinho);line-height:1.15}
+.hdr-sub{font-size:.7rem;font-weight:600;color:var(--muted);margin-top:1px}
+.pills{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pills::-webkit-scrollbar{display:none}
+.pill{flex:0 0 auto;font-size:.78rem;font-weight:600;padding:8px 13px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--ink2);white-space:nowrap;min-height:38px}
+.pill.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+.pill.u-ccmq{color:#C0392B}.pill.u-mac{color:#2C7A4B}.pill.u-central{color:#2C5AA0}
+.pill.u-ccmq.on{background:#C0392B;color:#fff;border-color:#C0392B}
+.pill.u-mac.on{background:#2C7A4B;color:#fff;border-color:#2C7A4B}
+.pill.u-central.on{background:#2C5AA0;color:#fff;border-color:#2C5AA0}
+.searchrow{display:flex;gap:8px;margin-top:10px}
+.grouphdr{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--rotulo);font-weight:600;margin:16px 2px 8px;display:flex;justify-content:space-between;align-items:baseline}
+.grouphdr.alerta{color:var(--alerta)}
+.feed{display:grid;grid-template-columns:1fr;gap:8px}
+@media(min-width:760px){.feed{grid-template-columns:1fr 1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:10px 12px;display:flex;gap:11px;align-items:center;cursor:pointer;text-align:left;width:100%}
+.card.alerta{border-color:#F0C8C0}
+.card.inativo{opacity:.55}
+.thumb{width:48px;height:48px;border-radius:11px;background:#F7EFE6;display:flex;align-items:center;justify-content:center;color:var(--rotulo);flex-shrink:0;font-size:1.25rem;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.c-body{flex:1;min-width:0}
+.c-nome{font-size:.92rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-meta{font-size:.72rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini{font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:8px;flex-shrink:0}
+.mini.u-ccmq{background:#FBE4E0;color:#C0392B}.mini.u-mac{background:#E6F3EA;color:#2C7A4B}.mini.u-central{background:#E6EEF8;color:#2C5AA0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:600;font-size:.85rem;border-radius:13px;border:1px solid var(--border);background:#fff;color:var(--ink2);padding:0 16px;min-height:44px}
+.btn-primary{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+.btn-primary:hover{background:var(--vinho-deep)}
+.btn-sm{min-height:38px;font-size:.8rem;padding:0 13px}
+.fab{position:fixed;right:16px;bottom:18px;z-index:40;box-shadow:0 10px 26px -12px rgba(168,42,42,.5)}
+.empty{padding:28px 12px;text-align:center;color:var(--muted);font-size:.85rem}
+.ov{position:fixed;inset:0;background:rgba(42,26,23,.32);z-index:90;display:none;align-items:center;justify-content:center;padding:12px}
+.ov.show{display:flex}
+.sheet{background:var(--cream);border:1px solid var(--border);border-radius:18px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;padding:14px 16px 20px}
+.sh-hd{display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--fio);padding-bottom:10px;margin-bottom:12px}
+.sh-tit{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem;flex:1;min-width:0;line-height:1.2}
+.lab{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--rotulo);font-weight:600;margin:12px 0 5px}
+.foto-big{width:100%;height:180px;border-radius:13px;background:#F7EFE6;display:flex;align-items:center;justify-content:center;color:var(--rotulo);flex-direction:column;gap:5px;overflow:hidden;cursor:pointer;border:1px solid var(--border)}
+.foto-big img{width:100%;height:100%;object-fit:cover}
+.kv{background:#fff;border:1px solid var(--border);border-radius:13px;padding:2px 13px;font-size:.82rem}
+.kv-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--fio)}
+.kv-row:last-child{border-bottom:none}
+.kv-row span:first-child{color:var(--muted);flex-shrink:0}
+.kv-row b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
+.acoes{display:flex;gap:7px;margin:13px 0}
+.acoes .btn{flex:1;padding:0 8px}
+.mov-row{padding:9px 2px;border-bottom:1px solid var(--fio);font-size:.8rem}
+.mov-row:last-child{border-bottom:none}
+.mov-sub{color:var(--muted);font-size:.72rem;margin-top:1px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;font-size:.85rem;font-weight:600;padding:11px 18px;border-radius:13px;z-index:200;opacity:0;transition:.25s;pointer-events:none;max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%)}
+.stats{display:flex;gap:7px;margin-top:12px}
+.stat{flex:1;background:#fff;border:1px solid var(--border);border-top:3px solid var(--st,#8A7A72);border-radius:13px;padding:8px 11px;cursor:pointer}
+.stat b{font-family:'Fraunces',serif;font-weight:600;font-size:1.1rem;color:var(--st,#8A7A72);display:block;line-height:1.15}
+.stat span{font-size:.64rem;font-weight:600;color:var(--ink2)}
+.stat.on{box-shadow:inset 0 0 0 1.5px var(--st,#8A7A72)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <button class="hdr-ic" onclick="voltarMenu()" title="Menu"><i class="ph-duotone ph-caret-left"></i></button>
+    <div class="hdr-tit">
+      <h1>Inventário</h1>
+      <div class="hdr-sub" id="hdrSub">louças · utensílios · equipamentos</div>
+    </div>
+    <button class="hdr-ic" onclick="focarBusca()" title="Buscar"><i class="ph-duotone ph-magnifying-glass"></i></button>
+  </div>
+
+  <div class="pills" id="uniPills"></div>
+  <div class="stats" id="catStats"></div>
+  <div class="searchrow"><input type="search" id="q" placeholder="🔍 Buscar item, marca, local…" oninput="render()"></div>
+
+  <div id="lista"><div class="empty">Carregando inventário…</div></div>
+</div>
+
+<button class="btn btn-primary fab" onclick="abrirForm()"><i class="ph-duotone ph-plus"></i> Novo item</button>
+
+<div class="ov" id="ovFicha" onclick="if(event.target===this)fecharOv('ovFicha')"><div class="sheet" id="fichaBody"></div></div>
+<div class="ov" id="ovForm" onclick="if(event.target===this)fecharOv('ovForm')"><div class="sheet" id="formBody"></div></div>
+<div class="ov" id="ovAcao" onclick="if(event.target===this)fecharOv('ovAcao')"><div class="sheet" id="acaoBody" style="max-width:420px"></div></div>
+<div id="toast"></div>
+
+<script>
+var SB_URL="https://mvjbsdpfjhywhaonvpfl.supabase.co";
+var SB_KEY="sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy";
+var sb=window.supabase.createClient(SB_URL,SB_KEY);
+
+var UNIDADES=['Lola CCMQ','Lola MAC','Cozinha Central'];
+var CATS=[{k:'louca',nome:'Louças',cor:'#9A6B1E'},{k:'utensilio',nome:'Utensílios',cor:'#4858A8'},{k:'equipamento',nome:'Equipamentos',cor:'#0F766E'}];
+var ITENS=[], FUNI='', FCAT='', _fichaId=null;
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function norm(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2400);}
+function fmtDT(iso){try{var d=new Date(iso);var p=function(n){return String(n).padStart(2,'0');};return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear();}catch(e){return '';}}
+function voltarMenu(){try{var pp=window.parent;if(pp&&pp!==window){pp.postMessage({lola:'voltar-menu'},'*');return;}}catch(e){} try{history.back();}catch(e2){}}
+function focarBusca(){var q=document.getElementById('q');if(q){try{q.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}setTimeout(function(){q.focus();},120);}}
+function meuNome(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.name)return pp.__portalUser.name;}catch(e){}try{return localStorage.getItem('reg_quem_sou')||'';}catch(e){}return '';}
+function uniCls(u){u=String(u||'');return u.indexOf('CCMQ')>=0?'u-ccmq':u.indexOf('MAC')>=0?'u-mac':u.indexOf('Central')>=0?'u-central':'';}
+function uniShort(u){return ({'Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'Central'})[u]||u||'—';}
+function catObj(k){return CATS.find(function(c){return c.k===k;})||{k:k,nome:k,cor:'#8A7A72'};}
+function logAtv(acao,item,detalhe){try{sb.from('lola_atividades').insert({quem:meuNome()||null,acao:acao,alvo_tipo:'inventario',alvo_id:null,alvo_titulo:String(item&&item.nome||'').slice(0,120),detalhe:detalhe||null}).then(function(){},function(){});}catch(e){}}
+function regMov(itemId,tipo,qtd,origem,destino,motivo){return sb.from('lola_inv_mov').insert({item_id:itemId,tipo:tipo,quantidade:qtd||null,origem:origem||null,destino:destino||null,motivo:motivo||null,quem:meuNome()||null});}
+
+async function load(){
+  var r=await sb.from('lola_inv_itens').select('*').order('nome',{ascending:true});
+  if(r.error){document.getElementById('lista').innerHTML='<div class="empty">Erro: '+esc(r.error.message)+'</div>';return;}
+  ITENS=r.data||[]; render();
+}
+
+function renderUniPills(){
+  var labels={'':'Tudo','Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'Central'};
+  document.getElementById('uniPills').innerHTML=[''].concat(UNIDADES).map(function(u){
+    return '<button class="pill '+uniCls(u)+(FUNI===u?' on':'')+'" onclick="FUNI=\''+u.replace(/'/g,"\\'")+'\';render()">'+esc(labels[u]||u)+'</button>';
+  }).join('');
+}
+function renderCatStats(){
+  document.getElementById('catStats').innerHTML=CATS.map(function(c){
+    var n=ITENS.filter(function(i){return i.ativo!==false&&i.categoria===c.k&&(!FUNI||i.unidade===FUNI);}).length;
+    return '<div class="stat'+(FCAT===c.k?' on':'')+'" style="--st:'+c.cor+'" onclick="FCAT=FCAT===\''+c.k+'\'?\'\':\''+c.k+'\';render()"><b>'+n+'</b><span>'+c.nome+'</span></div>';
+  }).join('');
+}
+function metaDe(i){
+  if(i.rastreio==='individual'){
+    var parts=[];
+    if(i.num!=null)parts.push('nº '+i.num);
+    if(i.num_serie)parts.push('série '+i.num_serie);
+    if(i.local)parts.push(i.local);
+    if(i.status==='manutencao')parts.push('⚠️ em manutenção');
+    if(i.status==='descartado')parts.push('descartado');
+    return parts.join(' · ')||'equipamento';
+  }
+  var p=['qtd '+(i.qtd||0)];
+  if(i.qtd_em_uso)p.push(i.qtd_em_uso+' em uso');
+  if(i.estoque_minimo)p.push('mín. '+i.estoque_minimo);
+  if(i.local)p.push(i.local);
+  return p.join(' · ');
+}
+function cardHTML(i){
+  var abaixo=i.rastreio==='quantidade'&&i.estoque_minimo>0&&(i.qtd||0)<i.estoque_minimo;
+  var foto=i.foto_url?('<img src="'+esc(i.foto_url)+'" loading="lazy" alt="">'):('<i class="ph-duotone ph-'+(i.categoria==='equipamento'?'plug':'fork-knife')+'"></i>');
+  var meta=abaixo?('<span style="color:var(--alerta);font-weight:700">'+(i.qtd||0)+'</span> de mín. '+i.estoque_minimo+(i.local?(' · '+esc(i.local)):'')):esc(metaDe(i));
+  return '<button class="card'+(abaixo?' alerta':'')+(i.ativo===false?' inativo':'')+'" onclick="abrirFicha('+i.id+')">'
+    +'<span class="thumb">'+foto+'</span>'
+    +'<span class="c-body"><div class="c-nome">'+esc(i.nome)+'</div><div class="c-meta">'+meta+'</div></span>'
+    +'<span class="mini '+uniCls(i.unidade)+'">'+esc(uniShort(i.unidade))+'</span>'
+  +'</button>';
+}
+function render(){
+  renderUniPills(); renderCatStats();
+  var q=norm(document.getElementById('q').value);
+  var lst=ITENS.filter(function(i){
+    if(FUNI&&i.unidade!==FUNI)return false;
+    if(FCAT&&i.categoria!==FCAT)return false;
+    if(q){var blob=norm([i.nome,i.subcategoria,i.marca,i.modelo,i.local,i.num_serie,i.fornecedor,i.obs].join(' '));if(blob.indexOf(q)<0)return false;}
+    return true;
+  });
+  var ativos=lst.filter(function(i){return i.ativo!==false;});
+  var inativos=lst.filter(function(i){return i.ativo===false;});
+  var abaixo=ativos.filter(function(i){return i.rastreio==='quantidade'&&i.estoque_minimo>0&&(i.qtd||0)<i.estoque_minimo;});
+  var resto=ativos.filter(function(i){return abaixo.indexOf(i)<0;});
+  var h='';
+  if(abaixo.length)h+='<div class="grouphdr alerta">Abaixo do mínimo · '+abaixo.length+'</div><div class="feed">'+abaixo.map(cardHTML).join('')+'</div>';
+  h+='<div class="grouphdr">Itens · '+resto.length+'</div>';
+  h+=resto.length?('<div class="feed">'+resto.map(cardHTML).join('')+'</div>'):'<div class="empty">Nenhum item com esses filtros.</div>';
+  if(inativos.length)h+='<div class="grouphdr">Descartados · '+inativos.length+'</div><div class="feed">'+inativos.map(cardHTML).join('')+'</div>';
+  document.getElementById('lista').innerHTML=h;
+  var tot=ITENS.filter(function(i){return i.ativo!==false;}).length;
+  document.getElementById('hdrSub').textContent=tot+' itens · '+(abaixo.length?abaixo.length+' abaixo do mínimo':'tudo em ordem');
+}
+
+function fecharOv(id){document.getElementById(id).classList.remove('show');}
+function abrirOv(id){document.getElementById(id).classList.add('show');}
+
+async function abrirFicha(id){
+  _fichaId=id;
+  var i=ITENS.find(function(x){return x.id===id;});if(!i)return;
+  var c=catObj(i.categoria);
+  var foto=i.foto_url?('<img src="'+esc(i.foto_url)+'" alt="">'):('<i class="ph-duotone ph-camera" style="font-size:1.6rem"></i><span style="font-size:.68rem">sem foto · toque pra adicionar</span>');
+  var kv='';
+  if(i.rastreio==='quantidade'){
+    kv+='<div class="kv-row"><span>Quantidade</span><b>'+(i.qtd||0)+(i.estoque_minimo?(' <span style="color:var(--muted);font-weight:400">(mín. '+i.estoque_minimo+')</span>'):'')+'</b></div>';
+    if(i.qtd_em_uso)kv+='<div class="kv-row"><span>Em uso</span><b>'+i.qtd_em_uso+'</b></div>';
+  } else {
+    if(i.num!=null)kv+='<div class="kv-row"><span>Número</span><b>'+i.num+'</b></div>';
+    if(i.num_serie)kv+='<div class="kv-row"><span>Nº de série</span><b>'+esc(i.num_serie)+'</b></div>';
+    kv+='<div class="kv-row"><span>Status</span><b>'+esc(i.status==='ok'?'Em uso normal':(i.status==='manutencao'?'⚠️ Em manutenção':i.status||'—'))+'</b></div>';
+  }
+  if(i.marca||i.modelo)kv+='<div class="kv-row"><span>Marca / modelo</span><b>'+esc([i.marca,i.modelo].filter(Boolean).join(' '))+'</b></div>';
+  if(i.subcategoria)kv+='<div class="kv-row"><span>Tipo</span><b>'+esc(i.subcategoria)+'</b></div>';
+  if(i.fornecedor)kv+='<div class="kv-row"><span>Fornecedor</span><b>'+esc(i.fornecedor)+'</b></div>';
+  if(i.cor||i.medida)kv+='<div class="kv-row"><span>Cor / medida</span><b>'+esc([i.cor,i.medida].filter(Boolean).join(' · '))+'</b></div>';
+  if(i.local)kv+='<div class="kv-row"><span>Local</span><b>'+esc(i.local)+'</b></div>';
+  var nfTxt=i.nf_url?('<a href="'+esc(i.nf_url)+'" target="_blank" style="color:var(--vinho);font-weight:600;text-decoration:none">'+(i.nf_num?('NF '+esc(i.nf_num)):'ver nota')+' <i class="ph-duotone ph-arrow-square-out"></i></a>'):(i.nf_num?('NF '+esc(i.nf_num)+' · <span onclick="pedirNF()" style="color:var(--vinho);font-weight:600;cursor:pointer">anexar arquivo</span>'):('<span onclick="pedirNF()" style="color:var(--vinho);font-weight:600;cursor:pointer">+ anexar nota fiscal</span>'));
+  kv+='<div class="kv-row"><span>Nota fiscal</span><b>'+nfTxt+'</b></div>';
+  if(i.categoria==='equipamento')kv+='<div class="kv-row"><span>Manutenções</span><b><span onclick="abrirManut()" style="color:var(--vinho);font-weight:600;cursor:pointer">abrir no app →</span></b></div>';
+  if(i.obs)kv+='<div class="kv-row"><span>Obs</span><b style="font-weight:400">'+esc(i.obs)+'</b></div>';
+  var body='<div class="sh-hd"><button class="hdr-ic" onclick="fecharOv(\'ovFicha\')"><i class="ph-duotone ph-caret-left"></i></button>'
+    +'<div style="flex:1;min-width:0"><div class="sh-tit">'+esc(i.nome)+'</div><div style="font-size:.68rem;color:var(--muted);font-weight:600">'+esc(c.nome.replace(/s$/,''))+' · <span class="mini '+uniCls(i.unidade)+'">'+esc(uniShort(i.unidade))+'</span></div></div>'
+    +'<button class="hdr-ic" onclick="abrirForm('+i.id+')" title="Editar"><i class="ph-duotone ph-pencil-simple"></i></button></div>'
+    +'<div class="foto-big" onclick="pedirFoto()">'+foto+'</div>'
+    +'<input type="file" id="fotoInput" accept="image/*" style="display:none" onchange="uparFoto(this)">'
+    +'<input type="file" id="nfInput" accept="image/*,application/pdf" style="display:none" onchange="uparNF(this)">'
+    +'<div class="kv" style="margin-top:12px">'+kv+'</div>'
+    +(i.ativo===false?'<div class="empty" style="color:var(--alerta)">Item descartado.</div>':(
+      '<div class="acoes">'
+      +'<button class="btn btn-primary btn-sm" onclick="abrirAcao(\'mover\')"><i class="ph-duotone ph-arrows-left-right"></i> Mover</button>'
+      +'<button class="btn btn-sm" style="color:#9A6B1E" onclick="abrirAcao(\'quebra\')"><i class="ph-duotone ph-warning"></i> Quebra</button>'
+      +'<button class="btn btn-sm" style="color:var(--alerta)" onclick="abrirAcao(\'descarte\')"><i class="ph-duotone ph-trash"></i> Descartar</button>'
+      +'</div>'))
+    +'<div class="lab">Movimentações</div><div class="kv" id="fichaMov"><div class="empty" style="padding:12px">Carregando…</div></div>';
+  document.getElementById('fichaBody').innerHTML=body;
+  abrirOv('ovFicha');
+  try{
+    var m=await sb.from('lola_inv_mov').select('*').eq('item_id',id).order('created_at',{ascending:false}).limit(15);
+    var rows=m.data||[];
+    var lbl={entrada:'Entrada',transferencia:'Transferência',quebra:'Quebra',descarte:'Descarte',ajuste:'Ajuste'};
+    document.getElementById('fichaMov').innerHTML=rows.length?rows.map(function(v){
+      var t=(lbl[v.tipo]||v.tipo)+(v.quantidade?(' · '+v.quantidade+' un'):'');
+      var rota=(v.origem||v.destino)?((v.origem?uniShort(v.origem):'?')+' → '+(v.destino?uniShort(v.destino):'?')):'';
+      return '<div class="mov-row"><b>'+esc(t)+'</b>'+(rota?(' · '+esc(rota)):'')+'<div class="mov-sub">'+esc(v.quem||'—')+' · '+fmtDT(v.created_at)+(v.motivo?(' · '+esc(v.motivo)):'')+'</div></div>';
+    }).join(''):'<div class="mov-row" style="color:var(--muted)">Nenhuma movimentação registrada.</div>';
+  }catch(e){document.getElementById('fichaMov').innerHTML='<div class="mov-row">—</div>';}
+}
+
+function pedirFoto(){var f=document.getElementById('fotoInput');if(f)f.click();}
+function pedirNF(){var f=document.getElementById('nfInput');if(f)f.click();}
+function comprimir(file,cb){
+  var img=new Image();var rd=new FileReader();
+  rd.onload=function(){img.onload=function(){
+    var MAX=1280,w=img.width,h=img.height;
+    if(w>MAX||h>MAX){var r=Math.min(MAX/w,MAX/h);w=Math.round(w*r);h=Math.round(h*r);}
+    var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    cv.toBlob(function(b){cb(b);},'image/jpeg',0.82);
+  };img.src=rd.result;};
+  rd.readAsDataURL(file);
+}
+async function uparFoto(inp){
+  var f=inp.files&&inp.files[0];if(!f)return;
+  toast('Enviando foto…');
+  comprimir(f,async function(blob){
+    try{
+      var path='itens/'+_fichaId+'-'+Date.now()+'.jpg';
+      var up=await sb.storage.from('inventario').upload(path,blob,{contentType:'image/jpeg',upsert:true});
+      if(up.error)throw up.error;
+      var url=sb.storage.from('inventario').getPublicUrl(path).data.publicUrl;
+      await sb.from('lola_inv_itens').update({foto_url:url,updated_at:new Date().toISOString()}).eq('id',_fichaId);
+      var i=ITENS.find(function(x){return x.id===_fichaId;});if(i)i.foto_url=url;
+      logAtv('atualizou a foto de',i);
+      render();abrirFicha(_fichaId);toast('Foto salva');
+    }catch(e){toast('Erro ao enviar foto');}
+  });
+}
+async function uparNF(inp){
+  var f=inp.files&&inp.files[0];if(!f)return;
+  toast('Enviando nota…');
+  try{
+    var ext=(f.name.split('.').pop()||'pdf').toLowerCase();
+    var path='nf/'+_fichaId+'-'+Date.now()+'.'+ext;
+    var up=await sb.storage.from('inventario').upload(path,f,{upsert:true});
+    if(up.error)throw up.error;
+    var url=sb.storage.from('inventario').getPublicUrl(path).data.publicUrl;
+    await sb.from('lola_inv_itens').update({nf_url:url,updated_at:new Date().toISOString()}).eq('id',_fichaId);
+    var i=ITENS.find(function(x){return x.id===_fichaId;});if(i)i.nf_url=url;
+    logAtv('anexou nota fiscal em',i);
+    abrirFicha(_fichaId);toast('Nota fiscal anexada');
+  }catch(e){toast('Erro ao enviar a nota');}
+}
+
+function abrirAcao(tipo){
+  var i=ITENS.find(function(x){return x.id===_fichaId;});if(!i)return;
+  var titulos={mover:'Mover pra outra unidade',quebra:'Registrar quebra',descarte:'Registrar descarte'};
+  var h='<div class="sh-hd"><div class="sh-tit">'+titulos[tipo]+'</div><button class="hdr-ic" onclick="fecharOv(\'ovAcao\')"><i class="ph-duotone ph-x"></i></button></div>'
+    +'<div style="font-size:.85rem;color:var(--ink2);margin-bottom:4px">'+esc(i.nome)+' · '+esc(uniShort(i.unidade))+'</div>';
+  if(i.rastreio==='quantidade'){h+='<div class="lab">Quantidade</div><input type="number" id="acQtd" min="1" value="1" inputmode="numeric">';}
+  if(tipo==='mover'){h+='<div class="lab">Pra onde</div><select id="acDest">'+UNIDADES.filter(function(u){return u!==i.unidade;}).map(function(u){return '<option>'+esc(u)+'</option>';}).join('')+'</select>';}
+  if(tipo!=='mover'){h+='<div class="lab">Motivo</div><input type="text" id="acMotivo" placeholder="'+(tipo==='quebra'?'Ex.: quebrou na lavagem':'Ex.: sem conserto, fim de vida')+'">';}
+  h+='<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end"><button class="btn btn-sm" onclick="fecharOv(\'ovAcao\')">Cancelar</button><button class="btn btn-primary btn-sm" onclick="confirmarAcao(\''+tipo+'\',this)">Confirmar</button></div>';
+  document.getElementById('acaoBody').innerHTML=h;
+  abrirOv('ovAcao');
+}
+async function confirmarAcao(tipo,btn){
+  var i=ITENS.find(function(x){return x.id===_fichaId;});if(!i)return;
+  var qtdEl=document.getElementById('acQtd');
+  var qtd=qtdEl?parseInt(qtdEl.value||'0',10):null;
+  if(i.rastreio==='quantidade'&&(!qtd||qtd<1)){toast('Diga a quantidade.');return;}
+  if(i.rastreio==='quantidade'&&qtd>(i.qtd||0)&&tipo!=='mover'){toast('Só tem '+(i.qtd||0)+' no estoque.');return;}
+  var motivo=(document.getElementById('acMotivo')||{}).value||'';
+  if(tipo!=='mover'&&!motivo.trim()){toast('Diga o motivo.');return;}
+  if(btn){btn.disabled=true;btn.textContent='Salvando…';}
+  try{
+    var agora=new Date().toISOString();
+    if(tipo==='mover'){
+      var destino=document.getElementById('acDest').value;
+      var origemU=i.unidade;
+      if(i.rastreio==='individual'){
+        await sb.from('lola_inv_itens').update({unidade:destino,updated_at:agora}).eq('id',i.id);
+        await regMov(i.id,'transferencia',null,i.unidade,destino,null);
+        i.unidade=destino;
+      } else {
+        if(qtd>(i.qtd||0)){toast('Só tem '+(i.qtd||0)+' no estoque.');if(btn){btn.disabled=false;btn.textContent='Confirmar';}return;}
+        var alvo=ITENS.find(function(x){return x.id!==i.id&&x.ativo!==false&&x.rastreio==='quantidade'&&norm(x.nome)===norm(i.nome)&&x.unidade===destino;});
+        await sb.from('lola_inv_itens').update({qtd:(i.qtd||0)-qtd,updated_at:agora}).eq('id',i.id);
+        i.qtd=(i.qtd||0)-qtd;
+        if(alvo){
+          await sb.from('lola_inv_itens').update({qtd:(alvo.qtd||0)+qtd,updated_at:agora}).eq('id',alvo.id);
+          alvo.qtd=(alvo.qtd||0)+qtd;
+        } else {
+          var novo=await sb.from('lola_inv_itens').insert({nome:i.nome,categoria:i.categoria,subcategoria:i.subcategoria,unidade:destino,local:null,marca:i.marca,modelo:i.modelo,referencia:i.referencia,fornecedor:i.fornecedor,cor:i.cor,medida:i.medida,rastreio:'quantidade',qtd:qtd,estoque_minimo:0,foto_url:i.foto_url,criado_por:meuNome()||null}).select('id').single();
+          if(novo.error)throw novo.error;
+          ITENS.push(Object.assign({},i,{id:novo.data.id,unidade:destino,qtd:qtd,estoque_minimo:0,qtd_em_uso:0}));
+        }
+        await regMov(i.id,'transferencia',qtd,i.unidade,destino,null);
+      }
+      logAtv('moveu',{nome:i.nome},(i.rastreio==='quantidade'?qtd+' un · ':'')+uniShort(origemU)+' → '+uniShort(destino));
+      toast('✓ Movido');
+    }
+    if(tipo==='quebra'){
+      if(i.rastreio==='quantidade'){
+        await sb.from('lola_inv_itens').update({qtd:(i.qtd||0)-qtd,updated_at:agora}).eq('id',i.id);
+        i.qtd=(i.qtd||0)-qtd;
+      } else {
+        await sb.from('lola_inv_itens').update({status:'manutencao',updated_at:agora}).eq('id',i.id);
+        i.status='manutencao';
+      }
+      await regMov(i.id,'quebra',qtd,i.unidade,null,motivo);
+      logAtv('registrou quebra em',i,(qtd?qtd+' un · ':'')+motivo);
+      toast('Quebra registrada');
+    }
+    if(tipo==='descarte'){
+      if(i.rastreio==='quantidade'){
+        var novaQtd=(i.qtd||0)-qtd;
+        var upd={qtd:novaQtd,updated_at:agora};
+        if(novaQtd<=0&&!i.estoque_minimo)upd.ativo=false;
+        await sb.from('lola_inv_itens').update(upd).eq('id',i.id);
+        i.qtd=novaQtd; if(upd.ativo===false)i.ativo=false;
+      } else {
+        await sb.from('lola_inv_itens').update({ativo:false,status:'descartado',updated_at:agora}).eq('id',i.id);
+        i.ativo=false;i.status='descartado';
+      }
+      await regMov(i.id,'descarte',qtd,i.unidade,null,motivo);
+      logAtv('descartou',i,(qtd?qtd+' un · ':'')+motivo);
+      toast('Descarte registrado');
+    }
+    fecharOv('ovAcao'); render(); abrirFicha(i.id);
+  }catch(e){toast('Erro: '+(e.message||e));if(btn){btn.disabled=false;btn.textContent='Confirmar';}}
+}
+function abrirManut(){try{var pp=window.parent;if(pp&&pp!==window&&typeof pp.openManutencoes==='function'){pp.openManutencoes('equip');return;}}catch(e){}window.open('https://lolaccmq.github.io/Lola-Manutencoes/?page=equip','_blank');}
+
+function abrirForm(id){
+  var i=id?ITENS.find(function(x){return x.id===id;}):null;
+  var h='<div class="sh-hd"><div class="sh-tit">'+(i?'Editar item':'Novo item')+'</div><button class="hdr-ic" onclick="fecharOv(\'ovForm\')"><i class="ph-duotone ph-x"></i></button></div>'
+    +'<div class="lab">Categoria</div><select id="fCat" onchange="formCampos()">'+CATS.map(function(c){return '<option value="'+c.k+'"'+((i?i.categoria:'louca')===c.k?' selected':'')+'>'+c.nome.replace(/s$/,'')+'</option>';}).join('')+'</select>'
+    +'<div class="lab">Nome</div><input type="text" id="fNome" value="'+esc(i?i.nome:'')+'" placeholder="Ex.: Prato raso Ø27 branco">'
+    +'<div class="grid2"><div><div class="lab">Unidade</div><select id="fUni">'+UNIDADES.map(function(u){return '<option'+((i?i.unidade:'Lola CCMQ')===u?' selected':'')+'>'+u+'</option>';}).join('')+'</select></div>'
+    +'<div><div class="lab">Local / setor</div><input type="text" id="fLocal" value="'+esc(i?i.local:'')+'" placeholder="Ex.: Bar, Cozinha"></div></div>'
+    +'<div id="fQtdWrap"><div class="grid2"><div><div class="lab">Quantidade</div><input type="number" id="fQtd" min="0" value="'+(i?(i.qtd||0):1)+'" inputmode="numeric"></div><div><div class="lab">Estoque mínimo</div><input type="number" id="fMin" min="0" value="'+(i?(i.estoque_minimo||0):0)+'" inputmode="numeric"></div></div></div>'
+    +'<div id="fEquipWrap" style="display:none"><div class="grid2"><div><div class="lab">Número</div><input type="number" id="fNum" value="'+esc(i&&i.num!=null?i.num:'')+'" inputmode="numeric"></div><div><div class="lab">Nº de série</div><input type="text" id="fSerie" value="'+esc(i?i.num_serie:'')+'"></div></div></div>'
+    +'<div class="grid2"><div><div class="lab">Marca</div><input type="text" id="fMarca" value="'+esc(i?i.marca:'')+'"></div><div><div class="lab">Modelo</div><input type="text" id="fModelo" value="'+esc(i?i.modelo:'')+'"></div></div>'
+    +'<div class="grid2"><div><div class="lab">Tipo (subcategoria)</div><input type="text" id="fSub" value="'+esc(i?i.subcategoria:'')+'" placeholder="Ex.: Copos e taças"></div><div><div class="lab">Nº da nota fiscal</div><input type="text" id="fNF" value="'+esc(i?i.nf_num:'')+'"></div></div>'
+    +'<div class="lab">Observações</div><textarea id="fObs" rows="2">'+esc(i?i.obs:'')+'</textarea>'
+    +'<div style="display:flex;gap:8px;margin-top:16px;justify-content:'+(i?'space-between':'flex-end')+'">'
+    +(i?'<button class="btn btn-sm" style="color:var(--alerta)" onclick="excluirItem('+i.id+')"><i class="ph-duotone ph-trash"></i> Excluir</button>':'')
+    +'<span style="display:flex;gap:8px"><button class="btn btn-sm" onclick="fecharOv(\'ovForm\')">Cancelar</button><button class="btn btn-primary btn-sm" onclick="salvarForm('+(i?i.id:'null')+',this)"><i class="ph-duotone ph-check"></i> Salvar</button></span></div>';
+  document.getElementById('formBody').innerHTML=h;
+  abrirOv('ovForm'); formCampos();
+  if(!i)setTimeout(function(){var n=document.getElementById('fNome');if(n)n.focus();},120);
+}
+function formCampos(){
+  var eq=document.getElementById('fCat').value==='equipamento';
+  document.getElementById('fQtdWrap').style.display=eq?'none':'';
+  document.getElementById('fEquipWrap').style.display=eq?'':'none';
+}
+async function salvarForm(id,btn){
+  var nome=(document.getElementById('fNome').value||'').trim();
+  if(!nome){toast('Dê um nome ao item.');return;}
+  var cat=document.getElementById('fCat').value, eq=cat==='equipamento';
+  var p={nome:nome,categoria:cat,subcategoria:(document.getElementById('fSub').value||'').trim()||null,
+    unidade:document.getElementById('fUni').value,local:(document.getElementById('fLocal').value||'').trim()||null,
+    marca:(document.getElementById('fMarca').value||'').trim()||null,modelo:(document.getElementById('fModelo').value||'').trim()||null,
+    nf_num:(document.getElementById('fNF').value||'').trim()||null,obs:(document.getElementById('fObs').value||'').trim()||null,
+    rastreio:eq?'individual':'quantidade',updated_at:new Date().toISOString()};
+  if(eq){p.num=parseInt(document.getElementById('fNum').value||'',10)||null;p.num_serie=(document.getElementById('fSerie').value||'').trim()||null;}
+  else{p.qtd=parseInt(document.getElementById('fQtd').value||'0',10)||0;p.estoque_minimo=parseInt(document.getElementById('fMin').value||'0',10)||0;}
+  if(btn){btn.disabled=true;btn.textContent='Salvando…';}
+  try{
+    if(id){
+      var u=await sb.from('lola_inv_itens').update(p).eq('id',id);if(u.error)throw u.error;
+      var i=ITENS.find(function(x){return x.id===id;});if(i)Object.assign(i,p);
+      logAtv('editou',{nome:nome});
+      fecharOv('ovForm');render();abrirFicha(id);toast('✓ Salvo');
+    } else {
+      p.criado_por=meuNome()||null;
+      var r=await sb.from('lola_inv_itens').insert(p).select('*').single();if(r.error)throw r.error;
+      ITENS.push(r.data);
+      await regMov(r.data.id,'entrada',eq?null:p.qtd,null,p.unidade,null);
+      logAtv('cadastrou no inventário',{nome:nome});
+      fecharOv('ovForm');render();abrirFicha(r.data.id);toast('✓ Item cadastrado — adicione a foto');
+    }
+  }catch(e){toast('Erro: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='<i class="ph-duotone ph-check"></i> Salvar';}}
+}
+async function excluirItem(id){
+  var i=ITENS.find(function(x){return x.id===id;});if(!i)return;
+  if(!confirm('Excluir "'+i.nome+'" de vez? Se saiu de uso, prefira "Descartar" (fica no histórico).'))return;
+  try{
+    var d=await sb.from('lola_inv_itens').delete().eq('id',id);if(d.error)throw d.error;
+    logAtv('excluiu do inventário',i);
+    ITENS=ITENS.filter(function(x){return x.id!==id;});
+    fecharOv('ovForm');fecharOv('ovFicha');render();toast('Excluído');
+  }catch(e){toast('Erro ao excluir');}
+}
+
+load();
+</script>
+</body>
+</html>
