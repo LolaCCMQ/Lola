@@ -231,6 +231,12 @@ header{position:static}
   .ddpop button{display:flex;gap:9px;align-items:center;width:100%;text-align:left;background:none;border:0;font-family:inherit;font-size:.84rem;font-weight:600;color:#2A1A17;padding:9px 10px;border-radius:9px;cursor:pointer}
   .ddpop button:hover{background:#F7EFE6}
   .ddpop button i{font-size:1rem;color:#5A463E}
+  .freqbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:7px;margin:0 0 12px}
+  .freqbar:empty{display:none}
+  .freq{background:#fff;border:1px solid #ECE3D9;border-top:3px solid var(--fc,#8A7A72);border-radius:13px;padding:7px 10px;cursor:pointer}
+  .freq b{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem;color:var(--fc,#8A7A72);display:block;line-height:1.15}
+  .freq span{font-size:.66rem;font-weight:600;color:#5A463E;letter-spacing:.02em}
+  .freq.on{box-shadow:inset 0 0 0 1.5px var(--fc,#8A7A72)}
 </style>
 </head>
 <body>
@@ -253,6 +259,7 @@ header{position:static}
 
 <!-- UNIDADE: primeiro corte -->
 <div class="unibar" id="unibar"></div>
+<div id="freqbar" class="freqbar"></div>
 
 <!-- FILTROS -->
 <div class="filters">
@@ -329,11 +336,11 @@ var SB_KEY="sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy";
 var sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 var UNIDADES=['Lola CCMQ','Lola MAC','Cozinha Central'];
-var CATS=['Cozinha','Salão','Bar','Compras','Entregas','Eventos','RH','Manutenções','Financeiro','Operacional','Processos','Reunião'];
+var CATS=['Cozinha','Salão','Bar','Compras','Entregas','Eventos','RH','Marketing','Manutenções','Financeiro','Operacional','Processos','Reunião'];
 var TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Charles','Dudinha','Fernanda','Giulia','Intelecta','Juliana','Luana','Lucas','Mahara','Paola','Tatiane Intelecta'];
 
 /* cor por assunto (categoria) — fixa em todo o portal; texto branco sobre a cor */
-var CAT_COLORS={'Operacional':'#2C7A4B','Manutenções':'#6B6258','Compras':'#2C5AA0','Cozinha':'#B5302E','Salão':'#9A6B1E','Bar':'#7A4FA3','Eventos':'#B23A6B','Financeiro':'#0F766E','RH':'#8A6A2B','Entregas':'#1F7A6E','Processos':'#4858A8','Reunião':'#6B4FA8'};
+var CAT_COLORS={'Operacional':'#2C7A4B','Manutenções':'#6B6258','Compras':'#2C5AA0','Cozinha':'#B5302E','Salão':'#9A6B1E','Bar':'#7A4FA3','Eventos':'#B23A6B','Financeiro':'#0F766E','RH':'#8A6A2B','Marketing':'#B24A8A','Entregas':'#1F7A6E','Processos':'#4858A8','Reunião':'#6B4FA8'};
 function subjColor(f){var cs=arr(f.categorias);for(var i=0;i<cs.length;i++){if(CAT_COLORS[cs[i]])return CAT_COLORS[cs[i]];}return '#7E1E1F';}
 function catColor(c){return CAT_COLORS[c]||'#7E1E1F';}
 function uniShort(u){return ({'Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'CENTRAL'})[u]||u;}
@@ -365,6 +372,8 @@ function applyUrlFilters(){
 try{
 var p=new URLSearchParams(location.search);
 if(p.get('novo')==='1'){setTimeout(function(){try{setQTipo(true);openNovo();}catch(e){}},250);}
+var _pcat=p.get('cat');if(_pcat){var fc=document.getElementById('fcat');if(fc){fc.value=_pcat;if(fc.value!==_pcat){var o=document.createElement('option');o.value=_pcat;o.textContent=_pcat;fc.appendChild(o);fc.value=_pcat;}changed=true;}}
+if(p.get('view')==='minhas'){setTimeout(function(){try{setView('minhas');}catch(e){}},200);}
 var op=p.get("open"); if(op){ setTimeout(function(){ try{ if(typeof focar==="function") focar(op); }catch(e){} },200); return; }
 var resp=p.get('resp'), sit=p.get('sit'), changed=false;
 if(resp){var fr=document.getElementById('fresp'); if(fr){ fr.value=resp; if(fr.value!==resp){ var o=document.createElement('option'); o.value=resp; o.textContent=resp; fr.appendChild(o); fr.value=resp; } changed=true; } }
@@ -662,8 +671,19 @@ try{updateMovBadge();}catch(e){}
 }
 function hdrBusca(){var q=document.getElementById('q');if(q){try{q.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}setTimeout(function(){q.focus();},120);}}
 function hdrAvisos(){if(VIEW!=='lista')setView('lista');setF('ftt','aviso');}
+var FREQ_CATS=['RH','Marketing','Eventos','Compras','Manutenções'];
+function renderFreqBar(){
+var el=document.getElementById('freqbar');if(!el)return;
+if(VIEW==='minhas'||VIEW==='socias'){el.innerHTML='';return;}
+var sel=(document.getElementById('fcat')||{}).value||'';
+el.innerHTML=FREQ_CATS.map(function(c){
+var n=REG.filter(function(f){return !f.concluido&&arr(f.tags).indexOf('socias')<0&&arr(f.categorias).indexOf(c)>=0;}).length;
+return '<div class="freq'+(sel===c?' on':'')+'" style="--fc:'+catColor(c)+'" onclick="setF(\'fcat\',\''+c+'\')" title="Ver só '+c+'"><b>'+n+'</b><span>'+esc(c)+'</span></div>';
+}).join('')+(sel?'<div class="freq" style="--fc:#8A7A72" onclick="setF(\'fcat\',\'\')"><b>×</b><span>limpar</span></div>':'');
+}
 function render(){
 renderUnibar();
+renderFreqBar();
 updateHdrCount();
 var lst=filtered(), grp=document.getElementById('grp').value;
 var _hj=new Date().toISOString().slice(0,10);
