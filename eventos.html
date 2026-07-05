@@ -6,7 +6,7 @@
 <title>Eventos Lola</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
 <style>
   :root{
     --vinho:#A8272A; --vinho-deep:#7C1A1C; --vinho-pale:#F9ECEC; --vinho-light:#C94040; --vinho-muted:#DDB8B8;
@@ -160,6 +160,69 @@
     #printArea{display:block!important}
   }
   @media(max-width:600px){.wrap{padding:14px}header{padding:14px}}
+
+  /* ===== Padrão V3 Lola (overlay) ===== */
+  :root{--vinho:#A82A2A;--vinho-deep:#7E1E1F;--vinho-pale:#FBE4E0;--vinho-light:#C0392B;--vinho-muted:#E8CFC7;--cream:#FBF7F1;--warm:#F7EFE6;--border:#ECE3D9;--ink:#2A1A17;--muted:#8A7A72;--green:#2C7A4B;--green-pale:#E6F3EA;--amber:#9A6B1E;--amber-pale:#FBF0DD;--blue:#2C5AA0;--blue-pale:#E6EEF8;--shadow:0 1px 2px rgba(42,26,23,.05),0 12px 26px -16px rgba(42,26,23,.22);--serif:'Fraunces',Georgia,serif;--sans:'Hanken Grotesk',-apple-system,'Segoe UI',sans-serif}
+  header{background:transparent;border-top:none;box-shadow:none;border-bottom:1px solid #EFE6DC}
+  h1,h2,h3{font-weight:600}
+  .logo-text{font-style:normal}
+  .card{box-shadow:none;border-radius:16px}
+  .card:hover{transform:none;box-shadow:var(--shadow)}
+  .card.loc-card-ccmq{border-left:4px solid #C0392B;background:#fff}
+  .card.loc-card-mac{border-left:4px solid #2C7A4B;background:#fff}
+  .card.loc-card-central{border-left:4px solid #2C5AA0;background:#fff}
+  .card.loc-card-catering{border-left:4px solid #B23A6B;background:#fff}
+  .progress>div{background:var(--vinho)}
+  .btn-primary,.btn-ghost{border-radius:13px}
+  .btn-primary{min-height:44px}
+  .chip{min-height:38px}
+  .detail-head{box-shadow:none;border-radius:16px}
+  .panel{box-shadow:none;border-radius:16px}
+  .hyb-prog{display:flex;gap:4px;margin-top:14px}
+  .hyb-prog i{flex:1;height:5px;border-radius:3px;background:#EFE6DC}
+  .hyb-prog i.d{background:var(--green)}
+  .hyb-prog i.c{background:var(--amber)}
+  .hyb-etapa{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600}
+  .hyb-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .hyb-stat{background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:9px 12px}
+  .hyb-stat span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#B79A8E;font-weight:700}
+  .hyb-stat b{font-family:var(--serif);font-weight:600;font-size:17px}
+  .hyb-stat b.warn{color:#B5302E}
+  .hyb-alert{background:#FBEAE7;border:1px solid #F0C8C0;border-radius:13px;padding:10px 14px;margin-top:12px}
+  .hyb-atit{font-size:11px;font-weight:800;color:#B5302E;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+  .hyb-arow{font-size:13px;color:#5A463E;padding:2px 0;font-weight:600}
+  .hyb-bloco{background:#fff;border:1px solid var(--border);border-radius:16px;margin-bottom:10px;overflow:hidden}
+  .hyb-bloco.on{border-color:var(--vinho)}
+  .hyb-bhead{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;min-height:44px}
+  .hyb-bico{font-size:19px}
+  .hyb-btit{font-weight:800;font-size:14.5px}
+  .hyb-bsub{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:1px}
+  .hyb-bstate{font-size:12px;font-weight:800;color:var(--green);background:var(--green-pale);padding:3px 9px;border-radius:9px;flex-shrink:0}
+  .hyb-bstate.zero{color:var(--muted);background:var(--warm)}
+  .hyb-chev{color:#B79A8E;font-size:12px}
+  .hyb-sec{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid #EFE6DC;cursor:pointer;min-height:44px}
+  .hyb-sec:hover{background:var(--cream)}
+  .hyb-sec.on{background:var(--cream);cursor:default}
+  .hyb-ck{width:24px;height:24px;border-radius:50%;border:1.5px solid #D8C8BD;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:var(--muted);flex-shrink:0;background:#fff}
+  .hyb-ck.ok{background:var(--green);border-color:var(--green);color:#fff}
+  .hyb-slabel{flex:1;font-weight:700;font-size:13.5px;min-width:0}
+  .hyb-scount{font-size:11.5px;color:var(--muted);font-weight:700;flex-shrink:0}
+  .hyb-scount.warn{color:#B5302E}
+  .hyb-panel{border:none;border-top:1px solid #EFE6DC;border-radius:0;padding:18px 16px;cursor:default}
+  @media(max-width:640px){
+    .wrap{padding:12px}
+    .detail-head{padding:16px}
+    .panel,.hyb-panel{padding:14px 10px}
+    .row-actions{width:100%}
+    .panel table,.panel tbody,.panel tr{display:block;width:100%}
+    .panel thead{display:none}
+    .panel tr{border:1px solid var(--border);border-radius:12px;padding:8px 10px;margin-bottom:8px;background:#fff}
+    .panel td{display:block;border:none;padding:3px 0}
+    .panel td.no-print{text-align:right}
+    .totals{max-width:none}
+    .orc-add{flex-direction:column;align-items:stretch}
+    .orc-add .field{max-width:none!important}
+  }
 </style>
 </head>
 <body>
@@ -218,7 +281,7 @@ const STATUS = [
 ];
 const SETORES=["Cozinha","Bar","Salão","Recepção","Geral"];
 const FASES = [
-  { id:"triagem", nome:"1 · Triagem inicial", tipos:ALL, itens:[
+  { id:"triagem", nome:"Triagem inicial", tipos:ALL, itens:[
     {t:"Definir tipo de evento e ocasião", d:""},
     {t:"Confirmar nº de pax (dentro e fora)", d:""},
     {t:"Definir se precisa ser na cúpula", d:"Se sim, necessário pacote de consumo"},
@@ -227,14 +290,14 @@ const FASES = [
     {t:"Definir estilo de serviço", d:"Volante, ilhas, jantar, mini porções, brunch, etc"},
     {t:"Definir exclusividade do espaço", d:"Interno/externo — exclusivo ou compartilhado?"},
   ]},
-  { id:"negociacao", nome:"2 · Negociação", tipos:ALL, itens:[
+  { id:"negociacao", nome:"Negociação", tipos:ALL, itens:[
     {t:"Anotar na planilha Reservas e Pacotes // Eventos Lola", d:"Sinalizar andamento da negociação"},
     {t:"Montar pacote de serviços", d:"Colar abaixo o link da ficha / planilha do pacote"},
     {t:"Enviar proposta pelo Canva", d:"Colar abaixo o link do arquivo da proposta"},
     {t:"Enviar pacote de consumo (se cúpula)", d:""},
     {t:"Confirmar se precisa de nota / Danfe", d:""},
   ]},
-  { id:"os", nome:"3 · Operacional (OS)", tipos:["reserva_perso","personalizado","show"], itens:[
+  { id:"os", nome:"Operacional (OS)", tipos:["reserva_perso","personalizado","show"], itens:[
     {t:"Menu e quantidades", d:"Definir na aba Orçamento"},
     {t:"Louças e materiais necessários", d:"Pratos / copos / talheres · kit café / copos descartáveis"},
     {t:"Equipamentos de som e iluminação", d:"Chamar? Contratante traz? Testar montagem"},
@@ -247,7 +310,7 @@ const FASES = [
     {t:"Conferência de serviços externos parceiros", d:"Está tudo ok?"},
     {t:"Treinamento das equipes de salão e cozinha", d:"⏰ Tarefa antecipada — no mínimo 2 dias antes"},
   ]},
-  { id:"show", nome:"4 · Evento Lola / Show", tipos:["show"], itens:[
+  { id:"show", nome:"Evento Lola / Show", tipos:["show"], itens:[
     {t:"Convidados (DJ, banda)", d:"Orçar e combinar data e programação"},
     {t:"Confirmar lista de equipamentos (rider técnico)", d:"Mesa, CDJ, instrumentos, caixas + mídias p/ divulgação"},
     {t:"Articular divulgação com marketing", d:""},
@@ -263,35 +326,33 @@ const FASES = [
     {t:"Definir consumo dos convidados", d:"Banda / DJ / apoiadores / influencers"},
     {t:"Definir treinamento de serviço e funcionamento especial", d:""},
   ]},
-  { id:"dia", nome:"5 · No dia do evento", tipos:["reserva_perso","personalizado","show"], itens:[
+  { id:"dia", nome:"No dia do evento", tipos:["reserva_perso","personalizado","show"], itens:[
     {t:"Montagem de equipes — quem faz e que horas", d:""},
     {t:"Separar material de serviço", d:"Pratos, talheres, copos e utensílios do serviço"},
     {t:"Liberar espaço no bar ou cúpula", d:"É necessário?"},
     {t:"Definir onde guardar mobiliário não utilizado", d:""},
   ]},
-  { id:"despro", nome:"6 · Desprodução", tipos:["reserva_perso","personalizado","show"], itens:[
+  { id:"despro", nome:"Desprodução", tipos:["reserva_perso","personalizado","show"], itens:[
     {t:"Recolher equipamentos", d:"Quando? Combinar horário"},
     {t:"Remontar salão no plano de chão original", d:""},
   ]},
 ];
 const SECTIONS = [
+  {id:"triagem", kind:"triagemfull", icon:"✅", label:"Triagem", tipos:ALL},
   {id:"info", kind:"form", icon:"📋", label:"Dados", tipos:ALL},
-  {id:"triagem", kind:"fase", tipos:ALL},
-  {id:"negociacao", kind:"fase", tipos:ALL},
   {id:"os", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
-  {id:"cozbar", kind:"cozbar", icon:"👨‍🍳", label:"Cozinha & Bar", tipos:["reserva_perso","personalizado","show"]},
   {id:"show", kind:"fase", tipos:["show"]},
-  {id:"dia", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
-  {id:"despro", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
-  {id:"materiais", kind:"materiais", icon:"📦", label:"Materiais", tipos:["reserva_perso","personalizado","show"]},
+  {id:"equipe", kind:"equipe", icon:"👥", label:"Equipe", tipos:["reserva_perso","personalizado","show"]},
+  {id:"orc", kind:"orc", icon:"💰", label:"Orçamento e Pagamentos", tipos:ALL},
   {id:"layout", kind:"layout", icon:"🪑", label:"Layout de Mesas", tipos:["reserva_perso","personalizado","show"]},
   {id:"convidados", kind:"convidados", icon:"👥", label:"Convidados", tipos:ALL},
-  {id:"orc", kind:"orc", icon:"💰", label:"Orçamento e Pagamentos", tipos:ALL},
+  {id:"dia", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
+  {id:"despro", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
 ];
 
 let DB={events:[]};
 let FICHAS=[];
-let view = {screen:"dash", id:null, tab:"info", filter:"todos", cozFilter:"todos"};
+let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos"};
 
 /* ===== Mapeamento banco <-> app ===== */
 function intOrNull(v){const n=parseInt(v);return isNaN(n)?null:n;}
@@ -304,7 +365,7 @@ function fromRow(r){
     data:r.data||"", horario:r.horario||"", duracao:r.duracao||"", ocasiao:r.ocasiao||"",
     servico:r.servico||"", exclusividade:r.exclusividade||"", cupula:r.cupula||"nao", nota:r.nota||"nao",
     obs:r.obs||"", pax:r.pax==null?"":r.pax, maoObra:r.mao_obra==null?0:r.mao_obra, gorjeta:r.gorjeta==null?10:r.gorjeta,
-    checks:r.checks||{}, menu:r.menu||[], cozbar:r.cozbar||[], materiais:r.materiais||[],
+    checks:r.checks||{}, menu:r.menu||[], cozbar:r.cozbar||[], materiais:r.materiais||[], equipe:r.equipe||[],
     pag:r.pag||{}, criado:r.created_at, editadoPor:r.editado_por||"", editadoEm:r.updated_at||"", layoutPng:r.layout_png||"", convidados:r.convidados||[], perdas:r.perdas||[]
   };
 }
@@ -315,7 +376,7 @@ function toRow(ev){
     data:ev.data||null, horario:ev.horario, duracao:ev.duracao, ocasiao:ev.ocasiao,
     servico:ev.servico, exclusividade:ev.exclusividade, cupula:ev.cupula, nota:ev.nota,
     obs:ev.obs, pax:intOrNull(ev.pax), mao_obra:numOr(ev.maoObra,0), gorjeta:numOr(ev.gorjeta,10),
-    checks:ev.checks||{}, menu:ev.menu||[], cozbar:ev.cozbar||[], materiais:ev.materiais||[],
+    checks:ev.checks||{}, menu:ev.menu||[], cozbar:ev.cozbar||[], materiais:ev.materiais||[], equipe:ev.equipe||[],
     pag:ev.pag||{}, editado_por:currentUserName(), updated_at:new Date().toISOString(), convidados:ev.convidados||[], perdas:ev.perdas||[]
   };
 }
@@ -368,7 +429,7 @@ function blankEvent(){
     paxIn:"", paxOut:"", data:"", horario:"", duracao:"", ocasiao:"", servico:"",
     exclusividade:"", cupula:"", nota:"nao", obs:"",
     checks, menu:[], pax:"", maoObra:0, gorjeta:10,
-    cozbar:[], materiais:[], pag:{forma:"",antecipado:false,sinalValor:"",sinalData:"",sinalPago:false,saldoData:"",saldoPago:false,obs:""}
+    cozbar:[], materiais:[], equipe:[], pag:{forma:"",antecipado:false,sinalValor:"",sinalData:"",sinalPago:false,saldoData:"",saldoPago:false,obs:""}
   };
 }
 function getEvent(id){return DB.events.find(e=>e.id===id);}
@@ -420,28 +481,88 @@ async function newEvent(){
   if(error){alert("Não consegui criar o evento. Tente novamente.");console.error(error);return;}
   const e=fromRow(data);DB.events.push(e);open_(e.id);
 }
-function open_(id){view.screen="detail";view.id=id;view.tab="info";document.getElementById('dashboard').classList.add('hidden');document.getElementById('detail').classList.remove('hidden');renderDetail();window.scrollTo(0,0);}
+function open_(id){view.screen="detail";view.id=id;view.bloco=null;view.tab="info";const _ev=getEvent(id);if(_ev){const _o=tabOrder(_ev);const _f=_o.find(t=>!secInfo(_ev,SECTIONS.find(x=>x.id===t)).done);view.tab=_f||_o[0]||"info";view.bloco=blocoOf(view.tab);}document.getElementById('dashboard').classList.add('hidden');document.getElementById('detail').classList.remove('hidden');renderDetail();window.scrollTo(0,0);}
 function backToDash(){view.screen="dash";document.getElementById('detail').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');renderFilters();renderList();window.scrollTo(0,0);}
-function tabOrder(ev){return relevantSections(ev).map(s=>s.id);}
+function tabOrder(ev){const rel=relevantSections(ev).map(s=>s.id);const seq=[];BLOCOS.forEach(b=>b.secs.forEach(id=>{if(rel.indexOf(id)>=0)seq.push(id);}));rel.forEach(id=>{if(seq.indexOf(id)<0)seq.push(id);});return seq;}
 function secLabel(ev,id){const s=SECTIONS.find(x=>x.id===id);if(!s)return id;if(s.kind==='fase'){const f=FASES.find(x=>x.id===id);return f?f.nome.replace(/^\d+ · /,''):id;}return s.label;}
+/* ===== Blocos híbridos (Padrão V3): resumo + sanfona ===== */
+const BLOCOS=[
+  {id:'plan', icon:'📋', label:'Planejamento', secs:['triagem','info']},
+  {id:'oper', icon:'🍳', label:'Operação', secs:['os','show','equipe','layout']},
+  {id:'fin', icon:'💰', label:'Financeiro', secs:['orc']},
+  {id:'diad', icon:'🥂', label:'Dia D', secs:['convidados','dia','despro']}
+];
+function blocoOf(secId){const b=BLOCOS.find(x=>x.secs.includes(secId));return b?b.id:'plan';}
+function secInfo(ev,s){
+  if(!s)return {c:'',done:false,warn:false};
+  if(s.kind==='fase'){const f=FASES.find(x=>x.id===s.id);const fp=faseProgress(ev,f);return {c:fp.done+'/'+fp.tot,done:fp.tot>0&&fp.done===fp.tot,warn:false};}
+  if(s.kind==='triagemfull'){const a=faseProgress(ev,FASES.find(x=>x.id==='triagem'));const b=faseProgress(ev,FASES.find(x=>x.id==='negociacao'));const d=a.done+b.done,t=a.tot+b.tot;return {c:d+'/'+t,done:t>0&&d===t,warn:false};}
+  if(s.kind==='equipe'){const g=ev.equipe||[];const v=g.filter(r=>!String(r.nome||'').trim()).length;return {c:g.length?(v?(v+' vaga'+(v>1?'s':'')+' em aberto'):(g.length+' escalado'+(g.length>1?'s':''))):'montar',done:g.length>0&&v===0,warn:v>0};}
+  if(s.kind==='orc'){const pg=ev.pag||{};return {c:pg.pedidoNum?('pedido #'+pg.pedidoNum+' ✓'):(pg.orcAutorizado?'autorizado':fmt(orcTotal(ev))),done:!!pg.orcAutorizado,warn:false};}
+  if(s.kind==='convidados'){const n=(ev.convidados||[]).length;return {c:n?(n+' convidado'+(n>1?'s':'')):'—',done:n>0,warn:false};}
+  if(s.kind==='form'){const ok=!!(ev.nome&&ev.data&&ev.local);return {c:ok?'ok':'completar',done:ok,warn:false};}
+  return {c:'',done:false,warn:false};
+}
+function resolverAgora(ev){
+  const out=[];const pg=ev.pag||{};
+  const vg=(ev.equipe||[]).filter(r=>!String(r.nome||'').trim()).length;
+  if(vg)out.push(vg+' vaga'+(vg>1?'s':'')+' de equipe em aberto');
+  if(Number(pg.sinalValor)>0&&!pg.sinalPago)out.push('Sinal de '+fmt(pg.sinalValor)+' não recebido');
+  if(ev.status==='orcamento'&&!pg.orcAutorizado)out.push('Orçamento aguardando aprovação do cliente');
+  if(ev.data&&ev.status!=='realizado'&&ev.status!=='cancelado'){
+    const d=Math.ceil((new Date(ev.data+'T00:00').getTime()-new Date(new Date().setHours(0,0,0,0)).getTime())/86400000);
+    const pc=progress(ev);
+    if(d>=0&&d<=7&&pc<100)out.push(d===0?('É HOJE · checklist em '+pc+'%'):('Faltam '+d+' dia'+(d>1?'s':'')+' · checklist em '+pc+'%'));
+  }
+  return out.slice(0,4);
+}
+function toggleBloco(id){
+  const ev=getEvent(view.id);if(!ev)return;
+  if(view.bloco===id){view.bloco=null;renderDetail();return;}
+  view.bloco=id;
+  const order=tabOrder(ev);const b=BLOCOS.find(x=>x.id===id);
+  const secs=b?b.secs.filter(sid=>order.includes(sid)):[];
+  if(secs.length&&!secs.includes(view.tab)){
+    view.tab=secs.find(sid=>!secInfo(ev,SECTIONS.find(x=>x.id===sid)).done)||secs[0];
+  }
+  renderDetail();
+}
 function renderDetail(){
   const ev=getEvent(view.id);if(!ev){backToDash();return;}
-  if(!relevantSections(ev).some(s=>s.id===view.tab))view.tab="info";
-  const st=STATUS.find(s=>s.v===ev.status)||STATUS[0];
+  const order=tabOrder(ev);
+  if(!order.includes(view.tab))view.tab=order[0]||'info';
+  if(!view.bloco)view.bloco=blocoOf(view.tab);
   const tp=TIPOS.find(t=>t.v===ev.tipo);
-  const pct=progress(ev);
   const pax=[ev.paxIn,ev.paxOut].filter(x=>x!=='').join(' + ');
   const dt=ev.data?new Date(ev.data+'T00:00').toLocaleDateString('pt-BR'):'A definir';
   const total=orcTotal(ev);
-  const tabs=relevantSections(ev).map(s=>{
-    let label, count='';
-    if(s.kind==='fase'){const f=FASES.find(x=>x.id===s.id);const fp=faseProgress(ev,f);label=f.nome;count=`${fp.done}/${fp.tot}`;}
-    else if(s.kind==='cozbar'){label=(s.icon||'')+' '+s.label;count=(ev.cozbar||[]).length||'';}
-    else if(s.kind==='materiais'){label=(s.icon||'')+' '+s.label;count=(ev.materiais||[]).length||'';}
-    else if(s.kind==='convidados'){label=(s.icon||'')+' '+s.label;count=(ev.convidados||[]).length||'';}
-    else {label=(s.icon||'')+' '+s.label;}
-    return {id:s.id,label,count};
-  });
+  const pg=ev.pag||{};
+  const sinalTxt=Number(pg.sinalValor)>0?(pg.sinalPago?'pago ✓':'pendente'):'—';
+  const estados={};order.forEach(id=>{estados[id]=secInfo(ev,SECTIONS.find(x=>x.id===id));});
+  let curIdx=order.findIndex(id=>!estados[id].done);if(curIdx<0)curIdx=order.length-1;
+  const alerts=resolverAgora(ev);
+  const segs=order.map((id,i)=>'<i class="'+(estados[id].done?'d':(i===curIdx?'c':''))+'"></i>').join('');
+  const blocosHtml=BLOCOS.map(b=>{
+    const secs=b.secs.filter(id=>order.includes(id));
+    if(!secs.length)return '';
+    const on=view.bloco===b.id;
+    const okN=secs.filter(id=>estados[id].done).length;
+    const rows=on?secs.map(id=>{
+      const n=order.indexOf(id)+1;const stt=estados[id];const act=view.tab===id;
+      return '<div class="hyb-sec'+(act?' on':'')+'" id="sec_'+id+'"'+(act?'':' onclick="gotoTab(\''+id+'\')"')+'>'
+        +'<span class="hyb-ck'+(stt.done?' ok':'')+'">'+(stt.done?'✓':n)+'</span>'
+        +'<span class="hyb-slabel">'+secLabel(ev,id)+'</span>'
+        +'<span class="hyb-scount'+(stt.warn?' warn':'')+'">'+(stt.c||'')+'</span></div>'
+        +(act?'<div class="panel hyb-panel" id="tabContent"></div>':'');
+    }).join(''):'';
+    return '<div class="hyb-bloco'+(on?' on':'')+'">'
+      +'<div class="hyb-bhead" onclick="toggleBloco(\''+b.id+'\')">'
+      +'<span class="hyb-bico">'+b.icon+'</span>'
+      +'<div style="flex:1;min-width:0"><div class="hyb-btit">'+b.label+'</div><div class="hyb-bsub">'+secs.map(id=>secLabel(ev,id)).join(' · ')+'</div></div>'
+      +'<span class="hyb-bstate'+(okN?'':' zero')+'">'+okN+'/'+secs.length+'</span>'
+      +'<span class="hyb-chev">'+(on?'▲':'▼')+'</span></div>'
+      +rows+'</div>';
+  }).join('');
   document.getElementById('detail').innerHTML=`
     <button class="back" onclick="backToDash()">← Voltar aos eventos</button>
     <div class="detail-head">
@@ -449,31 +570,29 @@ function renderDetail(){
         <div>
           <div class="ev-type" style="color:var(--vinho);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800">${tp?tp.l:''} ${locPill(ev.local)}</div>
           <h2>${esc(ev.nome)||'(novo evento)'}</h2>
-          <div class="sub">${esc(ev.responsavel)||'sem responsável'} · <span id="subDateTime">📅 ${dt}${ev.horario?' '+ev.horario:''}</span></div>
+          <div class="sub">${esc(ev.responsavel)||'sem responsável'} · <span id="subDateTime">📅 ${dt}${ev.horario?' '+ev.horario:''}</span>${pax?' · 👥 '+pax+' pax':''}</div>
         </div>
         <div class="row-actions">
           <select onchange="setField('status',this.value)" style="width:auto;font-weight:700">
             ${STATUS.map(s=>`<option value="${s.v}" ${ev.status===s.v?'selected':''}>${s.l}</option>`).join('')}
           </select>
-          <button class="btn-ghost no-print" onclick="openPrintDialog()">🖨 Imprimir</button>
+          <button class="btn-ghost no-print" onclick="openPrintDialog()">🖨</button>
           <button class="danger no-print" onclick="delEvent('${ev.id}')">🗑</button>
         </div>
       </div>
-      <div class="summary">
-        <div class="box"><span>Status</span><b><span class="badge ${st.c}">${st.l}</span></b></div>
-        <div class="box"><span>Unidade</span><b>${ev.local?(LOCAIS.find(l=>l.v===ev.local)||{}).l:'—'}</b></div>
-        <div class="box"><span>Pax</span><b>${pax||'—'}</b></div>
-        <div class="box"><span>Checklist</span><b>${pct}%</b></div>
-        <div class="box"><span>Orçamento</span><b>${fmt(total)}</b></div>
+      <div class="hyb-prog">${segs}</div>
+      <div class="hyb-etapa">etapa ${curIdx+1} de ${order.length} · ${secLabel(ev,order[curIdx])}</div>
+      <div class="hyb-stats">
+        <div class="hyb-stat"><span>Pax</span><b>${pax||'—'}</b></div>
+        <div class="hyb-stat"><span>Orçamento</span><b>${fmt(total)}</b></div>
+        <div class="hyb-stat"><span>Sinal</span><b class="${sinalTxt==='pendente'?'warn':''}">${sinalTxt}</b></div>
       </div>
+      ${alerts.length?('<div class="hyb-alert"><div class="hyb-atit">Resolver agora · '+alerts.length+'</div>'+alerts.map(a=>'<div class="hyb-arow">'+a+'</div>').join('')+'</div>'):''}
     </div>
-    <div class="tabs">
-      ${tabs.map(t=>`<button class="${view.tab===t.id?'active':''}" onclick="gotoTab('${t.id}')">${t.label}${t.count!==''?`<span class="count">${t.count}</span>`:''}</button>`).join('')}
-    </div>
-    <div class="panel" id="tabContent"></div>`;
-  renderTab();
+    ${blocosHtml}`;
+  if(document.getElementById('tabContent'))renderTab();
 }
-function gotoTab(id){view.tab=id;renderDetail();window.scrollTo({top:0,behavior:'smooth'});}
+function gotoTab(id){view.tab=id;view.bloco=blocoOf(id);renderDetail();try{const el=document.getElementById('sec_'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}}
 function stepNav(ev){
   const order=tabOrder(ev);const idx=order.indexOf(view.tab);
   const prev=idx>0?order[idx-1]:null;const next=idx<order.length-1?order[idx+1]:null;
@@ -493,7 +612,9 @@ function renderTab(){
   const s=SECTIONS.find(x=>x.id===view.tab)||SECTIONS[0];
   let html='';
   if(s.kind==='form')html=formHTML(ev);
+  else if(s.kind==='triagemfull'){const f1=FASES.find(x=>x.id==='triagem');const f2=FASES.find(x=>x.id==='negociacao');html=(f1?faseHTML(ev,f1):'')+'<div style="height:16px"></div>'+(f2?faseHTML(ev,f2):'');}
   else if(s.kind==='orc')html=orcHTML(ev);
+  else if(s.kind==='equipe')html=equipeHTML(ev);
   else if(s.kind==='cozbar')html=cozbarHTML(ev);
   else if(s.kind==='materiais')html=materiaisHTML(ev);
   else if(s.kind==='layout')html=layoutHTML(ev);
@@ -531,7 +652,7 @@ function formHTML(ev){
   </div>
   <div class="section-title">Formato do serviço</div>
   <div class="form-grid">
-    ${selField("Estilo de serviço","servico",ev,[{v:"",l:"Selecione..."},{v:"volante",l:"Volante"},{v:"ilhas",l:"Ilhas"},{v:"jantar",l:"Jantar"},{v:"miniporcoes",l:"Mini porções"},{v:"brunch",l:"Brunch"},{v:"coquetel",l:"Coquetel"},{v:"outro",l:"Outro"}])}
+    ${selField("Estilo de serviço","servico",ev,[{v:"",l:"Selecione..."},{v:"volante",l:"Volante"},{v:"ilhas",l:"Ilhas"},{v:"jantar",l:"Jantar"},{v:"miniporcoes",l:"Mini porções"},{v:"brunch",l:"Brunch"},{v:"coquetel",l:"Coquetel"},{v:"buffet_quente",l:"Buffet (quente)"},{v:"outro",l:"Outro"}])}
     ${selField("Espaço","exclusividade",ev,[{v:"",l:"Selecione..."},{v:"exclusivo",l:"Exclusivo do espaço"},{v:"compartilhado",l:"Compartilhado"}])}
     ${selField("Local específico","cupula",ev,[{v:"",l:"Selecione..."},{v:"cupula_ccmq",l:"Cúpula CCMQ"},{v:"interno_ccmq",l:"Interno CCMQ"},{v:"todo_ccmq",l:"Todo CCMQ"},{v:"jardim_mac",l:"Jardim MAC"},{v:"plataforma_mac",l:"Plataforma MAC"},{v:"frente_cafe_mac",l:"Frente ao Café MAC"},{v:"todo_mac",l:"Todo MAC"},{v:"externo",l:"Evento Externo"}])}
     ${selField("Precisa de nota / Danfe?","nota",ev,[{v:"nao",l:"Não"},{v:"sim",l:"Sim"}])}
@@ -747,7 +868,7 @@ function setMat(i,k,v){const ev=getEvent(view.id);ev.materiais[i][k]=v;save(fals
 function delMat(i){const ev=getEvent(view.id);ev.materiais.splice(i,1);save(false);renderDetail();}
 
 /* ===== Impressao / PDF do evento ===== */
-const SERVICO_LBL={volante:"Volante",ilhas:"Ilhas",jantar:"Jantar",miniporcoes:"Mini porções",brunch:"Brunch",coquetel:"Coquetel",outro:"Outro"};
+const SERVICO_LBL={volante:"Volante",ilhas:"Ilhas",jantar:"Jantar",miniporcoes:"Mini porções",brunch:"Brunch",coquetel:"Coquetel",buffet_quente:"Buffet (quente)",outro:"Outro"};
 const EXCL_LBL={exclusivo:"Exclusivo do espaço",compartilhado:"Compartilhado"};
 const LOCALESP_LBL={cupula_ccmq:"Cúpula CCMQ",interno_ccmq:"Interno CCMQ",todo_ccmq:"Todo CCMQ",jardim_mac:"Jardim MAC",plataforma_mac:"Plataforma MAC",frente_cafe_mac:"Frente ao Café MAC",todo_mac:"Todo MAC",externo:"Evento Externo"};
 function unitLogo(local){return local==='mac'?'lola-mac.png.png':'lola-ccmq.png.png';}
@@ -850,6 +971,35 @@ function buildPrintHTML(ev,withValues,sel){
   h+='</div>';
   return h;
 }
+/* ===== Equipe (escala de freelas) ===== */
+const CARGOS=["Cozinha","Bar","Atendimento","Recepção","Outro"];
+function horasEq(r){if(!r.entrada||!r.saida)return 0;const a=String(r.entrada).split(':'),b=String(r.saida).split(':');let h=((+b[0]||0)+((+b[1]||0)/60))-((+a[0]||0)+((+a[1]||0)/60));if(h<0)h+=24;return Math.round(h*100)/100;}
+function eqTotal(r){return Math.round(horasEq(r)*(Number(r.valor==null?15:r.valor)||0)*100)/100;}
+function equipeHTML(ev){
+  const g=ev.equipe||[];const soma=g.reduce((s,r)=>s+eqTotal(r),0);
+  const vagas=g.filter(r=>!String(r.nome||'').trim()).length;
+  return `<div class="section-title">Equipe do evento</div>
+  <div class="intro">Escale a equipe: cargo, nome, entrada e saída. Valor padrão <b>R$ 15/h</b> — o total calcula sozinho. Linha sem nome conta como <b>vaga em aberto</b>.${vagas?` <b style="color:var(--vinho)">${vagas} vaga(s) em aberto.</b>`:''}</div>
+  <div class="toolrow no-print"><button class="btn-ghost btn-sm" onclick="addEq()">+ Pessoa</button></div>
+  <table>
+    <thead><tr><th style="width:130px">Cargo</th><th>Nome (freela)</th><th style="width:90px">Entrada</th><th style="width:90px">Saída</th><th style="width:90px">R$/hora</th><th class="num" style="width:100px">Total</th><th style="width:30px" class="no-print"></th></tr></thead>
+    <tbody>
+    ${g.length?g.map((r,i)=>`<tr>
+      <td><select onchange="setEq(${i},'cargo',this.value)">${CARGOS.map(c=>`<option ${r.cargo===c?'selected':''}>${c}</option>`).join('')}</select></td>
+      <td class="name"><input value="${esc(r.nome)}" placeholder="vaga em aberto" onchange="setEq(${i},'nome',this.value)"></td>
+      <td><input type="time" value="${esc(r.entrada)}" onchange="setEq(${i},'entrada',this.value)"></td>
+      <td><input type="time" value="${esc(r.saida)}" onchange="setEq(${i},'saida',this.value)"></td>
+      <td><input type="number" step="0.5" value="${esc(r.valor==null?15:r.valor)}" onchange="setEq(${i},'valor',this.value)"></td>
+      <td class="num">${fmt(eqTotal(r))}</td>
+      <td class="no-print"><button class="del-row" onclick="delEq(${i})">×</button></td>
+    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">Ninguém escalado ainda. Clique em <b>+ Pessoa</b>.</td></tr>`}
+    </tbody>
+  </table>
+  <div class="totals"><div class="line grand"><span>Total equipe</span><span>${fmt(soma)}</span></div></div>`;
+}
+function addEq(){const ev=getEvent(view.id);ev.equipe=ev.equipe||[];ev.equipe.push({cargo:"Cozinha",nome:"",entrada:"",saida:"",valor:15});save(false);renderDetail();}
+function setEq(i,k,v){const ev=getEvent(view.id);ev.equipe[i][k]=v;save(false);renderDetail();}
+function delEq(i){const ev=getEvent(view.id);ev.equipe.splice(i,1);save(false);renderDetail();}
 function orcTotal(ev){const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});var moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0,mo=(moV*moQ)||(Number(ev.maoObra)||0);var gorj=sub*(Number(ev.gorjeta)||0)/100;var base=sub+mo+gorj;var imp=base*(Number(ev.imposto)||0)/100;return base+imp;}
 function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
 function orcHTML(ev){
