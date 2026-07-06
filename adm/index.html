@@ -136,6 +136,11 @@ section.view{display:none} section.view.on{display:block}
 .fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl);font-weight:600;margin-bottom:5px}
 .fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--border);border-radius:var(--r-btn);
   padding:11px 12px;background:#fff;min-height:44px}
+.curwrap{display:flex;align-items:center;border:1px solid var(--border);border-radius:var(--r-btn);padding:0 12px;min-height:44px;background:#fff}
+.curwrap:focus-within{border-color:var(--vinho)}
+.cursym{color:var(--mut);font-weight:600;margin-right:6px}
+.curwrap input{border:none;flex:1;min-height:auto;padding:11px 0;background:transparent;font-variant-numeric:tabular-nums}
+.curwrap input:focus{outline:none}
 .fld textarea{min-height:70px;resize:vertical}
 .row2{display:flex;gap:10px}.row2>div{flex:1}
 .btn{display:block;width:100%;text-align:center;font-weight:700;padding:13px;border-radius:var(--r-btn);min-height:46px}
@@ -381,7 +386,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const brl=v=>(v<0?'-':'')+'R$ '+Math.abs(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pct=(v,base)=>base?(v/base*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%':'—';
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
-function compLabel(c){if(!c)return '';const[y,m]=c.split('-');const nm=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];return nm[+m-1]+'/'+y.slice(2);}
+function compLabel(c){if(!c)return '';const[y,m]=c.split('-');const nm=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];return nm[+m-1]+' '+y;}
 function compFromDate(d){return (d||'').slice(0,7);}
 function monthList(){ // 6 meses à frente + atual + 2 atrás (mais novo no topo)
   const out=[];const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+6);
@@ -504,7 +509,7 @@ function renderLanc(){
   if(ST.catF==='__none') base=base.filter(l=>!l.category);
   else if(ST.catF) base=base.filter(l=>l.category===ST.catF);
   if(ST.search){ const q=normSearch(ST.search); const qd=q.replace(/\D/g,'');
-    base=base.filter(l=> normSearch(l.memo).includes(q) || (qd && String(Math.abs(+l.amount)).replace('.','').includes(qd)) ); }
+    base=base.filter(l=> normSearch(l.memo).includes(q) || (qd && Math.abs(+l.amount).toFixed(2).replace(/\D/g,'').includes(qd)) ); }
   // summary reflete o que está sendo visto (útil p/ ver o total de uma categoria em todos os meses)
   const rec=base.filter(l=>+l.amount>0 && !isNeutro(l)).reduce((s,l)=>s+ +l.amount,0);
   const desp=base.filter(l=>+l.amount<0 && !isNeutro(l)).reduce((s,l)=>s+ +l.amount,0);
@@ -566,6 +571,9 @@ function renderLanc(){
 function updateSelBar(){ const n=ST.sel.size; $('#selBar').classList.toggle('show',n>0);
   $('#selCount').textContent=n+' selecionado'+(n===1?'':'s');
   const v=($('.view.on')||{}).id; $('#fab').style.display=(n>0)?'none':((v==='v-lanc'||v==='v-notas')?'inline-flex':'none'); }
+function wireSelChecks(scope){ scope.querySelectorAll('[data-sel]').forEach(b=>b.onclick=()=>{const id=b.dataset.sel;
+  if(ST.sel.has(id))ST.sel.delete(id); else ST.sel.add(id);
+  const on=ST.sel.has(id); b.classList.toggle('on',on); b.innerHTML=on?'<i class="ph-duotone ph-check"></i>':''; updateSelBar();}); }
 function clearSel(){ ST.sel.clear(); renderLanc(); updateSelBar(); }
 function toggleSelectAll(){ const ids=ST.visibleIds||[];
   const allSel=ids.length&&ids.every(id=>ST.sel.has(id));
@@ -671,13 +679,15 @@ function renderFornecedores(list){
   el.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>toggleGroupItems(b.dataset.exp,b));
   el.querySelectorAll('.gitems [data-cat]').forEach(b=>b.onclick=()=>openCatPicker(b.dataset.cat));
   el.querySelectorAll('.gitems [data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+  wireSelChecks(el); updateSelBar();
 }
 function groupItemsHTML(items){
   return items.map(l=>{
     const cat=ST.planoById[l.category];
     const cor=cat?GRUPO_COR[cat.group_id]||'#8A7A72':null;
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--fio)">
-      <div style="min-width:0"><div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div>
+      <button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}" style="width:22px;height:22px;font-size:13px;margin-right:0">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button>
+      <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div>
       <div class="date">${fmtDate(l.date)} · ${compLabel(l.competencia)}${cat?` · <span style="color:${cor}">${esc(cat.label)}</span>`:''}</div></div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span class="amt ${+l.amount<0?'neg':'pos'}" style="font-size:12.5px">${brl(+l.amount)}</span>
@@ -694,6 +704,7 @@ function toggleGroupItems(key,btn){
   box.innerHTML=groupItemsHTML(g.items);
   box.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>openCatPicker(b.dataset.cat));
   box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+  wireSelChecks(box);
   box.style.display='block'; btn.innerHTML='<i class="ph-duotone ph-caret-up"></i>';
 }
 function openGroupClassify(key){
@@ -785,9 +796,12 @@ function openEdit(id){
   openSheet(`<h3>Editar lançamento</h3>
     <div class="fld"><label>Descrição</label><input id="e_memo" value="${esc(l.memo||'')}"></div>
     <div class="row2">
-      <div class="fld"><label>Valor (R$)</label><input id="e_amt" type="text" inputmode="decimal" value="${(+l.amount).toString().replace('.',',')}"></div>
+      <div class="fld"><label>Valor</label>
+        <div class="curwrap"><span class="cursym">R$</span><input id="e_amt" type="text" inputmode="decimal" value="${(+l.amount).toFixed(2).replace('.',',')}"></div>
+      </div>
       <div class="fld"><label>Data</label><input id="e_date" type="date" value="${l.date||''}"></div>
     </div>
+    <div class="fld"><label>Categoria</label>${catSelectHTML(l.category)}</div>
     <div class="fld"><label>Competência</label><select id="e_comp">${monthList().map(c=>`<option value="${c}" ${c===l.competencia?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
     <div class="fld"><label>Observação</label><textarea id="e_note">${esc(l.note||'')}</textarea></div>
     <button class="btn o" id="e_split" style="margin-bottom:10px"><i class="ph-duotone ph-scissors"></i> Dividir em partes (rateio)</button>
@@ -795,10 +809,12 @@ function openEdit(id){
       <button class="btn d" id="e_del" style="flex:0 0 46px"><i class="ph-duotone ph-trash"></i></button>
       <button class="btn p" id="e_save" style="flex:1">Salvar</button>
     </div>`);
+  $('#e_amt').onblur=()=>{const n=parseFloat(($('#e_amt').value||'').replace(/\./g,'').replace(',','.'));if(!isNaN(n))$('#e_amt').value=n.toFixed(2).replace('.',',');};
   $('#e_split').onclick=()=>openSplit(id);
   $('#e_save').onclick=async()=>{
     const amt=parseFloat($('#e_amt').value.replace(/\./g,'').replace(',','.'));
-    await patchLanc(id,{memo:$('#e_memo').value,amount:isNaN(amt)?l.amount:amt,date:$('#e_date').value,competencia:$('#e_comp').value,note:$('#e_note').value});
+    const catEl=$('#sheetBody .pCat');
+    await patchLanc(id,{memo:$('#e_memo').value,amount:isNaN(amt)?l.amount:amt,date:$('#e_date').value,category:catEl?(catEl.value||null):l.category,competencia:$('#e_comp').value,note:$('#e_note').value});
     closeSheet(); toast('Salvo'); renderAll();
   };
   $('#e_del').onclick=async()=>{
