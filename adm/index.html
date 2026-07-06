@@ -685,13 +685,17 @@ function groupItemsHTML(items){
   return items.map(l=>{
     const cat=ST.planoById[l.category];
     const cor=cat?GRUPO_COR[cat.group_id]||'#8A7A72':null;
-    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--fio)">
-      <button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}" style="width:22px;height:22px;font-size:13px;margin-right:0">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button>
-      <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div>
-      <div class="date">${fmtDate(l.date)} · ${compLabel(l.competencia)}${cat?` · <span style="color:${cor}">${esc(cat.label)}</span>`:''}</div></div>
+    const sel=ST.sel.has(l.id);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 4px;margin-bottom:2px;border-bottom:1px solid var(--fio);${cat?`border-left:3px solid ${cor};padding-left:8px;background:var(--posBg);border-radius:7px;border-bottom-color:transparent`:''}">
+      <button class="selchk ${sel?'on':''}" data-sel="${l.id}" style="width:22px;height:22px;font-size:13px;margin-right:0">${sel?'<i class="ph-duotone ph-check"></i>':''}</button>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div>
+        <div class="date">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div>
+        ${cat?`<span class="catbtn set" style="pointer-events:none;margin-top:4px;font-size:11px;padding:3px 9px"><span class="cbar" style="background:${cor}"></span>${esc(cat.label)}</span>`:''}
+      </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span class="amt ${+l.amount<0?'neg':'pos'}" style="font-size:12.5px">${brl(+l.amount)}</span>
-        <button class="iconbtn" data-cat="${l.id}" title="Classificar"><i class="ph-duotone ph-tag"></i></button>
+        <button class="iconbtn ${cat?'on':''}" data-cat="${l.id}" title="${cat?'Reclassificar':'Classificar'}"><i class="ph-duotone ph-tag"></i></button>
         <button class="iconbtn" data-edit="${l.id}" title="Editar / excluir"><i class="ph-duotone ph-pencil-simple"></i></button>
       </div></div>`;
   }).join('');
