@@ -863,7 +863,7 @@
       <div class="sb-divider"></div>
       <div class="sb-section">
         <span class="sb-label">Documentos</span>
-        <a class="nav-item" data-menu="doc_escala" href="https://docs.google.com/spreadsheets/d/1j7ZLgwK1lCx4fGgXT2PT5-KfbcqcGLncqnqbEqF_Bd4/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Escala</span><span class="na">↗</span></a>
+        <button class="nav-item" data-mod="escala" data-menu="doc_escala" onclick="switchModule('escala')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Escala</span></button>
         <a class="nav-item" data-menu="doc_vouchers" href="https://docs.google.com/spreadsheets/d/1yysbU4BXCkz3MkeYgAuvL4xMn1d_vigJF69CGKOd6pc/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-gift"></i></span><span class="nl">Vouchers</span><span class="na">↗</span></a>
         <a class="nav-item" data-menu="doc_reservas" href="https://docs.google.com/spreadsheets/d/1PMdALLmCpkne3aK5GC8-Vgu2yEAY27lPHqCDwmLDDEg/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-confetti"></i></span><span class="nl">Reservas e Eventos</span><span class="na">↗</span></a>
         <a class="nav-item" data-menu="doc_admissional" href="https://drive.google.com/file/d/1gw6i5pNNsn6693sCXCwV3mYXwdN6NOO7/view" target="_blank"><span class="ni"><i class="ph-duotone ph-file-text"></i></span><span class="nl">Ficha Admissional</span><span class="na">↗</span></a>
@@ -886,6 +886,7 @@
       <div class="module-panel" id="module-comprascartao"></div>
       <div class="module-panel" id="module-avaliacoes"></div>
   <div class="module-panel" id="module-loucas"><iframe id="loucasFrame" allow="camera; microphone; fullscreen" src="inventario.html" title="Inventário" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
+  <div class="module-panel" id="module-escala"><iframe id="escalaFrame" title="Escala" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
 
       <div class="module-panel active" id="module-home">
   <div class="home-wrap">
@@ -1073,6 +1074,7 @@ var HOME_APPS=[
   {g:'Operação', items:[
     {m:'tarefas', label:'Reuniões & Tarefas', icon:'clipboard-text', col:'#C4622D', bg:'#FBEDE3'},
     {m:'diario', label:'Diário de Gerentes', icon:'notebook', col:'#5A7D2C', bg:'#EEF2E2'},
+    {m:'doc_escala', label:'Escala', icon:'calendar-dots', col:'#2C5AA0', bg:'#E6EEF8'},
     {m:'compras', label:'Lista de Compras', icon:'list-checks', col:'#A8632C', bg:'#F7EBE2'},
     {m:'comprascartao', label:'Compras no Cartão', icon:'credit-card', col:'#2C7A4B', bg:'#E6F3EA'},
     {m:'est_pedidos', label:'Pedidos à Central', icon:'shopping-cart', col:'#A8632C', bg:'#F7EBE2'},
@@ -1206,9 +1208,10 @@ function switchModule(mod){ try{ applyCollapse(mod==='home'?userCollapsePref():t
   if(panel)panel.classList.add('active');
   const btn=document.querySelector('.nav-item[data-mod="'+mod+'"]');
   if(btn)btn.classList.add('active');
-  const NAMES={home:'',tarefas:'Reuniões & Tarefas',diario:'Diário de Gerentes',usuarios:'Usuários',compras:'Lista de Compras',loucas:'Inventário'};
+  const NAMES={home:'',tarefas:'Reuniões & Tarefas',diario:'Diário de Gerentes',usuarios:'Usuários',compras:'Lista de Compras',loucas:'Inventário',escala:'Escala'};
   document.getElementById('phModname').textContent=NAMES[mod]||'';
   closeSidebar();
+  if(mod==='escala'){var _ef=document.getElementById('escalaFrame');if(_ef&&!_ef.getAttribute('src'))_ef.setAttribute('src','escala.html');}
   if(mod==='diario'&&window.__portalUser){
     const gn=document.getElementById('gerente-nome');
     if(gn&&!gn.value)gn.value=window.__portalUser.name||'';
