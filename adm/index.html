@@ -286,6 +286,9 @@ section.view{display:none} section.view.on{display:block}
       <div class="note"><b>Notas fiscais.</b> Puxe automático da SEFAZ (via Espião Cloud) ou importe o XML do Takeat. Cada nota você associa a um pagamento na aba Lançamentos.</div>
       <button class="btn p" id="btnEspiao" style="margin-bottom:10px"><i class="ph-duotone ph-cloud-arrow-down"></i> Buscar notas na SEFAZ (Espião Cloud)</button>
       <button class="btn o" id="btnImpXml" style="margin-bottom:14px"><i class="ph-duotone ph-file-xml"></i> Importar XML (Takeat)</button>
+      <div class="monthsel"><span class="lblcap">Competência</span><select id="notasComp"></select></div>
+      <div class="catsearch" id="notasSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="notasSearch" placeholder="Buscar por emitente, CNPJ ou produto…" autocomplete="off"></div>
+      <div class="sum" id="notasSum" style="margin-bottom:12px"></div>
       <div id="notasList"></div>
     </section>
 
@@ -1001,8 +1004,24 @@ async function buscarNotasEspiao(){
 }
 function renderNotas(){
   const el=$('#notasList');
-  if(!ST.notas.length){el.innerHTML=`<div class="empty"><i class="ph-duotone ph-receipt"></i>Nenhuma nota importada ainda.</div>`;return;}
-  el.innerHTML=ST.notas.map(n=>{
+  // seletor de competência (por mês de emissão) — preenche com os meses que têm nota
+  const meses=[...new Set(ST.notas.map(n=>(n.data_emissao||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  if(ST.notasComp===undefined) ST.notasComp='todas';
+  if(ST.notasComp!=='todas' && !meses.includes(ST.notasComp)) ST.notasComp='todas';
+  const sel=$('#notasComp');
+  if(sel) sel.innerHTML=`<option value="todas">Todas as competências</option>`+meses.map(m=>`<option value="${m}"${m===ST.notasComp?' selected':''}>${compLabel(m)}</option>`).join('');
+  if(!ST.notas.length){$('#notasSum').innerHTML='';el.innerHTML=`<div class="empty"><i class="ph-duotone ph-receipt"></i>Nenhuma nota importada ainda.</div>`;return;}
+  let lista=ST.notas;
+  if(ST.notasComp && ST.notasComp!=='todas') lista=lista.filter(n=>(n.data_emissao||'').slice(0,7)===ST.notasComp);
+  if(ST.notasSearch){ const q=normSearch(ST.notasSearch);
+    lista=lista.filter(n=> normSearch((n.emitente||'')+' '+(n.cnpj||'')).includes(q)
+      || (Array.isArray(n.itens)&&n.itens.some(i=>normSearch(i.desc||'').includes(q))) ); }
+  const totV=lista.reduce((s,n)=>s+(+n.valor_total||0),0);
+  $('#notasSum').innerHTML=`
+    <div><div class="v">${lista.length}</div><div class="k">Notas</div></div>
+    <div><div class="v" style="color:var(--neg)">${brl(-totV)}</div><div class="k">Total</div></div>`;
+  if(!lista.length){el.innerHTML=`<div class="empty"><i class="ph-duotone ph-receipt"></i>Nenhuma nota nesta competência.</div>`;return;}
+  el.innerHTML=lista.map(n=>{
     const linked=ST.lanc.find(l=>l.nota_chave===n.chave);
     const its=Array.isArray(n.itens)?n.itens:[];
     const exp=ST.expNotas&&ST.expNotas.has(n.chave);
@@ -1026,22 +1045,35 @@ function renderNotas(){
   el.querySelectorAll('[data-link]').forEach(b=>b.onclick=()=>openLinkNota(b.dataset.link));
   el.querySelectorAll('[data-nfit]').forEach(b=>b.onclick=()=>{ST.expNotas=ST.expNotas||new Set();const k=b.dataset.nfit;ST.expNotas.has(k)?ST.expNotas.delete(k):ST.expNotas.add(k);renderNotas();});
 }
+// palavras genéricas que não ajudam a casar fornecedor
+const NF_STOP=new Set(['ltda','me','epp','eireli','sa','comercio','comercial','industria','industrial','distribuidora','distribuicao','distrib','servicos','servico','produtos','produto','alimentos','alimenticios','pagamento','efetuado','pix','enviado','cp','transferencia','ted','doc','recebido']);
+function nfTokens(txt){ return normSearch(txt||'').replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>=4 && !NF_STOP.has(w)); }
 function openLinkNota(chave){
   const n=ST.notas.find(x=>x.chave===chave);
-  // candidatos: despesas sem nota, valor próximo
+  const vtot=+n.valor_total||0;
+  const emitTok=nfTokens(n.emitente);
+  // pontua cada despesa sem nota: nome do fornecedor batendo + proximidade de valor
   const cands=ST.lanc.filter(l=>+l.amount<0 && !l.nota_chave)
-    .sort((a,b)=>Math.abs(Math.abs(+a.amount)-(+n.valor_total))-Math.abs(Math.abs(+b.amount)-(+n.valor_total))).slice(0,25);
+    .map(l=>{ const m=normSearch(l.memo||''); const nm=emitTok.filter(t=>m.includes(t)).length;
+      return {l, nm, vd:Math.abs(Math.abs(+l.amount)-vtot)}; })
+    .sort((a,b)=> (b.nm-a.nm) || (a.vd-b.vd) )
+    .slice(0,25);
   openSheet(`<h3>Associar nota</h3><div class="hint">${esc(n.emitente||'')} · ${brl(-(+n.valor_total))}</div>
-    ${cands.length?'':'<div class="note">Nenhum pagamento sem nota encontrado nesta unidade.</div>'}
-    <div class="catlist">${cands.map(l=>`
-      <div class="catopt" data-l="${l.id}">
+    ${cands.length?'<div class="note" style="font-size:12px">Ordenado por <b>nome do fornecedor</b> e <b>valor</b> mais próximos.</div>':'<div class="note">Nenhum pagamento sem nota encontrado nesta unidade.</div>'}
+    <div class="catlist">${cands.map(({l,nm,vd})=>{
+      const exato=vd<0.01, nomeBate=nm>0;
+      const badges=`${nomeBate?'<span class="catbtn set" style="pointer-events:none;font-size:10px;padding:2px 7px"><i class="ph-duotone ph-user-check"></i> nome</span>':''}${exato?'<span class="catbtn set" style="pointer-events:none;font-size:10px;padding:2px 7px"><i class="ph-duotone ph-equals"></i> valor exato</span>':''}`;
+      return `<div class="catopt" data-l="${l.id}"${(nomeBate&&exato)?' style="background:var(--posBg)"':''}>
         <span class="cbar" style="background:${GRUPO_COR[(ST.planoById[l.category]||{}).group_id]||'#8A7A72'}"></span>
-        <div style="flex:1"><div style="font-weight:600">${esc((l.memo||'').slice(0,40))}</div>
-        <div class="date" style="font-size:11px;color:var(--mut)">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div></div>
+        <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((l.memo||'').slice(0,40))}</div>
+        <div class="date" style="font-size:11px;color:var(--mut)">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div>
+        ${badges?`<div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap">${badges}</div>`:''}</div>
         <div class="amt neg">${brl(+l.amount)}</div>
-      </div>`).join('')}</div>`);
+      </div>`;}).join('')}</div>`);
   $$('#sheetBody [data-l]').forEach(o=>o.onclick=async()=>{
-    await patchLanc(o.dataset.l,{nota_chave:chave}); closeSheet(); toast('Nota associada'); renderNotas(); renderLanc();
+    const ll=ST.lanc.find(x=>String(x.id)===String(o.dataset.l));
+    await patchLanc(o.dataset.l,{nota_chave:chave}); closeSheet();
+    toast('Nota associada a: '+((ll&&ll.memo?ll.memo:'pagamento').slice(0,34))); renderNotas(); renderLanc();
   });
 }
 
@@ -1265,6 +1297,8 @@ $('#selDel').onclick=deleteSelecionados;
 $('#fab').onclick=()=>{ const v=$('.view.on').id; if(v==='v-notas')openImportXml(); else openImport(); };
 $('#btnImpXml').onclick=openImportXml;
 $('#btnEspiao').onclick=buscarNotasEspiao;
+$('#notasComp').onchange=e=>{ST.notasComp=e.target.value;renderNotas();};
+$('#notasSearch').oninput=e=>{ST.notasSearch=e.target.value;renderNotas();};
 $('#btnPrint').onclick=printDRE;
 $('#btnNewRule').onclick=()=>openNewRule();
 $('#btnApplyRules').onclick=applyRulesNow;
