@@ -840,6 +840,7 @@
         <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni"><i class="ph-duotone ph-credit-card"></i></span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Inventário</span></button><button class="nav-item" data-mod="eventos" data-menu="eventos" onclick="switchModule('eventos')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Eventos</span></button><button class="nav-item" data-mod="inbox" data-menu="inbox" onclick="switchModule('inbox')"><span class="ni"><i class="ph-duotone ph-chat-circle-dots"></i></span><span class="nl">Atendimento</span></button>
         
         <button class="nav-item" data-mod="avaliacoes" data-menu="avaliacoes" onclick="switchModule('avaliacoes')"><span class="ni"><i class="ph-duotone ph-star"></i></span><span class="nl">Avaliações</span></button>
+        <button class="nav-item" data-mod="escala" data-menu="doc_escala" onclick="switchModule('escala')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Escala</span></button>
         
         
       </div>
@@ -863,7 +864,6 @@
       <div class="sb-divider"></div>
       <div class="sb-section">
         <span class="sb-label">Documentos</span>
-        <button class="nav-item" data-mod="escala" data-menu="doc_escala" onclick="switchModule('escala')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Escala</span></button>
         <a class="nav-item" data-menu="doc_vouchers" href="https://docs.google.com/spreadsheets/d/1yysbU4BXCkz3MkeYgAuvL4xMn1d_vigJF69CGKOd6pc/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-gift"></i></span><span class="nl">Vouchers</span><span class="na">↗</span></a>
         <a class="nav-item" data-menu="doc_reservas" href="https://docs.google.com/spreadsheets/d/1PMdALLmCpkne3aK5GC8-Vgu2yEAY27lPHqCDwmLDDEg/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-confetti"></i></span><span class="nl">Reservas e Eventos</span><span class="na">↗</span></a>
         <a class="nav-item" data-menu="doc_admissional" href="https://drive.google.com/file/d/1gw6i5pNNsn6693sCXCwV3mYXwdN6NOO7/view" target="_blank"><span class="ni"><i class="ph-duotone ph-file-text"></i></span><span class="nl">Ficha Admissional</span><span class="na">↗</span></a>
@@ -1036,11 +1036,11 @@ const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Com
 window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
- {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações']]},
+ {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]},
  {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central'],['lolamac','📈 Lola MAC']]},
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
- {label:'Documentos',items:[['doc_escala','🗓️ Escala'],['doc_vouchers','🎁 Vouchers'],['doc_reservas','🎉 Reservas e Eventos'],['doc_admissional','📄 Ficha Admissional'],['doc_alergenicos','⚠️ Alergênicos'],['doc_vinhos','🍷 Carta de Vinhos']]}
+ {label:'Documentos',items:[['doc_vouchers','🎁 Vouchers'],['doc_reservas','🎉 Reservas e Eventos'],['doc_admissional','📄 Ficha Admissional'],['doc_alergenicos','⚠️ Alergênicos'],['doc_vinhos','🍷 Carta de Vinhos']]}
 ];
 var ALL_MENU=[]; MENU_GROUPS.forEach(function(g){g.items.forEach(function(it){ALL_MENU.push(it[0]);});});
 function defaultMenu(role){
