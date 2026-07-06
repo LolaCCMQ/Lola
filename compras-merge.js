@@ -20,6 +20,10 @@
     var st = document.createElement('style');
     st.textContent =
       '.nav-item[data-mod="compras"]{display:none !important}' +
+      // ----- Esconde "Financeiro Lola MAC" e "Financeiro Central" (migraram p/ /adm/) -----
+      '.nav-item[data-menu="financeiro_mac"],.nav-item[data-menu="financeiro_central"]{display:none !important}' +
+      '.app-card[onclick*="financeiro_mac"],.fav-star[onclick*="financeiro_mac"],.app-card[onclick*="financeiro_central"],.fav-star[onclick*="financeiro_central"]{display:none !important}' +
+      '.app-card-wrap:has([onclick*="financeiro_mac"]),.app-card-wrap:has([onclick*="financeiro_central"]){display:none !important}' +
       // ----- Cabeçalho padrão Lola (faixa vinho) -----
       '#module-comprascartao .cm-bhead{background:linear-gradient(150deg,#B5302E,#871F20);color:#fff;padding:13px 16px 14px;border-radius:0 0 22px 22px}' +
       '#module-comprascartao .cm-bhead-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}' +
