@@ -550,7 +550,9 @@ function renderLanc(){
     const catHtml=cat
       ? `<button class="catbtn set" data-cat="${l.id}"><span class="cbar" style="background:${cor}"></span>${cat.label}</button>`
       : `<button class="catbtn miss" data-cat="${l.id}"><i class="ph-duotone ph-tag"></i>Classificar</button>`;
-    const nfHtml=l.nota_chave?`<span class="compchip" title="Nota associada"><i class="ph-duotone ph-receipt"></i> NF</span>`:'';
+    const nfHtml=l.nota_chave
+      ? `<button class="catbtn set" data-nf="${l.id}" title="Nota associada — tocar para trocar/remover"><span class="cbar" style="background:#2C7A4B"></span>NF ✓</button>`
+      : `<button class="catbtn miss" data-nf="${l.id}" title="Associar nota fiscal"><i class="ph-duotone ph-receipt"></i> Associar NF</button>`;
     return `<div class="lc">
       <div class="r1" style="align-items:center">
         <button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button>
@@ -580,6 +582,7 @@ function renderLanc(){
   });
   el.innerHTML=out;
   el.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>openCatPicker(b.dataset.cat));
+  el.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>openLinkPagamento(b.dataset.nf));
   el.querySelectorAll('[data-conc]').forEach(b=>b.onclick=()=>toggleConc(b.dataset.conc));
   el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
   el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteLanc(b.dataset.del));
@@ -1021,7 +1024,7 @@ function renderNotas(){
   const el=$('#notasList');
   // seletor de competência (por mês de emissão) — preenche com os meses que têm nota
   const meses=[...new Set(ST.notas.map(n=>(n.data_emissao||'').slice(0,7)).filter(Boolean))].sort().reverse();
-  if(ST.notasComp===undefined) ST.notasComp='todas';
+  if(ST.notasComp===undefined) ST.notasComp = meses.includes(ST.lancComp)?ST.lancComp : (meses[0]||'todas'); // abre no mês de trabalho (não 'todas', que trava com centenas de notas)
   if(ST.notasComp!=='todas' && !meses.includes(ST.notasComp)) ST.notasComp='todas';
   const sel=$('#notasComp');
   if(sel) sel.innerHTML=`<option value="todas">Todas as competências</option>`+meses.map(m=>`<option value="${m}"${m===ST.notasComp?' selected':''}>${compLabel(m)}</option>`).join('');
@@ -1040,7 +1043,8 @@ function renderNotas(){
     const linked=ST.lanc.find(l=>l.nota_chave===n.chave);
     const its=Array.isArray(n.itens)?n.itens:[];
     const exp=ST.expNotas&&ST.expNotas.has(n.chave);
-    const itensHTML=its.length?`<div class="nfitens" style="display:${exp?'block':'none'};margin-top:9px;border-top:1px solid var(--fio);padding-top:8px">
+    // só monta os produtos quando o cartão está EXPANDIDO (evita DOM gigante com centenas de notas)
+    const itensHTML=(its.length&&exp)?`<div class="nfitens" style="margin-top:9px;border-top:1px solid var(--fio);padding-top:8px">
         ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12.5px">
           <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(i.desc)}</div>
           <div class="date" style="font-size:11px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div>
@@ -1109,6 +1113,56 @@ function openLinkNota(chave){
     if(o&&o.dataset.diff && !confirm(`Atenção: o fornecedor deste pagamento (${(ll&&ll.memo||'').replace(/"/g,'').slice(0,40)}) parece DIFERENTE do da nota (${(n.emitente||'').slice(0,40)}).\n\nAssociar mesmo assim?`)) return;
     await patchLanc(selId,{nota_chave:chave}); closeSheet();
     toast('Nota associada a: '+((ll&&ll.memo?ll.memo:'pagamento').slice(0,34))); renderNotas(); renderLanc();
+  };
+}
+// Caminho inverso: a partir de um PAGAMENTO, escolher a nota fiscal
+function scoreNotas(l){
+  const vlanc=Math.abs(+l.amount||0); const memo=normSearch(l.memo||'');
+  return ST.notas.filter(n=>!ST.lanc.some(x=>x.nota_chave===n.chave)) // notas ainda sem pagamento
+    .map(n=>{ const nm=nfTokens(n.emitente).filter(t=>memo.includes(t)).length;
+      return {n, nm, vd:Math.abs((+n.valor_total||0)-vlanc)}; });
+}
+function openLinkPagamento(lancId){
+  const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
+  const vlanc=Math.abs(+l.amount||0);
+  if(l.nota_chave){
+    const na=ST.notas.find(x=>x.chave===l.nota_chave);
+    openSheet(`<h3>Nota associada</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)}</div>
+      <div class="note" style="font-size:12.5px"><b>${esc(na?na.emitente:'(nota)')}</b><br>NF ${esc(na?na.numero:'—')} · ${brl(-(+((na||{}).valor_total)||0))}</div>
+      <button class="btn d" id="nfRemove" style="margin-top:8px"><i class="ph-duotone ph-link-break"></i> Remover associação</button>`);
+    $('#nfRemove').onclick=async()=>{ await patchLanc(l.id,{nota_chave:null}); closeSheet(); toast('Associação removida'); renderNotas(); renderLanc(); };
+    return;
+  }
+  const all=scoreNotas(l);
+  const mesmo=all.filter(c=>c.nm>0).sort((a,b)=>a.vd-b.vd);
+  const proximo=all.filter(c=>c.nm===0 && c.vd<=Math.max(5,vlanc*0.05)).sort((a,b)=>a.vd-b.vd);
+  const outros=all.filter(c=>c.nm===0 && c.vd>Math.max(5,vlanc*0.05)).sort((a,b)=>a.vd-b.vd).slice(0,12);
+  const nrow=(n,diff)=>`<div class="catopt lnkopt" data-n="${n.chave}"${diff?' data-diff="1"':''}>
+    <span class="lnkradio" style="width:20px;height:20px;border:2px solid var(--border);border-radius:50%;flex-shrink:0"></span>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'(sem emitente)')}</div>
+    <div class="date" style="font-size:11px;color:var(--mut)">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</div></div>
+    <div class="amt neg">${brl(-(+n.valor_total||0))}</div></div>`;
+  let body='';
+  if(mesmo.length) body+=`<div class="cg">Mesmo fornecedor</div>`+mesmo.map(({n})=>nrow(n,false)).join('');
+  if(proximo.length) body+=`<div class="cg">Valor idêntico ou parecido</div>`+proximo.map(({n})=>nrow(n,true)).join('');
+  if(outros.length) body+=`<div class="cg" style="color:var(--mut)">Outras notas sem pagamento</div>`+outros.map(({n})=>nrow(n,true)).join('');
+  openSheet(`<h3>Associar nota fiscal</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)}</div>
+    ${body?'<div class="note" style="font-size:12px">Selecione a nota e toque em <b>Associar</b>.</div>':'<div class="note">Nenhuma nota sem pagamento nesta unidade. Importe em Notas (XML).</div>'}
+    <div class="catlist">${body}</div>
+    ${body?`<button class="btn p" id="lnkGoN" disabled style="opacity:.5;margin-top:8px"><i class="ph-duotone ph-link"></i> Associar</button>`:''}`);
+  let selChave=null;
+  $$('#sheetBody .lnkopt').forEach(o=>o.onclick=()=>{
+    selChave=o.dataset.n;
+    $$('#sheetBody .lnkopt').forEach(x=>{x.style.background='';const r=x.querySelector('.lnkradio');r.style.background='';r.style.borderColor='var(--border)';});
+    o.style.background='var(--posBg)'; const r=o.querySelector('.lnkradio'); r.style.background='var(--vinho)'; r.style.borderColor='var(--vinho)';
+    const g=$('#lnkGoN'); g.disabled=false; g.style.opacity='1';
+  });
+  const go=$('#lnkGoN');
+  if(go) go.onclick=async()=>{ if(!selChave)return;
+    const o=$(`#sheetBody .lnkopt[data-n="${selChave}"]`); const nn=ST.notas.find(x=>x.chave===selChave);
+    if(o&&o.dataset.diff && !confirm(`Atenção: o fornecedor desta nota (${(nn&&nn.emitente||'').slice(0,40)}) parece DIFERENTE do pagamento.\n\nAssociar mesmo assim?`)) return;
+    await patchLanc(l.id,{nota_chave:selChave}); closeSheet();
+    toast('Nota associada: '+((nn&&nn.emitente?nn.emitente:'nota').slice(0,34))); renderNotas(); renderLanc();
   };
 }
 // Associação automática: só liga quando NOME do fornecedor bate E valor é praticamente igual (evita erro)
