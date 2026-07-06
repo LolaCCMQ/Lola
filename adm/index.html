@@ -655,11 +655,16 @@ function renderFornecedores(list){
     const cats=new Set(g.items.map(l=>l.category||''));
     const pend=g.items.filter(l=>!l.category).length;
     const exp=ST.expandedGroups.has(g.key);
+    const done=pend===0;
     let catState;
     if(cats.size===1 && !cats.has('')){ const c=ST.planoById[[...cats][0]]; const cor=GRUPO_COR[c.group_id]||'#8A7A72';
       catState=`<span class="catbtn set"><span class="cbar" style="background:${cor}"></span>${esc(c.label)}</span>`; }
     else if(pend===g.items.length){ catState=`<span class="catbtn miss"><i class="ph-duotone ph-tag"></i>A classificar</span>`; }
+    else if(done){ catState=`<span class="catbtn set"><i class="ph-duotone ph-check-circle"></i>Etiquetado (vários)</span>`; }
     else { catState=`<span class="catbtn"><i class="ph-duotone ph-dots-three-outline"></i>Vários / parcial</span>`; }
+    const gBtn = done
+      ? `<button class="btn g" style="width:auto;padding:9px 13px;min-height:38px" data-gcat="${esc(g.key)}"><i class="ph-duotone ph-arrows-clockwise"></i> Reclassificar</button>`
+      : `<button class="btn p" style="width:auto;padding:9px 13px;min-height:38px" data-gcat="${esc(g.key)}">Classificar grupo</button>`;
     return `<div class="lc">
       <div class="r1">
         <div><div class="memo">${esc(g.disp)}</div><div class="date">${g.items.length} lançamento(s)${pend?` · ${pend} a classificar`:''}</div></div>
@@ -669,7 +674,7 @@ function renderFornecedores(list){
         ${catState}
         <div class="mini">
           <button class="iconbtn" data-exp="${esc(g.key)}" title="Ver itens"><i class="ph-duotone ph-caret-${exp?'up':'down'}"></i></button>
-          <button class="btn p" style="width:auto;padding:9px 13px;min-height:38px" data-gcat="${esc(g.key)}">Classificar grupo</button>
+          ${gBtn}
         </div>
       </div>
       <div class="gitems" id="${cssId(g.key)}" style="display:${exp?'block':'none'};margin-top:10px;border-top:1px solid var(--fio);padding-top:6px">${exp?groupItemsHTML(g.items):''}</div>
