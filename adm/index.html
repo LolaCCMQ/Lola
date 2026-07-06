@@ -439,8 +439,13 @@ function parseNFeXML(xmlText){
     const id=(inf.getAttribute('Id')||'').replace(/^NFe/,'');
     const emit=inf.getElementsByTagName('emit')[0], ide=inf.getElementsByTagName('ide')[0], tot=inf.getElementsByTagName('ICMSTot')[0];
     const dh=g(ide,'dhEmi')||g(ide,'dEmi');
+    const itens=[...inf.getElementsByTagName('det')].map(det=>{
+      const prod=det.getElementsByTagName('prod')[0];
+      return {desc:g(prod,'xProd'), qtd:parseFloat(g(prod,'qCom')||'0')||0, un:g(prod,'uCom'),
+        vunit:parseFloat(g(prod,'vUnCom')||'0')||0, vtotal:parseFloat(g(prod,'vProd')||'0')||0};
+    }).filter(i=>i.desc);
     return {chave:id, emitente:g(emit,'xNome'), cnpj:g(emit,'CNPJ'), numero:g(ide,'nNF'),
-      data_emissao:dh?dh.slice(0,10):null, valor_total:parseFloat(g(tot,'vNF')||'0')||0};
+      data_emissao:dh?dh.slice(0,10):null, valor_total:parseFloat(g(tot,'vNF')||'0')||0, itens};
   }).filter(n=>n.chave);
 }
 
@@ -657,8 +662,8 @@ function renderFornecedores(list){
     const exp=ST.expandedGroups.has(g.key);
     const done=pend===0;
     let catState;
-    if(cats.size===1 && !cats.has('')){ const c=ST.planoById[[...cats][0]]; const cor=GRUPO_COR[c.group_id]||'#8A7A72';
-      catState=`<span class="catbtn set"><span class="cbar" style="background:${cor}"></span>${esc(c.label)}</span>`; }
+    if(cats.size===1 && !cats.has('')){ const c=ST.planoById[[...cats][0]]; const cor=c?GRUPO_COR[c.group_id]||'#8A7A72':'#8A7A72';
+      catState=`<span class="catbtn set"><span class="cbar" style="background:${cor}"></span>${c?esc(c.label):'(categoria removida)'}</span>`; }
     else if(pend===g.items.length){ catState=`<span class="catbtn miss"><i class="ph-duotone ph-tag"></i>A classificar</span>`; }
     else if(done){ catState=`<span class="catbtn set"><i class="ph-duotone ph-check-circle"></i>Etiquetado (vários)</span>`; }
     else { catState=`<span class="catbtn"><i class="ph-duotone ph-dots-three-outline"></i>Vários / parcial</span>`; }
@@ -999,16 +1004,27 @@ function renderNotas(){
   if(!ST.notas.length){el.innerHTML=`<div class="empty"><i class="ph-duotone ph-receipt"></i>Nenhuma nota importada ainda.</div>`;return;}
   el.innerHTML=ST.notas.map(n=>{
     const linked=ST.lanc.find(l=>l.nota_chave===n.chave);
+    const its=Array.isArray(n.itens)?n.itens:[];
+    const exp=ST.expNotas&&ST.expNotas.has(n.chave);
+    const itensHTML=its.length?`<div class="nfitens" style="display:${exp?'block':'none'};margin-top:9px;border-top:1px solid var(--fio);padding-top:8px">
+        ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12.5px">
+          <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(i.desc)}</div>
+          <div class="date" style="font-size:11px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div>
+          <div class="amt neg" style="font-size:12.5px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
+      </div>`:'';
     return `<div class="nfcard">
       <div class="r1"><div class="em">${esc(n.emitente||'(sem emitente)')}</div><div class="amt neg">${brl(-(+n.valor_total))}</div></div>
       <div class="meta">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)} · CNPJ ${esc(n.cnpj||'—')}</div>
-      <div class="r2" style="display:flex;gap:8px;margin-top:9px">
+      <div class="r2" style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">
+        ${its.length?`<button class="catbtn" data-nfit="${n.chave}"><i class="ph-duotone ph-package"></i> ${its.length} produto(s) <i class="ph-duotone ph-caret-${exp?'up':'down'}"></i></button>`:''}
         ${linked
           ? `<span class="catbtn set"><i class="ph-duotone ph-link"></i> ${esc((linked.memo||'').slice(0,26))}</span>`
           : `<button class="catbtn miss" data-link="${n.chave}"><i class="ph-duotone ph-link-simple"></i> Associar a pagamento</button>`}
-      </div></div>`;
+      </div>
+      ${itensHTML}</div>`;
   }).join('');
   el.querySelectorAll('[data-link]').forEach(b=>b.onclick=()=>openLinkNota(b.dataset.link));
+  el.querySelectorAll('[data-nfit]').forEach(b=>b.onclick=()=>{ST.expNotas=ST.expNotas||new Set();const k=b.dataset.nfit;ST.expNotas.has(k)?ST.expNotas.delete(k):ST.expNotas.add(k);renderNotas();});
 }
 function openLinkNota(chave){
   const n=ST.notas.find(x=>x.chave===chave);
