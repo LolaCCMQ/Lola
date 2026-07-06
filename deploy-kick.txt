@@ -1,1 +1,1 @@
-kick 2026-07-06T13:56:38Z — destravar fila do Pages (Escala)
+kick 2026-07-06T15:01:09Z — destravar Pages (fix navegacao escala)
