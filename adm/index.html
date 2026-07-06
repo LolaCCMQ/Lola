@@ -383,11 +383,12 @@ const pct=(v,base)=>base?(v/base*100).toLocaleString('pt-BR',{minimumFractionDig
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
 function compLabel(c){if(!c)return '';const[y,m]=c.split('-');const nm=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];return nm[+m-1]+'/'+y.slice(2);}
 function compFromDate(d){return (d||'').slice(0,7);}
-function monthList(){ // últimos 15 meses até o atual
-  const out=[];const d=new Date();d.setDate(1);
-  for(let i=0;i<15;i++){out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));d.setMonth(d.getMonth()-1);}
+function monthList(){ // 6 meses à frente + atual + 2 atrás (mais novo no topo)
+  const out=[];const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+6);
+  for(let i=0;i<9;i++){out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));d.setMonth(d.getMonth()-1);}
   return out;
 }
+function currentComp(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function prevComp(c){const[y,m]=c.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 
 async function api(path,opt){ const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:H,...opt});
@@ -473,7 +474,7 @@ async function enter(uid){
   const u=U(uid);
   $('#hUnit').textContent=u.nome; $('#hUnit').style.background=u.bg; $('#hUnit').style.color=u.fg;
   $('#gate').classList.add('hide'); $('#app').classList.add('show');
-  ST.comp=monthList()[0]; ST.lancComp=ST.comp;
+  ST.comp=currentComp(); ST.lancComp=ST.comp;
   fillMonthSelects();
   $('#lancList').innerHTML='<div class="spin"></div>';
   try{ await loadPlano(); await loadLanc(); await loadNotas(); await loadRegras(); }
