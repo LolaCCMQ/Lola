@@ -374,7 +374,7 @@ const GRUPOS=[
 const grupoInfo=id=>GRUPOS.find(g=>g.id===id)||{id,label:id,type:'despesa',dre:id};
 
 /* ========================= STATE ========================= */
-let ST={ unit:null, plano:[], planoById:{}, lanc:[], notas:[], regras:[], comp:null, lancComp:null, catF:'', statusF:'todos', dreScope:null, lancMode:'lista', fgroups:{}, selMode:false, sel:new Set(), search:'' };
+let ST={ unit:null, plano:[], planoById:{}, lanc:[], notas:[], regras:[], comp:null, lancComp:null, catF:'', statusF:'todos', dreScope:null, lancMode:'lista', fgroups:{}, expandedGroups:new Set(), selMode:false, sel:new Set(), search:'' };
 
 /* ========================= HELPERS ========================= */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -645,6 +645,7 @@ function renderFornecedores(list){
     const tot=g.items.reduce((s,l)=>s+ +l.amount,0);
     const cats=new Set(g.items.map(l=>l.category||''));
     const pend=g.items.filter(l=>!l.category).length;
+    const exp=ST.expandedGroups.has(g.key);
     let catState;
     if(cats.size===1 && !cats.has('')){ const c=ST.planoById[[...cats][0]]; const cor=GRUPO_COR[c.group_id]||'#8A7A72';
       catState=`<span class="catbtn set"><span class="cbar" style="background:${cor}"></span>${esc(c.label)}</span>`; }
@@ -658,22 +659,20 @@ function renderFornecedores(list){
       <div class="r2">
         ${catState}
         <div class="mini">
-          <button class="iconbtn" data-exp="${esc(g.key)}" title="Ver itens"><i class="ph-duotone ph-caret-down"></i></button>
+          <button class="iconbtn" data-exp="${esc(g.key)}" title="Ver itens"><i class="ph-duotone ph-caret-${exp?'up':'down'}"></i></button>
           <button class="btn p" style="width:auto;padding:9px 13px;min-height:38px" data-gcat="${esc(g.key)}">Classificar grupo</button>
         </div>
       </div>
-      <div class="gitems" id="${cssId(g.key)}" style="display:none;margin-top:10px;border-top:1px solid var(--fio);padding-top:6px"></div>
+      <div class="gitems" id="${cssId(g.key)}" style="display:${exp?'block':'none'};margin-top:10px;border-top:1px solid var(--fio);padding-top:6px">${exp?groupItemsHTML(g.items):''}</div>
     </div>`;
   }).join('');
   el.querySelectorAll('[data-gcat]').forEach(b=>b.onclick=()=>openGroupClassify(b.dataset.gcat));
   el.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>toggleGroupItems(b.dataset.exp,b));
+  el.querySelectorAll('.gitems [data-cat]').forEach(b=>b.onclick=()=>openCatPicker(b.dataset.cat));
+  el.querySelectorAll('.gitems [data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
 }
-function toggleGroupItems(key,btn){
-  const box=document.getElementById(cssId(key)); if(!box)return;
-  const open=box.style.display!=='none';
-  if(open){box.style.display='none';btn.innerHTML='<i class="ph-duotone ph-caret-down"></i>';return;}
-  const g=ST.fgroups[key]; if(!g)return;
-  box.innerHTML=g.items.map(l=>{
+function groupItemsHTML(items){
+  return items.map(l=>{
     const cat=ST.planoById[l.category];
     const cor=cat?GRUPO_COR[cat.group_id]||'#8A7A72':null;
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--fio)">
@@ -685,6 +684,13 @@ function toggleGroupItems(key,btn){
         <button class="iconbtn" data-edit="${l.id}" title="Editar / excluir"><i class="ph-duotone ph-pencil-simple"></i></button>
       </div></div>`;
   }).join('');
+}
+function toggleGroupItems(key,btn){
+  const box=document.getElementById(cssId(key)); if(!box)return;
+  const g=ST.fgroups[key]; if(!g)return;
+  if(ST.expandedGroups.has(key)){ ST.expandedGroups.delete(key); box.style.display='none'; box.innerHTML=''; btn.innerHTML='<i class="ph-duotone ph-caret-down"></i>'; return; }
+  ST.expandedGroups.add(key);
+  box.innerHTML=groupItemsHTML(g.items);
   box.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>openCatPicker(b.dataset.cat));
   box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
   box.style.display='block'; btn.innerHTML='<i class="ph-duotone ph-caret-up"></i>';
