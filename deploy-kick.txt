@@ -1,1 +1,1 @@
-kick 2026-07-06T15:01:09Z — destravar Pages (fix navegacao escala)
+kick 2026-07-06T15:43:09Z — redeploy (escala v3)
