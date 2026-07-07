@@ -119,6 +119,8 @@ section.view{display:none} section.view.on{display:block}
 .dayhead{display:flex;justify-content:space-between;align-items:baseline;margin:16px 2px 7px;padding-bottom:5px;border-bottom:1px solid var(--fio)}
 .dayhead span:first-child{font-family:Fraunces,serif;font-weight:600;font-size:13.5px;color:var(--txt)}
 .dayhead .dsub{font-size:11.5px;color:var(--mut);font-weight:600}
+.daysel{width:22px;height:22px;border:2px solid var(--border);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;font-size:13px;background:#fff}
+.daysel.on{background:var(--vinho);border-color:var(--vinho)}
 /* desktop/tablet: folha centralizada (modal), não fixada embaixo */
 @media(min-width:620px){
   .sheet{left:50%;right:auto;top:50%;bottom:auto;width:540px;max-width:94vw;max-height:88vh;
@@ -320,6 +322,7 @@ section.view{display:none} section.view.on{display:block}
       <button class="btn g" id="selCancel" style="width:auto;padding:10px 11px;min-height:40px">Limpar</button>
       <button class="btn o" id="selComp" style="width:auto;padding:10px 11px;min-height:40px"><i class="ph-duotone ph-calendar-blank"></i> Mês</button>
       <button class="btn d" id="selDel" style="width:auto;padding:10px 12px;min-height:40px"><i class="ph-duotone ph-trash"></i></button>
+      <button class="btn o" id="selConc" style="width:auto;padding:10px 12px;min-height:40px"><i class="ph-duotone ph-check-circle"></i> Conciliar</button>
       <button class="btn p" id="selClassify" style="width:auto;padding:10px 13px;min-height:40px"><i class="ph-duotone ph-tag"></i> Classificar</button>
     </div>
   </div>
@@ -578,14 +581,18 @@ function renderLanc(){
   };
   // separa por DATA (como extrato): mais recente no topo, cabeçalho de dia + subtotal
   const ordenados=[...rows].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const totDia={}; ordenados.forEach(l=>{ if(!isNeutro(l)){const d=l.date||'—';totDia[d]=(totDia[d]||0)+ +l.amount;} });
+  const totDia={}, dayIds={}; ordenados.forEach(l=>{ const d=l.date||'—'; if(!isNeutro(l))totDia[d]=(totDia[d]||0)+ +l.amount; (dayIds[d]=dayIds[d]||[]).push(l.id); });
+  ST.dayIds=dayIds;
   let out='', lastD=null;
   ordenados.forEach(l=>{
-    if(l.date!==lastD){ lastD=l.date;
-      out+=`<div class="dayhead"><span>${dowLabel(l.date)}</span><span class="dsub">${brl(totDia[l.date||'—']||0)}</span></div>`; }
+    if(l.date!==lastD){ lastD=l.date; const d=l.date||'—'; const ids=dayIds[d]||[]; const allSel=ids.length&&ids.every(id=>ST.sel.has(id));
+      out+=`<div class="dayhead"><span style="display:flex;align-items:center;gap:9px">
+        <button class="daysel${allSel?' on':''}" data-day="${d}" title="Selecionar o dia">${allSel?'<i class="ph-duotone ph-check"></i>':''}</button>
+        ${dowLabel(l.date)}</span><span class="dsub">${brl(totDia[d]||0)}</span></div>`; }
     out+=cardHTML(l);
   });
   el.innerHTML=out;
+  el.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{const ids=ST.dayIds[b.dataset.day]||[];const allSel=ids.length&&ids.every(id=>ST.sel.has(id));ids.forEach(id=>allSel?ST.sel.delete(id):ST.sel.add(id));renderLanc();});
   el.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>openCatPicker(b.dataset.cat));
   el.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>openLinkPagamento(b.dataset.nf));
   el.querySelectorAll('[data-conc]').forEach(b=>b.onclick=()=>toggleConc(b.dataset.conc));
@@ -639,6 +646,15 @@ async function deleteSelecionados(){
       await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});}
     const set=new Set(ids); ST.lanc=ST.lanc.filter(l=>!set.has(l.id)); ST.sel.clear();
     toast(ids.length+' excluído(s)'); renderAll(); updateSelBar();
+  }catch(e){toast('Erro: '+e.message);}
+}
+async function conciliarSelecionados(){
+  const ids=[...ST.sel]; if(!ids.length){toast('Marque ao menos um');return;}
+  try{
+    for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
+      await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({conciliado:true})});}
+    const set=new Set(ids); ST.lanc.forEach(l=>{if(set.has(l.id))l.conciliado=true;}); ST.sel.clear();
+    toast(ids.length+' conciliado(s)'); renderLanc(); updateSelBar();
   }catch(e){toast('Erro: '+e.message);}
 }
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -1514,6 +1530,7 @@ $('#selCancel').onclick=clearSel;
 $('#selClassify').onclick=openMultiClassify;
 $('#selComp').onclick=openMultiComp;
 $('#selDel').onclick=deleteSelecionados;
+$('#selConc').onclick=conciliarSelecionados;
 $('#fab').onclick=()=>{ const v=$('.view.on').id; if(v==='v-notas')openImportXml(); else openImport(); };
 $('#btnImpXml').onclick=openImportXml;
 $('#btnEspiao').onclick=buscarNotasEspiao;
