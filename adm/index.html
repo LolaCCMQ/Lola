@@ -495,14 +495,20 @@ async function pdfLines(file){
   return lines;
 }
 function _brNum(s){ s=(s||'').trim().replace(/\./g,'').replace(',','.'); const n=parseFloat(s); return isNaN(n)?null:n; }
-// Relatório Banrisul "Demonstrativo por Operação": a linha TOTAL termina com o valor bruto
+// Relatório Banrisul "Demonstrativo por Operação": a linha TOTAL termina com o valor bruto.
+// pdf.js às vezes quebra a linha do TOTAL em pedaços → juntamos as linhas ao redor; se falhar, pegamos o ÚLTIMO valor do documento (que nesses relatórios é o total geral).
 async function parseReceitaPDF(file){
   const lines=await pdfLines(file);
-  const totLine=lines.find(l=>/^TOTAL\b/i.test(l)) || lines.filter(l=>/\btotal\b/i.test(l)).pop();
-  if(!totLine) return {erro:'não encontrei a linha TOTAL (talvez PDF de imagem, ex.: Stone — digite manual)'};
-  const nums=totLine.match(/\d[\d.]*,\d{2}/g)||[];
-  if(!nums.length) return {erro:'não encontrei valores no TOTAL'};
+  if(!lines.length) return {erro:'não consegui ler o PDF (talvez de imagem, ex.: Stone — digite manual)'};
+  const money=/\d[\d.]*,\d{2}/g;
   const band=(lines.find(l=>/bandeira/i.test(l))||'').replace(/.*bandeira:?\s*/i,'').trim();
+  // 1) tenta a linha do TOTAL (a última que contém "total") + 2 linhas seguintes
+  const totIdxs=lines.map((l,i)=>/\btotal\b/i.test(l)?i:-1).filter(i=>i>=0);
+  let nums=[];
+  if(totIdxs.length){ const i=totIdxs[totIdxs.length-1]; nums=(lines.slice(i,i+3).join(' ').match(money)||[]); }
+  // 2) fallback: último valor monetário do documento inteiro
+  if(!nums.length) nums=(lines.join(' ').match(money)||[]);
+  if(!nums.length) return {erro:'não encontrei valores (talvez PDF de imagem, ex.: Stone — digite manual)'};
   return {bruto:_brNum(nums[nums.length-1]), band};
 }
 
