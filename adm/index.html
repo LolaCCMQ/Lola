@@ -475,6 +475,25 @@ async function loadLanc(){
 async function loadNotas(){
   ST.notas=await api(`financeiro_notas?unit=eq.${ST.unit}&select=*&order=data_emissao.desc`);
 }
+async function loadLinks(){
+  ST.notaLinks=await api(`financeiro_nota_lanc?unit=eq.${ST.unit}&select=*`);
+}
+/* vínculos N:N nota↔pagamento (tabela financeiro_nota_lanc é a fonte da verdade) */
+function notasDoLanc(lancId){ return (ST.notaLinks||[]).filter(x=>String(x.lanc_id)===String(lancId)).map(x=>x.nota_chave); }
+function pagsDaNota(chave){ return (ST.notaLinks||[]).filter(x=>x.nota_chave===chave).map(x=>x.lanc_id); }
+function notaObj(ch){ return ST.notas.find(n=>n.chave===ch); }
+async function linkNotaLanc(chave,lancId){
+  if((ST.notaLinks||[]).some(x=>x.nota_chave===chave && String(x.lanc_id)===String(lancId))) return;
+  const ins=await api('financeiro_nota_lanc',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify({unit:ST.unit,nota_chave:chave,lanc_id:lancId})});
+  if(ins&&ins[0]) ST.notaLinks.push(ins[0]); else ST.notaLinks.push({unit:ST.unit,nota_chave:chave,lanc_id:lancId});
+  // auto-concilia o pagamento se já tiver categoria
+  const l=ST.lanc.find(x=>String(x.id)===String(lancId));
+  if(l&&l.category&&!l.conciliado){ l.conciliado=true; api(`financeiro_lancamentos?id=eq.${lancId}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({conciliado:true})}).catch(()=>{}); }
+}
+async function unlinkNotaLanc(chave,lancId){
+  await api(`financeiro_nota_lanc?nota_chave=eq.${encodeURIComponent(chave)}&lanc_id=eq.${lancId}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+  ST.notaLinks=(ST.notaLinks||[]).filter(x=>!(x.nota_chave===chave && String(x.lanc_id)===String(lancId)));
+}
 async function loadRegras(){
   ST.regras=await api('financeiro_regras?select=*&order=termo');
 }
@@ -502,7 +521,7 @@ async function enter(uid){
   ST.comp=currentComp(); ST.lancComp=ST.comp;
   fillMonthSelects();
   $('#lancList').innerHTML='<div class="spin"></div>';
-  try{ await loadPlano(); await loadLanc(); await loadNotas(); await loadRegras(); }
+  try{ await loadPlano(); await loadLanc(); await loadNotas(); await loadLinks(); await loadRegras(); }
   catch(e){ toast('Erro ao carregar: '+e.message); }
   fillCatFilter();
   renderAll();
@@ -558,8 +577,9 @@ function renderLanc(){
     const catHtml=cat
       ? `<button class="catbtn set" data-cat="${l.id}"><span class="cbar" style="background:${cor}"></span>${cat.label}</button>`
       : `<button class="catbtn miss" data-cat="${l.id}"><i class="ph-duotone ph-tag"></i>Classificar</button>`;
-    const nfHtml=l.nota_chave
-      ? `<button class="catbtn set" data-nf="${l.id}" title="Nota associada — tocar para trocar/remover"><span class="cbar" style="background:#2C7A4B"></span>NF ✓</button>`
+    const nfN=notasDoLanc(l.id).length;
+    const nfHtml=nfN
+      ? `<button class="catbtn set" data-nf="${l.id}" title="Nota(s) associada(s) — tocar para ver/editar"><span class="cbar" style="background:#2C7A4B"></span>${nfN} NF ✓</button>`
       : `<button class="catbtn miss" data-nf="${l.id}" title="Associar nota fiscal"><i class="ph-duotone ph-receipt"></i> Associar NF</button>`;
     return `<div class="lc">
       <div class="r1" style="align-items:center">
@@ -838,7 +858,7 @@ async function patchLanc(id,body){
   const i=ST.lanc.findIndex(l=>l.id===id); if(i>=0)Object.assign(ST.lanc[i],body);
   // auto-concilia quando categoria + nota já estão vinculadas (a menos que o próprio patch mexa em conciliado)
   if(i>=0 && !('conciliado' in body)){ const l=ST.lanc[i];
-    if(l.category && l.nota_chave && !l.conciliado){ l.conciliado=true; body={...body,conciliado:true}; } }
+    if(l.category && notasDoLanc(l.id).length && !l.conciliado){ l.conciliado=true; body={...body,conciliado:true}; } }
   await api(`financeiro_lancamentos?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(body)});
 }
 async function toggleConc(id){const l=ST.lanc.find(x=>x.id===id);await patchLanc(id,{conciliado:!l.conciliado});renderLanc();}
@@ -847,6 +867,8 @@ async function deleteLanc(id){
   if(!confirm(`Excluir este lançamento?\n${(l.memo||'').slice(0,60)} · ${brl(+l.amount)}`))return;
   try{
     await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    api(`financeiro_nota_lanc?lanc_id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+    ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(id));
     ST.lanc=ST.lanc.filter(x=>x.id!==id); toast('Excluído'); renderAll();
   }catch(e){toast('Erro: '+e.message);}
 }
@@ -938,11 +960,15 @@ async function doSplit(id){
   const sum=parts.reduce((s,p)=>s+Math.abs(p.amount),0);
   if(Math.abs(sum-mag)>0.005 && !confirm(`As partes somam ${brl(sum)}, diferente do original ${brl(mag)}. Dividir mesmo assim?`))return;
   const rows=parts.map((p,i)=>({unit:l.unit, fitid:i===0?baseFit:(baseFit+'__s'+i), date:l.date, competencia:p.competencia,
-    memo:(l.memo||'')+` (parte ${i+1}/${parts.length})`, amount:p.amount, category:p.category, manual:true, nota_chave:l.nota_chave||null}));
+    memo:(l.memo||'')+` (parte ${i+1}/${parts.length})`, amount:p.amount, category:p.category, manual:true}));
   try{
+    const notasVinc=notasDoLanc(id); // vínculos N:N a migrar p/ a parte 1
     const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
     await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     ST.lanc=ST.lanc.filter(x=>x.id!==id); ins.forEach(r=>ST.lanc.unshift(r));
+    // re-vincula as notas na parte 1 (o lançamento original foi apagado)
+    ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(id));
+    if(notasVinc.length && ins[0]){ for(const ch of notasVinc){ await linkNotaLanc(ch, ins[0].id); } }
     closeSheet(); toast('Dividido em '+parts.length+' partes'); renderAll();
   }catch(e){toast('Erro: '+e.message);}
 }
@@ -1106,7 +1132,7 @@ function renderNotas(){
     <div><div class="v" style="color:var(--neg)">${brl(-totV)}</div><div class="k">Total</div></div>`;
   if(!lista.length){el.innerHTML=`<div class="empty"><i class="ph-duotone ph-receipt"></i>Nenhuma nota nesta competência.</div>`;return;}
   el.innerHTML=lista.map(n=>{
-    const linked=ST.lanc.find(l=>l.nota_chave===n.chave);
+    const pags=pagsDaNota(n.chave);
     const its=Array.isArray(n.itens)?n.itens:[];
     const exp=ST.expNotas&&ST.expNotas.has(n.chave);
     // só monta os produtos quando o cartão está EXPANDIDO (evita DOM gigante com centenas de notas)
@@ -1121,8 +1147,8 @@ function renderNotas(){
       <div class="meta">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)} · CNPJ ${esc(n.cnpj||'—')}</div>
       <div class="r2" style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">
         ${its.length?`<button class="catbtn" data-nfit="${n.chave}"><i class="ph-duotone ph-package"></i> ${its.length} produto(s) <i class="ph-duotone ph-caret-${exp?'up':'down'}"></i></button>`:''}
-        ${linked
-          ? `<span class="catbtn set"><i class="ph-duotone ph-link"></i> ${esc((linked.memo||'').slice(0,26))}</span>`
+        ${pags.length
+          ? `<button class="catbtn set" data-link="${n.chave}"><i class="ph-duotone ph-link"></i> ${pags.length} pagamento(s)</button>`
           : `<button class="catbtn miss" data-link="${n.chave}"><i class="ph-duotone ph-link-simple"></i> Associar a pagamento</button>`}
       </div>
       ${itensHTML}</div>`;
@@ -1133,184 +1159,120 @@ function renderNotas(){
 // palavras genéricas que não ajudam a casar fornecedor
 const NF_STOP=new Set(['ltda','me','epp','eireli','sa','comercio','comercial','industria','industrial','distribuidora','distribuicao','distrib','servicos','servico','produtos','produto','alimentos','alimenticios','pagamento','efetuado','pix','enviado','cp','transferencia','ted','doc','recebido']);
 function nfTokens(txt){ return normSearch(txt||'').replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>=4 && !NF_STOP.has(w)); }
-function scoreCands(n){
+// Só considera "mesmo fornecedor" quando pelo menos 2 tokens batem (ou 1 token longo >=6),
+// pra não juntar NEXXT com NORTE GAS por causa de uma palavra genérica.
+function matchScore(emitTokens, memoNorm){
+  const hits=emitTokens.filter(t=>memoNorm.includes(t));
+  if(hits.length>=2) return hits.length;
+  if(hits.length===1 && hits[0].length>=6) return 1;
+  return 0;
+}
+function scoreCands(n){ // pagamentos candidatos p/ uma NOTA (sem nota vinculada)
   const vtot=+n.valor_total||0; const emitTok=nfTokens(n.emitente);
-  return ST.lanc.filter(l=>+l.amount<0 && !l.nota_chave)
-    .map(l=>{ const m=normSearch(l.memo||''); const nm=emitTok.filter(t=>m.includes(t)).length;
-      return {l, nm, vd:Math.abs(Math.abs(+l.amount)-vtot)}; });
+  return ST.lanc.filter(l=>+l.amount<0 && notasDoLanc(l.id).length===0)
+    .map(l=>({l, nm:matchScore(emitTok,normSearch(l.memo||'')), vd:Math.abs(Math.abs(+l.amount)-vtot)}));
 }
-function optRow(l,diff){
-  return `<div class="catopt lnkopt" data-l="${l.id}"${diff?' data-diff="1"':''}>
-    <span class="lnkradio" style="width:20px;height:20px;border:2px solid var(--border);border-radius:50%;flex-shrink:0"></span>
-    <span class="cbar" style="background:${GRUPO_COR[(ST.planoById[l.category]||{}).group_id]||'#8A7A72'}"></span>
-    <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((l.memo||'').slice(0,44))}</div>
-    <div class="date" style="font-size:11px;color:var(--mut)">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div></div>
-    <div class="amt neg">${brl(+l.amount)}</div></div>`;
+function scoreNotas(l){ // notas candidatas p/ um PAGAMENTO (sem pagamento vinculado)
+  const vlanc=Math.abs(+l.amount||0); const memo=normSearch(l.memo||'');
+  return ST.notas.filter(n=>pagsDaNota(n.chave).length===0)
+    .map(n=>({n, nm:matchScore(nfTokens(n.emitente),memo), vd:Math.abs((+n.valor_total||0)-vlanc)}));
 }
+/* ===== ASSOCIAÇÃO N:N (multi-seleção): 1 nota↔vários pagamentos e 1 pagamento↔várias notas ===== */
+// A PARTIR DA NOTA: marca 1+ pagamentos (ex.: boleto parcelado)
 function openLinkNota(chave){
-  const n=ST.notas.find(x=>x.chave===chave);
+  const n=notaObj(chave); if(!n)return;
   const vtot=+n.valor_total||0;
+  const jaLig=pagsDaNota(chave).map(id=>ST.lanc.find(x=>String(x.id)===String(id))).filter(Boolean);
   const all=scoreCands(n);
-  // "parecido" = mesmo valor (exato) ou próximo (até 5% ou R$5); + mesmo nome
   const mesmo=all.filter(c=>c.nm>0).sort((a,b)=>a.vd-b.vd);
   const proximo=all.filter(c=>c.nm===0 && c.vd<=Math.max(5,vtot*0.05)).sort((a,b)=>a.vd-b.vd);
-  const outros=all.filter(c=>c.nm===0 && c.vd>Math.max(5,vtot*0.05)).sort((a,b)=>a.vd-b.vd).slice(0,12);
+  const outros=all.filter(c=>c.nm===0 && c.vd>Math.max(5,vtot*0.05)).sort((a,b)=>a.vd-b.vd).slice(0,15);
+  const prow=(l,diff)=>`<div class="catopt lnkchk" data-l="${l.id}" data-amt="${Math.abs(+l.amount)}"${diff?' data-diff="1"':''}>
+    <span class="lnkbox" style="width:22px;height:22px;border:2px solid var(--border);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0"></span>
+    <span class="cbar" style="background:${GRUPO_COR[(ST.planoById[l.category]||{}).group_id]||'#8A7A72'}"></span>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((l.memo||'').slice(0,42))}</div>
+    <div class="date" style="font-size:11px;color:var(--mut)">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div></div>
+    <div class="amt neg">${brl(+l.amount)}</div></div>`;
+  const ligHTML=jaLig.length?`<div class="cg">Já associados (${jaLig.length})</div>`+jaLig.map(l=>`<div class="catopt"><span class="cbar" style="background:#2C7A4B"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((l.memo||'').slice(0,40))}</div><div class="date" style="font-size:11px">${fmtDate(l.date)}</div></div><div class="amt neg">${brl(+l.amount)}</div><button class="iconbtn" data-unl="${l.id}" title="Remover"><i class="ph-duotone ph-link-break"></i></button></div>`).join(''):'';
   let body='';
-  if(mesmo.length) body+=`<div class="cg">Mesmo fornecedor</div>`+mesmo.map(({l})=>optRow(l,false)).join('');
-  if(proximo.length) body+=`<div class="cg">Valor idêntico ou parecido</div>`+proximo.map(({l})=>optRow(l,true)).join('');
-  if(outros.length) body+=`<div class="cg" style="color:var(--mut)">Outros pagamentos sem nota</div>`+outros.map(({l})=>optRow(l,true)).join('');
-  openSheet(`<h3>Associar nota</h3><div class="hint">${esc(n.emitente||'')} · ${brl(-vtot)}</div>
-    ${body?'<div class="note" style="font-size:12px">Selecione o pagamento e toque em <b>Associar</b>.</div>':'<div class="note">Nenhum pagamento sem nota nesta unidade.</div>'}
-    <div class="catlist">${body}</div>
-    ${body?`<button class="btn p" id="lnkGo" disabled style="opacity:.5;margin-top:8px"><i class="ph-duotone ph-link"></i> Associar</button>`:''}`);
-  let selId=null;
-  $$('#sheetBody .lnkopt').forEach(o=>o.onclick=()=>{
-    selId=o.dataset.l;
-    $$('#sheetBody .lnkopt').forEach(x=>{x.style.background='';const r=x.querySelector('.lnkradio');r.style.background='';r.style.borderColor='var(--border)';});
-    o.style.background='var(--posBg)';
-    const r=o.querySelector('.lnkradio'); r.style.background='var(--vinho)'; r.style.borderColor='var(--vinho)';
-    const g=$('#lnkGo'); g.disabled=false; g.style.opacity='1';
-  });
+  if(mesmo.length) body+=`<div class="cg">Mesmo fornecedor</div>`+mesmo.map(({l})=>prow(l,false)).join('');
+  if(proximo.length) body+=`<div class="cg">Valor idêntico ou parecido</div>`+proximo.map(({l})=>prow(l,true)).join('');
+  if(outros.length) body+=`<div class="cg" style="color:var(--mut)">Outros pagamentos sem nota</div>`+outros.map(({l})=>prow(l,true)).join('');
+  openSheet(`<h3>Associar pagamentos à nota</h3><div class="hint">${esc(n.emitente||'')} · Nota ${brl(-vtot)}</div>
+    <div class="note" style="font-size:12px">Marque <b>um ou mais</b> pagamentos (ex.: boleto parcelado) e toque em Associar.</div>
+    ${ligHTML}
+    <div class="catlist">${body||'<div class="note">Nenhum pagamento sem nota nesta unidade.</div>'}</div>
+    <div class="note" id="lnkTot" style="font-size:12.5px"></div>
+    ${body?`<button class="btn p" id="lnkGo" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>`:''}`);
+  const sel=new Set();
+  const recalc=()=>{ let s=0; sel.forEach(id=>{const el=$(`#sheetBody .lnkchk[data-l="${id}"]`);if(el)s+=+el.dataset.amt;});
+    const dif=s-vtot; $('#lnkTot').innerHTML=`Nota ${brl(-vtot)} · Marcados ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--ink)'}">Diferença ${brl(-dif)}</b>`;
+    const g=$('#lnkGo'); if(g){g.disabled=sel.size===0;g.style.opacity=sel.size?'1':'.5';} };
+  recalc();
+  $$('#sheetBody .lnkchk').forEach(o=>o.onclick=()=>{ const id=o.dataset.l, b=o.querySelector('.lnkbox');
+    if(sel.has(id)){sel.delete(id);o.style.background='';b.innerHTML='';b.style.background='';b.style.borderColor='var(--border)';}
+    else{sel.add(id);o.style.background='var(--posBg)';b.innerHTML='<i class="ph-duotone ph-check"></i>';b.style.background='var(--vinho)';b.style.borderColor='var(--vinho)';}
+    recalc(); });
+  $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(chave,b.dataset.unl); toast('Removido'); closeSheet(); renderNotas(); renderLanc(); });
   const go=$('#lnkGo');
-  if(go) go.onclick=async()=>{
-    if(!selId)return;
-    const o=$(`#sheetBody .lnkopt[data-l="${selId}"]`);
-    const ll=ST.lanc.find(x=>String(x.id)===String(selId));
-    if(o&&o.dataset.diff && !confirm(`Atenção: o fornecedor deste pagamento (${(ll&&ll.memo||'').replace(/"/g,'').slice(0,40)}) parece DIFERENTE do da nota (${(n.emitente||'').slice(0,40)}).\n\nAssociar mesmo assim?`)) return;
-    finalizarAssociacao(ll, chave);
+  if(go) go.onclick=async()=>{ if(!sel.size)return;
+    const difs=[...sel].filter(id=>$(`#sheetBody .lnkchk[data-l="${id}"]`)?.dataset.diff);
+    if(difs.length && !confirm(`${difs.length} pagamento(s) parecem de fornecedor diferente da nota. Associar mesmo assim?`)) return;
+    for(const id of sel){ await linkNotaLanc(chave,id); }
+    closeSheet(); toast(sel.size+' pagamento(s) associado(s)'); renderNotas(); renderLanc();
   };
 }
-// Caminho inverso: a partir de um PAGAMENTO, escolher a nota fiscal
-function scoreNotas(l){
-  const vlanc=Math.abs(+l.amount||0); const memo=normSearch(l.memo||'');
-  return ST.notas.filter(n=>!ST.lanc.some(x=>x.nota_chave===n.chave)) // notas ainda sem pagamento
-    .map(n=>{ const nm=nfTokens(n.emitente).filter(t=>memo.includes(t)).length;
-      return {n, nm, vd:Math.abs((+n.valor_total||0)-vlanc)}; });
-}
+// A PARTIR DO PAGAMENTO: marca 1+ notas (ex.: 1 pagamento cobre várias notas)
 function openLinkPagamento(lancId){
   const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
   const vlanc=Math.abs(+l.amount||0);
-  if(l.nota_chave){
-    const na=ST.notas.find(x=>x.chave===l.nota_chave);
-    const its=(na&&Array.isArray(na.itens))?na.itens:[];
-    const itensHTML=its.length?`<div class="cg">Produtos da nota (${its.length})</div>
-      <div style="border:1px solid var(--fio);border-radius:12px;padding:6px 10px">
-      ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--fio);font-size:12.5px">
-        <div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div>
-        <div class="date" style="font-size:11px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div>
-        <div class="amt neg" style="font-size:12.5px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
-      </div>`:'<div class="note" style="font-size:12px">Esta nota não tem produtos detalhados (foi importada antes, ou é de serviço). Reimporte o XML em Notas para trazer os itens.</div>';
-    openSheet(`<h3>Nota associada</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)}</div>
-      <div class="note" style="font-size:12.5px"><b>${esc(na?na.emitente:'(nota)')}</b><br>NF ${esc(na?na.numero:'—')} · ${fmtDate(na&&na.data_emissao)} · ${brl(-(+((na||{}).valor_total)||0))}</div>
-      ${itensHTML}
-      <button class="btn p" id="nfReclass" style="margin-top:12px"><i class="ph-duotone ph-tag"></i> Reclassificar este lançamento</button>
-      <button class="btn d" id="nfRemove" style="margin-top:8px"><i class="ph-duotone ph-link-break"></i> Remover associação</button>`);
-    $('#nfReclass').onclick=()=>{ closeSheet(); openCatPicker(l.id); };
-    $('#nfRemove').onclick=async()=>{ await patchLanc(l.id,{nota_chave:null}); closeSheet(); toast('Associação removida'); renderNotas(); renderLanc(); };
-    return;
-  }
+  const jaLig=notasDoLanc(lancId).map(ch=>notaObj(ch)).filter(Boolean);
   const all=scoreNotas(l);
   const mesmo=all.filter(c=>c.nm>0).sort((a,b)=>a.vd-b.vd);
   const proximo=all.filter(c=>c.nm===0 && c.vd<=Math.max(5,vlanc*0.05)).sort((a,b)=>a.vd-b.vd);
-  const outros=all.filter(c=>c.nm===0 && c.vd>Math.max(5,vlanc*0.05)).sort((a,b)=>a.vd-b.vd).slice(0,12);
-  const nrow=(n,diff)=>{
-    const its=Array.isArray(n.itens)?n.itens:[];
-    return `<div class="catopt lnkopt" data-n="${n.chave}"${diff?' data-diff="1"':''}>
-      <span class="lnkradio" style="width:20px;height:20px;border:2px solid var(--border);border-radius:50%;flex-shrink:0"></span>
+  const outros=all.filter(c=>c.nm===0 && c.vd>Math.max(5,vlanc*0.05)).sort((a,b)=>a.vd-b.vd).slice(0,15);
+  const nrow=(n,diff)=>{ const its=Array.isArray(n.itens)?n.itens:[];
+    return `<div class="catopt lnkchk" data-n="${n.chave}" data-amt="${+n.valor_total||0}"${diff?' data-diff="1"':''}>
+      <span class="lnkbox" style="width:22px;height:22px;border:2px solid var(--border);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0"></span>
       <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'(sem emitente)')}</div>
       <div class="date" style="font-size:11px;color:var(--mut)">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</div>
       ${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:5px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div>
       <div class="amt neg">${brl(-(+n.valor_total||0))}</div></div>
-      <div class="prodbox" data-pn="${n.chave}" style="display:none;padding:2px 12px 10px 40px">
+      <div class="prodbox" data-pn="${n.chave}" style="display:none;padding:2px 12px 10px 42px">
         ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
       </div>`;
   };
+  const ligHTML=jaLig.length?`<div class="cg">Notas já associadas (${jaLig.length})</div>`+jaLig.map(n=>`<div class="catopt"><span class="cbar" style="background:#2C7A4B"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'')}</div><div class="date" style="font-size:11px">NF ${esc(n.numero||'—')}</div></div><div class="amt neg">${brl(-(+n.valor_total||0))}</div><button class="iconbtn" data-unl="${n.chave}" title="Remover"><i class="ph-duotone ph-link-break"></i></button></div>`).join(''):'';
   let body='';
   if(mesmo.length) body+=`<div class="cg">Mesmo fornecedor</div>`+mesmo.map(({n})=>nrow(n,false)).join('');
   if(proximo.length) body+=`<div class="cg">Valor idêntico ou parecido</div>`+proximo.map(({n})=>nrow(n,true)).join('');
   if(outros.length) body+=`<div class="cg" style="color:var(--mut)">Outras notas sem pagamento</div>`+outros.map(({n})=>nrow(n,true)).join('');
-  openSheet(`<h3>Associar nota fiscal</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)}</div>
-    ${body?'<div class="note" style="font-size:12px">Selecione a nota e toque em <b>Associar</b>.</div>':'<div class="note">Nenhuma nota sem pagamento nesta unidade. Importe em Notas (XML).</div>'}
-    <div class="catlist">${body}</div>
-    ${body?`<button class="btn p" id="lnkGoN" disabled style="opacity:.5;margin-top:8px"><i class="ph-duotone ph-link"></i> Associar</button>`:''}`);
-  let selChave=null;
-  $$('#sheetBody .lnkopt').forEach(o=>o.onclick=()=>{
-    selChave=o.dataset.n;
-    $$('#sheetBody .lnkopt').forEach(x=>{x.style.background='';const r=x.querySelector('.lnkradio');r.style.background='';r.style.borderColor='var(--border)';});
-    o.style.background='var(--posBg)'; const r=o.querySelector('.lnkradio'); r.style.background='var(--vinho)'; r.style.borderColor='var(--vinho)';
-    const g=$('#lnkGoN'); g.disabled=false; g.style.opacity='1';
-  });
+  openSheet(`<h3>Associar notas ao pagamento</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · Pagamento ${brl(+l.amount)}</div>
+    <div class="note" style="font-size:12px">Marque <b>uma ou mais</b> notas (ex.: um pagamento cobre várias notas) e toque em Associar.</div>
+    ${ligHTML}
+    <div class="catlist">${body||'<div class="note">Nenhuma nota sem pagamento nesta unidade. Importe em Notas (XML).</div>'}</div>
+    <div class="note" id="lnkTot" style="font-size:12.5px"></div>
+    ${body?`<button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>`:''}`);
+  const sel=new Set();
+  const recalc=()=>{ let s=0; sel.forEach(ch=>{const el=$(`#sheetBody .lnkchk[data-n="${ch}"]`);if(el)s+=+el.dataset.amt;});
+    const dif=s-vlanc; $('#lnkTot').innerHTML=`Pagamento ${brl(-vlanc)} · Notas ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--ink)'}">Diferença ${brl(-(vlanc-s))}</b>`;
+    const g=$('#lnkGoN'); if(g){g.disabled=sel.size===0;g.style.opacity=sel.size?'1':'.5';} };
+  recalc();
+  $$('#sheetBody .lnkchk').forEach(o=>o.onclick=()=>{ const ch=o.dataset.n, b=o.querySelector('.lnkbox');
+    if(sel.has(ch)){sel.delete(ch);o.style.background='';b.innerHTML='';b.style.background='';b.style.borderColor='var(--border)';}
+    else{sel.add(ch);o.style.background='var(--posBg)';b.innerHTML='<i class="ph-duotone ph-check"></i>';b.style.background='var(--vinho)';b.style.borderColor='var(--vinho)';}
+    recalc(); });
   $$('#sheetBody .verprod').forEach(b=>b.onclick=(e)=>{ e.stopPropagation();
     const box=$(`#sheetBody .prodbox[data-pn="${b.dataset.vn}"]`); if(!box)return;
-    box.style.display = box.style.display==='none'?'block':'none';
-    b.style.opacity = box.style.display==='none'?'1':'.6'; });
+    box.style.display=box.style.display==='none'?'block':'none'; b.style.opacity=box.style.display==='none'?'1':'.6'; });
+  $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(b.dataset.unl,lancId); toast('Removida'); closeSheet(); renderNotas(); renderLanc(); });
   const go=$('#lnkGoN');
-  if(go) go.onclick=async()=>{ if(!selChave)return;
-    const o=$(`#sheetBody .lnkopt[data-n="${selChave}"]`); const nn=ST.notas.find(x=>x.chave===selChave);
-    if(o&&o.dataset.diff && !confirm(`Atenção: o fornecedor desta nota (${(nn&&nn.emitente||'').slice(0,40)}) parece DIFERENTE do pagamento.\n\nAssociar mesmo assim?`)) return;
-    finalizarAssociacao(l, selChave);
+  if(go) go.onclick=async()=>{ if(!sel.size)return;
+    const difs=[...sel].filter(ch=>$(`#sheetBody .lnkchk[data-n="${ch}"]`)?.dataset.diff);
+    if(difs.length && !confirm(`${difs.length} nota(s) parecem de fornecedor diferente do pagamento. Associar mesmo assim?`)) return;
+    for(const ch of sel){ await linkNotaLanc(ch,lancId); }
+    closeSheet(); toast(sel.size+' nota(s) associada(s)'); renderNotas(); renderLanc();
   };
-}
-/* Associa nota a pagamento; se o pagamento for MAIOR que a nota (tarifa/juros embutidos),
-   pergunta o que é a sobra e separa num lançamento próprio. */
-function finalizarAssociacao(l, chave){
-  const n=ST.notas.find(x=>x.chave===chave); if(!l||!n)return;
-  const mag=Math.abs(+l.amount), nv=+n.valor_total||0, diff=+(mag-nv).toFixed(2);
-  if(diff>0.01){ openDiferenca(l, chave, nv, diff); return; }
-  // valor bate (ou nota maior): associa direto
-  patchLanc(l.id,{nota_chave:chave}).then(()=>{ closeSheet();
-    toast(diff<-0.01?'Associada (nota maior que o pagamento)':'Nota associada'); renderNotas(); renderLanc(); });
-}
-function openDiferenca(l, chave, nv, diff){
-  const n=ST.notas.find(x=>x.chave===chave);
-  const quick=[['financeiras__tarifas_bancarias','Tarifa bancária'],['op__tarifas_encargos','Juros / Encargos'],['financeiras__iof','IOF']];
-  openSheet(`<h3>Sobra de ${brl(diff)}</h3>
-    <div class="hint">${esc((n&&n.emitente)||'')} · Nota ${brl(-nv)} · Pagamento ${brl(+l.amount)}</div>
-    <div class="note" style="font-size:12.5px">O pagamento é <b>${brl(diff)}</b> maior que a nota. O que é essa diferença? Separo num lançamento próprio e a nota fica com o valor certo.</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
-      ${quick.map(([id,lab])=>`<button class="catbtn" data-q="${id}">${lab}</button>`).join('')}
-    </div>
-    <div class="fld" style="margin-bottom:0"><label>Ou outra categoria</label>${catSelectHTML(null)}</div>
-    <button class="btn p" id="difGo" style="margin-top:12px"><i class="ph-duotone ph-scissors"></i> Separar e associar</button>
-    <button class="btn g" id="difWhole" style="margin-top:8px">Não separar — associar valor cheio</button>`);
-  let catDiff=null;
-  const mark=()=>$$('#sheetBody [data-q]').forEach(b=>b.classList.toggle('set', b.dataset.q===catDiff));
-  $$('#sheetBody [data-q]').forEach(b=>b.onclick=()=>{ catDiff=b.dataset.q; const s=$('#sheetBody .pCat'); if(s)s.value=''; mark(); });
-  const selc=$('#sheetBody .pCat'); if(selc) selc.onchange=e=>{ catDiff=e.target.value||null; mark(); };
-  $('#difWhole').onclick=()=>patchLanc(l.id,{nota_chave:chave}).then(()=>{ closeSheet(); toast('Associada (valor cheio)'); renderNotas(); renderLanc(); });
-  $('#difGo').onclick=()=>{ if(!catDiff){toast('Escolha o que é a diferença');return;} aplicarDiferenca(l, chave, nv, diff, catDiff); };
-}
-async function aplicarDiferenca(l, chave, nv, diff, catDiff){
-  const sign=(+l.amount<0)?-1:1, baseFit=l.fitid||('assoc'+l.id);
-  const rows=[
-    {unit:l.unit, fitid:baseFit, date:l.date, competencia:l.competencia, memo:(l.memo||'')+' (nota)', amount:sign*Math.abs(nv), category:l.category||null, manual:true, nota_chave:chave},
-    {unit:l.unit, fitid:baseFit+'__dif', date:l.date, competencia:l.competencia, memo:(l.memo||'')+' (diferença)', amount:sign*Math.abs(diff), category:catDiff, manual:true, nota_chave:null}
-  ];
-  try{
-    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
-    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
-    ST.lanc=ST.lanc.filter(x=>x.id!==l.id); ins.forEach(r=>ST.lanc.unshift(r));
-    closeSheet(); toast('Nota associada · '+brl(diff)+' separado'); renderNotas(); renderLanc();
-  }catch(e){ toast('Erro: '+e.message); }
-}
-// Associação automática: só liga quando NOME do fornecedor bate E valor é praticamente igual (evita erro)
-async function autoAssociarNotas(){
-  const semNota=ST.notas.filter(n=>!ST.lanc.some(l=>l.nota_chave===n.chave));
-  const usados=new Set(); let feitos=0, ambiguos=0;
-  for(const n of semNota){
-    const bons=scoreCands(n).filter(c=>c.nm>0 && c.vd<0.5 && !usados.has(c.l.id)).sort((a,b)=>a.vd-b.vd);
-    if(bons.length===0) continue;
-    // se houver empate de valor exato com mesmo fornecedor, é seguro pegar o 1º; se valores diferentes entre si, ainda ok (menor vd)
-    const alvo=bons[0];
-    // ambiguidade real: 2+ pagamentos do MESMO valor exato e mesmo fornecedor -> pula pra não errar qual
-    const exatos=bons.filter(c=>Math.abs(c.vd-alvo.vd)<0.01);
-    if(alvo.vd>=0.5){ continue; }
-    if(exatos.length>1){ ambiguos++; continue; }
-    usados.add(alvo.l.id);
-    try{ await patchLanc(alvo.l.id,{nota_chave:n.chave}); alvo.l.nota_chave=n.chave; feitos++; }catch(e){}
-  }
-  renderNotas(); renderLanc();
-  toast(`${feitos} associada(s) automaticamente`+(ambiguos?` · ${ambiguos} ambígua(s), faça manual`:'')+`. As demais associe manualmente.`);
 }
 
 /* ========================= REGRAS DE FORNECEDOR ========================= */
