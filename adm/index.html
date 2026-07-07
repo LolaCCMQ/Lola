@@ -479,6 +479,33 @@ function parseNFeXML(xmlText){
   }).filter(n=>n.chave);
 }
 
+/* ========================= LEITURA DE PDF (relatórios de receita Banrisul) ========================= */
+let _pdfjs=null;
+function loadPdfJs(){ if(_pdfjs)return _pdfjs; _pdfjs=new Promise((res,rej)=>{ const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  s.onload=()=>{ try{ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(pdfjsLib);}catch(e){rej(e);} };
+  s.onerror=()=>rej(new Error('falha ao carregar leitor de PDF')); document.head.appendChild(s); }); return _pdfjs; }
+async function pdfLines(file){
+  const pdfjs=await loadPdfJs(); const buf=await file.arrayBuffer();
+  const pdf=await pdfjs.getDocument({data:buf}).promise; const lines=[];
+  for(let p=1;p<=pdf.numPages;p++){ const page=await pdf.getPage(p); const tc=await page.getTextContent();
+    const byY={}; tc.items.forEach(it=>{ const y=Math.round(it.transform[5]); (byY[y]=byY[y]||[]).push(it); });
+    Object.keys(byY).map(Number).sort((a,b)=>b-a).forEach(y=>{ lines.push(byY[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim()); });
+  }
+  return lines;
+}
+function _brNum(s){ s=(s||'').trim().replace(/\./g,'').replace(',','.'); const n=parseFloat(s); return isNaN(n)?null:n; }
+// Relatório Banrisul "Demonstrativo por Operação": a linha TOTAL termina com o valor bruto
+async function parseReceitaPDF(file){
+  const lines=await pdfLines(file);
+  const totLine=lines.find(l=>/^TOTAL\b/i.test(l)) || lines.filter(l=>/\btotal\b/i.test(l)).pop();
+  if(!totLine) return {erro:'não encontrei a linha TOTAL (talvez PDF de imagem, ex.: Stone — digite manual)'};
+  const nums=totLine.match(/\d[\d.]*,\d{2}/g)||[];
+  if(!nums.length) return {erro:'não encontrei valores no TOTAL'};
+  const band=(lines.find(l=>/bandeira/i.test(l))||'').replace(/.*bandeira:?\s*/i,'').trim();
+  return {bruto:_brNum(nums[nums.length-1]), band};
+}
+
 /* ========================= LOAD ========================= */
 async function loadPlano(){
   ST.plano=await api('financeiro_plano?select=*&order=group_id,sort_order');
@@ -1037,7 +1064,9 @@ function impTab(s){
         <div class="row2">
           <div class="fld" style="margin-bottom:0"><label>Bruto (R$)</label><input class="s_bruto" inputmode="decimal" value="${fmtIn(rec?+rec.amount:null)}" placeholder="0,00"></div>
           <div class="fld" style="margin-bottom:0"><label>Taxa (R$)</label><input class="s_tax" inputmode="decimal" value="${fmtIn(tax?+tax.amount:null)}" placeholder="0,00"></div>
-        </div></div>`;
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--vinho);font-weight:600;cursor:pointer"><i class="ph-duotone ph-paperclip"></i> Anexar PDF (lê o bruto)<input type="file" accept="application/pdf" class="s_pdf" data-k="${k}" style="display:none"></label>
+        <span class="s_pdfmsg" data-k="${k}" style="font-size:11px;color:var(--mut);margin-left:6px"></span></div>`;
     }).join('');
     el.innerHTML=`<div class="note">Receitas do mês <b>por fonte</b> (relatórios Stone, cartões e vouchers). O <b>bruto</b> entra como Receita e a <b>taxa</b> como custo — o líquido fica certo na DRE. As bolinhas verdes mostram o que já foi lançado (checklist do mês).</div>
       <div class="fld"><label>Competência</label><select id="r_comp">${monthList().map(c=>`<option value="${c}" ${c===ST.comp?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
@@ -1046,7 +1075,16 @@ function impTab(s){
       <button class="btn p" id="r_go"><i class="ph-duotone ph-floppy-disk"></i> Salvar receitas do mês</button>`;
     const recalc=()=>{ let b=0,t=0; $$('#srcList .srcrow').forEach(r=>{b+=parseNum(r.querySelector('.s_bruto').value)||0;t+=parseNum(r.querySelector('.s_tax').value)||0;});
       $('#r_tot').innerHTML=`Bruto ${brl(b)} · Taxas ${brl(-t)} · <b style="color:var(--pos)">Líquido ${brl(b-t)}</b>`; };
-    const wireInputs=()=>$$('#srcList input').forEach(i=>i.oninput=recalc);
+    const wirePdf=()=>$$('#srcList .s_pdf').forEach(inp=>inp.onchange=async()=>{
+      const f=inp.files[0]; if(!f)return; const k=inp.dataset.k;
+      const msg=$(`#srcList .s_pdfmsg[data-k="${k}"]`); msg.textContent='lendo PDF…'; msg.style.color='var(--mut)';
+      try{ const r=await parseReceitaPDF(f);
+        if(r.erro){ msg.textContent=r.erro; msg.style.color='var(--neg)'; return; }
+        const row=inp.closest('.srcrow'); row.querySelector('.s_bruto').value=(r.bruto||0).toFixed(2).replace('.',',');
+        msg.textContent='bruto '+brl(r.bruto||0)+(r.band?' · '+r.band:''); msg.style.color='var(--pos)'; recalc();
+      }catch(e){ msg.textContent='erro: '+e.message; msg.style.color='var(--neg)'; }
+    });
+    const wireInputs=()=>{ $$('#srcList .s_bruto,#srcList .s_tax').forEach(i=>i.oninput=recalc); wirePdf(); };
     wireInputs(); recalc();
     $('#r_comp').onchange=()=>{ $('#srcList').innerHTML=rowsHTML($('#r_comp').value); wireInputs(); recalc(); };
     $('#r_go').onclick=async()=>{
