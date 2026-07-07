@@ -815,6 +815,9 @@ function openCatPicker(lancId){
 /* ========================= EDIT / TOGGLE ========================= */
 async function patchLanc(id,body){
   const i=ST.lanc.findIndex(l=>l.id===id); if(i>=0)Object.assign(ST.lanc[i],body);
+  // auto-concilia quando categoria + nota já estão vinculadas (a menos que o próprio patch mexa em conciliado)
+  if(i>=0 && !('conciliado' in body)){ const l=ST.lanc[i];
+    if(l.category && l.nota_chave && !l.conciliado){ l.conciliado=true; body={...body,conciliado:true}; } }
   await api(`financeiro_lancamentos?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(body)});
 }
 async function toggleConc(id){const l=ST.lanc.find(x=>x.id===id);await patchLanc(id,{conciliado:!l.conciliado});renderLanc();}
@@ -926,9 +929,10 @@ async function doSplit(id){
 /* ========================= IMPORT / ADD SHEET ========================= */
 function openImport(){
   openSheet(`<h3>Importar / lançar</h3><div class="hint">${U(ST.unit).nome}</div>
-    <div class="seg" id="impSeg">
+    <div class="seg" id="impSeg" style="flex-wrap:wrap">
       <button class="on" data-s="ofx">OFX</button>
       <button data-s="colar">Colar extrato</button>
+      <button data-s="receita">Receita</button>
       <button data-s="manual">Manual</button>
     </div>
     <div id="impBody"></div>`);
@@ -948,6 +952,41 @@ function impTab(s){
       <div class="fld"><label>Texto do extrato</label><textarea id="pasteTxt" style="min-height:150px" placeholder="05/05/2026  CAFE TRES CORACOES   -373,28&#10;06/05/2026  Vendas do dia         5.936,80"></textarea></div>
       <button class="btn p" id="pasteGo">Interpretar e importar</button>`;
     $('#pasteGo').onclick=()=>{const t=$('#pasteTxt').value;const tx=parsePaste(t);if(!tx.length){toast('Não achei lançamentos');return;}importTxns(tx,'colar');};
+  } else if(s==='receita'){
+    const recCats=ST.plano.filter(p=>p.group_id==='receitas');
+    const lastDay=(c)=>{const[y,m]=c.split('-').map(Number);return `${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;};
+    el.innerHTML=`<div class="note">Lance a <b>receita do mês</b> pelo relatório de vendas (Stone/PDV). O <b>faturamento bruto</b> entra como Receita e as <b>taxas de cartão</b> entram como custo — o líquido aparece certinho na DRE.</div>
+      <div class="fld"><label>Competência</label><select id="r_comp">${monthList().map(c=>`<option value="${c}" ${c===ST.comp?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
+      <div class="fld"><label>Categoria da receita</label><select id="r_cat">${recCats.map(p=>`<option value="${p.id}" ${p.id==='receitas__vendas_restaurante'?'selected':''}>${esc(p.label)}</option>`).join('')}</select></div>
+      <div class="fld"><label>Descrição (opcional)</label><input id="r_desc" placeholder="Ex.: Vendas Stone · Café + Salão"></div>
+      <div class="row2">
+        <div class="fld"><label>Faturamento bruto (R$)</label><input id="r_bruto" inputmode="decimal" placeholder="0,00"></div>
+        <div class="fld"><label>Taxas de cartão (R$)</label><input id="r_tax" inputmode="decimal" placeholder="0,00"></div>
+      </div>
+      <div class="note" id="r_liq" style="font-size:12.5px">Líquido: —</div>
+      <details style="margin:10px 0"><summary style="cursor:pointer;font-weight:600;font-size:12.5px;color:var(--vinho)">Somar valores do relatório (colar)</summary>
+        <div class="note" style="font-size:12px;margin-top:8px">Cole a coluna de valores do relatório (Stone/PDV). Somo tudo e preencho o campo escolhido.</div>
+        <textarea id="r_paste" style="min-height:90px" placeholder="5.936,80&#10;1.204,50&#10;873,10"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn g" id="r_sumBruto" style="flex:1">Somar → Bruto</button><button class="btn g" id="r_sumTax" style="flex:1">Somar → Taxas</button></div>
+      </details>
+      <button class="btn p" id="r_go"><i class="ph-duotone ph-plus-circle"></i> Lançar receita</button>`;
+    const parseNum=v=>{v=(v||'').trim();if(!v)return NaN;if(v.includes(',')&&v.includes('.'))v=v.replace(/\./g,'').replace(',','.');else if(v.includes(','))v=v.replace(',','.');return parseFloat(v);};
+    const sumPaste=()=>{const m=($('#r_paste').value||'').match(/-?\d[\d.,]*/g)||[];return m.reduce((s,x)=>{const n=parseNum(x);return s+(isNaN(n)?0:Math.abs(n));},0);};
+    const upLiq=()=>{const b=parseNum($('#r_bruto').value)||0,t=parseNum($('#r_tax').value)||0;$('#r_liq').innerHTML=`Líquido (bruto − taxas): <b style="color:var(--pos)">${brl(b-t)}</b>`;};
+    $('#r_bruto').oninput=upLiq; $('#r_tax').oninput=upLiq;
+    $('#r_sumBruto').onclick=()=>{const s=sumPaste();if(!s){toast('Nada para somar');return;}$('#r_bruto').value=s.toFixed(2).replace('.',',');upLiq();toast('Somado: '+brl(s));};
+    $('#r_sumTax').onclick=()=>{const s=sumPaste();if(!s){toast('Nada para somar');return;}$('#r_tax').value=s.toFixed(2).replace('.',',');upLiq();toast('Somado: '+brl(s));};
+    $('#r_go').onclick=async()=>{
+      const comp=$('#r_comp').value, bruto=parseNum($('#r_bruto').value), tax=parseNum($('#r_tax').value)||0;
+      if(isNaN(bruto)||bruto<=0){toast('Informe o faturamento bruto');return;}
+      const d=lastDay(comp), desc=$('#r_desc').value.trim(), stamp=Date.now();
+      const rows=[{unit:ST.unit,fitid:'rec'+comp+stamp,date:d,competencia:comp,memo:'Receita '+compLabel(comp)+(desc?' · '+desc:''),amount:Math.abs(bruto),category:$('#r_cat').value,manual:true}];
+      if(tax>0) rows.push({unit:ST.unit,fitid:'rectax'+comp+stamp,date:d,competencia:comp,memo:'Taxas de cartão '+compLabel(comp),amount:-Math.abs(tax),category:'financeiras__taxas_de_cartao',manual:true});
+      try{ const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+        ins.forEach(r=>ST.lanc.unshift(r)); closeSheet(); toast('Receita lançada'+(tax>0?' + taxas':'')); renderAll();
+      }catch(e){toast('Erro: '+e.message);}
+    };
+    upLiq();
   } else {
     el.innerHTML=`
       <div class="fld"><label>Descrição</label><input id="m_memo" placeholder="Ex.: Contabilidade"></div>
