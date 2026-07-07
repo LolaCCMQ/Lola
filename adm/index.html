@@ -369,6 +369,12 @@ const DRE_LINES=[
 const GRUPO_COR={ transferencias:'#6B6258', receitas:'#2C7A4B', comissoes:'#7A4FA3', descontos:'#9A6B1E', cmv:'#B5302E',
   financeiras:'#0F766E', impostos:'#4858A8', folha:'#8A6A2B', prolabore:'#6B4FA8',
   operacionais:'#2C5AA0', investimentos:'#B23A6B' };
+/* fontes de receita por unidade (checklist mensal de relatórios) */
+const RECEITA_FONTES_POR_UNIDADE={
+  ccmq:[['banricompras','Banricompras'],['visa','Visa'],['master','Master'],['elo','Elo'],['pix','PIX'],['banricard','Banricard'],['vr','VR'],['alelo','Alelo'],['pluxee','Pluxee'],['stone','Vendas Stone']]
+};
+const RECEITA_FONTES_PADRAO=[['stone','Vendas Stone'],['pix','PIX'],['dinheiro','Dinheiro'],['debito','Débito'],['credito','Crédito'],['vr','VR'],['alelo','Alelo'],['pluxee','Pluxee']];
+function receitaFontes(){ return RECEITA_FONTES_POR_UNIDADE[ST.unit]||RECEITA_FONTES_PADRAO; }
 /* grupos canônicos (linha da DRE) — usados no gerenciador de categorias */
 const GRUPOS=[
   {id:'receitas',      label:'RECEITAS',              type:'receita', dre:'Receitas'},
@@ -953,40 +959,46 @@ function impTab(s){
       <button class="btn p" id="pasteGo">Interpretar e importar</button>`;
     $('#pasteGo').onclick=()=>{const t=$('#pasteTxt').value;const tx=parsePaste(t);if(!tx.length){toast('Não achei lançamentos');return;}importTxns(tx,'colar');};
   } else if(s==='receita'){
-    const recCats=ST.plano.filter(p=>p.group_id==='receitas');
     const lastDay=(c)=>{const[y,m]=c.split('-').map(Number);return `${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;};
-    el.innerHTML=`<div class="note">Lance a <b>receita do mês</b> pelo relatório de vendas (Stone/PDV). O <b>faturamento bruto</b> entra como Receita e as <b>taxas de cartão</b> entram como custo — o líquido aparece certinho na DRE.</div>
-      <div class="fld"><label>Competência</label><select id="r_comp">${monthList().map(c=>`<option value="${c}" ${c===ST.comp?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
-      <div class="fld"><label>Categoria da receita</label><select id="r_cat">${recCats.map(p=>`<option value="${p.id}" ${p.id==='receitas__vendas_restaurante'?'selected':''}>${esc(p.label)}</option>`).join('')}</select></div>
-      <div class="fld"><label>Descrição (opcional)</label><input id="r_desc" placeholder="Ex.: Vendas Stone · Café + Salão"></div>
-      <div class="row2">
-        <div class="fld"><label>Faturamento bruto (R$)</label><input id="r_bruto" inputmode="decimal" placeholder="0,00"></div>
-        <div class="fld"><label>Taxas de cartão (R$)</label><input id="r_tax" inputmode="decimal" placeholder="0,00"></div>
-      </div>
-      <div class="note" id="r_liq" style="font-size:12.5px">Líquido: —</div>
-      <details style="margin:10px 0"><summary style="cursor:pointer;font-weight:600;font-size:12.5px;color:var(--vinho)">Somar valores do relatório (colar)</summary>
-        <div class="note" style="font-size:12px;margin-top:8px">Cole a coluna de valores do relatório (Stone/PDV). Somo tudo e preencho o campo escolhido.</div>
-        <textarea id="r_paste" style="min-height:90px" placeholder="5.936,80&#10;1.204,50&#10;873,10"></textarea>
-        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn g" id="r_sumBruto" style="flex:1">Somar → Bruto</button><button class="btn g" id="r_sumTax" style="flex:1">Somar → Taxas</button></div>
-      </details>
-      <button class="btn p" id="r_go"><i class="ph-duotone ph-plus-circle"></i> Lançar receita</button>`;
     const parseNum=v=>{v=(v||'').trim();if(!v)return NaN;if(v.includes(',')&&v.includes('.'))v=v.replace(/\./g,'').replace(',','.');else if(v.includes(','))v=v.replace(',','.');return parseFloat(v);};
-    const sumPaste=()=>{const m=($('#r_paste').value||'').match(/-?\d[\d.,]*/g)||[];return m.reduce((s,x)=>{const n=parseNum(x);return s+(isNaN(n)?0:Math.abs(n));},0);};
-    const upLiq=()=>{const b=parseNum($('#r_bruto').value)||0,t=parseNum($('#r_tax').value)||0;$('#r_liq').innerHTML=`Líquido (bruto − taxas): <b style="color:var(--pos)">${brl(b-t)}</b>`;};
-    $('#r_bruto').oninput=upLiq; $('#r_tax').oninput=upLiq;
-    $('#r_sumBruto').onclick=()=>{const s=sumPaste();if(!s){toast('Nada para somar');return;}$('#r_bruto').value=s.toFixed(2).replace('.',',');upLiq();toast('Somado: '+brl(s));};
-    $('#r_sumTax').onclick=()=>{const s=sumPaste();if(!s){toast('Nada para somar');return;}$('#r_tax').value=s.toFixed(2).replace('.',',');upLiq();toast('Somado: '+brl(s));};
+    const fmtIn=n=>(n==null||isNaN(n))?'':Math.abs(n).toFixed(2).replace('.',',');
+    const FONTES=receitaFontes();
+    const rowsHTML=(comp)=>FONTES.map(([k,lab])=>{
+      const rec=ST.lanc.find(l=>l.fitid===`rec_${comp}_${k}`), tax=ST.lanc.find(l=>l.fitid===`rectax_${comp}_${k}`);
+      const dot=rec?'#2C7A4B':'var(--border)';
+      return `<div class="srcrow" data-k="${k}" style="border:1px solid var(--border);border-radius:12px;padding:9px 11px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="width:9px;height:9px;border-radius:50%;background:${dot};flex-shrink:0"></span><b style="font-size:13.5px">${lab}</b></div>
+        <div class="row2">
+          <div class="fld" style="margin-bottom:0"><label>Bruto (R$)</label><input class="s_bruto" inputmode="decimal" value="${fmtIn(rec?+rec.amount:null)}" placeholder="0,00"></div>
+          <div class="fld" style="margin-bottom:0"><label>Taxa (R$)</label><input class="s_tax" inputmode="decimal" value="${fmtIn(tax?+tax.amount:null)}" placeholder="0,00"></div>
+        </div></div>`;
+    }).join('');
+    el.innerHTML=`<div class="note">Receitas do mês <b>por fonte</b> (relatórios Stone, cartões e vouchers). O <b>bruto</b> entra como Receita e a <b>taxa</b> como custo — o líquido fica certo na DRE. As bolinhas verdes mostram o que já foi lançado (checklist do mês).</div>
+      <div class="fld"><label>Competência</label><select id="r_comp">${monthList().map(c=>`<option value="${c}" ${c===ST.comp?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
+      <div id="srcList">${rowsHTML(ST.comp)}</div>
+      <div class="note" id="r_tot" style="font-size:12.5px"></div>
+      <button class="btn p" id="r_go"><i class="ph-duotone ph-floppy-disk"></i> Salvar receitas do mês</button>`;
+    const recalc=()=>{ let b=0,t=0; $$('#srcList .srcrow').forEach(r=>{b+=parseNum(r.querySelector('.s_bruto').value)||0;t+=parseNum(r.querySelector('.s_tax').value)||0;});
+      $('#r_tot').innerHTML=`Bruto ${brl(b)} · Taxas ${brl(-t)} · <b style="color:var(--pos)">Líquido ${brl(b-t)}</b>`; };
+    const wireInputs=()=>$$('#srcList input').forEach(i=>i.oninput=recalc);
+    wireInputs(); recalc();
+    $('#r_comp').onchange=()=>{ $('#srcList').innerHTML=rowsHTML($('#r_comp').value); wireInputs(); recalc(); };
     $('#r_go').onclick=async()=>{
-      const comp=$('#r_comp').value, bruto=parseNum($('#r_bruto').value), tax=parseNum($('#r_tax').value)||0;
-      if(isNaN(bruto)||bruto<=0){toast('Informe o faturamento bruto');return;}
-      const d=lastDay(comp), desc=$('#r_desc').value.trim(), stamp=Date.now();
-      const rows=[{unit:ST.unit,fitid:'rec'+comp+stamp,date:d,competencia:comp,memo:'Receita '+compLabel(comp)+(desc?' · '+desc:''),amount:Math.abs(bruto),category:$('#r_cat').value,manual:true}];
-      if(tax>0) rows.push({unit:ST.unit,fitid:'rectax'+comp+stamp,date:d,competencia:comp,memo:'Taxas de cartão '+compLabel(comp),amount:-Math.abs(tax),category:'financeiras__taxas_de_cartao',manual:true});
-      try{ const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
-        ins.forEach(r=>ST.lanc.unshift(r)); closeSheet(); toast('Receita lançada'+(tax>0?' + taxas':'')); renderAll();
-      }catch(e){toast('Erro: '+e.message);}
+      const comp=$('#r_comp').value, d=lastDay(comp), dels=[], ins=[];
+      $$('#srcList .srcrow').forEach(r=>{ const k=r.dataset.k, lab=FONTES.find(s=>s[0]===k)[1];
+        const b=parseNum(r.querySelector('.s_bruto').value), t=parseNum(r.querySelector('.s_tax').value);
+        const recFit=`rec_${comp}_${k}`, taxFit=`rectax_${comp}_${k}`; dels.push(recFit,taxFit);
+        if(!isNaN(b)&&b>0) ins.push({unit:ST.unit,fitid:recFit,date:d,competencia:comp,memo:`Receita ${lab} · ${compLabel(comp)}`,amount:Math.abs(b),category:'receitas__vendas_restaurante',manual:true});
+        if(!isNaN(t)&&t>0) ins.push({unit:ST.unit,fitid:taxFit,date:d,competencia:comp,memo:`Taxa ${lab} · ${compLabel(comp)}`,amount:-Math.abs(t),category:'financeiras__taxas_de_cartao',manual:true});
+      });
+      try{
+        const existing=ST.lanc.filter(l=>dels.includes(l.fitid));
+        for(const e of existing){ await api(`financeiro_lancamentos?id=eq.${e.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}); }
+        ST.lanc=ST.lanc.filter(l=>!dels.includes(l.fitid));
+        if(ins.length){ const created=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(ins)}); created.forEach(r=>ST.lanc.unshift(r)); }
+        closeSheet(); toast(ins.length?'Receitas salvas ('+ins.length+' lançamentos)':'Receitas do mês zeradas'); renderAll();
+      }catch(e){ toast('Erro: '+e.message); }
     };
-    upLiq();
   } else {
     el.innerHTML=`
       <div class="fld"><label>Descrição</label><input id="m_memo" placeholder="Ex.: Contabilidade"></div>
