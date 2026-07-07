@@ -293,6 +293,11 @@ section.view{display:none} section.view.on{display:block}
       <button class="btn o" id="btnImpXml" style="margin-bottom:14px"><i class="ph-duotone ph-file-xml"></i> Importar XML (Takeat)</button>
       <div class="monthsel"><span class="lblcap">Competência</span><select id="notasComp"></select></div>
       <div class="catsearch" id="notasSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="notasSearch" placeholder="Buscar por emitente, CNPJ ou produto…" autocomplete="off"></div>
+      <div class="filters" id="notasFilters" style="margin-bottom:12px">
+        <button class="chip on" data-nf="todas">Todas</button>
+        <button class="chip" data-nf="pend">Falta associar</button>
+        <button class="chip" data-nf="ok">Já associadas</button>
+      </div>
       <div class="sum" id="notasSum" style="margin-bottom:12px"></div>
       <div id="notasList"></div>
     </section>
@@ -497,6 +502,14 @@ async function unlinkNotaLanc(chave,lancId){
 async function loadRegras(){
   ST.regras=await api('financeiro_regras?select=*&order=termo');
 }
+async function loadApelidos(){ ST.apelidos=await api('financeiro_apelidos?select=*').catch(()=>[]); }
+// apelido: quando a descrição do pagamento contém o termo E a nota é daquele emitente, trata como MESMO fornecedor
+function aliasMatch(memo,emitente){ const m=normSearch(memo||''); return (ST.apelidos||[]).some(a=>a.emitente===emitente && m.includes(normSearch(a.termo))); }
+async function salvarApelido(termo,emitente){
+  if(!termo||!emitente)return;
+  if((ST.apelidos||[]).some(a=>a.emitente===emitente && normSearch(a.termo)===normSearch(termo)))return;
+  try{ const ins=await api('financeiro_apelidos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify({unit:ST.unit,termo,emitente})}); if(ins&&ins[0])(ST.apelidos=ST.apelidos||[]).push(ins[0]); }catch(e){}
+}
 /* regras: 1ª que casar (descrição contém o termo, sem acento) vence */
 function applyRules(memo){
   const m=normSearch(memo);
@@ -521,7 +534,7 @@ async function enter(uid){
   ST.comp=currentComp(); ST.lancComp=ST.comp;
   fillMonthSelects();
   $('#lancList').innerHTML='<div class="spin"></div>';
-  try{ await loadPlano(); await loadLanc(); await loadNotas(); await loadLinks(); await loadRegras(); }
+  try{ await loadPlano(); await loadLanc(); await loadNotas(); await loadLinks(); await loadRegras(); await loadApelidos(); }
   catch(e){ toast('Erro ao carregar: '+e.message); }
   fillCatFilter();
   renderAll();
@@ -1123,6 +1136,8 @@ function renderNotas(){
   if(!ST.notas.length){$('#notasSum').innerHTML='';el.innerHTML=`<div class="empty"><i class="ph-duotone ph-receipt"></i>Nenhuma nota importada ainda.</div>`;return;}
   let lista=ST.notas;
   if(ST.notasComp && ST.notasComp!=='todas') lista=lista.filter(n=>(n.data_emissao||'').slice(0,7)===ST.notasComp);
+  if(ST.notasFilt==='pend') lista=lista.filter(n=>pagsDaNota(n.chave).length===0);
+  else if(ST.notasFilt==='ok') lista=lista.filter(n=>pagsDaNota(n.chave).length>0);
   if(ST.notasSearch){ const q=normSearch(ST.notasSearch);
     lista=lista.filter(n=> normSearch((n.emitente||'')+' '+(n.cnpj||'')).includes(q)
       || (Array.isArray(n.itens)&&n.itens.some(i=>normSearch(i.desc||'').includes(q))) ); }
@@ -1150,11 +1165,32 @@ function renderNotas(){
         ${pags.length
           ? `<button class="catbtn set" data-link="${n.chave}"><i class="ph-duotone ph-link"></i> ${pags.length} pagamento(s)</button>`
           : `<button class="catbtn miss" data-link="${n.chave}"><i class="ph-duotone ph-link-simple"></i> Associar a pagamento</button>`}
+        <button class="catbtn" data-mover="${n.chave}" title="Mover para outra empresa"><i class="ph-duotone ph-arrows-left-right"></i> Mover</button>
       </div>
       ${itensHTML}</div>`;
   }).join('');
   el.querySelectorAll('[data-link]').forEach(b=>b.onclick=()=>openLinkNota(b.dataset.link));
+  el.querySelectorAll('[data-mover]').forEach(b=>b.onclick=()=>openMoverNota(b.dataset.mover));
   el.querySelectorAll('[data-nfit]').forEach(b=>b.onclick=()=>{ST.expNotas=ST.expNotas||new Set();const k=b.dataset.nfit;ST.expNotas.has(k)?ST.expNotas.delete(k):ST.expNotas.add(k);renderNotas();});
+}
+function openMoverNota(chave){
+  const n=notaObj(chave); if(!n)return;
+  const destinos=UNITS.filter(u=>u.id!==ST.unit);
+  openSheet(`<h3>Mover nota para outra empresa</h3>
+    <div class="hint">${esc(n.emitente||'')} · ${brl(-(+n.valor_total||0))} · hoje em ${U(ST.unit).nome}</div>
+    <div class="note" style="font-size:12px">A nota sai desta empresa e vai para a escolhida. Se ela tiver pagamento associado aqui, o vínculo é desfeito (você reassocia lá).</div>
+    <div class="catlist">${destinos.map(u=>`<div class="catopt" data-dest="${u.id}"><span class="cbar" style="background:${u.fg}"></span><div style="flex:1;font-weight:600">${u.nome}</div><i class="ph-duotone ph-caret-right"></i></div>`).join('')}</div>`);
+  $$('#sheetBody [data-dest]').forEach(o=>o.onclick=async()=>{
+    const dest=o.dataset.dest;
+    try{
+      await api(`financeiro_notas?chave=eq.${encodeURIComponent(chave)}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:dest})});
+      // desfaz vínculos desta unidade (pagamentos são por empresa)
+      await api(`financeiro_nota_lanc?nota_chave=eq.${encodeURIComponent(chave)}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+      ST.notaLinks=(ST.notaLinks||[]).filter(x=>x.nota_chave!==chave);
+      ST.notas=ST.notas.filter(x=>x.chave!==chave);
+      closeSheet(); toast('Nota movida para '+U(dest).nome); renderNotas(); renderLanc();
+    }catch(e){ toast('Erro: '+e.message); }
+  });
 }
 // palavras genéricas que não ajudam a casar fornecedor
 const NF_STOP=new Set(['ltda','me','epp','eireli','sa','comercio','comercial','industria','industrial','distribuidora','distribuicao','distrib','servicos','servico','produtos','produto','alimentos','alimenticios','pagamento','efetuado','pix','enviado','cp','transferencia','ted','doc','recebido']);
@@ -1170,12 +1206,14 @@ function matchScore(emitTokens, memoNorm){
 function scoreCands(n){ // pagamentos candidatos p/ uma NOTA (sem nota vinculada)
   const vtot=+n.valor_total||0; const emitTok=nfTokens(n.emitente);
   return ST.lanc.filter(l=>+l.amount<0 && notasDoLanc(l.id).length===0)
-    .map(l=>({l, nm:matchScore(emitTok,normSearch(l.memo||'')), vd:Math.abs(Math.abs(+l.amount)-vtot)}));
+    .map(l=>{ let nm=matchScore(emitTok,normSearch(l.memo||'')); if(!nm && aliasMatch(l.memo,n.emitente)) nm=2;
+      return {l, nm, vd:Math.abs(Math.abs(+l.amount)-vtot)}; });
 }
 function scoreNotas(l){ // notas candidatas p/ um PAGAMENTO (sem pagamento vinculado)
   const vlanc=Math.abs(+l.amount||0); const memo=normSearch(l.memo||'');
   return ST.notas.filter(n=>pagsDaNota(n.chave).length===0)
-    .map(n=>({n, nm:matchScore(nfTokens(n.emitente),memo), vd:Math.abs((+n.valor_total||0)-vlanc)}));
+    .map(n=>{ let nm=matchScore(nfTokens(n.emitente),memo); if(!nm && aliasMatch(l.memo,n.emitente)) nm=2;
+      return {n, nm, vd:Math.abs((+n.valor_total||0)-vlanc)}; });
 }
 /* ===== ASSOCIAÇÃO N:N (multi-seleção): 1 nota↔vários pagamentos e 1 pagamento↔várias notas ===== */
 // A PARTIR DA NOTA: marca 1+ pagamentos (ex.: boleto parcelado)
@@ -1216,9 +1254,11 @@ function openLinkNota(chave){
   $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(chave,b.dataset.unl); toast('Removido'); closeSheet(); renderNotas(); renderLanc(); });
   const go=$('#lnkGo');
   if(go) go.onclick=async()=>{ if(!sel.size)return;
-    const difs=[...sel].filter(id=>$(`#sheetBody .lnkchk[data-l="${id}"]`)?.dataset.diff);
-    if(difs.length && !confirm(`${difs.length} pagamento(s) parecem de fornecedor diferente da nota. Associar mesmo assim?`)) return;
+    const difIds=[...sel].filter(id=>$(`#sheetBody .lnkchk[data-l="${id}"]`)?.dataset.diff);
+    if(difIds.length && !confirm(`${difIds.length} pagamento(s) parecem de fornecedor diferente da nota. Associar mesmo assim?`)) return;
     for(const id of sel){ await linkNotaLanc(chave,id); }
+    if(difIds.length && confirm(`Criar apelido pra SEMPRE reconhecer esse(s) pagamento(s) como "${(n.emitente||'').slice(0,40)}"?`)){
+      for(const id of difIds){ const l=ST.lanc.find(x=>String(x.id)===String(id)); if(l) await salvarApelido(splitFornecedor(l.memo).disp, n.emitente); } }
     closeSheet(); toast(sel.size+' pagamento(s) associado(s)'); renderNotas(); renderLanc();
   };
 }
@@ -1242,7 +1282,10 @@ function openLinkPagamento(lancId){
         ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
       </div>`;
   };
-  const ligHTML=jaLig.length?`<div class="cg">Notas já associadas (${jaLig.length})</div>`+jaLig.map(n=>`<div class="catopt"><span class="cbar" style="background:#2C7A4B"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'')}</div><div class="date" style="font-size:11px">NF ${esc(n.numero||'—')}</div></div><div class="amt neg">${brl(-(+n.valor_total||0))}</div><button class="iconbtn" data-unl="${n.chave}" title="Remover"><i class="ph-duotone ph-link-break"></i></button></div>`).join(''):'';
+  const ligHTML=jaLig.length?`<div class="cg">Notas já associadas (${jaLig.length}) — toque em “ver produtos” p/ classificar</div>`+jaLig.map(n=>{ const its=Array.isArray(n.itens)?n.itens:[];
+    return `<div class="catopt"><span class="cbar" style="background:#2C7A4B"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'')}</div><div class="date" style="font-size:11px">NF ${esc(n.numero||'—')}</div>${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:4px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div><div class="amt neg">${brl(-(+n.valor_total||0))}</div><button class="iconbtn" data-unl="${n.chave}" title="Remover"><i class="ph-duotone ph-link-break"></i></button></div>
+    <div class="prodbox" data-pn="${n.chave}" style="display:none;padding:2px 12px 10px 34px">${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}</div>`;}).join('')
+    +`<button class="btn o" id="pgReclass" style="margin:4px 0 6px"><i class="ph-duotone ph-tag"></i> Reclassificar este lançamento</button>`:'';
   let body='';
   if(mesmo.length) body+=`<div class="cg">Mesmo fornecedor</div>`+mesmo.map(({n})=>nrow(n,false)).join('');
   if(proximo.length) body+=`<div class="cg">Valor idêntico ou parecido</div>`+proximo.map(({n})=>nrow(n,true)).join('');
@@ -1266,11 +1309,15 @@ function openLinkPagamento(lancId){
     const box=$(`#sheetBody .prodbox[data-pn="${b.dataset.vn}"]`); if(!box)return;
     box.style.display=box.style.display==='none'?'block':'none'; b.style.opacity=box.style.display==='none'?'1':'.6'; });
   $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(b.dataset.unl,lancId); toast('Removida'); closeSheet(); renderNotas(); renderLanc(); });
+  { const rc=$('#pgReclass'); if(rc) rc.onclick=()=>{ closeSheet(); openCatPicker(lancId); }; }
   const go=$('#lnkGoN');
   if(go) go.onclick=async()=>{ if(!sel.size)return;
-    const difs=[...sel].filter(ch=>$(`#sheetBody .lnkchk[data-n="${ch}"]`)?.dataset.diff);
-    if(difs.length && !confirm(`${difs.length} nota(s) parecem de fornecedor diferente do pagamento. Associar mesmo assim?`)) return;
+    const difChs=[...sel].filter(ch=>$(`#sheetBody .lnkchk[data-n="${ch}"]`)?.dataset.diff);
+    if(difChs.length && !confirm(`${difChs.length} nota(s) parecem de fornecedor diferente do pagamento. Associar mesmo assim?`)) return;
     for(const ch of sel){ await linkNotaLanc(ch,lancId); }
+    if(difChs.length){ const termo=splitFornecedor(l.memo).disp;
+      if(confirm(`Criar apelido pra SEMPRE reconhecer "${termo}" como esse(s) fornecedor(es)?`)){
+        for(const ch of difChs){ const nn=notaObj(ch); if(nn) await salvarApelido(termo, nn.emitente); } } }
     closeSheet(); toast(sel.size+' nota(s) associada(s)'); renderNotas(); renderLanc();
   };
 }
@@ -1498,6 +1545,7 @@ $('#btnImpXml').onclick=openImportXml;
 $('#btnEspiao').onclick=buscarNotasEspiao;
 $('#notasComp').onchange=e=>{ST.notasComp=e.target.value;renderNotas();};
 $('#notasSearch').oninput=e=>{ST.notasSearch=e.target.value;renderNotas();};
+$$('#notasFilters .chip').forEach(c=>c.onclick=()=>{$$('#notasFilters .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.notasFilt=c.dataset.nf;renderNotas();});
 $('#btnPrint').onclick=printDRE;
 $('#btnNewRule').onclick=()=>openNewRule();
 $('#btnApplyRules').onclick=applyRulesNow;
