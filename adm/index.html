@@ -1111,8 +1111,7 @@ function openLinkNota(chave){
     const o=$(`#sheetBody .lnkopt[data-l="${selId}"]`);
     const ll=ST.lanc.find(x=>String(x.id)===String(selId));
     if(o&&o.dataset.diff && !confirm(`Atenção: o fornecedor deste pagamento (${(ll&&ll.memo||'').replace(/"/g,'').slice(0,40)}) parece DIFERENTE do da nota (${(n.emitente||'').slice(0,40)}).\n\nAssociar mesmo assim?`)) return;
-    await patchLanc(selId,{nota_chave:chave}); closeSheet();
-    toast('Nota associada a: '+((ll&&ll.memo?ll.memo:'pagamento').slice(0,34))); renderNotas(); renderLanc();
+    finalizarAssociacao(ll, chave);
   };
 }
 // Caminho inverso: a partir de um PAGAMENTO, escolher a nota fiscal
@@ -1161,9 +1160,50 @@ function openLinkPagamento(lancId){
   if(go) go.onclick=async()=>{ if(!selChave)return;
     const o=$(`#sheetBody .lnkopt[data-n="${selChave}"]`); const nn=ST.notas.find(x=>x.chave===selChave);
     if(o&&o.dataset.diff && !confirm(`Atenção: o fornecedor desta nota (${(nn&&nn.emitente||'').slice(0,40)}) parece DIFERENTE do pagamento.\n\nAssociar mesmo assim?`)) return;
-    await patchLanc(l.id,{nota_chave:selChave}); closeSheet();
-    toast('Nota associada: '+((nn&&nn.emitente?nn.emitente:'nota').slice(0,34))); renderNotas(); renderLanc();
+    finalizarAssociacao(l, selChave);
   };
+}
+/* Associa nota a pagamento; se o pagamento for MAIOR que a nota (tarifa/juros embutidos),
+   pergunta o que é a sobra e separa num lançamento próprio. */
+function finalizarAssociacao(l, chave){
+  const n=ST.notas.find(x=>x.chave===chave); if(!l||!n)return;
+  const mag=Math.abs(+l.amount), nv=+n.valor_total||0, diff=+(mag-nv).toFixed(2);
+  if(diff>0.01){ openDiferenca(l, chave, nv, diff); return; }
+  // valor bate (ou nota maior): associa direto
+  patchLanc(l.id,{nota_chave:chave}).then(()=>{ closeSheet();
+    toast(diff<-0.01?'Associada (nota maior que o pagamento)':'Nota associada'); renderNotas(); renderLanc(); });
+}
+function openDiferenca(l, chave, nv, diff){
+  const n=ST.notas.find(x=>x.chave===chave);
+  const quick=[['financeiras__tarifas_bancarias','Tarifa bancária'],['op__tarifas_encargos','Juros / Encargos'],['financeiras__iof','IOF']];
+  openSheet(`<h3>Sobra de ${brl(diff)}</h3>
+    <div class="hint">${esc((n&&n.emitente)||'')} · Nota ${brl(-nv)} · Pagamento ${brl(+l.amount)}</div>
+    <div class="note" style="font-size:12.5px">O pagamento é <b>${brl(diff)}</b> maior que a nota. O que é essa diferença? Separo num lançamento próprio e a nota fica com o valor certo.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+      ${quick.map(([id,lab])=>`<button class="catbtn" data-q="${id}">${lab}</button>`).join('')}
+    </div>
+    <div class="fld" style="margin-bottom:0"><label>Ou outra categoria</label>${catSelectHTML(null)}</div>
+    <button class="btn p" id="difGo" style="margin-top:12px"><i class="ph-duotone ph-scissors"></i> Separar e associar</button>
+    <button class="btn g" id="difWhole" style="margin-top:8px">Não separar — associar valor cheio</button>`);
+  let catDiff=null;
+  const mark=()=>$$('#sheetBody [data-q]').forEach(b=>b.classList.toggle('set', b.dataset.q===catDiff));
+  $$('#sheetBody [data-q]').forEach(b=>b.onclick=()=>{ catDiff=b.dataset.q; const s=$('#sheetBody .pCat'); if(s)s.value=''; mark(); });
+  const selc=$('#sheetBody .pCat'); if(selc) selc.onchange=e=>{ catDiff=e.target.value||null; mark(); };
+  $('#difWhole').onclick=()=>patchLanc(l.id,{nota_chave:chave}).then(()=>{ closeSheet(); toast('Associada (valor cheio)'); renderNotas(); renderLanc(); });
+  $('#difGo').onclick=()=>{ if(!catDiff){toast('Escolha o que é a diferença');return;} aplicarDiferenca(l, chave, nv, diff, catDiff); };
+}
+async function aplicarDiferenca(l, chave, nv, diff, catDiff){
+  const sign=(+l.amount<0)?-1:1, baseFit=l.fitid||('assoc'+l.id);
+  const rows=[
+    {unit:l.unit, fitid:baseFit, date:l.date, competencia:l.competencia, memo:(l.memo||'')+' (nota)', amount:sign*Math.abs(nv), category:l.category||null, manual:true, nota_chave:chave},
+    {unit:l.unit, fitid:baseFit+'__dif', date:l.date, competencia:l.competencia, memo:(l.memo||'')+' (diferença)', amount:sign*Math.abs(diff), category:catDiff, manual:true, nota_chave:null}
+  ];
+  try{
+    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    ST.lanc=ST.lanc.filter(x=>x.id!==l.id); ins.forEach(r=>ST.lanc.unshift(r));
+    closeSheet(); toast('Nota associada · '+brl(diff)+' separado'); renderNotas(); renderLanc();
+  }catch(e){ toast('Erro: '+e.message); }
 }
 // Associação automática: só liga quando NOME do fornecedor bate E valor é praticamente igual (evita erro)
 async function autoAssociarNotas(){
