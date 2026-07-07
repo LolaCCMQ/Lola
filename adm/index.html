@@ -1340,7 +1340,9 @@ function openLinkPagamento(lancId, forcePicker){
     $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(b.dataset.unl,lancId); toast('Removida'); closeSheet(); renderNotas(); renderLanc(); });
     return;
   }
-  const all=scoreNotas(l);
+  const pcomp=l.competencia, soMes=!ST.linkAllMeses;
+  let all=scoreNotas(l);
+  if(soMes) all=all.filter(c=>((c.n.data_emissao||'').slice(0,7))===pcomp); // por padrão, só notas do mês do pagamento
   const mesmo=all.filter(c=>c.nm>0).sort((a,b)=>a.vd-b.vd);
   const proximo=all.filter(c=>c.nm===0 && c.vd<=Math.max(5,vlanc*0.05)).sort((a,b)=>a.vd-b.vd);
   const outros=all.filter(c=>c.nm===0 && c.vd>Math.max(5,vlanc*0.05)).sort((a,b)=>a.vd-b.vd).slice(0,15);
@@ -1365,10 +1367,12 @@ function openLinkPagamento(lancId, forcePicker){
   if(outros.length) body+=`<div class="cg" style="color:var(--mut)">Outras notas sem pagamento</div>`+outros.map(({n})=>nrow(n,true)).join('');
   openSheet(`<h3>Associar notas ao pagamento</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · Pagamento ${brl(+l.amount)}</div>
     <div class="note" style="font-size:12px">Marque <b>uma ou mais</b> notas (ex.: um pagamento cobre várias notas) e toque em Associar.</div>
+    <button class="chip" id="lnkMes" style="margin-bottom:10px;color:var(--vinho);border-color:var(--vinho)"><i class="ph-duotone ph-funnel"></i> ${soMes?`Só ${compLabel(pcomp)} · tocar p/ ver todos os meses`:`Todos os meses · tocar p/ ver só ${compLabel(pcomp)}`}</button>
     ${ligHTML}
     <div class="catlist">${body||'<div class="note">Nenhuma nota sem pagamento nesta unidade. Importe em Notas (XML).</div>'}</div>
     <div class="note" id="lnkTot" style="font-size:12.5px"></div>
     ${body?`<button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>`:''}`);
+  { const mb=$('#lnkMes'); if(mb) mb.onclick=()=>{ ST.linkAllMeses=!ST.linkAllMeses; openLinkPagamento(lancId, true); }; }
   const sel=new Set();
   const recalc=()=>{ let s=0; sel.forEach(ch=>{const el=$(`#sheetBody .lnkchk[data-n="${ch}"]`);if(el)s+=+el.dataset.amt;});
     const dif=s-vlanc; $('#lnkTot').innerHTML=`Pagamento ${brl(-vlanc)} · Notas ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--ink)'}">Diferença ${brl(-(vlanc-s))}</b>`;
