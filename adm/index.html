@@ -113,8 +113,8 @@ section.view{display:none} section.view.on{display:block}
 .ov{position:fixed;inset:0;background:rgba(42,26,23,.4);z-index:200;display:none}
 .ov.open{display:block}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:201;background:#fff;border-radius:20px 20px 0 0;
-  padding:8px 18px 26px;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:.25s;max-width:900px;margin:0 auto}
-.sheet.open{transform:translateY(0)}
+  padding:8px 18px 26px;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:.25s;max-width:900px;margin:0 auto;pointer-events:none}
+.sheet.open{transform:translateY(0);pointer-events:auto}
 .grip{width:40px;height:4px;background:var(--border);border-radius:3px;margin:8px auto 14px}
 .dayhead{display:flex;justify-content:space-between;align-items:baseline;margin:16px 2px 7px;padding-bottom:5px;border-bottom:1px solid var(--fio)}
 .dayhead span:first-child{font-family:Fraunces,serif;font-weight:600;font-size:13.5px;color:var(--txt)}
