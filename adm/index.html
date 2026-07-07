@@ -1249,15 +1249,12 @@ function openMoverNota(chave){
   });
 }
 // palavras genéricas que não ajudam a casar fornecedor
-const NF_STOP=new Set(['ltda','me','epp','eireli','sa','comercio','comercial','industria','industrial','distribuidora','distribuicao','distrib','servicos','servico','produtos','produto','alimentos','alimenticios','pagamento','efetuado','pix','enviado','cp','transferencia','ted','doc','recebido']);
-function nfTokens(txt){ return normSearch(txt||'').replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>=4 && !NF_STOP.has(w)); }
-// Só considera "mesmo fornecedor" quando pelo menos 2 tokens batem (ou 1 token longo >=6),
-// pra não juntar NEXXT com NORTE GAS por causa de uma palavra genérica.
+const NF_STOP=new Set(['ltda','me','epp','eireli','sa','comercio','comercial','industria','industrial','distribuidora','distribuicao','distrib','servicos','servico','produtos','produto','alimentos','alimenticios','alimenticia','alimentar','alimentares','pagamento','efetuado','pix','enviado','cp','transferencia','ted','doc','recebido','bebidas','bebida','vinho','vinhos','atacado','atacadista','mercantil','importacao','exportacao','nacional','brasil','brasileira','brasileiro','laticinios','agua','aguas','titulo','inter']);
+function nfTokens(txt){ return normSearch(txt||'').replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>=3 && !NF_STOP.has(w)); }
+// "Mesmo fornecedor" = pelo menos 1 token distintivo do nome batendo. Com a lista de palavras
+// genéricas (bebidas, industria, comercio...) removida, o que sobra (HNK, SPAL, CRESTANI...) é a marca.
 function matchScore(emitTokens, memoNorm){
-  const hits=emitTokens.filter(t=>memoNorm.includes(t));
-  if(hits.length>=2) return hits.length;
-  if(hits.length===1 && hits[0].length>=6) return 1;
-  return 0;
+  return emitTokens.filter(t=>memoNorm.includes(t)).length;
 }
 function scoreCands(n){ // pagamentos candidatos p/ uma NOTA (sem nota vinculada)
   const vtot=+n.valor_total||0; const emitTok=nfTokens(n.emitente);
@@ -1361,30 +1358,49 @@ function openLinkPagamento(lancId, forcePicker){
     return `<div class="catopt"><span class="cbar" style="background:#2C7A4B"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'')}</div><div class="date" style="font-size:11px">NF ${esc(n.numero||'—')}</div>${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:4px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div><div class="amt neg">${brl(-(+n.valor_total||0))}</div><button class="iconbtn" data-unl="${n.chave}" title="Remover"><i class="ph-duotone ph-link-break"></i></button></div>
     <div class="prodbox" data-pn="${n.chave}" style="display:none;padding:2px 12px 10px 34px">${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}</div>`;}).join('')
     +`<button class="btn o" id="pgReclass" style="margin:4px 0 6px"><i class="ph-duotone ph-tag"></i> Reclassificar este lançamento</button>`:'';
-  let body='';
-  if(mesmo.length) body+=`<div class="cg">Mesmo fornecedor</div>`+mesmo.map(({n})=>nrow(n,false)).join('');
-  if(proximo.length) body+=`<div class="cg">Valor idêntico ou parecido</div>`+proximo.map(({n})=>nrow(n,true)).join('');
-  if(outros.length) body+=`<div class="cg" style="color:var(--mut)">Outras notas sem pagamento</div>`+outros.map(({n})=>nrow(n,true)).join('');
+  const allCands=scoreNotas(l); // todas as notas sem pagamento (qualquer mês) — base da busca
+  const buildRows=(query)=>{
+    const q=normSearch(query||''), qd=q.replace(/\D/g,'');
+    if(q){ const f=allCands.filter(c=>{const n=c.n; const vd=Math.abs(+n.valor_total||0).toFixed(2).replace(/\D/g,'');
+        return normSearch(n.emitente||'').includes(q) || (''+(n.numero||'')).includes(q) || (qd && vd.includes(qd)); })
+        .sort((a,b)=>a.vd-b.vd).slice(0,60);
+      return f.length?`<div class="cg">Busca — ${f.length} nota(s)</div>`+f.map(({n})=>nrow(n,false)).join(''):'<div class="note">Nada encontrado com esse texto/valor.</div>'; }
+    let a=allCands; if(soMes) a=a.filter(c=>((c.n.data_emissao||'').slice(0,7))===pcomp);
+    const mesmo=a.filter(c=>c.nm>0).sort((x,y)=>x.vd-y.vd);
+    const prox=a.filter(c=>c.nm===0 && c.vd<=Math.max(5,vlanc*0.05)).sort((x,y)=>x.vd-y.vd);
+    const out=a.filter(c=>c.nm===0 && c.vd>Math.max(5,vlanc*0.05)).sort((x,y)=>x.vd-y.vd).slice(0,15);
+    let h='';
+    if(mesmo.length) h+=`<div class="cg">Mesmo fornecedor</div>`+mesmo.map(({n})=>nrow(n,false)).join('');
+    if(prox.length) h+=`<div class="cg">Valor idêntico ou parecido</div>`+prox.map(({n})=>nrow(n,true)).join('');
+    if(out.length) h+=`<div class="cg" style="color:var(--mut)">Outras notas sem pagamento</div>`+out.map(({n})=>nrow(n,true)).join('');
+    return h||'<div class="note">Nenhuma nota deste mês sem pagamento. Use “ver todos os meses” ou busque acima.</div>';
+  };
   openSheet(`<h3>Associar notas ao pagamento</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · Pagamento ${brl(+l.amount)}</div>
-    <div class="note" style="font-size:12px">Marque <b>uma ou mais</b> notas (ex.: um pagamento cobre várias notas) e toque em Associar.</div>
+    <div class="catsearch" style="margin:2px 0 10px"><i class="ph-duotone ph-magnifying-glass"></i><input id="lnkSearch" placeholder="Buscar nota por nome ou valor…" autocomplete="off"></div>
     <button class="chip" id="lnkMes" style="margin-bottom:10px;color:var(--vinho);border-color:var(--vinho)"><i class="ph-duotone ph-funnel"></i> ${soMes?`Só ${compLabel(pcomp)} · tocar p/ ver todos os meses`:`Todos os meses · tocar p/ ver só ${compLabel(pcomp)}`}</button>
     ${ligHTML}
-    <div class="catlist">${body||'<div class="note">Nenhuma nota sem pagamento nesta unidade. Importe em Notas (XML).</div>'}</div>
+    <div class="catlist" id="lnkList"></div>
     <div class="note" id="lnkTot" style="font-size:12.5px"></div>
-    ${body?`<button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>`:''}`);
+    <button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>`);
   { const mb=$('#lnkMes'); if(mb) mb.onclick=()=>{ ST.linkAllMeses=!ST.linkAllMeses; openLinkPagamento(lancId, true); }; }
   const sel=new Set();
-  const recalc=()=>{ let s=0; sel.forEach(ch=>{const el=$(`#sheetBody .lnkchk[data-n="${ch}"]`);if(el)s+=+el.dataset.amt;});
-    const dif=s-vlanc; $('#lnkTot').innerHTML=`Pagamento ${brl(-vlanc)} · Notas ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--ink)'}">Diferença ${brl(-(vlanc-s))}</b>`;
+  const recalc=()=>{ let s=0; sel.forEach(ch=>{const n=notaObj(ch); if(n)s+=+n.valor_total||0;});
+    const dif=s-vlanc; $('#lnkTot').innerHTML=`Pagamento ${brl(-vlanc)} · Notas marcadas ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--ink)'}">Diferença ${brl(-(vlanc-s))}</b>`;
     const g=$('#lnkGoN'); if(g){g.disabled=sel.size===0;g.style.opacity=sel.size?'1':'.5';} };
-  recalc();
-  $$('#sheetBody .lnkchk').forEach(o=>o.onclick=()=>{ const ch=o.dataset.n, b=o.querySelector('.lnkbox');
-    if(sel.has(ch)){sel.delete(ch);o.style.background='';b.innerHTML='';b.style.background='';b.style.borderColor='var(--border)';}
-    else{sel.add(ch);o.style.background='var(--posBg)';b.innerHTML='<i class="ph-duotone ph-check"></i>';b.style.background='var(--vinho)';b.style.borderColor='var(--vinho)';}
-    recalc(); });
-  $$('#sheetBody .verprod').forEach(b=>b.onclick=(e)=>{ e.stopPropagation();
-    const box=$(`#sheetBody .prodbox[data-pn="${b.dataset.vn}"]`); if(!box)return;
-    box.style.display=box.style.display==='none'?'block':'none'; b.style.opacity=box.style.display==='none'?'1':'.6'; });
+  const wireRows=()=>{
+    $$('#sheetBody .lnkchk').forEach(o=>{ const ch=o.dataset.n;
+      if(sel.has(ch)){o.style.background='var(--posBg)';const b=o.querySelector('.lnkbox');b.innerHTML='<i class="ph-duotone ph-check"></i>';b.style.background='var(--vinho)';b.style.borderColor='var(--vinho)';}
+      o.onclick=()=>{ const b=o.querySelector('.lnkbox');
+        if(sel.has(ch)){sel.delete(ch);o.style.background='';b.innerHTML='';b.style.background='';b.style.borderColor='var(--border)';}
+        else{sel.add(ch);o.style.background='var(--posBg)';b.innerHTML='<i class="ph-duotone ph-check"></i>';b.style.background='var(--vinho)';b.style.borderColor='var(--vinho)';}
+        recalc(); }; });
+    $$('#sheetBody .verprod').forEach(b=>b.onclick=(e)=>{ e.stopPropagation();
+      const box=$(`#sheetBody .prodbox[data-pn="${b.dataset.vn}"]`); if(!box)return;
+      box.style.display=box.style.display==='none'?'block':'none'; b.style.opacity=box.style.display==='none'?'1':'.6'; });
+  };
+  const paint=(q)=>{ $('#lnkList').innerHTML=buildRows(q); wireRows(); };
+  paint(''); recalc();
+  { const si=$('#lnkSearch'); if(si) si.oninput=e=>paint(e.target.value); }
   $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(b.dataset.unl,lancId); toast('Removida'); closeSheet(); renderNotas(); renderLanc(); });
   { const rc=$('#pgReclass'); if(rc) rc.onclick=()=>{ closeSheet(); openCatPicker(lancId); }; }
   const go=$('#lnkGoN');
