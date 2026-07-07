@@ -1249,7 +1249,7 @@ function openMoverNota(chave){
   });
 }
 // palavras genéricas que não ajudam a casar fornecedor
-const NF_STOP=new Set(['ltda','me','epp','eireli','sa','comercio','comercial','industria','industrial','distribuidora','distribuicao','distrib','servicos','servico','produtos','produto','alimentos','alimenticios','alimenticia','alimentar','alimentares','pagamento','efetuado','pix','enviado','cp','transferencia','ted','doc','recebido','bebidas','bebida','vinho','vinhos','atacado','atacadista','mercantil','importacao','exportacao','nacional','brasil','brasileira','brasileiro','laticinios','agua','aguas','titulo','inter']);
+const NF_STOP=new Set(['ltda','me','epp','eireli','sa','comercio','comercial','industria','industrial','distribuidora','distribuicao','distrib','servicos','servico','produtos','produto','alimentos','alimenticios','alimenticia','alimentar','alimentares','pagamento','efetuado','pix','enviado','cp','transferencia','ted','doc','recebido','bebidas','bebida','vinho','vinhos','atacado','atacadista','mercantil','importacao','exportacao','nacional','brasil','brasileira','brasileiro','laticinios','agua','aguas','titulo','inter','ind','com','dist','cia','br','uni','end','cnpj','nota','fiscal']);
 function nfTokens(txt){ return normSearch(txt||'').replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>=3 && !NF_STOP.has(w)); }
 // "Mesmo fornecedor" = pelo menos 1 token distintivo do nome batendo. Com a lista de palavras
 // genéricas (bebidas, industria, comercio...) removida, o que sobra (HNK, SPAL, CRESTANI...) é a marca.
