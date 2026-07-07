@@ -238,6 +238,7 @@ section.view{display:none} section.view.on{display:block}
   <nav class="tabs">
     <div class="tab on" data-v="lanc">Lançamentos</div>
     <div class="tab" data-v="dre">DRE</div>
+    <div class="tab" data-v="relatorio">Relatório</div>
     <div class="tab" data-v="notas">Notas (XML)</div>
     <div class="tab" data-v="regras">Regras</div>
     <div class="tab" data-v="categorias">Categorias</div>
@@ -284,6 +285,15 @@ section.view{display:none} section.view.on{display:block}
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="btn o" style="flex:1" id="btnPrint"><i class="ph-duotone ph-printer"></i> Imprimir / PDF</button>
       </div>
+    </section>
+
+    <!-- RELATÓRIO por competência + plano de contas -->
+    <section class="view" id="v-relatorio">
+      <div class="note"><b>Relatório por plano de contas.</b> Total de cada categoria na competência escolhida. Toque na categoria para ver os lançamentos.</div>
+      <div class="monthsel"><span class="lblcap">Competência</span><select id="relComp"></select></div>
+      <div class="catsearch" id="relSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="relSearch" placeholder="Buscar categoria…" autocomplete="off"></div>
+      <div id="relBody"></div>
+      <button class="btn o" id="relPrint" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir / PDF</button>
     </section>
 
     <!-- NOTAS -->
@@ -543,7 +553,9 @@ function fillMonthSelects(){
   const opts=monthList().map(c=>`<option value="${c}">${compLabel(c)}</option>`).join('');
   $('#compSel').innerHTML=`<option value="todas">Todas as competências</option>`+opts;
   $('#dreComp').innerHTML=opts;
+  if($('#relComp')) $('#relComp').innerHTML=`<option value="todas">Todas as competências</option>`+opts;
   $('#compSel').value=ST.lancComp; $('#dreComp').value=ST.comp;
+  if($('#relComp')){ ST.relComp=ST.relComp||ST.comp; $('#relComp').value=ST.relComp; }
 }
 function fillCatFilter(){
   const groups=groupsOrdered().map(g=>`<optgroup label="${esc(g.label)}">`+
@@ -1491,6 +1503,63 @@ function renderDRE(){
     Lucro Líquido ${brl(cur.liquido)} <b style="color:${d>=0?'var(--pos)':'var(--neg)'}">(${d>=0?'+':''}${brl(d)})</b></div>`;
   el.innerHTML=html;
 }
+/* ========================= RELATÓRIO (por competência + plano de contas) ========================= */
+function relData(){
+  const comp=ST.relComp||ST.comp;
+  const scope=ST.lanc.filter(l=>!isNeutro(l) && (comp==='todas'||l.competencia===comp));
+  const byCat={}; scope.forEach(l=>{ const k=l.category||'__none'; (byCat[k]=byCat[k]||[]).push(l); });
+  return {comp, byCat};
+}
+function renderRelatorio(){
+  const {comp,byCat}=relData();
+  const q=normSearch(ST.relSearch||'');
+  ST.relExp=ST.relExp||new Set();
+  let html=''; let grandR=0,grandD=0;
+  GRUPOS.forEach(g=>{
+    const cats=ST.plano.filter(p=>p.group_id===g.id).filter(c=>!q||normSearch(c.label).includes(q));
+    const rows=cats.map(c=>({c, items:(byCat[c.id]||[])})).filter(r=>r.items.length);
+    if(!rows.length) return;
+    const gtot=rows.reduce((s,r)=>s+r.items.reduce((a,l)=>a+ +l.amount,0),0);
+    const cor=GRUPO_COR[g.id]||'#8A7A72';
+    html+=`<div class="cg" style="display:flex;justify-content:space-between;border-left:3px solid ${cor};padding-left:8px">${g.label}<span>${brl(gtot)}</span></div>`;
+    rows.sort((a,b)=>Math.abs(b.items.reduce((s,l)=>s+ +l.amount,0))-Math.abs(a.items.reduce((s,l)=>s+ +l.amount,0)));
+    rows.forEach(r=>{ const tot=r.items.reduce((a,l)=>a+ +l.amount,0); const exp=ST.relExp.has(r.c.id);
+      if(tot>0)grandR+=tot; else grandD+=tot;
+      html+=`<div class="lc" style="margin-bottom:8px">
+        <div class="r1" data-rel="${r.c.id}" style="cursor:pointer;align-items:center">
+          <div style="flex:1;min-width:0"><div class="memo">${esc(r.c.label)}</div><div class="date">${r.items.length} lançamento(s) · toque para ${exp?'fechar':'ver'}</div></div>
+          <div class="amt ${tot<0?'neg':'pos'}">${brl(tot)}</div>
+          <i class="ph-duotone ph-caret-${exp?'up':'down'}" style="margin-left:8px;color:var(--mut)"></i>
+        </div>
+        ${exp?`<div style="border-top:1px solid var(--fio);margin-top:8px;padding-top:6px">${r.items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(l=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 2px;font-size:12.5px;border-bottom:1px solid var(--fio)"><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div><div class="date" style="font-size:11px">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div></div><div class="amt ${+l.amount<0?'neg':'pos'}" style="font-size:12.5px">${brl(+l.amount)}</div></div>`).join('')}</div>`:''}
+      </div>`;
+    });
+  });
+  // sem categoria
+  if(byCat['__none'] && (!q)){ const its=byCat['__none']; const tot=its.reduce((a,l)=>a+ +l.amount,0);
+    html+=`<div class="cg" style="color:var(--neg)">SEM CATEGORIA<span style="float:right">${brl(tot)}</span></div>
+      <div class="note" style="font-size:12px">${its.length} lançamento(s) ainda sem classificar não entram no total por conta.</div>`; }
+  const head=`<div class="sum" style="margin-bottom:12px"><div><div class="v" style="color:var(--pos)">${brl(grandR)}</div><div class="k">Receitas</div></div><div><div class="v" style="color:var(--neg)">${brl(grandD)}</div><div class="k">Despesas</div></div><div><div class="v">${brl(grandR+grandD)}</div><div class="k">Resultado</div></div></div>`;
+  $('#relBody').innerHTML=head+(html||'<div class="empty"><i class="ph-duotone ph-list-magnifying-glass"></i>Nada nesta competência.</div>');
+  $$('#relBody [data-rel]').forEach(b=>b.onclick=()=>{const k=b.dataset.rel;ST.relExp.has(k)?ST.relExp.delete(k):ST.relExp.add(k);renderRelatorio();});
+}
+function printRelatorio(){
+  const {comp,byCat}=relData();
+  let rows='';
+  GRUPOS.forEach(g=>{
+    const cats=ST.plano.filter(p=>p.group_id===g.id).map(c=>({c,tot:(byCat[c.id]||[]).reduce((a,l)=>a+ +l.amount,0),n:(byCat[c.id]||[]).length})).filter(r=>r.n);
+    if(!cats.length)return;
+    const gtot=cats.reduce((s,r)=>s+r.tot,0);
+    rows+=`<tr style="font-weight:700;border-top:2px solid #A82A2A"><td>${g.label}</td><td></td><td style="text-align:right">${brl(gtot)}</td></tr>`;
+    cats.forEach(r=>{ rows+=`<tr><td style="padding-left:18px">${r.c.label}</td><td style="text-align:right;color:#8A7A72">${r.n}</td><td style="text-align:right">${brl(r.tot)}</td></tr>`; });
+  });
+  const w=window.open('','_print');
+  w.document.write(`<html><head><title>Relatório ${U(ST.unit).nome} ${comp==='todas'?'Todas':compLabel(comp)}</title>
+    <style>body{font-family:Georgia,serif;padding:30px;color:#2A1A17}h1{color:#A82A2A;font-size:22px}h2{font-size:14px;color:#8A7A72;font-weight:normal;margin-bottom:20px}table{width:100%;border-collapse:collapse}td{padding:6px 8px;border-bottom:1px solid #eee;font-size:13px}</style></head>
+    <body><h1>Lola · Relatório por plano de contas — ${U(ST.unit).nome}</h1><h2>${comp==='todas'?'Todas as competências':'Competência '+compLabel(comp)} · gerado em ${new Date().toLocaleDateString('pt-BR')}</h2>
+    <table><tr style="font-weight:700"><td>Conta</td><td style="text-align:right">Qtde</td><td style="text-align:right">Total</td></tr>${rows}</table></body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),300);
+}
 
 /* ========================= SHEET ========================= */
 function openSheet(html){$('#sheetBody').innerHTML=html;$('#ov').classList.add('open');$('#sheet').classList.add('open');}
@@ -1504,7 +1573,7 @@ function switchView(v){
   $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
   $('#fabTxt').textContent = v==='notas'?'Importar XML':'Importar / lançar';
   $('#fab').style.display = (v==='lanc'||v==='notas')?'inline-flex':'none';
-  if(v==='lanc')renderLanc(); if(v==='dre')renderDRE(); if(v==='notas')renderNotas(); if(v==='regras')renderRegras(); if(v==='categorias')renderCategorias();
+  if(v==='lanc')renderLanc(); if(v==='dre')renderDRE(); if(v==='relatorio')renderRelatorio(); if(v==='notas')renderNotas(); if(v==='regras')renderRegras(); if(v==='categorias')renderCategorias();
 }
 function renderAll(){renderLanc();renderDRE();renderNotas();}
 
@@ -1530,6 +1599,9 @@ $$('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.v));
 $('#btnBack').onclick=()=>{$('#app').classList.remove('show');$('#gate').classList.remove('hide');};
 $('#compSel').onchange=e=>{ST.lancComp=e.target.value;renderLanc();};
 $('#dreComp').onchange=e=>{ST.comp=e.target.value;renderDRE();};
+$('#relComp').onchange=e=>{ST.relComp=e.target.value;renderRelatorio();};
+$('#relSearch').oninput=e=>{ST.relSearch=e.target.value;renderRelatorio();};
+$('#relPrint').onclick=printRelatorio;
 $('#catFilter').onchange=e=>{ST.catF=e.target.value;renderLanc();};
 $$('#statusFilters .chip').forEach(c=>c.onclick=()=>{$$('#statusFilters .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.statusF=c.dataset.f;renderLanc();});
 $$('#lancMode button').forEach(b=>b.onclick=()=>{$$('#lancMode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');ST.lancMode=b.dataset.m; ST.sel.clear(); renderLanc(); updateSelBar();});
