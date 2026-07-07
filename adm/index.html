@@ -1126,9 +1126,20 @@ function openLinkPagamento(lancId){
   const vlanc=Math.abs(+l.amount||0);
   if(l.nota_chave){
     const na=ST.notas.find(x=>x.chave===l.nota_chave);
+    const its=(na&&Array.isArray(na.itens))?na.itens:[];
+    const itensHTML=its.length?`<div class="cg">Produtos da nota (${its.length})</div>
+      <div style="border:1px solid var(--fio);border-radius:12px;padding:6px 10px">
+      ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--fio);font-size:12.5px">
+        <div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div>
+        <div class="date" style="font-size:11px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div>
+        <div class="amt neg" style="font-size:12.5px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
+      </div>`:'<div class="note" style="font-size:12px">Esta nota não tem produtos detalhados (foi importada antes, ou é de serviço). Reimporte o XML em Notas para trazer os itens.</div>';
     openSheet(`<h3>Nota associada</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)}</div>
-      <div class="note" style="font-size:12.5px"><b>${esc(na?na.emitente:'(nota)')}</b><br>NF ${esc(na?na.numero:'—')} · ${brl(-(+((na||{}).valor_total)||0))}</div>
+      <div class="note" style="font-size:12.5px"><b>${esc(na?na.emitente:'(nota)')}</b><br>NF ${esc(na?na.numero:'—')} · ${fmtDate(na&&na.data_emissao)} · ${brl(-(+((na||{}).valor_total)||0))}</div>
+      ${itensHTML}
+      <button class="btn p" id="nfReclass" style="margin-top:12px"><i class="ph-duotone ph-tag"></i> Reclassificar este lançamento</button>
       <button class="btn d" id="nfRemove" style="margin-top:8px"><i class="ph-duotone ph-link-break"></i> Remover associação</button>`);
+    $('#nfReclass').onclick=()=>{ closeSheet(); openCatPicker(l.id); };
     $('#nfRemove').onclick=async()=>{ await patchLanc(l.id,{nota_chave:null}); closeSheet(); toast('Associação removida'); renderNotas(); renderLanc(); };
     return;
   }
