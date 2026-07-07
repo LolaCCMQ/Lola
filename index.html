@@ -848,11 +848,9 @@
         <span class="sb-label">Administração</span>
         <button class="nav-item" data-mod="usuarios" data-menu="usuarios" onclick="switchModule('usuarios')"><span class="ni"><i class="ph-duotone ph-users"></i></span><span class="nl">Usuários</span></button>
         <button class="nav-item" data-mod="rh" data-menu="rh" onclick="switchModule('rh')"><span class="ni"><i class="ph-duotone ph-briefcase"></i></span><span class="nl">RH</span></button>
-        <button class="nav-item nav-fin" data-menu="financeiro_mac" data-fin-unit="mac" onclick="openFinanceiro('mac')"><span class="ni"><i class="ph-duotone ph-wallet"></i></span><span class="nl">Financeiro Lola MAC</span></button>
-        <button class="nav-item nav-fin" data-menu="financeiro_central" data-fin-unit="ccmq" onclick="openFinanceiro('ccmq')"><span class="ni"><i class="ph-duotone ph-wallet"></i></span><span class="nl">Financeiro Central</span></button>
         <button class="nav-item" data-mod="lolamac" data-menu="lolamac" onclick="openLolaMAC()"><span class="ni"><i class="ph-duotone ph-chart-line-up"></i></span><span class="nl">Lola MAC</span></button>
       </div>
-      <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" data-menu="est_insumos" onclick="openEstoque('insumos')"><span class="ni"><i class="ph-duotone ph-jar"></i></span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" data-menu="est_preproducoes" onclick="openEstoque('preproducoes')"><span class="ni"><i class="ph-duotone ph-cooking-pot"></i></span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" data-menu="est_fichas" onclick="openEstoque('fichas')"><span class="ni"><i class="ph-duotone ph-book-open"></i></span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="contagem" data-menu="est_contagem" onclick="openEstoque('contagem')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" data-menu="est_saidas" onclick="openEstoque('saidas')"><span class="ni"><i class="ph-duotone ph-export"></i></span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" data-menu="est_fornecedores" onclick="openEstoque('fornecedores')"><span class="ni"><i class="ph-duotone ph-truck"></i></span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" data-menu="est_pedidos" onclick="openEstoque('pedidos')"><span class="ni"><i class="ph-duotone ph-shopping-cart"></i></span><span class="nl">Pedidos à Central</span></button><button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni"><i class="ph-duotone ph-carrot"></i></span><span class="nl">Pedidos Hortifrúti</span></button></div>
+      <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" data-menu="est_insumos" onclick="openEstoque('insumos')"><span class="ni"><i class="ph-duotone ph-jar"></i></span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" data-menu="est_preproducoes" onclick="openEstoque('preproducoes')"><span class="ni"><i class="ph-duotone ph-cooking-pot"></i></span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" data-menu="est_fichas" onclick="openEstoque('fichas')"><span class="ni"><i class="ph-duotone ph-book-open"></i></span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="producao" data-menu="est_producao" onclick="openEstoque('producao')"><span class="ni"><i class="ph-duotone ph-fork-knife"></i></span><span class="nl">Produção do dia</span></button><button class="nav-item nav-estoque" data-page="contagem" data-menu="est_contagem" onclick="openEstoque('contagem')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" data-menu="est_saidas" onclick="openEstoque('saidas')"><span class="ni"><i class="ph-duotone ph-export"></i></span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" data-menu="est_fornecedores" onclick="openEstoque('fornecedores')"><span class="ni"><i class="ph-duotone ph-truck"></i></span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" data-menu="est_pedidos" onclick="openEstoque('pedidos')"><span class="ni"><i class="ph-duotone ph-shopping-cart"></i></span><span class="nl">Pedidos à Central</span></button><button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni"><i class="ph-duotone ph-carrot"></i></span><span class="nl">Pedidos Hortifrúti</span></button></div>
       <div class="sb-section">
         <span class="sb-label">Manutenções</span>
         <button class="nav-item nav-manut" data-page="painel" data-menu="man_painel" onclick="openManutencoes('painel')"><span class="ni"><i class="ph-duotone ph-chart-bar"></i></span><span class="nl">Painel</span></button>
@@ -1037,8 +1035,8 @@ window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
  {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]},
- {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['financeiro_mac','💰 Financeiro Lola MAC'],['financeiro_central','💰 Financeiro Central'],['lolamac','📈 Lola MAC']]},
- {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
+ {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['lolamac','📈 Lola MAC']]},
+ {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_producao','🍴 Produção do dia'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
  {label:'Documentos',items:[['doc_vouchers','🎁 Vouchers'],['doc_reservas','🎉 Reservas e Eventos'],['doc_admissional','📄 Ficha Admissional'],['doc_alergenicos','⚠️ Alergênicos'],['doc_vinhos','🍷 Carta de Vinhos']]}
 ];
@@ -1046,7 +1044,7 @@ var ALL_MENU=[]; MENU_GROUPS.forEach(function(g){g.items.forEach(function(it){AL
 function defaultMenu(role){
   if(role==='admin') return ALL_MENU.slice();
   var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala','doc_vouchers','doc_reservas','doc_admissional','doc_alergenicos','doc_vinhos'];
-  var est=['est_insumos','est_preproducoes','est_fichas','est_contagem','est_saidas','est_fornecedores','est_pedidos'];
+  var est=['est_insumos','est_preproducoes','est_fichas','est_producao','est_contagem','est_saidas','est_fornecedores','est_pedidos'];
   var ger=['hortifruti','comprascartao','avaliacoes','loucas','inbox'];
   if(role==='gerente') return base.concat(est).concat(ger);
   if(role==='compras') return base.concat(est);
@@ -1085,6 +1083,7 @@ var HOME_APPS=[
     {m:'est_insumos', label:'Estoque', icon:'package', col:'#B8862B', bg:'#F7F0DD'},
     {m:'est_insumos', label:'Insumos', icon:'jar', col:'#9A6B1E', bg:'#FBF0DD'},
     {m:'est_fichas', label:'Fichas Técnicas', icon:'book-open', col:'#9A3B6B', bg:'#F6E7EF'},
+    {m:'est_producao', label:'Produção do dia', icon:'fork-knife', col:'#C0392B', bg:'#FBE4E0'},
     {m:'loucas', label:'Inventário', icon:'package', col:'#2C7A6B', bg:'#E2F0EC'},
     {m:'hortifruti', label:'Hortifrúti', icon:'carrot', col:'#5A7D2C', bg:'#EEF2E2'}
   ]},
@@ -1092,8 +1091,6 @@ var HOME_APPS=[
     {m:'eventos', label:'Eventos', icon:'calendar-dots', col:'#C4622D', bg:'#FBEDE3'}
   ]},
   {g:'Gestão', items:[
-    {m:'financeiro_mac', label:'Financeiro MAC', icon:'wallet', col:'#2C7A4B', bg:'#E6F3EA'},
-    {m:'financeiro_central', label:'Financeiro Central', icon:'wallet', col:'#2C7A4B', bg:'#E6F3EA'},
     {m:'lolamac', label:'Lola MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'},
     {m:'avaliacoes', label:'Avaliações', icon:'star', col:'#B8862B', bg:'#F7F0DD'},
     {m:'rh', label:'RH', icon:'users', col:'#6B4FA8', bg:'#F0EAF7'},
