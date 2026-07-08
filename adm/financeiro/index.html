@@ -537,6 +537,19 @@ async function unlinkNotaLanc(chave,lancId){
   await api(`financeiro_nota_lanc?nota_chave=eq.${encodeURIComponent(chave)}&lanc_id=eq.${lancId}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
   ST.notaLinks=(ST.notaLinks||[]).filter(x=>!(x.nota_chave===chave && String(x.lanc_id)===String(lancId)));
 }
+/* competência do lançamento = mês de EMISSÃO da nota (regime de competência).
+   Só ajusta quando todas as notas ligadas são do mesmo mês; se forem de meses
+   diferentes (ex.: 1 transferência pagando 7 notas), deixa como está — aí é caso de destrinchar. */
+async function syncCompDaNota(lancId){
+  const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l) return null;
+  const comps=[...new Set(notasDoLanc(lancId).map(ch=>notaObj(ch)).filter(Boolean)
+    .map(n=>(n.data_emissao||'').slice(0,7)).filter(Boolean))];
+  if(comps.length!==1 || comps[0]===l.competencia) return null;
+  const c=comps[0]; l.competencia=c;
+  await api(`financeiro_lancamentos?id=eq.${lancId}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},
+    body:JSON.stringify({competencia:c})}).catch(()=>{});
+  return c;
+}
 async function loadRegras(){
   ST.regras=await api('financeiro_regras?select=*&order=termo');
 }
@@ -1194,7 +1207,8 @@ async function aplicarSplitPorNotas(l, mag){
     const forn=n?(splitFornecedor(n.emitente).disp||n.emitente||'nota'):'sobra';
     const catLab=p.cat?((ST.planoById[p.cat]||{}).label||''):'';
     const rotulo=catLab?`${String(forn).slice(0,18)} · ${catLab}`:String(forn).slice(0,24);
-    return {unit:l.unit, fitid:i===0?baseFit:(baseFit+'__n'+i), date:l.date, competencia:l.competencia,
+    const compN=(n&&n.data_emissao)?n.data_emissao.slice(0,7):l.competencia;   // competência = mês da nota
+    return {unit:l.unit, fitid:i===0?baseFit:(baseFit+'__n'+i), date:l.date, competencia:compN,
       memo:(l.memo||'')+` (${rotulo})`, amount:sign*p.valor, category:p.cat, manual:true};
   });
   try{
@@ -1588,9 +1602,10 @@ function openLinkNota(chave){
     const difIds=[...sel].filter(id=>$(`#sheetBody .lnkchk[data-l="${id}"]`)?.dataset.diff);
     if(difIds.length && !confirm(`${difIds.length} pagamento(s) parecem de fornecedor diferente da nota. Associar mesmo assim?`)) return;
     for(const id of sel){ await linkNotaLanc(chave,id); }
+    let comp=null; for(const id of sel){ const c=await syncCompDaNota(id); if(c) comp=c; }
     if(difIds.length && confirm(`Criar apelido pra SEMPRE reconhecer esse(s) pagamento(s) como "${(n.emitente||'').slice(0,40)}"?`)){
       for(const id of difIds){ const l=ST.lanc.find(x=>String(x.id)===String(id)); if(l) await salvarApelido(splitFornecedor(l.memo).disp, n.emitente); } }
-    closeSheet(); toast(sel.size+' pagamento(s) associado(s)'); renderNotas(); renderLanc();
+    closeSheet(); toast(sel.size+' pagamento(s) associado(s)'+(comp?' · competência '+compLabel(comp):'')); renderNotas(); renderLanc();
   };
 }
 // A PARTIR DO PAGAMENTO: marca 1+ notas (ex.: 1 pagamento cobre várias notas)
@@ -1694,7 +1709,8 @@ function openLinkPagamento(lancId, forcePicker){
       if(confirm(`Criar apelido pra SEMPRE reconhecer "${termo}" como esse(s) fornecedor(es)?`)){
         for(const ch of difChs){ const nn=notaObj(ch); if(nn) await salvarApelido(termo, nn.emitente); } } }
     const n=sel.size;
-    closeSheet(); toast(n+' nota(s) associada(s)'); renderNotas(); renderLanc();
+    const comp=await syncCompDaNota(lancId);
+    closeSheet(); toast(n+' nota(s) associada(s)'+(comp?' · competência '+compLabel(comp):'')); renderNotas(); renderLanc();
     // várias notas num pagamento só: normalmente cada uma tem sua categoria
     if(n>1 && confirm(`Este pagamento cobre ${n} notas.\n\nQuer destrinchar agora — uma parte por nota, cada uma com sua categoria?`)) openSplitPorNotas(lancId);
   };
