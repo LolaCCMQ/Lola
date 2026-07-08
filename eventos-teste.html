@@ -211,7 +211,7 @@
   .hyb-panel{border:none;border-top:1px solid #EFE6DC;border-radius:0;padding:18px 16px;cursor:default}
   .panel .section-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   /* ===== Barra de etapas (Rodada 1 · 08/07/2026) ===== */
-  .stepbar-wrap{position:sticky;top:0;z-index:20;background:var(--cream);padding:8px 0 6px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+  .stepbar-wrap{position:sticky;top:73px;z-index:20;background:var(--cream);padding:8px 0 6px;margin-bottom:12px;border-bottom:1px solid var(--border)}
   .stepbar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
   .stepbar::-webkit-scrollbar{height:4px}
   .stepbar::-webkit-scrollbar-thumb{background:var(--vinho-muted);border-radius:4px}
@@ -255,6 +255,9 @@
     .totals{max-width:none}
     .orc-add{flex-direction:column;align-items:stretch}
     .orc-add .field{max-width:none!important}
+    .stepbar-wrap{position:static;top:auto}
+    .menu-cat button{width:34px;height:34px}
+    .lista-sep .panel td[data-l]{padding:3px 0}
   }
 </style>
 </head>
