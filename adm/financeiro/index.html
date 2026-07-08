@@ -262,7 +262,7 @@ section.view{display:none} section.view.on{display:block}
         <button class="chip" data-f="procurando">Procurando nota</button>
       </div>
       <div class="sum" id="lancSum"></div>
-      <div class="catsearch" id="lancSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="lancSearch" placeholder="Buscar por descrição ou valor…" autocomplete="off"></div>
+      <div class="catsearch" id="lancSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="lancSearch" placeholder="Buscar por descrição, valor ou data (08/07)…" autocomplete="off"></div>
       <div id="lancList"></div>
     </section>
 
@@ -646,13 +646,31 @@ function fillCatFilter(){
 
 /* ========================= RENDER: LANÇAMENTOS ========================= */
 function lancOfComp(){ return ST.lancComp==='todas' ? ST.lanc.slice() : ST.lanc.filter(l=>l.competencia===ST.lancComp); }
+/* busca por DATA: aceita 08/07, 8/7, 08/07/2026, 08/07/26 e 2026-07-08.
+   Retorna null se o texto não for uma data. */
+function parseBuscaData(txt){
+  const raw=(txt||'').trim();
+  let m=raw.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?$/);
+  if(m){ let y=m[3]||''; if(y.length===2) y='20'+y;
+    return {dd:m[1].padStart(2,'0'), mm:m[2].padStart(2,'0'), yyyy:y}; }
+  m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return {dd:m[3], mm:m[2], yyyy:m[1]};
+  return null;
+}
 function renderLanc(){
-  const scope=lancOfComp();
+  const busca=ST.search||'';
+  const bd=parseBuscaData(busca);
+  // buscar por data varre TODAS as competências (a data do banco não é a competência)
+  const scope=bd?ST.lanc.slice():lancOfComp();
   // filtros que valem para os dois modos: categoria + busca
   let base=scope;
   if(ST.catF==='__none') base=base.filter(l=>!l.category);
   else if(ST.catF) base=base.filter(l=>l.category===ST.catF);
-  if(ST.search){ const q=normSearch(ST.search); const qd=q.replace(/\D/g,'');
+  if(bd){
+    base=base.filter(l=>{ const d=(l.date||'').slice(0,10); if(d.length!==10) return false;
+      const [Y,M,D]=d.split('-');
+      return D===bd.dd && M===bd.mm && (!bd.yyyy || Y===bd.yyyy); });
+  } else if(busca){ const q=normSearch(busca); const qd=q.replace(/\D/g,'');
     base=base.filter(l=> normSearch(l.memo).includes(q) || (qd && Math.abs(+l.amount).toFixed(2).replace(/\D/g,'').includes(qd)) ); }
   // summary reflete o que está sendo visto (útil p/ ver o total de uma categoria em todos os meses)
   const rec=base.filter(l=>+l.amount>0 && !isNeutro(l)).reduce((s,l)=>s+ +l.amount,0);
@@ -676,7 +694,7 @@ function renderLanc(){
   ST.visibleIds=rows.map(l=>l.id);
   const el=$('#lancList');
   if(!rows.length){const filtrando=ST.search||ST.catF||ST.lancComp==='todas'||ST.statusF!=='todos';
-    el.innerHTML=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>${filtrando?'Nenhum lançamento com esses filtros.':'Nenhum lançamento nesta competência.<br>Use “Importar / lançar” abaixo.'}</div>`;return;}
+    el.innerHTML=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>${bd?`Nenhum lançamento em ${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}.`:(filtrando?'Nenhum lançamento com esses filtros.':'Nenhum lançamento nesta competência.<br>Use “Importar / lançar” abaixo.')}</div>`;return;}
   const cardHTML=(l)=>{
     const cat=ST.planoById[l.category];
     const neg=+l.amount<0;
@@ -719,6 +737,7 @@ function renderLanc(){
   const totDia={}, dayIds={}; ordenados.forEach(l=>{ const d=l.date||'—'; if(!isNeutro(l))totDia[d]=(totDia[d]||0)+ +l.amount; (dayIds[d]=dayIds[d]||[]).push(l.id); });
   ST.dayIds=dayIds;
   let out='', lastD=null;
+  if(bd) out+=`<div class="note" style="font-size:12px"><i class="ph-duotone ph-calendar-blank"></i> Busca por data — ${rows.length} lançamento(s) em <b>${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}</b>, de todas as competências.</div>`;
   ordenados.forEach(l=>{
     if(l.date!==lastD){ lastD=l.date; const d=l.date||'—'; const ids=dayIds[d]||[]; const allSel=ids.length&&ids.every(id=>ST.sel.has(id));
       out+=`<div class="dayhead"><span style="display:flex;align-items:center;gap:9px">
