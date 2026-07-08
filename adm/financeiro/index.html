@@ -330,6 +330,7 @@ section.view{display:none} section.view.on{display:block}
       <button class="btn o" id="selComp" style="width:auto;padding:10px 11px;min-height:40px"><i class="ph-duotone ph-calendar-blank"></i> Mês</button>
       <button class="btn d" id="selDel" style="width:auto;padding:10px 12px;min-height:40px"><i class="ph-duotone ph-trash"></i></button>
       <button class="btn o" id="selConc" style="width:auto;padding:10px 12px;min-height:40px"><i class="ph-duotone ph-check-circle"></i> Conciliar</button>
+      <button class="btn o" id="selMover" style="width:auto;padding:10px 12px;min-height:40px"><i class="ph-duotone ph-arrows-left-right"></i> Mover</button>
       <button class="btn p" id="selClassify" style="width:auto;padding:10px 13px;min-height:40px"><i class="ph-duotone ph-tag"></i> Classificar</button>
     </div>
   </div>
@@ -693,6 +694,7 @@ function renderLanc(){
         <div class="mini">
           ${(!nfN && !dv)?`<button class="iconbtn" data-flag="${l.id}" title="Não achei a nota — pedir pra localizar"><i class="ph-duotone ph-flag"></i></button>`:''}
           <button class="iconbtn ${l.conciliado?'on':''}" data-conc="${l.id}" title="Conciliado"><i class="ph-duotone ph-check-circle"></i></button>
+          <button class="iconbtn" data-mv="${l.id}" title="Mover para outra empresa"><i class="ph-duotone ph-arrows-left-right"></i></button>
           <button class="iconbtn" data-edit="${l.id}" title="Editar"><i class="ph-duotone ph-pencil-simple"></i></button>
           <button class="iconbtn del" data-del="${l.id}" title="Excluir"><i class="ph-duotone ph-trash"></i></button>
         </div>
@@ -717,6 +719,7 @@ function renderLanc(){
   el.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>openLinkPagamento(b.dataset.nf));
   el.querySelectorAll('[data-flag]').forEach(b=>b.onclick=()=>openDivergencia(b.dataset.flag));
   el.querySelectorAll('[data-conc]').forEach(b=>b.onclick=()=>toggleConc(b.dataset.conc));
+  el.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>openMoverLanc(b.dataset.mv));
   el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
   el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteLanc(b.dataset.del));
   el.querySelectorAll('[data-comp]').forEach(b=>b.onclick=()=>openEdit(b.dataset.comp));
@@ -769,6 +772,35 @@ async function deleteSelecionados(){
     toast(ids.length+' excluído(s)'); renderAll(); updateSelBar();
   }catch(e){toast('Erro: '+e.message);}
 }
+async function moverSelecionados(){
+  const ids=[...ST.sel]; if(!ids.length){toast('Marque ao menos um');return;}
+  const destinos=UNITS.filter(u=>u.id!==ST.unit);
+  const sels=ST.lanc.filter(l=>ids.includes(l.id));
+  const soma=sels.reduce((s,l)=>s+(+l.amount||0),0);
+  const nfs=ids.reduce((s,id)=>s+notasDoLanc(id).length,0);
+  openSheet(`<h3>Mover ${ids.length} lançamento(s)</h3>
+    <div class="hint">${brl(soma)} no total</div>
+    <div class="note" style="font-size:12px">Sai de <b>${U(ST.unit).nome}</b> mantendo valor, data, competência e categoria.${nfs?` <b>${nfs} nota(s)</b> associada(s) serão desvinculadas — você reassocia lá.`:''} A conciliação é desmarcada para conferência.</div>
+    <div class="catlist">${destinos.map(u=>`<div class="catopt" data-mdest="${u.id}"><span class="cbar" style="background:${u.fg}"></span><div style="flex:1;font-weight:600">${u.nome}</div><i class="ph-duotone ph-caret-right"></i></div>`).join('')}</div>`);
+  $$('#sheetBody [data-mdest]').forEach(o=>o.onclick=async()=>{
+    const dest=o.dataset.mdest;
+    try{
+      for(let i=0;i<ids.length;i+=50){
+        const ch=ids.slice(i,i+50);
+        await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},
+          body:JSON.stringify({unit:dest, conciliado:false})});
+        await api(`financeiro_nota_lanc?lanc_id=in.(${ch.join(',')})`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+        api(`lola_divergencias?lanc_id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:dest})}).catch(()=>{});
+      }
+      const set=new Set(ids.map(String));
+      ST.notaLinks=(ST.notaLinks||[]).filter(x=>!set.has(String(x.lanc_id)));
+      ST.divs=(ST.divs||[]).filter(d=>!set.has(String(d.lanc_id)));
+      ST.lanc=ST.lanc.filter(l=>!set.has(String(l.id)));
+      ST.sel.clear(); closeSheet(); toast(ids.length+' movido(s) para '+U(dest).nome); renderAll(); updateSelBar();
+    }catch(e){ toast('Erro: '+e.message); }
+  });
+}
+
 async function conciliarSelecionados(){
   const ids=[...ST.sel]; if(!ids.length){toast('Marque ao menos um');return;}
   try{
@@ -1946,6 +1978,7 @@ $('#selClassify').onclick=openMultiClassify;
 $('#selComp').onclick=openMultiComp;
 $('#selDel').onclick=deleteSelecionados;
 $('#selConc').onclick=conciliarSelecionados;
+$('#selMover').onclick=moverSelecionados;
 $('#fab').onclick=()=>{ const v=$('.view.on').id; if(v==='v-notas')openImportXml(); else openImport(); };
 $('#btnImpXml').onclick=openImportXml;
 $('#btnEspiao').onclick=buscarNotasEspiao;
