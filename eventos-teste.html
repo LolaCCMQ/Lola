@@ -355,7 +355,7 @@ const FASES = [
   ]},
   { id:"os", nome:"Operacional (OS)", tipos:["reserva_perso","personalizado","show"], itens:[
     {t:"Menus e outros impressos", d:"Quantidade e arquivo para impressão", impressos:true},
-    {t:"Louças e materiais necessários", d:"Cadastre como categoria M na aba Menu · pratos / copos / talheres · kit café / descartáveis"},
+    {t:"Louças e materiais necessários", d:"Escolha do catálogo de louças ou adicione itens que precisam ser comprados", materiais:true},
     {t:"Equipamentos de som e iluminação", d:"Chamar? Contratante traz? Testar montagem", orc:true},
     {t:"Outros equipamentos", d:"Máquina de café / mesa pra servir", orc:true},
     {t:"Botão no sistema", d:"Como serão lançados os pedidos"},
@@ -736,7 +736,7 @@ function faseItemHTML(ev,f,it,i){
   const marca=(ck.note&&ck.note.trim())||hasLink||temOrc;
   const corpo=`
         ${it.d?`<div class="desc">${it.d}</div>`:''}
-        ${it.t.indexOf('Louça')===0?`<button class="btn-ghost btn-sm" style="margin-top:6px" onclick="gotoTab('menu')">🍽️ Definir louças na aba Menu →</button>`:''}
+        ${it.materiais?`<div style="margin-top:10px">${materiaisHTML(ev,true)}</div>`:''}
         ${it.impressos?`<div class="row2" style="margin-top:8px">
           <div class="field"><label>Quantidade</label><input type="number" value="${esc(ck.qtd||'')}" onchange="setCheckField('${f.id}',${i},'qtd',this.value)" placeholder="ex: 100"></div>
           <div class="field"><label>Arquivo para impressão <span class="hint">link do PDF / Canva / Drive</span></label><input type="url" value="${esc(ck.arquivo||'')}" onchange="setCheckField('${f.id}',${i},'arquivo',this.value)" placeholder="colar link"></div>
@@ -944,7 +944,7 @@ function renderLoucasGrid(){
 function addMatFromCatalog(id){
   const it=(LOUCAS_CAT||[]).find(function(x){return String(x.id)===String(id);});if(!it)return;
   const ev=getEvent(view.id);ev.materiais=ev.materiais||[];
-  ev.materiais.push({item:it.name||'',qtdSaida:'',saiu:false,qtdVolta:'',voltou:false,obs:'',foto:it.photo_url||'',loucaId:it.id});
+  ev.materiais.push({item:it.name||'',origem:'',qtdSaida:'',saiu:false,qtdVolta:'',voltou:false,obs:'',destino:'',foto:it.photo_url||'',loucaId:it.id,comprar:false,custo:0});
   save(false);showFlash((it.name||'Item')+' adicionado ✓');renderDetail();
 }
 function destinoSelect(i,val){var o=["","Lola CCMQ","Lola MAC","Cozinha Central","Outro"];return '<select onchange="setMat('+i+',\'destino\',this.value)">'+o.map(function(x){return '<option value="'+x+'"'+(((val||'')===x)?' selected':'')+'>'+(x||'Destino...')+'</option>';}).join('')+'</select>';}
@@ -969,7 +969,7 @@ function setPerda(i,k,v){const ev=getEvent(view.id);ev.perdas[i][k]=v;save(false
 function delPerda(i){const ev=getEvent(view.id);ev.perdas.splice(i,1);save(false);renderDetail();}
 function desproLoucasHTML(ev){
   const m=(ev.materiais||[]).filter(function(r){return r.item;});
-  if(!m.length) return `<div class="intro">🍽️ Nenhuma louça/utensílio na lista ainda. Cadastre na aba <b>Menu</b> como categoria <b>M</b> (materiais). <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Ir para o Menu →</button></div>`;
+  if(!m.length) return `<div class="intro">🍽️ Nenhuma louça/utensílio na lista ainda. Cadastre no <b>Operacional → Louças e materiais necessários</b>. <button class="btn-ghost btn-sm" onclick="gotoTab('os')">Ir para o Operacional →</button></div>`;
   return `<div class="section-title" style="font-size:15px;margin-top:4px">🍽️ Louças e utensílios usados — para onde voltou</div>
   <table><thead><tr><th style="width:46px"></th><th>Item</th><th style="width:70px">Qtd</th><th style="width:160px">Destino</th></tr></thead><tbody>
   ${m.map(function(r){var i=ev.materiais.indexOf(r);return `<tr>
@@ -979,36 +979,43 @@ function desproLoucasHTML(ev){
     <td>${destinoSelect(i,r.destino)}</td>
   </tr>`;}).join('')}
   </tbody></table>
-  <div class="intro" style="margin-top:6px">Editar quantidades ou adicionar itens? <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Abrir a aba Menu →</button></div>`;
+  <div class="intro" style="margin-top:6px">Editar quantidades ou adicionar itens? <button class="btn-ghost btn-sm" onclick="gotoTab('os')">Abrir o Operacional →</button></div>`;
 }
-function materiaisHTML(ev){
+function materiaisHTML(ev,inline){
   const m=ev.materiais||[];
-  return `<div class="section-title">Materiais — saída e volta</div>
-  <div class="intro">Registre louças, equipamentos e utensílios que saem para o evento e conferem na volta.</div>
+  const comprar=(ev.materiais||[]).filter(r=>r.comprar);
+  const tot=matComprarTotal(ev);
+  return `${inline?'':'<div class="section-title">Materiais — saída e volta</div>'}
+  <div class="intro">Louças, talheres, copos e equipamentos que saem para o evento e conferem na volta. Marque <b>Comprar?</b> no que não temos no dia a dia — o custo entra no orçamento.</div>
   <div class="toolrow no-print">
-    <button class="btn-ghost btn-sm" onclick="addMat()">+ Material</button>
-    <button class="btn-ghost btn-sm" onclick="openLoucasPicker()">🍽️ Escolher do catálogo</button>
+    <button class="btn-ghost btn-sm" onclick="openLoucasPicker()">🍽️ Escolher do catálogo de louças</button>
+    <button class="btn-ghost btn-sm" onclick="addMat()">+ Item avulso / a comprar</button>
     <button class="btn-ghost btn-sm" onclick="openPrintDialog()">🖨 Imprimir folha</button>
   </div>
   <table>
-    <thead><tr><th style="width:46px"></th><th>Material</th><th style="width:130px">Saída</th><th style="width:80px">Qtd saída</th><th style="width:70px">Saiu</th><th style="width:80px">Qtd volta</th><th style="width:70px">Voltou</th><th style="width:140px">Destino</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
+    <thead><tr><th style="width:46px"></th><th>Material</th><th style="width:130px">Saída</th><th style="width:80px">Qtd</th><th style="width:70px">Comprar?</th><th style="width:100px">Custo un.</th><th style="width:70px">Saiu</th><th style="width:80px">Qtd volta</th><th style="width:70px">Voltou</th><th style="width:140px">Destino</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
     <tbody>
     ${m.length?m.map((r,i)=>`<tr>
       <td>${r.foto?`<img src="${esc(r.foto)}" style="width:38px;height:38px;object-fit:cover;border-radius:6px">`:''}</td>
-      <td class="name"><input value="${esc(r.item)}" onchange="setMat(${i},'item',this.value)"></td>
-      <td>${origemSelect(i,r.origem)}</td>
-      <td><input type="number" value="${esc(r.qtdSaida)}" onchange="setMat(${i},'qtdSaida',this.value)"></td>
-      <td style="text-align:center"><input type="checkbox" style="width:auto" ${r.saiu?'checked':''} onchange="setMat(${i},'saiu',this.checked)"></td>
-      <td><input type="number" value="${esc(r.qtdVolta)}" onchange="setMat(${i},'qtdVolta',this.value)"></td>
-      <td style="text-align:center"><input type="checkbox" style="width:auto" ${r.voltou?'checked':''} onchange="setMat(${i},'voltou',this.checked)"></td>
-      <td>${destinoSelect(i,r.destino)}</td>
-      <td><input value="${esc(r.obs)}" onchange="setMat(${i},'obs',this.value)"></td>
+      <td class="name" data-l="Material"><input value="${esc(r.item)}" onchange="setMat(${i},'item',this.value)"></td>
+      <td data-l="Saída">${origemSelect(i,r.origem)}</td>
+      <td data-l="Qtd"><input type="number" value="${esc(r.qtdSaida)}" onchange="setMat(${i},'qtdSaida',this.value)"></td>
+      <td data-l="Comprar?" style="text-align:center"><input type="checkbox" style="width:auto" ${r.comprar?'checked':''} onchange="setMatRender(${i},'comprar',this.checked)"></td>
+      <td data-l="Custo un."><input type="number" step="0.01" value="${esc(r.custo||'')}" placeholder="${r.comprar?'0,00':'—'}" onchange="setMatRender(${i},'custo',Number(this.value))"></td>
+      <td data-l="Saiu" style="text-align:center"><input type="checkbox" style="width:auto" ${r.saiu?'checked':''} onchange="setMat(${i},'saiu',this.checked)"></td>
+      <td data-l="Qtd volta"><input type="number" value="${esc(r.qtdVolta)}" onchange="setMat(${i},'qtdVolta',this.value)"></td>
+      <td data-l="Voltou" style="text-align:center"><input type="checkbox" style="width:auto" ${r.voltou?'checked':''} onchange="setMat(${i},'voltou',this.checked)"></td>
+      <td data-l="Destino">${destinoSelect(i,r.destino)}</td>
+      <td data-l="Obs"><input value="${esc(r.obs)}" onchange="setMat(${i},'obs',this.value)"></td>
       <td class="no-print"><button class="del-row" onclick="delMat(${i})">×</button></td>
-    </tr>`).join(''):`<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:22px">Nenhum material. Clique em <b>+ Material</b>.</td></tr>`}
+    </tr>`).join(''):`<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:22px">Nenhum material ainda. Escolha do catálogo ou adicione um item avulso.</td></tr>`}
     </tbody>
-  </table>`;
+  </table>
+  ${tot?`<div class="totals" style="margin-top:12px"><div class="line grand"><span>A comprar · ${comprar.length} ${comprar.length===1?'item':'itens'}</span><span>${fmt(tot)}</span></div></div>
+  <div class="intro" style="margin-top:6px">Esse valor soma no <b>Orçamento</b>. <button class="btn-ghost btn-sm" onclick="gotoTab('orc')">Ver o Orçamento →</button></div>`:''}`;
 }
-function addMat(){const ev=getEvent(view.id);ev.materiais=ev.materiais||[];ev.materiais.push({item:"",origem:"",qtdSaida:"",saiu:false,qtdVolta:"",voltou:false,obs:"",destino:""});save(false);renderDetail();}
+function setMatRender(i,k,v){const ev=getEvent(view.id);ev.materiais[i][k]=v;save(false);renderDetail();}
+function addMat(){const ev=getEvent(view.id);ev.materiais=ev.materiais||[];ev.materiais.push({item:"",origem:"",qtdSaida:1,saiu:false,qtdVolta:"",voltou:false,obs:"",destino:"",comprar:true,custo:0});save(false);renderDetail();}
 function setMat(i,k,v){const ev=getEvent(view.id);ev.materiais[i][k]=v;save(false);}
 function delMat(i){const ev=getEvent(view.id);ev.materiais.splice(i,1);save(false);renderDetail();}
 
@@ -1147,8 +1154,8 @@ function setEq(i,k,v){const ev=getEvent(view.id);ev.equipe[i][k]=v;save(false);r
 function delEq(i){const ev=getEvent(view.id);ev.equipe.splice(i,1);save(false);renderDetail();}
 /* ===== ABA MENU (Rodada 1 · 08/07/2026) ===== */
 const SECOES=["Comidinhas","Mini porção","Lanchinho de pista","Bebidas","Sobremesa","Outros"];
-const CAT_NOME={C:'Produções de comida',B:'Produções de bebidas',M:'Lista de materiais'};
-function mcat(m){return (m.cat==='B'||m.cat==='M')?m.cat:'C';}
+const CAT_NOME={C:'Produções de comida',B:'Produções de bebidas'};
+function mcat(m){return m.cat==='B'?'B':'C';}
 function subCat(ev,c){const pax=Number(ev.pax)||0;let t=0;(ev.menu||[]).forEach(m=>{if(mcat(m)===c)t+=lineTotal(m,pax);});return t;}
 function setMenuCat(i,c){const ev=getEvent(view.id);ev.menu[i].cat=c;save(false);renderDetail();}
 function toggleMenuAprovado(){const ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag.menuAprovado=!ev.pag.menuAprovado;save(false);renderDetail();}
@@ -1158,11 +1165,11 @@ function listaCatHTML(ev,c){
   const its=(ev.menu||[]).map((m,i)=>({m,i})).filter(x=>mcat(x.m)===c);
   let body;
   if(!its.length) body='<div class="intro" style="margin:0">nenhum item nesta lista ainda</div>';
-  else body='<table><thead><tr><th>Item</th><th>Qtd</th><th>Un</th>'+(c==='M'?'':'<th>Louça / talher</th>')+'<th class="num">Total</th></tr></thead><tbody>'
+  else body='<table><thead><tr><th>Item</th><th>Qtd</th><th>Un</th><th>Louça / talher</th><th class="num">Total</th></tr></thead><tbody>'
     +its.map(x=>'<tr><td data-l="Item">'+esc(x.m.nome)+(x.m.secao?' <span class="hint">· '+esc(x.m.secao)+'</span>':'')+'</td>'
       +'<td data-l="Qtd">'+(x.m.perPax?((Number(x.m.qtd)||0)*pax)+' <span class="hint">('+esc(x.m.qtd)+'/pax)</span>':esc(x.m.qtd))+'</td>'
       +'<td data-l="Un">'+esc(x.m.un||'')+'</td>'
-      +(c==='M'?'':'<td data-l="Louça">'+(x.m.louca?esc(x.m.louca):'<span class="hint">—</span>')+'</td>')
+      +'<td data-l="Louça">'+(x.m.louca?esc(x.m.louca):'<span class="hint">—</span>')+'</td>'
       +'<td data-l="Total" class="num"><b>'+fmt(lineTotal(x.m,pax))+'</b></td></tr>').join('')
     +'</tbody></table>';
   return '<div class="lista-sep"><h4><span class="mtag '+c+'">'+c+'</span> '+CAT_NOME[c]+' <span class="cnt">'+its.length+' itens · '+fmt(subCat(ev,c))+'</span></h4>'+body+'</div>';
@@ -1172,12 +1179,12 @@ function menuHTML(ev){
   const pg=ev.pag||{};
   const datalist=FICHAS.map(p=>'<option value="'+esc(p.n)+'">'+esc(p.cat||'')+' · '+fmt(p.p)+'</option>').join('');
   const fichaNote=FICHAS.length?('Comida e bebida puxam a <b>ficha técnica + pré-produções</b> ('+FICHAS.length+' itens) — o preço preenche sozinho. Não achou? Digite nome e preço na mão.'):'⚠️ Não carregou a ficha técnica do portal — dá pra digitar itens e preços manualmente.';
-  const totMenu=subCat(ev,'C')+subCat(ev,'B')+subCat(ev,'M');
+  const totMenu=subCat(ev,'C')+subCat(ev,'B');
   return '<div class="section-title">Montagem do Pacote '+skipBtn(ev)+'</div>'
-  +'<div class="intro">Categoria pela primeira letra: <span class="mtag C">C</span> comida · <span class="mtag B">B</span> bebida · <span class="mtag M">M</span> materiais (talheres, copos, louças). 💡 '+fichaNote+'</div>'
+  +'<div class="intro">Categoria pela primeira letra: <span class="mtag C">C</span> comida · <span class="mtag B">B</span> bebida. Louças, talheres, copos e o que for preciso comprar ficam no <b>Operacional → Louças e materiais necessários</b>. 💡 '+fichaNote+'</div>'
   +'<div class="toolrow no-print"><div class="field" style="max-width:170px"><label>Nº de pax do orçamento</label><input type="number" value="'+esc(ev.pax)+'" onchange="setOrc(\'pax\',this.value)" placeholder="ex: 50"></div></div>'
   +'<div class="orc-add no-print">'
-    +'<div class="field" style="max-width:80px"><label>Cat</label><select id="addCat"><option value="C">C</option><option value="B">B</option><option value="M">M</option></select></div>'
+    +'<div class="field" style="max-width:80px"><label>Cat</label><select id="addCat"><option value="C">C</option><option value="B">B</option></select></div>'
     +'<div class="field"><label>Item (ficha, pré-produção ou avulso)</label><input id="addItem" list="precoslist" placeholder="Digite ou escolha..." onchange="autoPreco()"><datalist id="precoslist">'+datalist+'</datalist></div>'
     +'<div class="field" style="max-width:150px"><label>Seção no PDF</label><select id="addSecao">'+SECOES.map(x=>'<option>'+x+'</option>').join('')+'</select></div>'
     +'<div class="field" style="max-width:110px"><label>Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"></div>'
@@ -1187,22 +1194,22 @@ function menuHTML(ev){
   +'</div>'
   +'<table><thead><tr><th style="width:105px">Cat</th><th>Item</th><th style="width:130px">Seção</th><th style="width:78px">Qtd</th><th style="width:60px">Un</th><th style="width:52px">/pax</th><th style="width:90px">Preço</th><th>Descrição p/ cliente</th><th style="width:150px">Louça / talher</th><th class="num" style="width:105px">Total</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>'
   +((ev.menu||[]).length?ev.menu.map((m,i)=>'<tr>'
-      +'<td data-l="Categoria"><span class="menu-cat">'+['C','B','M'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
+      +'<td data-l="Categoria"><span class="menu-cat">'+['C','B'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
       +'<td data-l="Item" class="name">'+esc(m.nome)+'</td>'
       +'<td data-l="Seção"><select onchange="setMenu('+i+',\'secao\',this.value)">'+['']. concat(SECOES).map(x=>'<option '+((m.secao||'')===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
       +'<td data-l="Qtd"><input type="number" step="0.01" value="'+esc(m.qtd)+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
       +'<td data-l="Un"><input type="text" value="'+esc(m.un||'')+'" onchange="setMenu('+i+',\'un\',this.value)" style="width:54px"></td>'
       +'<td data-l="Por pax" style="text-align:center"><input type="checkbox" style="width:auto" '+(m.perPax?'checked':'')+' onchange="setMenu('+i+',\'perPax\',this.checked)"></td>'
       +'<td data-l="Preço"><input type="number" step="0.01" value="'+esc(m.preco)+'" onchange="setMenu('+i+',\'preco\',this.value)"></td>'
-      +'<td data-l="Descrição"><input type="text" placeholder="'+(mcat(m)==='M'?'—':'texto que sai no PDF')+'" value="'+esc(m.desc||'')+'" onchange="setMenu('+i+',\'desc\',this.value)"></td>'
-      +'<td data-l="Louça"><input type="text" placeholder="'+(mcat(m)==='M'?'—':'ex.: prato P + garfo')+'" value="'+esc(m.louca||'')+'" onchange="setMenu('+i+',\'louca\',this.value)"></td>'
+      +'<td data-l="Descrição"><input type="text" placeholder="texto que sai no PDF" value="'+esc(m.desc||'')+'" onchange="setMenu('+i+',\'desc\',this.value)"></td>'
+      +'<td data-l="Louça"><input type="text" placeholder="ex.: prato P + garfo" value="'+esc(m.louca||'')+'" onchange="setMenu('+i+',\'louca\',this.value)"></td>'
       +'<td data-l="Total" class="num">'+fmt(lineTotal(m,pax))+'</td>'
       +'<td class="no-print"><button class="del-row" onclick="delMenu('+i+')">×</button></td></tr>').join('')
     :'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione acima.</td></tr>')
   +'</tbody></table>'
   +'<div class="section-title" style="margin-top:22px">Listas separadas</div>'
-  +listaCatHTML(ev,'C')+listaCatHTML(ev,'B')+listaCatHTML(ev,'M')
-  +'<div class="totals"><div class="line grand"><span>Total do menu (comida + bebida + materiais)</span><span>'+fmt(totMenu)+'</span></div></div>'
+  +listaCatHTML(ev,'C')+listaCatHTML(ev,'B')
+  +'<div class="totals"><div class="line grand"><span>Total do menu (comida + bebida)</span><span>'+fmt(totMenu)+'</span></div></div>'
   +'<div class="no-print" style="margin:16px 0;padding:12px 14px;border:1.5px solid var(--vinho-muted);border-radius:12px;background:var(--cream)">'
     +'<div style="font-weight:700;color:var(--vinho-deep);margin-bottom:8px">Aprovação do menu</div>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'
@@ -1213,14 +1220,15 @@ function menuHTML(ev){
 }
 function operOrcTotal(ev){var t=0;var f=FASES.find(x=>x.id==='os');if(!f)return 0;f.itens.forEach(function(it,i){if(it.orc){var c=ev.checks['os_'+i];if(c)t+=Number(c.orc)||0;}});return t;}
 function extrasTotal(ev){return (ev.orcExtras||[]).reduce(function(t,e){return t+(Number(e.valor)||0);},0);}
+function matComprarTotal(ev){return (ev.materiais||[]).reduce(function(t,r){ if(!r.comprar)return t; const q=Number(r.qtdSaida)||1; return t+(Number(r.custo)||0)*q; },0);}
 function orcCalc(ev){
   const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});
   const gpct=Number(ev.gorjeta)||0;const serv=sub*gpct/100;
   const moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0;const mo=(moV*moQ)||(Number(ev.maoObra)||0);
-  const oper=operOrcTotal(ev);const extras=extrasTotal(ev);
-  const base=sub+serv+mo+oper+extras;
+  const oper=operOrcTotal(ev);const extras=extrasTotal(ev);const mat=matComprarTotal(ev);
+  const base=sub+serv+mo+oper+mat+extras;
   const ipct=Number(ev.imposto)||0;const imp=base*ipct/100;
-  return {pax,sub,gpct,serv,mo,oper,extras,base,ipct,imp,total:base+imp};
+  return {pax,sub,gpct,serv,mo,oper,mat,extras,base,ipct,imp,total:base+imp};
 }
 function orcTotal(ev){return orcCalc(ev).total;}
 function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
@@ -1229,11 +1237,12 @@ function orcHTML(ev){
   const pax=K.pax,sub=K.sub,mo=K.mo,gpct=K.gpct,gorj=K.serv,ipct=K.ipct,imp=K.imp,total=K.total;
   const pg=ev.pag||{};const sinal=Number(pg.sinalValor)||0;const saldo=(sub+mo+gorj+imp)-sinal;
   const nItens=(ev.menu||[]).length;
-  const subC=subCat(ev,'C'),subB=subCat(ev,'B'),subM=subCat(ev,'M');
+  const subC=subCat(ev,'C'),subB=subCat(ev,'B');
   return `
   <div class="section-title">Orçamento ${skipBtn(ev)}</div>
-  <div class="intro">O pacote é montado na <b>aba Menu</b>. Aqui os valores só se somam.
-    <button class="btn-ghost btn-sm" style="margin-left:6px" onclick="gotoTab('menu')">Abrir o Menu →</button></div>
+  <div class="intro">O pacote é montado na <b>aba Menu</b> e os materiais no <b>Operacional</b>. Aqui os valores só se somam.
+    <button class="btn-ghost btn-sm" style="margin-left:6px" onclick="gotoTab('menu')">Abrir o Menu →</button>
+    <button class="btn-ghost btn-sm" onclick="gotoTab('os')">Abrir o Operacional →</button></div>
   <div class="toolrow no-print">
     <div class="field" style="max-width:170px"><label>Nº de pax do orçamento</label><input type="number" value="${esc(ev.pax)}" onchange="setOrc('pax',this.value)" placeholder="ex: 50"></div>
     <button class="btn-ghost btn-sm" style="margin-top:18px" onclick="openPrintDialog()">🖨 Imprimir cardápio</button>
@@ -1243,7 +1252,6 @@ function orcHTML(ev){
     <tbody>
       <tr><td data-l="Origem"><span class="mtag C">C</span> Produções de comida</td><td data-l="Valor" class="num">${fmt(subC)}</td></tr>
       <tr><td data-l="Origem"><span class="mtag B">B</span> Produções de bebidas</td><td data-l="Valor" class="num">${fmt(subB)}</td></tr>
-      <tr><td data-l="Origem"><span class="mtag M">M</span> Materiais</td><td data-l="Valor" class="num">${fmt(subM)}</td></tr>
     </tbody>
   </table>`:`<div class="intro">Nenhum item no pacote ainda. <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Ir para o Menu →</button></div>`}
   </table>
@@ -1259,9 +1267,10 @@ function orcHTML(ev){
   <div style="margin-top:10px" class="no-print"><button class="btn-ghost btn-sm" onclick="addExtra()">+ Adicionar extra</button></div>
 
   <div class="totals" style="margin-top:18px">
-    <div class="line"><span>Subtotal do pacote (comida + bebida + materiais)</span><b>${fmt(sub)}</b></div>
+    <div class="line"><span>Subtotal do pacote (comida + bebida)</span><b>${fmt(sub)}</b></div>
     <div class="line no-print"><span>Serviço (<input class="mini-input num" style="max-width:55px" type="number" value="${gpct}" onchange="setOrc('gorjeta',this.value)">% sobre o pacote)</span><b>${fmt(gorj)}</b></div>
     <div class="line no-print" style="display:block"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>Mão de obra</span><b>${fmt(mo)}</b></div><div style="margin-top:5px;font-size:.86em;color:var(--muted)">R$ <input class="mini-input num" style="max-width:90px" type="number" step="0.01" value="${esc(ev.moValor||'')}" onchange="setOrc('moValor',this.value)"> por pessoa × <input class="mini-input num" style="max-width:60px" type="number" value="${esc(ev.moQtd||'')}" onchange="setOrc('moQtd',this.value)"> funcionários</div></div>
+    ${K.mat?`<div class="line"><span>Materiais a comprar (Operacional)</span><b>${fmt(K.mat)}</b></div>`:''}
     ${K.oper?`<div class="line"><span>Itens do Operacional (gelo, caixa de gelar…)</span><b>${fmt(K.oper)}</b></div>`:''}
     ${K.extras?`<div class="line"><span>Custos extras</span><b>${fmt(K.extras)}</b></div>`:''}
     <div class="line" style="color:var(--muted)"><span>Subtotal</span><b>${fmt(K.base)}</b></div>
