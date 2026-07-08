@@ -986,6 +986,7 @@ function openEdit(id){
     <div class="fld"><label>Categoria</label>${catSelectHTML(l.category)}</div>
     <div class="fld"><label>Competência</label><select id="e_comp">${monthList().map(c=>`<option value="${c}" ${c===l.competencia?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
     <div class="fld"><label>Observação</label><textarea id="e_note">${esc(l.note||'')}</textarea></div>
+    ${notasDoLanc(id).length?`<button class="btn o" id="e_splitn" style="margin-bottom:10px"><i class="ph-duotone ph-scissors"></i> Destrinchar por nota (${notasDoLanc(id).length})</button>`:''}
     <button class="btn o" id="e_split" style="margin-bottom:10px"><i class="ph-duotone ph-scissors"></i> Dividir em partes (rateio)</button>
     <button class="btn o" id="e_mover" style="margin-bottom:10px"><i class="ph-duotone ph-arrows-left-right"></i> Mover para outra empresa</button>
     <div style="display:flex;gap:10px;margin-top:0">
@@ -994,6 +995,7 @@ function openEdit(id){
     </div>`);
   $('#e_amt').onblur=()=>{const n=parseFloat(($('#e_amt').value||'').replace(/\./g,'').replace(',','.'));if(!isNaN(n))$('#e_amt').value=n.toFixed(2).replace('.',',');};
   $('#e_split').onclick=()=>openSplit(id);
+  { const sn=$('#e_splitn'); if(sn) sn.onclick=()=>openSplitPorNotas(id); }
   $('#e_mover').onclick=()=>openMoverLanc(id);
   $('#e_save').onclick=async()=>{
     const amt=parseFloat($('#e_amt').value.replace(/\./g,'').replace(',','.'));
@@ -1006,6 +1008,91 @@ function openEdit(id){
     await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     ST.lanc=ST.lanc.filter(x=>x.id!==id); closeSheet(); toast('Excluído'); renderAll();
   };
+}
+
+/* Um pagamento cobre VÁRIAS notas, cada uma de uma categoria.
+   Quebra o pagamento em uma parte por nota (valor já vem da nota) + a sobra (tarifa/juros).
+   Cada parte fica ligada à sua nota. */
+function openSplitPorNotas(lancId){
+  const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
+  const notas=notasDoLanc(l.id).map(ch=>notaObj(ch)).filter(Boolean);
+  if(!notas.length){ toast('Associe as notas primeiro'); return; }
+  const mag=Math.abs(+l.amount||0);
+  const somaNotas=notas.reduce((s,n)=>s+(+n.valor_total||0),0);
+  const sobra=+(mag-somaNotas).toFixed(2);
+  const fmtIn=v=>Math.abs(+v||0).toFixed(2).replace('.',',');
+  const linhas=notas.map((n,i)=>`
+    <div class="spnrow" data-ch="${n.chave}" style="border:1px solid var(--border);border-radius:14px;padding:11px;margin-bottom:9px">
+      <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'(sem emitente)')}</div>
+      <div class="date" style="font-size:11px;margin-bottom:8px">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}${(Array.isArray(n.itens)&&n.itens.length)?` · ${n.itens.length} produto(s)`:''}</div>
+      <div class="row2">
+        <div class="fld" style="margin-bottom:8px"><label>Valor (R$)</label><input class="spnAmt" inputmode="decimal" value="${fmtIn(n.valor_total)}"></div>
+        <div class="fld" style="margin-bottom:8px"><label>&nbsp;</label>
+          <button type="button" class="btn g spnVer" data-vn="${n.chave}" style="width:100%;min-height:44px"><i class="ph-duotone ph-package"></i> ver produtos</button></div>
+      </div>
+      <div class="fld" style="margin-bottom:0"><label>Categoria</label>${catSelectHTML(l.category)}</div>
+      <div class="spnProd" data-pn="${n.chave}" style="display:none;margin-top:8px;border-top:1px solid var(--fio);padding-top:6px">
+        ${(Array.isArray(n.itens)?n.itens:[]).map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
+      </div>
+    </div>`).join('');
+  const sobraHTML=`<div id="spnSobraBox" style="border:1px dashed var(--border);border-radius:14px;padding:11px;margin-bottom:9px${Math.abs(sobra)<0.01?';display:none':''}">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">Sobra do pagamento <span class="mut" style="font-weight:400">(tarifa, juros, frete…)</span></div>
+      <div class="fld" style="margin-bottom:8px"><label>Valor (R$)</label><input id="spnSobra" inputmode="decimal" value="${fmtIn(sobra)}"></div>
+      <div class="fld" style="margin-bottom:0"><label>Categoria da sobra</label>${catSelectHTML('financeiras__tarifas_bancarias')}</div>
+    </div>`;
+  openSheet(`<h3>Destrinchar o pagamento pelas notas</h3>
+    <div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)}</div>
+    <div class="note" style="font-size:12px">Cada nota vira uma parte, com o valor dela e a categoria que você escolher. O lançamento original é substituído pelas partes, e cada parte fica ligada à sua nota.</div>
+    ${linhas}${sobraHTML}
+    <div class="note" id="spnTot" style="font-size:12.5px"></div>
+    <button class="btn p" id="spnGo"><i class="ph-duotone ph-scissors"></i> Dividir e classificar</button>`);
+  const num=v=>{v=(v||'').trim().replace(/\./g,'').replace(',','.');const n=parseFloat(v);return isNaN(n)?0:Math.abs(n);};
+  const recalc=()=>{
+    let s=0; $$('#sheetBody .spnAmt').forEach(i=>s+=num(i.value));
+    const sb=$('#spnSobra'); if(sb) s+=num(sb.value);
+    const dif=+(mag-s).toFixed(2);
+    $('#spnTot').innerHTML=`Pagamento ${brl(-mag)} · Partes ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--neg)'}">${Math.abs(dif)<0.01?'Fecha certinho':'Falta distribuir '+brl(-dif)}</b>`;
+  };
+  $$('#sheetBody .spnAmt').forEach(i=>i.oninput=recalc);
+  { const sb=$('#spnSobra'); if(sb) sb.oninput=recalc; }
+  $$('#sheetBody .spnVer').forEach(b=>b.onclick=()=>{ const box=$(`#sheetBody .spnProd[data-pn="${b.dataset.vn}"]`); if(box) box.style.display = box.style.display==='none'?'block':'none'; });
+  recalc();
+  $('#spnGo').onclick=()=>aplicarSplitPorNotas(l, mag);
+}
+async function aplicarSplitPorNotas(l, mag){
+  const sign=(+l.amount<0)?-1:1, baseFit=l.fitid||('spn'+l.id);
+  const num=v=>{v=(v||'').trim().replace(/\./g,'').replace(',','.');const n=parseFloat(v);return isNaN(n)?0:Math.abs(n);};
+  const partes=[];
+  $$('#sheetBody .spnrow').forEach(r=>{
+    const val=num(r.querySelector('.spnAmt').value); if(val<=0) return;
+    partes.push({chave:r.dataset.ch, valor:val, cat:r.querySelector('.pCat').value||null});
+  });
+  const sb=$('#spnSobra');
+  if(sb && num(sb.value)>0){
+    const box=$('#spnSobraBox');
+    partes.push({chave:null, valor:num(sb.value), cat:box.querySelector('.pCat').value||null});
+  }
+  if(partes.length<1){ toast('Nada para dividir'); return; }
+  const soma=partes.reduce((s,p)=>s+p.valor,0);
+  if(Math.abs(soma-mag)>0.005 && !confirm(`As partes somam ${brl(soma)}, diferente do pagamento ${brl(mag)}.\n\nDividir mesmo assim?`)) return;
+  const rows=partes.map((p,i)=>{
+    const n=p.chave?notaObj(p.chave):null;
+    const rotulo=n?(splitFornecedor(n.emitente).disp||n.emitente||'nota'):'sobra';
+    return {unit:l.unit, fitid:i===0?baseFit:(baseFit+'__n'+i), date:l.date, competencia:l.competencia,
+      memo:(l.memo||'')+` (${String(rotulo).slice(0,24)})`, amount:sign*p.valor, category:p.cat, manual:true};
+  });
+  try{
+    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+    // apaga o original e seus vínculos
+    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+    ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
+    ST.lanc=ST.lanc.filter(x=>String(x.id)!==String(l.id));
+    ins.forEach(r=>ST.lanc.unshift(r));
+    // religa cada nota na sua parte
+    for(let i=0;i<partes.length;i++){ if(partes[i].chave && ins[i]) await linkNotaLanc(partes[i].chave, ins[i].id); }
+    closeSheet(); toast('Dividido em '+partes.length+' parte(s)'); renderAll();
+  }catch(e){ toast('Erro: '+e.message); }
 }
 
 /* Move um lançamento para outra empresa (ex.: gasto do MAC lançado por engano no CCMQ) */
@@ -1404,8 +1491,10 @@ function openLinkPagamento(lancId, forcePicker){
     openSheet(`<h3>Nota(s) da conta</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)}</div>
       ${notasHTML}
       <button class="btn p" id="pgReclass2" style="margin-top:4px"><i class="ph-duotone ph-tag"></i> Classificar este lançamento</button>
+      <button class="btn o" id="pgSplitN" style="margin-top:8px"><i class="ph-duotone ph-scissors"></i> Destrinchar por nota (valores e categorias)</button>
       <button class="btn o" id="pgMore" style="margin-top:8px"><i class="ph-duotone ph-plus"></i> Associar mais notas</button>`);
     $('#pgReclass2').onclick=()=>{ closeSheet(); openCatPicker(lancId); };
+    $('#pgSplitN').onclick=()=>openSplitPorNotas(lancId);
     $('#pgMore').onclick=()=>openLinkPagamento(lancId, true);
     $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(b.dataset.unl,lancId); toast('Removida'); closeSheet(); renderNotas(); renderLanc(); });
     return;
@@ -1486,7 +1575,10 @@ function openLinkPagamento(lancId, forcePicker){
     if(difChs.length){ const termo=splitFornecedor(l.memo).disp;
       if(confirm(`Criar apelido pra SEMPRE reconhecer "${termo}" como esse(s) fornecedor(es)?`)){
         for(const ch of difChs){ const nn=notaObj(ch); if(nn) await salvarApelido(termo, nn.emitente); } } }
-    closeSheet(); toast(sel.size+' nota(s) associada(s)'); renderNotas(); renderLanc();
+    const n=sel.size;
+    closeSheet(); toast(n+' nota(s) associada(s)'); renderNotas(); renderLanc();
+    // várias notas num pagamento só: normalmente cada uma tem sua categoria
+    if(n>1 && confirm(`Este pagamento cobre ${n} notas.\n\nQuer destrinchar agora — uma parte por nota, cada uma com sua categoria?`)) openSplitPorNotas(lancId);
   };
 }
 
