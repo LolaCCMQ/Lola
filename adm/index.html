@@ -546,6 +546,39 @@ async function loadRegras(){
   ST.regras=await api('financeiro_regras?select=*&order=termo');
 }
 async function loadApelidos(){ ST.apelidos=await api('financeiro_apelidos?select=*').catch(()=>[]); }
+async function loadDivs(){ ST.divs=await api('lola_divergencias?select=id,lanc_id,status,fornecedor').catch(()=>[]); }
+function divAberta(lancId){ return (ST.divs||[]).some(d=>String(d.lanc_id)===String(lancId) && d.status==='aberto'); }
+// abre uma pendência pra funcionária localizar a nota (aparece no app "Notas & Divergências" do portal)
+function openDivergencia(lancId){
+  const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
+  const forn=splitFornecedor(l.memo).disp||'(sem fornecedor)';
+  const quem=localStorage.getItem('finNome')||'';
+  openSheet(`<h3>Pedir pra localizar a nota</h3>
+    <div class="hint">${esc(forn)} · ${brl(+l.amount)} · ${fmtDate(l.date)}</div>
+    <div class="note" style="font-size:12px">Isso cria uma pendência no app <b>Notas &amp; Divergências</b> do portal. Sua funcionária resolve e você volta a conciliar.</div>
+    <div class="fld"><label>Tipo</label>
+      <select id="dvTipo" style="width:100%;border:1px solid var(--border);border-radius:var(--r-btn);padding:11px 12px;min-height:44px;background:#fff">
+        <option value="nota_nao_encontrada">Nota não encontrada</option>
+        <option value="valor_divergente">Valor divergente</option>
+        <option value="fornecedor_desconhecido">Fornecedor desconhecido</option>
+        <option value="outro">Outro</option>
+      </select></div>
+    <div class="fld"><label>Seu nome</label><input id="dvQuem" value="${esc(quem)}" placeholder="Ex.: Bianca"></div>
+    <div class="fld"><label>Observação (opcional)</label><textarea id="dvDesc" style="min-height:80px" placeholder="Ex.: pagamento de 29/06, não achei a NF deste fornecedor"></textarea></div>
+    <button class="btn p" id="dvGo"><i class="ph-duotone ph-flag"></i> Criar pendência</button>`);
+  $('#dvGo').onclick=async()=>{
+    const quem=$('#dvQuem').value.trim(); if(!quem){toast('Coloque seu nome');return;}
+    localStorage.setItem('finNome',quem);
+    try{
+      const row={unit:ST.unit, lanc_id:l.id, tipo:$('#dvTipo').value, fornecedor:forn,
+        valor:Math.abs(+l.amount), data_pagamento:l.date, descricao:$('#dvDesc').value.trim()||null,
+        status:'aberto', criado_por:quem};
+      const ins=await api('lola_divergencias',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(row)});
+      if(ins&&ins[0])(ST.divs=ST.divs||[]).push(ins[0]);
+      closeSheet(); toast('Pendência criada — sua funcionária já vê no portal'); renderLanc();
+    }catch(e){ toast('Erro: '+e.message); }
+  };
+}
 // apelido: quando a descrição do pagamento contém o termo E a nota é daquele emitente, trata como MESMO fornecedor
 function aliasMatch(memo,emitente){ const m=normSearch(memo||''); return (ST.apelidos||[]).some(a=>a.emitente===emitente && m.includes(normSearch(a.termo))); }
 async function salvarApelido(termo,emitente){
@@ -577,7 +610,7 @@ async function enter(uid){
   ST.comp=currentComp(); ST.lancComp=ST.comp;
   fillMonthSelects();
   $('#lancList').innerHTML='<div class="spin"></div>';
-  try{ await loadPlano(); await loadLanc(); await loadNotas(); await loadLinks(); await loadRegras(); await loadApelidos(); }
+  try{ await loadPlano(); await loadLanc(); await loadNotas(); await loadLinks(); await loadRegras(); await loadApelidos(); await loadDivs(); }
   catch(e){ toast('Erro ao carregar: '+e.message); }
   fillCatFilter();
   renderAll();
@@ -639,6 +672,7 @@ function renderLanc(){
     const nfHtml=nfN
       ? `<button class="catbtn set" data-nf="${l.id}" title="Nota(s) associada(s) — tocar para ver/editar"><span class="cbar" style="background:#2C7A4B"></span>${nfN} NF ✓</button>`
       : `<button class="catbtn miss" data-nf="${l.id}" title="Associar nota fiscal"><i class="ph-duotone ph-receipt"></i> Associar NF</button>`;
+    const divHtml=divAberta(l.id)?`<span class="catbtn" style="background:#FBF0DD;color:#9A6B1E;border-color:#F0DFC0;pointer-events:none" title="Pendência aberta para localizar a nota"><i class="ph-duotone ph-magnifying-glass"></i> Procurando nota</span>`:'';
     return `<div class="lc">
       <div class="r1" style="align-items:center">
         <button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button>
@@ -648,7 +682,7 @@ function renderLanc(){
       <div class="r2">
         ${catHtml}
         <span class="compchip" data-comp="${l.id}"><i class="ph-duotone ph-calendar-blank"></i> ${compLabel(l.competencia)}</span>
-        ${nfHtml}
+        ${nfHtml}${divHtml}
         <div class="mini">
           <button class="iconbtn ${l.conciliado?'on':''}" data-conc="${l.id}" title="Conciliado"><i class="ph-duotone ph-check-circle"></i></button>
           <button class="iconbtn" data-edit="${l.id}" title="Editar"><i class="ph-duotone ph-pencil-simple"></i></button>
@@ -1381,8 +1415,10 @@ function openLinkPagamento(lancId, forcePicker){
     ${ligHTML}
     <div class="catlist" id="lnkList"></div>
     <div class="note" id="lnkTot" style="font-size:12.5px"></div>
-    <button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>`);
+    <button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>
+    <button class="btn o" id="lnkDiv" style="margin-top:8px"><i class="ph-duotone ph-flag"></i> Não achei a nota — pedir pra localizar</button>`);
   { const mb=$('#lnkMes'); if(mb) mb.onclick=()=>{ ST.linkAllMeses=!ST.linkAllMeses; openLinkPagamento(lancId, true); }; }
+  { const db=$('#lnkDiv'); if(db) db.onclick=()=>openDivergencia(lancId); }
   const sel=new Set();
   const recalc=()=>{ let s=0; sel.forEach(ch=>{const n=notaObj(ch); if(n)s+=+n.valor_total||0;});
     const dif=s-vlanc; $('#lnkTot').innerHTML=`Pagamento ${brl(-vlanc)} · Notas marcadas ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--ink)'}">Diferença ${brl(-(vlanc-s))}</b>`;
