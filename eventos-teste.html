@@ -1200,7 +1200,7 @@ function menuHTML(ev){
   const fichaNote=FICHAS.length?('Comida e bebida puxam a <b>ficha técnica + pré-produções</b> ('+FICHAS.length+' itens) — o preço preenche sozinho. Não achou? Digite nome e preço na mão.'):'⚠️ Não carregou a ficha técnica do portal — dá pra digitar itens e preços manualmente.';
   const totMenu=subCat(ev,'C')+subCat(ev,'B');
   return '<div class="section-title">Montagem do Pacote '+skipBtn(ev)+'</div>'
-  +'<div class="intro">Categoria pela primeira letra: <span class="mtag C">C</span> comida · <span class="mtag B">B</span> bebida. Louças, talheres, copos e o que for preciso comprar ficam no <b>Operacional → Louças e materiais necessários</b>. 💡 '+fichaNote+'</div>'
+  +'<div class="intro">Categoria pela primeira letra: <span class="mtag C">C</span> comida · <span class="mtag B">B</span> bebida. Louças, talheres, copos e o que for preciso comprar ficam <b>logo abaixo</b>, depois da aprovação do menu. 💡 '+fichaNote+'</div>'
   +'<div class="toolrow no-print"><div class="field" style="max-width:170px"><label>Nº de pax do orçamento</label><input type="number" value="'+esc(ev.pax)+'" onchange="setOrc(\'pax\',this.value)" placeholder="ex: 50"></div></div>'
   +'<div class="orc-add no-print">'
     +'<div class="field" style="max-width:80px"><label>Cat</label><select id="addCat"><option value="C">C</option><option value="B">B</option></select></div>'
