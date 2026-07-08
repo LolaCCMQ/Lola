@@ -202,18 +202,7 @@ section.view{display:none} section.view.on{display:block}
 </head>
 <body>
 
-<!-- ADMIN GATE: senha única da área administrativa -->
-<div id="admGate">
-  <div class="gbox" style="max-width:340px">
-    <div class="fr mark">Lola</div>
-    <div class="gsub">Financeiro</div>
-    <div class="lblcap" style="text-align:left;margin:0 2px 9px">Senha do financeiro</div>
-    <input id="admPass" type="password" placeholder="Senha" autocomplete="off">
-    <button id="admBtn" class="btn p" style="width:100%">Entrar</button>
-    <div id="admErr" style="color:var(--vinho);font-size:12.5px;text-align:center;min-height:16px;margin-top:8px"></div>
-    <div style="text-align:center;margin-top:18px"><a href="../" style="color:var(--mut);font-size:12.5px;font-weight:600;text-decoration:none">‹ Voltar ao Administrativo</a></div>
-  </div>
-</div>
+<!-- login real: a tela é criada por auth.js (lolaGate) -->
 
 <!-- GATE: escolher unidade -->
 <div id="gate">
@@ -352,11 +341,11 @@ section.view{display:none} section.view.on{display:block}
 <!-- print area -->
 <div id="printArea" style="display:none"></div>
 
+<script src="../auth.js"></script>
 <script>
 /* ========================= CONFIG ========================= */
-const SB_URL='https://mvjbsdpfjhywhaonvpfl.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12amJzZHBmamh5d2hhb252cGZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDk2OTAsImV4cCI6MjA5NTM4NTY5MH0.i_3sqgQa6umsIYBmAwWz_NP6nYuT3GfIZid24zHXSEI';
-const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+/* SB_URL e SB_KEY vêm de auth.js. H é recalculado a cada chamada com o token do usuário. */
+let H=lolaHeaders();
 
 const UNITS=[
   {id:'ccmq',   nome:'Lola CCMQ',  desc:'Restaurante',      icon:'ph-storefront', bg:'#FBE4E0', fg:'#C0392B'},
@@ -427,10 +416,12 @@ function monthList(){ // 6 meses à frente + atual + 2 atrás (mais novo no topo
 function currentComp(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function prevComp(c){const[y,m]=c.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 
-async function api(path,opt){ const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:H,...opt});
+async function api(path,opt){ await lolaEnsure(); H=lolaHeaders(); // token do usuário sempre válido
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:H,...opt});
   if(!r.ok){const t=await r.text();throw new Error(r.status+' '+t);}
   const txt=await r.text(); return txt?JSON.parse(txt):[]; }
-async function apiCount(path){ const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:{...H,'Prefer':'count=exact','Range':'0-0'}});
+async function apiCount(path){ await lolaEnsure(); H=lolaHeaders();
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:{...H,'Prefer':'count=exact','Range':'0-0'}});
   const cr=r.headers.get('content-range')||''; const m=cr.match(/\/(\d+)$/); return m?+m[1]:0; }
 
 /* ========================= PARSERS ========================= */
@@ -553,7 +544,7 @@ function divAberta(lancId){ return (ST.divs||[]).some(d=>String(d.lanc_id)===Str
 function openDivergencia(lancId){
   const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
   const forn=splitFornecedor(l.memo).disp||'(sem fornecedor)';
-  const quem=localStorage.getItem('finNome')||'';
+  const _s=lolaSession(); const quem=(_s&&_s.nome)||localStorage.getItem('finNome')||'';
   openSheet(`<h3>Pedir pra localizar a nota</h3>
     <div class="hint">${esc(forn)} · ${brl(+l.amount)} · ${fmtDate(l.date)}</div>
     <div class="note" style="font-size:12px">Isso cria uma pendência no app <b>Notas &amp; Divergências</b> do portal. Sua funcionária resolve e você volta a conciliar.</div>
@@ -1742,18 +1733,13 @@ $('#btnNewRule').onclick=()=>openNewRule();
 $('#btnApplyRules').onclick=applyRulesNow;
 $('#btnNewCat').onclick=openNewCat;
 
-/* ===== GATE DO FINANCEIRO (senha PRÓPRIA, diferente da do administrativo) ===== */
-const ADM_HASH='90459c376c6b56c230b3aa639c46273e45e856a77f9e969a40ffa3d765e249e4';
-async function sha256hex(m){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
-async function admTry(){const h=await sha256hex($('#admPass').value);
-  if(h===ADM_HASH){localStorage.setItem('finLola',ADM_HASH);$('#admGate').classList.add('hide');}
-  else{$('#admErr').textContent='Senha incorreta.';}}
-function admInit(){ if(localStorage.getItem('finLola')===ADM_HASH)$('#admGate').classList.add('hide');
-  $('#admBtn').onclick=admTry; $('#admPass').addEventListener('keydown',e=>{if(e.key==='Enter')admTry();}); $('#admPass').focus(); }
-
-/* start */
-admInit();
-renderGate();
+/* ===== LOGIN REAL — só admin ou financeiro entram aqui ===== */
+(async()=>{
+  const sess=await lolaGate({papeis:['admin','financeiro'], titulo:'Financeiro'});
+  H=lolaHeaders();
+  const hs=$('#hSub'); if(hs) hs.textContent=`${sess.nome||sess.email} · ${PAPEL_NOME[sess.papel]||sess.papel}`;
+  renderGate();
+})();
 </script>
 </body>
 </html>
