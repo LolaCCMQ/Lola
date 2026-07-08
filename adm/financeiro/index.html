@@ -555,7 +555,7 @@ function openDivergencia(lancId){
   const _s=lolaSession(); const quem=(_s&&_s.nome)||localStorage.getItem('finNome')||'';
   openSheet(`<h3>Pedir pra localizar a nota</h3>
     <div class="hint">${esc(forn)} · ${brl(+l.amount)} · ${fmtDate(l.date)}</div>
-    <div class="note" style="font-size:12px">Isso cria uma pendência no app <b>Notas &amp; Divergências</b> do portal. Sua funcionária resolve e você volta a conciliar.</div>
+    <div class="note" style="font-size:12px">Isso cria uma pendência no app <b>Entrada de Notas</b> (Paola). Ela localiza, importa a nota e marca como resolvida — aí você volta e associa.</div>
     <div class="fld"><label>Tipo</label>
       <select id="dvTipo" style="width:100%;border:1px solid var(--border);border-radius:var(--r-btn);padding:11px 12px;min-height:44px;background:#fff">
         <option value="nota_nao_encontrada">Nota não encontrada</option>
@@ -1010,6 +1010,65 @@ function openEdit(id){
   };
 }
 
+/* memória: produto já classificado antes → sugere a mesma categoria */
+function produtoCatMap(){
+  const m={};
+  (ST.notas||[]).forEach(n=>(Array.isArray(n.itens)?n.itens:[]).forEach(i=>{
+    if(i.cat){ const k=normSearch(i.desc||''); if(k && !m[k]) m[k]=i.cat; }
+  }));
+  return m;
+}
+/* Uma NOTA com produtos de categorias diferentes: classifica item a item e soma por categoria. */
+function openCatsDaNota(chave, aoSalvar){
+  const n=notaObj(chave); if(!n)return;
+  const its=Array.isArray(n.itens)?n.itens:[];
+  if(!its.length){ toast('Esta nota não tem produtos detalhados'); return; }
+  const memo=produtoCatMap();
+  openSheet(`<h3>Categorias dos produtos</h3>
+    <div class="hint">${esc(n.emitente||'')} · NF ${esc(n.numero||'—')} · ${brl(-(+n.valor_total||0))}</div>
+    <div class="note" style="font-size:12px">Diga a categoria de cada produto. O app soma por categoria e, ao destrinchar o pagamento, cria uma parte para cada uma. Produtos que você já classificou antes vêm sugeridos.</div>
+    <div id="cdnList">${its.map((i,idx)=>`
+      <div class="cdnrow" data-i="${idx}" style="border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0;font-weight:600;font-size:13px">${esc(i.desc)}</div>
+          <div class="amt neg" style="font-size:13px;white-space:nowrap">${brl(-(+i.vtotal||0))}</div>
+        </div>
+        <div class="date" style="font-size:11px;margin-bottom:8px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div>
+        ${catSelectHTML(i.cat||memo[normSearch(i.desc||'')]||null)}
+      </div>`).join('')}</div>
+    <div class="note" id="cdnTot" style="font-size:12.5px"></div>
+    <button class="btn p" id="cdnGo"><i class="ph-duotone ph-check"></i> Salvar categorias</button>`);
+  const recalc=()=>{
+    const somas={}; let semCat=0;
+    $$('#cdnList .cdnrow').forEach(r=>{ const i=its[+r.dataset.i]; const c=r.querySelector('.pCat').value;
+      const v=+i.vtotal||0; if(c) somas[c]=(somas[c]||0)+v; else semCat+=v; });
+    const linhas=Object.keys(somas).map(c=>`${esc((ST.planoById[c]||{}).label||c)}: <b>${brl(-somas[c])}</b>`).join(' · ');
+    $('#cdnTot').innerHTML=(linhas||'Nenhuma categoria escolhida ainda.')+(semCat>0.005?` · <span style="color:var(--neg)">sem categoria ${brl(-semCat)}</span>`:'');
+  };
+  $$('#cdnList .pCat').forEach(s=>s.onchange=recalc); recalc();
+  $('#cdnGo').onclick=async()=>{
+    const novos=its.map((i,idx)=>({...i, cat:($(`#cdnList .cdnrow[data-i="${idx}"] .pCat`).value||null)}));
+    try{
+      await api(`financeiro_notas?chave=eq.${encodeURIComponent(chave)}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({itens:novos})});
+      n.itens=novos; closeSheet(); toast('Categorias salvas'); renderNotas();
+      if(typeof aoSalvar==='function') aoSalvar();
+    }catch(e){ toast('Erro: '+e.message); }
+  };
+}
+/* soma os itens da nota por categoria; null se a nota não tem itens classificados ou só tem uma categoria */
+function rateioDaNota(n){
+  const its=Array.isArray(n.itens)?n.itens:[];
+  if(!its.some(i=>i.cat)) return null;
+  const somas={}; its.forEach(i=>{ const c=i.cat||'__sem'; somas[c]=(somas[c]||0)+(+i.vtotal||0); });
+  const chaves=Object.keys(somas);
+  if(chaves.length<=1) return null;
+  // frete/desconto: joga a diferença (total da nota − soma dos itens) na maior categoria
+  const somaItens=its.reduce((s,i)=>s+(+i.vtotal||0),0);
+  const dif=+(((+n.valor_total||0)-somaItens)).toFixed(2);
+  if(Math.abs(dif)>=0.01){ const maior=chaves.slice().sort((a,b)=>somas[b]-somas[a])[0]; somas[maior]=somas[maior]+dif; }
+  return chaves.map(c=>({cat:c==='__sem'?null:c, valor:+somas[c].toFixed(2)}));
+}
+
 /* Um pagamento cobre VÁRIAS notas, cada uma de uma categoria.
    Quebra o pagamento em uma parte por nota (valor já vem da nota) + a sobra (tarifa/juros).
    Cada parte fica ligada à sua nota. */
@@ -1021,20 +1080,41 @@ function openSplitPorNotas(lancId){
   const somaNotas=notas.reduce((s,n)=>s+(+n.valor_total||0),0);
   const sobra=+(mag-somaNotas).toFixed(2);
   const fmtIn=v=>Math.abs(+v||0).toFixed(2).replace('.',',');
-  const linhas=notas.map((n,i)=>`
-    <div class="spnrow" data-ch="${n.chave}" style="border:1px solid var(--border);border-radius:14px;padding:11px;margin-bottom:9px">
-      <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'(sem emitente)')}</div>
-      <div class="date" style="font-size:11px;margin-bottom:8px">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}${(Array.isArray(n.itens)&&n.itens.length)?` · ${n.itens.length} produto(s)`:''}</div>
-      <div class="row2">
-        <div class="fld" style="margin-bottom:8px"><label>Valor (R$)</label><input class="spnAmt" inputmode="decimal" value="${fmtIn(n.valor_total)}"></div>
-        <div class="fld" style="margin-bottom:8px"><label>&nbsp;</label>
-          <button type="button" class="btn g spnVer" data-vn="${n.chave}" style="width:100%;min-height:44px"><i class="ph-duotone ph-package"></i> ver produtos</button></div>
+  const linhas=notas.map(n=>{
+    const its=Array.isArray(n.itens)?n.itens:[];
+    const rat=rateioDaNota(n);
+    const cabecalho=`
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'(sem emitente)')}</div>
+          <div class="date" style="font-size:11px">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)} · ${brl(-(+n.valor_total||0))}</div>
+        </div>
       </div>
-      <div class="fld" style="margin-bottom:0"><label>Categoria</label>${catSelectHTML(l.category)}</div>
+      <div style="display:flex;gap:8px;margin:8px 0">
+        ${its.length?`<button type="button" class="btn g spnVer" data-vn="${n.chave}" style="flex:1;min-height:40px;font-size:12.5px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>
+        <button type="button" class="btn g spnCats" data-cn="${n.chave}" style="flex:1;min-height:40px;font-size:12.5px"><i class="ph-duotone ph-tag"></i> categorias dos produtos</button>`:''}
+      </div>
+      ${rat?`<div class="note" style="font-size:11.5px;margin-bottom:8px">Separada em <b>${rat.length} categorias</b> pelos produtos.</div>`:''}`;
+    const corpo = rat
+      ? rat.map(p=>`<div class="spnrow" data-ch="${n.chave}" style="border-top:1px solid var(--fio);padding-top:9px;margin-top:6px">
+            <div class="row2">
+              <div class="fld" style="margin-bottom:0"><label>Valor (R$)</label><input class="spnAmt" inputmode="decimal" value="${fmtIn(p.valor)}"></div>
+              <div class="fld" style="margin-bottom:0"><label>Categoria</label>${catSelectHTML(p.cat)}</div>
+            </div>
+          </div>`).join('')
+      : `<div class="spnrow" data-ch="${n.chave}">
+            <div class="row2">
+              <div class="fld" style="margin-bottom:0"><label>Valor (R$)</label><input class="spnAmt" inputmode="decimal" value="${fmtIn(n.valor_total)}"></div>
+              <div class="fld" style="margin-bottom:0"><label>Categoria</label>${catSelectHTML(l.category)}</div>
+            </div>
+          </div>`;
+    return `<div style="border:1px solid var(--border);border-radius:14px;padding:11px;margin-bottom:9px">
+      ${cabecalho}${corpo}
       <div class="spnProd" data-pn="${n.chave}" style="display:none;margin-top:8px;border-top:1px solid var(--fio);padding-top:6px">
-        ${(Array.isArray(n.itens)?n.itens:[]).map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
+        ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}${i.cat?' · '+esc((ST.planoById[i.cat]||{}).label||''):''}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   const sobraHTML=`<div id="spnSobraBox" style="border:1px dashed var(--border);border-radius:14px;padding:11px;margin-bottom:9px${Math.abs(sobra)<0.01?';display:none':''}">
       <div style="font-weight:600;font-size:13px;margin-bottom:8px">Sobra do pagamento <span class="mut" style="font-weight:400">(tarifa, juros, frete…)</span></div>
       <div class="fld" style="margin-bottom:8px"><label>Valor (R$)</label><input id="spnSobra" inputmode="decimal" value="${fmtIn(sobra)}"></div>
@@ -1056,6 +1136,8 @@ function openSplitPorNotas(lancId){
   $$('#sheetBody .spnAmt').forEach(i=>i.oninput=recalc);
   { const sb=$('#spnSobra'); if(sb) sb.oninput=recalc; }
   $$('#sheetBody .spnVer').forEach(b=>b.onclick=()=>{ const box=$(`#sheetBody .spnProd[data-pn="${b.dataset.vn}"]`); if(box) box.style.display = box.style.display==='none'?'block':'none'; });
+  // classificar produto a produto e voltar já separado por categoria
+  $$('#sheetBody .spnCats').forEach(b=>b.onclick=()=>openCatsDaNota(b.dataset.cn, ()=>openSplitPorNotas(lancId)));
   recalc();
   $('#spnGo').onclick=()=>aplicarSplitPorNotas(l, mag);
 }
@@ -1077,9 +1159,11 @@ async function aplicarSplitPorNotas(l, mag){
   if(Math.abs(soma-mag)>0.005 && !confirm(`As partes somam ${brl(soma)}, diferente do pagamento ${brl(mag)}.\n\nDividir mesmo assim?`)) return;
   const rows=partes.map((p,i)=>{
     const n=p.chave?notaObj(p.chave):null;
-    const rotulo=n?(splitFornecedor(n.emitente).disp||n.emitente||'nota'):'sobra';
+    const forn=n?(splitFornecedor(n.emitente).disp||n.emitente||'nota'):'sobra';
+    const catLab=p.cat?((ST.planoById[p.cat]||{}).label||''):'';
+    const rotulo=catLab?`${String(forn).slice(0,18)} · ${catLab}`:String(forn).slice(0,24);
     return {unit:l.unit, fitid:i===0?baseFit:(baseFit+'__n'+i), date:l.date, competencia:l.competencia,
-      memo:(l.memo||'')+` (${String(rotulo).slice(0,24)})`, amount:sign*p.valor, category:p.cat, manual:true};
+      memo:(l.memo||'')+` (${rotulo})`, amount:sign*p.valor, category:p.cat, manual:true};
   });
   try{
     const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
@@ -1381,11 +1465,13 @@ function renderNotas(){
         ${pags.length
           ? `<button class="catbtn set" data-link="${n.chave}"><i class="ph-duotone ph-link"></i> ${pags.length} pagamento(s)</button>`
           : `<button class="catbtn miss" data-link="${n.chave}"><i class="ph-duotone ph-link-simple"></i> Associar a pagamento</button>`}
+        ${its.length?`<button class="catbtn${its.some(i=>i.cat)?' set':''}" data-cats="${n.chave}" title="Classificar os produtos desta nota"><i class="ph-duotone ph-tag"></i> ${its.some(i=>i.cat)?'Categorias ✓':'Categorias'}</button>`:''}
         <button class="catbtn" data-mover="${n.chave}" title="Mover para outra empresa"><i class="ph-duotone ph-arrows-left-right"></i> Mover</button>
       </div>
       ${itensHTML}</div>`;
   }).join('');
   el.querySelectorAll('[data-link]').forEach(b=>b.onclick=()=>openLinkNota(b.dataset.link));
+  el.querySelectorAll('[data-cats]').forEach(b=>b.onclick=()=>openCatsDaNota(b.dataset.cats));
   el.querySelectorAll('[data-mover]').forEach(b=>b.onclick=()=>openMoverNota(b.dataset.mover));
   el.querySelectorAll('[data-nfit]').forEach(b=>b.onclick=()=>{ST.expNotas=ST.expNotas||new Set();const k=b.dataset.nfit;ST.expNotas.has(k)?ST.expNotas.delete(k):ST.expNotas.add(k);renderNotas();});
 }
