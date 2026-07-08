@@ -311,6 +311,7 @@ section.view{display:none} section.view.on{display:block}
         <button class="btn p" id="btnNewRule" style="flex:1"><i class="ph-duotone ph-plus"></i> Nova regra</button>
         <button class="btn o" id="btnApplyRules" style="flex:1"><i class="ph-duotone ph-magic-wand"></i> Aplicar agora</button>
       </div>
+      <div class="catsearch" id="regrasSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="regrasSearch" placeholder="Buscar regra por termo ou categoria…" autocomplete="off"></div>
       <div id="regrasList"></div>
     </section>
 
@@ -402,7 +403,7 @@ const GRUPOS=[
 const grupoInfo=id=>GRUPOS.find(g=>g.id===id)||{id,label:id,type:'despesa',dre:id};
 
 /* ========================= STATE ========================= */
-let ST={ unit:null, plano:[], planoById:{}, lanc:[], notas:[], regras:[], comp:null, lancComp:null, catF:'', statusF:'todos', dreScope:null, lancMode:'lista', fgroups:{}, expandedGroups:new Set(), selMode:false, sel:new Set(), search:'' };
+let ST={ unit:null, plano:[], planoById:{}, lanc:[], notas:[], regras:[], comp:null, lancComp:null, catF:'', statusF:'todos', dreScope:null, lancMode:'lista', fgroups:{}, expandedGroups:new Set(), selMode:false, sel:new Set(), search:'', regrasSearch:'' };
 
 /* ========================= HELPERS ========================= */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -1796,18 +1797,61 @@ function openLinkPagamento(lancId, forcePicker){
 }
 
 /* ========================= REGRAS DE FORNECEDOR ========================= */
+/* quantos lançamentos (todas as competências, unidade atual) a regra pega hoje */
+function regraAtinge(termo){ const t=normSearch(termo||''); if(!t) return 0;
+  return ST.lanc.filter(l=>normSearch(l.memo).includes(t)).length; }
 function renderRegras(){
   const el=$('#regrasList');
   if(!ST.regras.length){el.innerHTML=`<div class="empty"><i class="ph-duotone ph-magic-wand"></i>Nenhuma regra ainda.<br>Crie uma com “Nova regra”.</div>`;return;}
-  el.innerHTML=ST.regras.map(r=>{
+  const q=normSearch(ST.regrasSearch||'');
+  const dupes={}; ST.regras.forEach(r=>{const k=normSearch(r.termo); dupes[k]=(dupes[k]||0)+1;});
+  const lista=ST.regras.filter(r=>{ if(!q) return true;
+    const c=ST.planoById[r.category];
+    return normSearch(r.termo).includes(q) || (c && normSearch(c.label).includes(q)); });
+  if(!lista.length){ el.innerHTML=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>Nenhuma regra com “${esc(ST.regrasSearch)}”.</div>`; return; }
+  el.innerHTML=lista.map(r=>{
     const c=ST.planoById[r.category]; const cor=c?GRUPO_COR[c.group_id]||'#8A7A72':'#8A7A72';
+    const n=regraAtinge(r.termo);
+    const curto=(r.termo||'').trim().length<=6 || (r.termo||'').trim().split(/\s+/).length<2;
+    const dup=dupes[normSearch(r.termo)]>1;
+    const alertas=[
+      curto?`<span class="lock" style="margin:6px 6px 0 0"><i class="ph-duotone ph-warning"></i> termo curto — pode pegar demais</span>`:'',
+      dup?`<span class="lock" style="margin:6px 0 0"><i class="ph-duotone ph-copy"></i> duplicada</span>`:''
+    ].join('');
     return `<div class="lc"><div class="r1">
-      <div><div class="memo">contém “${esc(r.termo)}”</div>
-        <div class="date" style="margin-top:4px"><span class="catbtn set" style="pointer-events:none"><span class="cbar" style="background:${cor}"></span>${c?esc(c.label):'(categoria removida)'}</span></div></div>
-      <button class="iconbtn" data-delr="${r.id}" title="Excluir regra"><i class="ph-duotone ph-trash"></i></button>
+      <div style="flex:1;min-width:0"><div class="memo">contém “${esc(r.termo)}”</div>
+        <div class="date" style="margin-top:4px"><span class="catbtn set" style="pointer-events:none"><span class="cbar" style="background:${cor}"></span>${c?esc(c.label):'(categoria removida)'}</span>
+          <span class="mut" style="font-size:11.5px;margin-left:6px">pega ${n} lançamento(s)</span></div>
+        ${alertas}</div>
+      <div class="mini">
+        <button class="iconbtn" data-editr="${r.id}" title="Editar regra"><i class="ph-duotone ph-pencil-simple"></i></button>
+        <button class="iconbtn del" data-delr="${r.id}" title="Excluir regra"><i class="ph-duotone ph-trash"></i></button>
+      </div>
     </div></div>`;
   }).join('');
   el.querySelectorAll('[data-delr]').forEach(b=>b.onclick=()=>deleteRule(b.dataset.delr));
+  el.querySelectorAll('[data-editr]').forEach(b=>b.onclick=()=>openEditRule(b.dataset.editr));
+}
+/* editar termo e categoria de uma regra existente */
+function openEditRule(id){
+  const r=ST.regras.find(x=>x.id===id); if(!r) return;
+  const atual=ST.planoById[r.category];
+  openSheet(`<h3>Editar regra</h3>
+    <div class="fld"><label>Quando a descrição contém</label><input id="ruleTermoE" value="${esc(r.termo)}"></div>
+    <div class="note" id="ruleHit" style="font-size:12px"></div>
+    <label class="lblcap" style="display:block;margin:4px 2px 8px">Classificar como ${atual?`<span class="mut" style="text-transform:none;letter-spacing:0">(hoje: ${esc(atual.label)})</span>`:''}</label>`+catPickerBody());
+  const inp=$('#ruleTermoE'), hit=$('#ruleHit');
+  const upd=()=>{ const n=regraAtinge(inp.value); hit.innerHTML=`<i class="ph-duotone ph-target"></i> Pega <b>${n}</b> lançamento(s) desta unidade hoje.`; };
+  inp.oninput=upd; upd();
+  wireCatSearch(async(cat)=>{
+    const termo=(inp.value||'').trim();
+    if(!termo){toast('Digite o termo');return;}
+    try{
+      await api(`financeiro_regras?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({termo,category:cat})});
+      r.termo=termo; r.category=cat; ST.regras.sort((a,b)=>a.termo.localeCompare(b.termo));
+      closeSheet(); toast('Regra atualizada'); renderRegras();
+    }catch(e){ toast('Erro: '+e.message); }
+  });
 }
 function openNewRule(prefTermo,prefCat){
   openSheet(`<h3>Nova regra</h3>
@@ -2067,6 +2111,7 @@ $('#catFilter').onchange=e=>{ST.catF=e.target.value;renderLanc();};
 $$('#statusFilters .chip').forEach(c=>c.onclick=()=>{$$('#statusFilters .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.statusF=c.dataset.f;renderLanc();});
 $$('#lancMode button').forEach(b=>b.onclick=()=>{$$('#lancMode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');ST.lancMode=b.dataset.m; ST.sel.clear(); renderLanc(); updateSelBar();});
 $('#lancSearch').oninput=e=>{ ST.search=e.target.value; renderLanc(); };
+$('#regrasSearch').oninput=e=>{ ST.regrasSearch=e.target.value; renderRegras(); };
 $('#btnSel').onclick=toggleSelectAll;
 $('#selCancel').onclick=clearSel;
 $('#selClassify').onclick=openMultiClassify;
