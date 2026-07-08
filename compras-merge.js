@@ -334,6 +334,34 @@
     }
   } catch (e) {}
 
+  // ----- Item "Administrativo" no menu (abre equipelola.net/adm/, com login próprio) -----
+  function addAdministrativo() {
+    try {
+      var sb = document.getElementById('sidebar');
+      if (!sb || document.getElementById('sb-administrativo')) return;
+      var sec = document.createElement('div');
+      sec.className = 'sb-section';
+      sec.id = 'sb-administrativo';
+      sec.innerHTML = '<span class="sb-label">Administrativo</span>';
+      var b = document.createElement('button');
+      b.className = 'nav-item';
+      b.setAttribute('data-menu', 'administrativo');
+      b.innerHTML = '<span class="ni"><i class="ph-duotone ph-lock-key"></i></span><span class="nl">Administrativo</span>';
+      b.onclick = function () { window.open('/adm/', '_blank', 'noopener'); };
+      sec.appendChild(b);
+      sb.appendChild(sec);
+    } catch (e) {}
+  }
+  // o portal reaplica permissões no menu; garantimos que este item não seja escondido
+  try {
+    var st2 = document.createElement('style');
+    st2.textContent =
+      '#sb-administrativo{display:block !important}' +
+      '.nav-item[data-menu="administrativo"]{display:flex !important}';
+    document.head.appendChild(st2);
+  } catch (e) {}
+
   renameNav();
-  setTimeout(renameNav, 1500);
+  addAdministrativo();
+  setTimeout(function () { renameNav(); addAdministrativo(); }, 1500);
 })();
