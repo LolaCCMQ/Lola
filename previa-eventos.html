@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prévia · Eventos — passo a passo novo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+:root{--vinho:#A82A2A;--vinho-deep:#7E1E1F;--vinho-pale:#FBE4E0;--vinho-light:#C0392B;--vinho-muted:#E8CFC7;--cream:#FBF7F1;--warm:#F7EFE6;--border:#ECE3D9;--ink:#2A1A17;--muted:#8A7A72;--green:#2C7A4B;--green-pale:#E6F3EA;--amber:#9A6B1E;--amber-pale:#FBF0DD;--blue:#2C5AA0;--blue-pale:#E6EEF8;--shadow:0 1px 2px rgba(42,26,23,.05),0 12px 26px -16px rgba(42,26,23,.22);--serif:'Fraunces',Georgia,serif;--sans:'Hanken Grotesk',-apple-system,'Segoe UI',sans-serif}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--sans);background:var(--cream);color:var(--ink);font-size:15px;line-height:1.5}
+h1,h2,h3{margin:0;font-weight:600}
+h2{font-family:var(--serif)}
+button{font-family:var(--sans);cursor:pointer;border:none;border-radius:13px;font-size:14px;font-weight:700}
+input,select,textarea{font-family:var(--sans);font-size:14px;width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--vinho)}
+textarea{resize:vertical;min-height:44px}
+.wrap{max-width:1100px;margin:0 auto;padding:18px}
+.note{background:#FFF9EC;border:1px solid #F0DFB8;border-radius:14px;padding:12px 15px;font-size:13.5px;margin-bottom:16px}
+.note b{color:var(--vinho)}
+.btn-primary{background:var(--vinho);color:#fff;padding:11px 18px;min-height:44px}
+.btn-primary:hover{background:var(--vinho-deep)}
+.btn-ghost{background:#fff;color:var(--vinho);border:1px solid var(--border);padding:10px 15px}
+.btn-ghost:hover{border-color:var(--vinho);background:var(--vinho-pale)}
+.btn-sm{padding:6px 11px;font-size:12.5px;border-radius:9px;min-height:0}
+.btn-skip{background:none;color:var(--muted);border:1px dashed var(--border);padding:6px 11px;font-size:12.5px;border-radius:9px}
+.btn-skip:hover{color:var(--vinho);border-color:var(--vinho)}
+.detail-head{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
+.detail-head h2{font-size:23px;color:var(--vinho)}
+.detail-head .ev-type{color:var(--vinho);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800}
+.detail-head .sub{color:var(--muted);font-size:13.5px;margin-top:3px;font-weight:600}
+.hyb-prog{display:flex;gap:4px;margin-top:14px}
+.hyb-prog i{flex:1;height:5px;border-radius:3px;background:#EFE6DC}
+.hyb-prog i.d{background:var(--green)}
+.hyb-prog i.c{background:var(--amber)}
+.hyb-etapa{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600}
+.hyb-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.hyb-stat{background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:9px 12px}
+.hyb-stat span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#B79A8E;font-weight:700}
+.hyb-stat b{font-family:var(--serif);font-weight:600;font-size:17px}
+.hyb-stat b.warn{color:#B5302E}
+.hyb-alert{background:#FBEAE7;border:1px solid #F0C8C0;border-radius:13px;padding:10px 14px;margin-top:12px}
+.hyb-atit{font-size:11px;font-weight:800;color:#B5302E;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.hyb-arow{font-size:13px;color:#5A463E;padding:2px 0;font-weight:600}
+
+/* ===== BARRA DE ETAPAS (o pedido da Bianca) ===== */
+.stepbar-wrap{position:sticky;top:0;z-index:20;background:var(--cream);padding:8px 0 6px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.stepbar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.stepbar::-webkit-scrollbar{height:4px}
+.stepbar::-webkit-scrollbar-thumb{background:var(--vinho-muted);border-radius:4px}
+.step{flex:0 0 auto;display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--border);border-radius:20px;padding:7px 13px 7px 8px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap;min-height:40px}
+.step:hover{border-color:var(--vinho);color:var(--vinho)}
+.step .n{width:21px;height:21px;border-radius:50%;background:var(--warm);color:var(--muted);font-size:11px;font-weight:800;display:grid;place-items:center;flex:0 0 auto}
+.step.done .n{background:var(--green);color:#fff}
+.step.done{color:#4E6B58}
+.step.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
+.step.on .n{background:rgba(255,255,255,.28);color:#fff}
+.step.warn .n{background:var(--amber);color:#fff}
+.grp{flex:0 0 auto;display:flex;align-items:center;color:#C6B4A8;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:0 4px;white-space:nowrap}
+
+.panel{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px}
+.section-title{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--vinho);font-weight:800;margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.section-title .sk{margin-left:auto}
+.sub-title{font-family:var(--serif);font-size:18px;margin:22px 0 10px}
+.intro{background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:11px 14px;font-size:13.5px;color:#5A463E;margin-bottom:14px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.hint{font-weight:600;color:#B79A8E;font-size:11.5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;padding:6px 6px;font-weight:800}
+td{padding:5px 6px;border-top:1px solid var(--border);vertical-align:middle}
+td input,td select{padding:7px 8px}
+.del-row{background:none;color:#C99;font-size:18px;padding:0 6px}
+.tot{background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-weight:800}
+.tot b{font-family:var(--serif);font-size:20px;color:var(--vinho)}
+
+/* categoria C/B/M */
+.cat{display:inline-flex;gap:3px}
+.cat button{width:30px;height:30px;border-radius:9px;border:1px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:800;padding:0}
+.cat button.on.C{background:#B5302E;border-color:#B5302E;color:#fff}
+.cat button.on.B{background:#2C5AA0;border-color:#2C5AA0;color:#fff}
+.cat button.on.M{background:#9A6B1E;border-color:#9A6B1E;color:#fff}
+.tagC{background:#FBE4E0;color:#B5302E}
+.tagB{background:#E6EEF8;color:#2C5AA0}
+.tagM{background:#FBF0DD;color:#9A6B1E}
+.tag{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:7px;font-size:11px;font-weight:800}
+
+/* accordion operacional */
+.acc{border:1px solid var(--border);border-radius:13px;margin-bottom:8px;overflow:hidden;background:#fff}
+.acc.on{border-color:var(--vinho)}
+.acc-h{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.acc-h .ck{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--border);display:grid;place-items:center;font-size:12px;color:#fff;flex:0 0 auto}
+.acc-h .ck.ok{background:var(--green);border-color:var(--green)}
+.acc-h .t{flex:1;font-weight:700;font-size:14px;min-width:0}
+.acc-h .money{font-size:12px;font-weight:800;color:var(--vinho);background:var(--vinho-pale);padding:3px 9px;border-radius:20px;white-space:nowrap}
+.acc-h .chev{color:#C6B4A8;font-size:11px}
+.acc-b{padding:0 14px 14px;border-top:1px solid var(--border);padding-top:12px}
+.orc-line{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.orc-line input{width:130px}
+
+.lista{border:1px solid var(--border);border-radius:13px;padding:14px;margin-bottom:12px;background:var(--cream)}
+.lista h4{margin:0 0 8px;font-family:var(--serif);font-size:16px;display:flex;align-items:center;gap:8px}
+.lista .cnt{font-size:11px;font-weight:800;color:var(--muted);background:#fff;border:1px solid var(--border);padding:2px 8px;border-radius:20px}
+.lista table{background:#fff;border-radius:9px}
+.pill-ok{background:var(--green-pale);color:var(--green);font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px}
+
+.step-nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap}
+.stub{color:var(--muted);text-align:center;padding:40px 10px;font-size:14px}
+.badge-new{background:var(--green-pale);color:var(--green);font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;letter-spacing:.5px}
+@media(max-width:640px){
+  .wrap{padding:12px}
+  .row2,.row3{grid-template-columns:1fr}
+  .panel{padding:15px}
+  table thead{display:none}
+  table.cards tr{display:block;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:9px;background:#fff}
+  table.cards td{display:flex;justify-content:space-between;align-items:center;gap:10px;border:none;padding:4px 0}
+  table.cards td:before{content:attr(data-l);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:800;flex:0 0 auto}
+  table.cards td input,table.cards td select{max-width:58%}
+  .orc-line input{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="note">
+  <b>Prévia — não é o app.</b> É pra você aprovar o desenho antes de eu mexer no <code>eventos-teste.html</code>.
+  Abra também no celular (390px). Os números e itens são fictícios.
+</div>
+
+<!-- ===== painel resumo (mantido do V3) ===== -->
+<div class="detail-head">
+  <div class="ev-type">Evento personalizado · Lola CCMQ</div>
+  <h2>Casamento Marina & Téo</h2>
+  <div class="sub">Bianca · 📅 22/08/2026 20:00 · 👥 80 + 20 pax</div>
+  <div class="hyb-prog" id="prog"></div>
+  <div class="hyb-etapa" id="etapaTxt"></div>
+  <div class="hyb-stats">
+    <div class="hyb-stat"><span>Pax</span><b>80 + 20</b></div>
+    <div class="hyb-stat"><span>Orçamento</span><b id="statOrc">R$ 0</b></div>
+    <div class="hyb-stat"><span>Sinal</span><b class="warn">pendente</b></div>
+  </div>
+  <div class="hyb-alert">
+    <div class="hyb-atit">Resolver agora · 2</div>
+    <div class="hyb-arow">2 vagas de equipe em aberto</div>
+    <div class="hyb-arow">Sinal de R$ 3.000,00 não recebido</div>
+  </div>
+</div>
+
+<!-- ===== BARRA DE ETAPAS ===== -->
+<div class="stepbar-wrap"><div class="stepbar" id="stepbar"></div></div>
+
+<div class="panel" id="panel"></div>
+
+</div>
+
+<script>
+/* ========= modelo da prévia ========= */
+const STEPS=[
+  {id:'triagem', n:1, l:'Triagem',              g:'Planejamento', done:true},
+  {id:'dados',   n:2, l:'Dados',                g:'Planejamento', done:true},
+  {id:'menu',    n:3, l:'Menu',                 g:'Operação',     done:false},
+  {id:'oper',    n:4, l:'Operacional',          g:'Operação',     done:false},
+  {id:'equipe',  n:5, l:'Equipe',               g:'Operação',     done:false, warn:true},
+  {id:'orc',     n:6, l:'Orçamento e Pagamento',g:'Financeiro',   done:false},
+  {id:'layout',  n:7, l:'Layout de Mesas',      g:'Operação',     done:false},
+  {id:'conv',    n:8, l:'Convidados',           g:'Dia D',        done:false},
+  {id:'dia',     n:9, l:'No dia',               g:'Dia D',        done:false},
+  {id:'despro',  n:10,l:'Desprodução',          g:'Dia D',        done:false},
+];
+let cur='menu';
+
+/* MENU — categoria pela 1ª letra: C comida · B bebida · M materiais */
+let menu=[
+  {cat:'C', item:'Canapé de brie com damasco', qtd:3,  un:'un',  perPax:true,  preco:6.50,  louca:'Prato de vidro P + guardanapo'},
+  {cat:'C', item:'Risoto de funghi (mini porção)', qtd:1, un:'porção', perPax:true, preco:22.00, louca:'Cumbuca + garfo de sobremesa'},
+  {cat:'B', item:'Sangria branca',            qtd:0.4,un:'L',   perPax:true,  preco:18.00, louca:'Taça de vinho'},
+  {cat:'B', item:'Água com gás',              qtd:1,  un:'un',  perPax:true,  preco:5.00,  louca:'Copo alto'},
+  {cat:'M', item:'Guardanapo de tecido',      qtd:120,un:'un',  perPax:false, preco:1.20,  louca:''},
+  {cat:'M', item:'Rechaud',                   qtd:3,  un:'un',  perPax:false, preco:0,     louca:''},
+];
+let menuAprovado=false, enviadoCentral=false;
+
+/* OPERACIONAL */
+let oper=[
+  {t:'Menus e outros impressos', d:'Quantidade e arquivo para impressão', done:false, novo:true, tipo:'impressos', qtdImp:100, arquivo:''},
+  {t:'Louças e materiais necessários', d:'Puxa da aba Menu (categoria M) — pratos, copos, talheres', done:true},
+  {t:'Gelo', d:'Quantos sacos? Entrega no dia?', done:false, novo:true, orc:180},
+  {t:'Caixa de gelar', d:'Quantas? Locação ou própria?', done:false, novo:true, orc:400},
+  {t:'Equipamentos de som e iluminação', d:'Chamar? Contratante traz? Testar montagem', done:false, orc:0},
+  {t:'Outros equipamentos', d:'Máquina de café / mesa pra servir', done:false, orc:0},
+  {t:'Botão no sistema', d:'Como serão lançados os pedidos', done:false},
+  {t:'Formato de venda', d:'Comanda / ticket', done:false},
+  {t:'Equipe', d:'Freelas? Recepção? → montar na aba 5', done:false},
+  {t:'Serviços externos parceiros', d:'ex. chopeira, iluminação, sonorização', done:false, orc:0},
+  {t:'Conferência de serviços externos parceiros', d:'Está tudo ok?', done:false},
+  {t:'Treinamento das equipes de salão e cozinha', d:'⏰ Tarefa antecipada — no mínimo 2 dias antes', done:false},
+];
+let fluxo=[
+  {h:'16:00', o:'Chegada da equipe · montagem do salão'},
+  {h:'19:30', o:'Abertura do bar · recepção dos convidados'},
+  {h:'21:00', o:'Serviço volante de canapés'},
+];
+let accOpen=null;
+
+/* EQUIPE */
+let equipe=[
+  {cargo:'Cozinha',    nome:'Rafa',   e:'16:00', s:'01:00', vh:15},
+  {cargo:'Bar',        nome:'Léo',    e:'18:00', s:'02:00', vh:18},
+  {cargo:'Atendimento',nome:'',       e:'18:00', s:'02:00', vh:15},
+  {cargo:'Atendimento',nome:'',       e:'18:00', s:'02:00', vh:15},
+  {cargo:'Recepção',   nome:'Duda',   e:'19:00', s:'23:00', vh:15},
+];
+const CARGOS=['Cozinha','Bar','Atendimento','Recepção','Outros'];
+
+/* ORÇAMENTO */
+let extras=[{d:'Transporte / frete',v:250},{d:'Aluguel de rechaud',v:120}];
+let versao=0;
+
+/* ========= helpers ========= */
+const PAX=100;
+const brl=v=>'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function horas(e,s){if(!e||!s)return 0;const[a,b]=e.split(':').map(Number),[c,d]=s.split(':').map(Number);let m=(c*60+d)-(a*60+b);if(m<0)m+=1440;return m/60;}
+function linhaMenu(m){return (m.perPax? m.qtd*PAX : m.qtd) * m.preco;}
+const subMenu=cat=>menu.filter(m=>m.cat===cat).reduce((s,m)=>s+linhaMenu(m),0);
+const totEquipe=()=>equipe.reduce((s,r)=>s+horas(r.e,r.s)*r.vh,0);
+const totOperOrc=()=>oper.reduce((s,o)=>s+Number(o.orc||0),0);
+const totExtras=()=>extras.reduce((s,e)=>s+Number(e.v||0),0);
+const totGeral=()=>subMenu('C')+subMenu('B')+subMenu('M')+totEquipe()+totOperOrc()+totExtras();
+const porcoes=()=>menu.filter(m=>m.cat==='C').reduce((s,m)=>s+(m.perPax?m.qtd*PAX:m.qtd),0);
+
+/* ========= barra de etapas ========= */
+function renderBar(){
+  let html='',lastG=null;
+  STEPS.forEach(s=>{
+    if(s.g!==lastG){html+='<span class="grp">'+s.g+'</span>';lastG=s.g;}
+    const cls=['step',s.done?'done':'',s.id===cur?'on':'',s.warn?'warn':''].filter(Boolean).join(' ');
+    html+='<button class="'+cls+'" onclick="go(\''+s.id+'\')"><span class="n">'+(s.done?'✓':s.n)+'</span>'+s.l+'</button>';
+  });
+  document.getElementById('stepbar').innerHTML=html;
+  document.getElementById('prog').innerHTML=STEPS.map(s=>'<i class="'+(s.done?'d':(s.id===cur?'c':''))+'"></i>').join('');
+  const i=STEPS.findIndex(s=>s.id===cur);
+  document.getElementById('etapaTxt').textContent='etapa '+(i+1)+' de '+STEPS.length+' · '+STEPS[i].l;
+  document.getElementById('statOrc').textContent=brl(totGeral());
+}
+function go(id){cur=id;render();window.scrollTo({top:0,behavior:'smooth'});}
+function nav(){
+  const i=STEPS.findIndex(s=>s.id===cur);
+  const prev=i>0?STEPS[i-1]:null, next=i<STEPS.length-1?STEPS[i+1]:null;
+  return '<div class="step-nav"><div>'+(prev?'<button class="btn-ghost btn-sm" onclick="go(\''+prev.id+'\')">← '+prev.l+'</button>':'')+'</div>'
+    +'<div>'+(next?'<button class="btn-skip" onclick="go(\''+next.id+'\')">pular</button> <button class="btn-primary btn-sm" onclick="go(\''+next.id+'\')">Próxima: '+next.l+' →</button>':'<button class="btn-primary btn-sm">✓ Concluir</button>')+'</div></div>';
+}
+/* botão pular ao lado do título */
+function tituloPular(txt,proxId,proxLabel){
+  return '<div class="section-title">'+txt+'<span class="sk"><button class="btn-skip" onclick="go(\''+proxId+'\')">pular para '+proxLabel+' →</button></span></div>';
+}
+
+/* ========= telas ========= */
+function telaTriagem(){
+  return tituloPular('Triagem inicial','dados','Dados')
+  +'<div class="intro">Os 7 itens da triagem continuam iguais. Só ilustrando o botão de pular.</div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck ok">✓</span><span class="t">Definir tipo de evento e ocasião</span></div></div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck ok">✓</span><span class="t">Confirmar nº de pax (dentro e fora)</span></div></div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Definir se precisa ser na cúpula</span></div></div>'
+  + tituloPular('Planejamento (negociação)','dados','Dados')
+  +'<div class="intro">👉 <b>Aqui está o botão que você pediu:</b> "pular" ao lado do título <b>Planejamento</b>, indo direto pra aba 2 · Dados.</div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Montar pacote de serviços</span></div></div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Enviar proposta pelo Canva</span></div></div>'
+  +nav();
+}
+
+function telaMenu(){
+  const cats={C:'Produções de comida',B:'Produções de bebidas',M:'Lista de materiais'};
+  let listas='';
+  ['C','B','M'].forEach(c=>{
+    const its=menu.filter(m=>m.cat===c);
+    listas+='<div class="lista"><h4><span class="tag tag'+c+'">'+c+'</span> '+cats[c]+' <span class="cnt">'+its.length+' itens · '+brl(subMenu(c))+'</span></h4>'
+      +(its.length?'<table class="cards"><thead><tr><th>Item</th><th>Qtd</th><th>Un</th><th>Louça / talher</th><th style="text-align:right">Total</th></tr></thead><tbody>'
+      +its.map(m=>'<tr><td data-l="Item">'+esc(m.item)+'</td><td data-l="Qtd">'+m.qtd+(m.perPax?' <span class="hint">/pax</span>':'')+'</td><td data-l="Un">'+esc(m.un)+'</td><td data-l="Louça">'+(m.louca?esc(m.louca):'<span class="hint">—</span>')+'</td><td data-l="Total" style="text-align:right"><b>'+brl(linhaMenu(m))+'</b></td></tr>').join('')
+      +'</tbody></table>':'<div class="hint">nenhum item</div>')+'</div>';
+  });
+
+  return '<div class="section-title">3 · Menu <span class="badge-new">NOVA</span><span class="sk"><button class="btn-skip" onclick="go(\'oper\')">pular para Operacional →</button></span></div>'
+  +'<div class="intro">Começa pela <b>Montagem do Pacote</b>. Cada item recebe a categoria pela primeira letra: <span class="tag tagC">C</span> comida · <span class="tag tagB">B</span> bebida · <span class="tag tagM">M</span> materiais (talheres, copos, louças). Comida e bebida puxam a <b>ficha técnica</b> (preço de venda).</div>'
+
+  +'<div class="sub-title">Montagem do Pacote</div>'
+  +'<table class="cards"><thead><tr><th>Cat</th><th>Item</th><th>Qtd</th><th>Un</th><th>/pax</th><th>Preço</th><th>Louça / talher</th><th></th></tr></thead><tbody>'
+  +menu.map((m,i)=>'<tr>'
+    +'<td data-l="Categoria"><span class="cat">'
+      +['C','B','M'].map(c=>'<button class="'+c+(m.cat===c?' on':'')+'" onclick="setCat('+i+',\''+c+'\')">'+c+'</button>').join('')
+    +'</span></td>'
+    +'<td data-l="Item"><input value="'+esc(m.item)+'" onchange="setMenu('+i+',\'item\',this.value)" list="fichas"></td>'
+    +'<td data-l="Qtd"><input type="number" step="0.01" value="'+m.qtd+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
+    +'<td data-l="Un"><input value="'+esc(m.un)+'" onchange="setMenu('+i+',\'un\',this.value)"></td>'
+    +'<td data-l="Por pax"><input type="checkbox" style="width:auto" '+(m.perPax?'checked':'')+' onchange="setMenu('+i+',\'perPax\',this.checked)"></td>'
+    +'<td data-l="Preço"><input type="number" step="0.01" value="'+m.preco+'" onchange="setMenu('+i+',\'preco\',this.value)"></td>'
+    +'<td data-l="Louça / talher"><input placeholder="'+(m.cat==='M'?'—':'ex.: prato P + garfo')+'" value="'+esc(m.louca)+'" onchange="setMenu('+i+',\'louca\',this.value)"></td>'
+    +'<td data-l=""><button class="del-row" onclick="delMenu('+i+')">×</button></td></tr>').join('')
+  +'</tbody></table>'
+  +'<datalist id="fichas"><option>Canapé de brie com damasco</option><option>Risoto de funghi (mini porção)</option><option>Sangria branca</option><option>Negroni</option></datalist>'
+  +'<div style="margin-top:10px"><button class="btn-ghost btn-sm" onclick="addMenu()">+ Adicionar item</button> <span class="hint">a coluna "Louça / talher" é a pergunta de louças e talheres, item a item</span></div>'
+
+  +'<div class="sub-title">Listas separadas (geradas automaticamente)</div>'
+  +listas
+
+  +'<div class="tot"><span>Total do menu (comida + bebida + materiais)</span><b>'+brl(subMenu('C')+subMenu('B')+subMenu('M'))+'</b></div>'
+
+  +'<div class="step-nav">'
+    +'<div><button class="'+(menuAprovado?'btn-primary':'btn-ghost')+' btn-sm" onclick="menuAprovado=!menuAprovado;render()">'+(menuAprovado?'✅ Menu aprovado':'Marcar menu como aprovado')+'</button></div>'
+    +'<div>'+(enviadoCentral?'<span class="pill-ok">enviado à central ✓</span>':'<button class="btn-primary btn-sm" '+(menuAprovado?'':'disabled style="opacity:.4;cursor:not-allowed"')+' onclick="enviadoCentral=true;render()">📤 Enviar à central</button>')+'</div>'
+  +'</div>'
+  +nav();
+}
+
+function telaOper(){
+  return '<div class="section-title">4 · Operacional<span class="sk"><button class="btn-skip" onclick="go(\'equipe\')">pular para Equipe →</button></span></div>'
+  +'<div class="intro">Cada item mostra <b>só o título</b>. Clique pra abrir os detalhes. Onde faz sentido, dá pra <b>incluir um valor no orçamento</b> — que soma direto na aba 6.</div>'
+  +oper.map((o,i)=>{
+    const on=accOpen===i;
+    return '<div class="acc'+(on?' on':'')+'">'
+      +'<div class="acc-h" onclick="accOpen='+(on?'null':i)+';render()">'
+        +'<span class="ck'+(o.done?' ok':'')+'" onclick="event.stopPropagation();oper['+i+'].done=!oper['+i+'].done;render()">'+(o.done?'✓':'')+'</span>'
+        +'<span class="t">'+esc(o.t)+(o.novo?' <span class="badge-new">NOVO</span>':'')+'</span>'
+        +(Number(o.orc)>0?'<span class="money">'+brl(o.orc)+'</span>':'')
+        +'<span class="chev">'+(on?'▲':'▼')+'</span></div>'
+      +(on?'<div class="acc-b">'
+          +'<div class="hint" style="margin-bottom:8px">'+esc(o.d)+'</div>'
+          +(o.tipo==='impressos'
+            ? '<div class="row2"><div class="field"><label>Quantidade</label><input type="number" value="'+o.qtdImp+'"></div><div class="field"><label>Arquivo para impressão <span class="hint">link ou upload</span></label><input placeholder="colar link do PDF / Canva"></div></div>'
+            : '<div class="field"><label>Anotação</label><textarea placeholder="observações..."></textarea></div>')
+          +(o.orc!==undefined
+            ? '<div class="orc-line"><label style="font-size:12px;font-weight:700;color:var(--muted)">Incluir no orçamento:</label>'
+              +'<input type="number" step="0.01" value="'+(o.orc||'')+'" placeholder="0,00" onchange="oper['+i+'].orc=Number(this.value);render()">'
+              +'<button class="btn-ghost btn-sm" onclick="render()">💰 Incluir</button>'
+              +(Number(o.orc)>0?'<span class="pill-ok">no orçamento</span>':'')+'</div>'
+            : '')
+        +'</div>':'')
+      +'</div>';
+  }).join('')
+
+  +'<div class="sub-title">Fluxo de serviço <span class="badge-new">NOVO</span></div>'
+  +'<div class="intro">Horários e programação do evento.</div>'
+  +'<table class="cards"><thead><tr><th style="width:110px">Horário</th><th>O que acontece</th><th></th></tr></thead><tbody>'
+  +fluxo.map((f,i)=>'<tr><td data-l="Horário"><input type="time" value="'+f.h+'"></td><td data-l="O que acontece"><input value="'+esc(f.o)+'"></td><td><button class="del-row" onclick="fluxo.splice('+i+',1);render()">×</button></td></tr>').join('')
+  +'</tbody></table>'
+  +'<div style="margin-top:10px"><button class="btn-ghost btn-sm" onclick="fluxo.push({h:\'\',o:\'\'});render()">+ Adicionar horário</button></div>'
+
+  +'<div class="tot"><span>Itens do operacional que vão pro orçamento</span><b>'+brl(totOperOrc())+'</b></div>'
+  +nav();
+}
+
+function telaEquipe(){
+  return '<div class="section-title">5 · Equipe<span class="sk"><button class="btn-skip" onclick="go(\'orc\')">pular para Orçamento →</button></span></div>'
+  +'<div class="intro">Planilha de freelas. Valor/hora já vem <b>R$ 15,00</b> e é editável. Linha sem nome = <b>vaga em aberto</b> (aparece no "Resolver agora").</div>'
+  +'<table class="cards"><thead><tr><th>Cargo</th><th>Nome do freela</th><th>Entrada</th><th>Saída</th><th>Horas</th><th>Valor/hora</th><th style="text-align:right">Total</th><th></th></tr></thead><tbody>'
+  +equipe.map((r,i)=>{const h=horas(r.e,r.s);const vaga=!r.nome.trim();
+    return '<tr'+(vaga?' style="background:#FFF8F6"':'')+'>'
+    +'<td data-l="Cargo"><select onchange="equipe['+i+'].cargo=this.value;render()">'+CARGOS.map(c=>'<option '+(r.cargo===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td>'
+    +'<td data-l="Nome"><input value="'+esc(r.nome)+'" placeholder="vaga em aberto" onchange="equipe['+i+'].nome=this.value;render()"></td>'
+    +'<td data-l="Entrada"><input type="time" value="'+r.e+'" onchange="equipe['+i+'].e=this.value;render()"></td>'
+    +'<td data-l="Saída"><input type="time" value="'+r.s+'" onchange="equipe['+i+'].s=this.value;render()"></td>'
+    +'<td data-l="Horas">'+h.toFixed(1)+'h</td>'
+    +'<td data-l="Valor/hora"><input type="number" step="0.5" value="'+r.vh+'" onchange="equipe['+i+'].vh=Number(this.value);render()"></td>'
+    +'<td data-l="Total" style="text-align:right"><b>'+brl(h*r.vh)+'</b></td>'
+    +'<td><button class="del-row" onclick="equipe.splice('+i+',1);render()">×</button></td></tr>';}).join('')
+  +'</tbody></table>'
+  +'<div style="margin-top:10px"><button class="btn-ghost btn-sm" onclick="equipe.push({cargo:\'Outros\',nome:\'\',e:\'18:00\',s:\'23:00\',vh:15});render()">+ Adicionar pessoa</button></div>'
+  +'<div class="tot"><span>Soma total da equipe · '+equipe.length+' pessoas</span><b>'+brl(totEquipe())+'</b></div>'
+  +nav();
+}
+
+function telaOrc(){
+  const linhas=[
+    ['Produções de comida (aba Menu)',subMenu('C')],
+    ['Produções de bebidas (aba Menu)',subMenu('B')],
+    ['Materiais (aba Menu)',subMenu('M')],
+    ['Mão de obra — equipe (aba Equipe)',totEquipe()],
+    ['Itens do Operacional (gelo, caixa de gelar…)',totOperOrc()],
+  ];
+  return '<div class="section-title">6 · Orçamento e Pagamento<span class="sk"><button class="btn-skip" onclick="go(\'layout\')">pular para Layout →</button></span></div>'
+  +'<div class="intro">Junta tudo: menu (C/B/M) + equipe + itens do operacional + extras. <b>Todos os campos são editáveis</b> aqui.</div>'
+  +'<table class="cards"><thead><tr><th>De onde vem</th><th style="text-align:right">Valor</th></tr></thead><tbody>'
+  +linhas.map(l=>'<tr><td data-l="Origem">'+l[0]+'</td><td data-l="Valor" style="text-align:right"><input type="number" step="0.01" value="'+l[1].toFixed(2)+'" style="max-width:150px;text-align:right;display:inline-block"></td></tr>').join('')
+  +'</tbody></table>'
+
+  +'<div class="sub-title">Custos extras <span class="badge-new">NOVO</span></div>'
+  +'<div class="intro">Depois da mão de obra: gelo, transporte, aluguel… soma no orçamento.</div>'
+  +'<table class="cards"><thead><tr><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>'
+  +extras.map((e,i)=>'<tr><td data-l="Descrição"><input value="'+esc(e.d)+'" onchange="extras['+i+'].d=this.value;render()"></td><td data-l="Valor"><input type="number" step="0.01" value="'+e.v+'" onchange="extras['+i+'].v=Number(this.value);render()" style="text-align:right"></td><td><button class="del-row" onclick="extras.splice('+i+',1);render()">×</button></td></tr>').join('')
+  +'</tbody></table>'
+  +'<div style="margin-top:10px"><button class="btn-ghost btn-sm" onclick="extras.push({d:\'\',v:0});render()">+ Adicionar extra</button></div>'
+
+  +'<div class="tot"><span>Total do orçamento · <b style="font-family:var(--sans);font-size:13px;color:var(--muted)">'+porcoes().toFixed(0)+' porções</b></span><b>'+brl(totGeral())+'</b></div>'
+
+  +'<div class="step-nav">'
+    +'<div class="hint">'+(versao?('última emissão: <b>Casamento Marina &amp; Téo V'+versao+'.pdf</b>'):'nenhuma proposta emitida ainda')+'</div>'
+    +'<div><button class="btn-primary btn-sm" onclick="versao++;render()">📄 Proposta de Orçamento (gera V'+(versao+1)+')</button></div>'
+  +'</div>'
+  +'<div class="intro" style="margin-top:12px">O PDF sai com o título <b>Orçamento</b>, a <b>quantidade total de porções</b>, os blocos de comida/bebida/materiais, a mão de obra e depois os custos extras. O arquivo é salvo como <b>{nome do evento} V1.pdf</b>, <b>V2</b>, <b>V3</b>… incrementando a cada emissão.</div>'
+  +nav();
+}
+
+function telaDia(){
+  return '<div class="section-title">9 · No dia do evento<span class="sk"><button class="btn-skip" onclick="go(\'despro\')">pular para Desprodução →</button></span></div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Montagem de equipes — quem faz e que horas</span></div></div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Separar material de serviço</span></div></div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Liberar espaço no bar ou cúpula</span></div></div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Definir onde guardar mobiliário não utilizado</span></div></div>'
+  +'<div class="sub-title">Saída / transferência de estoque <span class="badge-new">NOVO</span></div>'
+  +'<div class="intro">Registrar a saída de bebidas e insumos usados nas produções do evento.</div>'
+  +'<div class="lista"><h4>🍾 Sugestão do sistema <span class="cnt">puxado da aba Menu</span></h4>'
+  +'<table class="cards"><thead><tr><th>Insumo</th><th>Qtd estimada</th></tr></thead><tbody>'
+  +'<tr><td data-l="Insumo">Vinho branco (sangria)</td><td data-l="Qtd">12 garrafas</td></tr>'
+  +'<tr><td data-l="Insumo">Água com gás</td><td data-l="Qtd">100 un</td></tr>'
+  +'<tr><td data-l="Insumo">Funghi seco</td><td data-l="Qtd">600 g</td></tr>'
+  +'</tbody></table></div>'
+  +'<button class="btn-primary btn-sm" onclick="alert(\'Abre o app de Estoque na tela de Nova saída, já com o evento preenchido.\')">📦 Registrar saída no app de Estoque →</button>'
+  +nav();
+}
+
+function telaDespro(){
+  return '<div class="section-title">10 · Desprodução</div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Recolher equipamentos</span></div></div>'
+  +'<div class="acc"><div class="acc-h"><span class="ck"></span><span class="t">Remontar salão no plano de chão original</span></div></div>'
+  +'<div class="sub-title">Contagem de saída no fim do evento <span class="badge-new">NOVO</span></div>'
+  +'<div class="intro">O que sobrou de comida e bebida — pra fechar o consumo real do evento.</div>'
+  +'<table class="cards"><thead><tr><th>Item</th><th>Saiu</th><th>Sobrou</th><th>Consumo real</th></tr></thead><tbody>'
+  +'<tr><td data-l="Item"><span class="tag tagB">B</span> Sangria branca</td><td data-l="Saiu"><input type="number" value="40"></td><td data-l="Sobrou"><input type="number" value="6"></td><td data-l="Consumo"><b>34 L</b></td></tr>'
+  +'<tr><td data-l="Item"><span class="tag tagC">C</span> Canapé de brie</td><td data-l="Saiu"><input type="number" value="300"></td><td data-l="Sobrou"><input type="number" value="18"></td><td data-l="Consumo"><b>282 un</b></td></tr>'
+  +'</tbody></table>'
+  +'<div style="margin-top:10px"><button class="btn-ghost btn-sm">+ Adicionar item</button></div>'
+  +nav();
+}
+
+function stub(n,l){return '<div class="section-title">'+n+' · '+l+'</div><div class="stub">Sem mudança nesta etapa — fica como está hoje.</div>'+nav();}
+
+function render(){
+  renderBar();
+  const T={triagem:telaTriagem,menu:telaMenu,oper:telaOper,equipe:telaEquipe,orc:telaOrc,dia:telaDia,despro:telaDespro};
+  const s=STEPS.find(x=>x.id===cur);
+  document.getElementById('panel').innerHTML = T[cur]?T[cur]():stub(s.n,s.l);
+  const on=document.querySelector('.step.on'); if(on) on.scrollIntoView({inline:'center',block:'nearest'});
+}
+function setCat(i,c){menu[i].cat=c;render();}
+function setMenu(i,k,v){menu[i][k]=(k==='qtd'||k==='preco')?Number(v):v;render();}
+function delMenu(i){menu.splice(i,1);render();}
+function addMenu(){menu.push({cat:'C',item:'',qtd:1,un:'un',perPax:true,preco:0,louca:''});render();}
+render();
+</script>
+</body>
+</html>
