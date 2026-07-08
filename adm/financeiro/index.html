@@ -1225,6 +1225,56 @@ async function aplicarSplitPorNotas(l, mag){
   }catch(e){ toast('Erro: '+e.message); }
 }
 
+/* ===== DIFERENÇA pagamento × nota (tarifa, juros, IOF...) ===== */
+const CATS_DIF=[['financeiras__tarifas_bancarias','Tarifa bancária'],['op__tarifas_encargos','Juros / Encargos'],['financeiras__iof','IOF']];
+function sobraDoLanc(lancId){
+  const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l) return null;
+  const chs=notasDoLanc(lancId); if(!chs.length) return null;
+  const soma=+chs.map(notaObj).filter(Boolean).reduce((s,n)=>s+(+n.valor_total||0),0).toFixed(2);
+  const mag=+Math.abs(+l.amount||0).toFixed(2);
+  return {l, chs, soma, mag, dif:+(mag-soma).toFixed(2)};
+}
+/* pergunta do que é a sobra e separa num lançamento próprio. Retorna true se abriu. */
+function openDiferenca(lancId){
+  const d=sobraDoLanc(lancId); if(!d || d.dif<=0.01) return false;
+  const {l,soma,mag,dif}=d;
+  const quick=CATS_DIF.filter(([id])=>ST.planoById[id]);
+  openSheet(`<h3>Sobra de ${brl(dif)}</h3>
+    <div class="hint">Pagamento ${brl(-mag)} · Nota(s) ${brl(-soma)}</div>
+    <div class="note" style="font-size:12px">O pagamento saiu maior que a(s) nota(s). Do que é essa diferença? Ela vira um lançamento separado com a categoria certa, e a nota fica ligada só à parte dela.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+      ${quick.map(([id,lab])=>`<button type="button" class="btn g difq" data-q="${id}" style="min-height:44px;justify-content:flex-start"><i class="ph-duotone ph-tag"></i> ${lab}</button>`).join('')}
+    </div>
+    <div class="fld"><label>Ou escolha outra categoria</label>${catSelectHTML(quick[0]?quick[0][0]:null)}</div>
+    <button class="btn p" id="difGo"><i class="ph-duotone ph-scissors"></i> Separar a diferença</button>
+    <button class="btn g" id="difNo" style="margin-top:8px">Não separar — deixar tudo junto</button>`);
+  $$('#sheetBody .difq').forEach(b=>b.onclick=()=>aplicarDiferenca(l,soma,dif,b.dataset.q));
+  $('#difGo').onclick=()=>{ const s=$('#sheetBody .pCat'); aplicarDiferenca(l,soma,dif,(s&&s.value)||null); };
+  $('#difNo').onclick=()=>closeSheet();
+  return true;
+}
+async function aplicarDiferenca(l,soma,dif,catDif){
+  const sign=(+l.amount<0)?-1:1, baseFit=l.fitid||('dif'+l.id);
+  const chs=notasDoLanc(l.id);
+  const comps=[...new Set(chs.map(notaObj).filter(Boolean).map(n=>(n.data_emissao||'').slice(0,7)).filter(Boolean))];
+  const compNota=(comps.length===1)?comps[0]:l.competencia;   // parte da nota = competência da nota
+  const catLab=catDif?((ST.planoById[catDif]||{}).label||'diferença'):'diferença';
+  const rows=[
+    {unit:l.unit, fitid:baseFit,          date:l.date, competencia:compNota,     memo:(l.memo||'')+' (nota)',        amount:sign*soma, category:l.category||null, manual:true},
+    {unit:l.unit, fitid:baseFit+'__dif',  date:l.date, competencia:l.competencia, memo:(l.memo||'')+` (${catLab})`,  amount:sign*dif,  category:catDif||null,    manual:true}
+  ];
+  try{
+    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+    ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
+    ST.lanc=ST.lanc.filter(x=>String(x.id)!==String(l.id));
+    ins.forEach(r=>ST.lanc.unshift(r));
+    for(const ch of chs){ if(ins[0]) await linkNotaLanc(ch, ins[0].id); }   // notas ficam na parte 1
+    closeSheet(); toast('Diferença de '+brl(dif)+' separada em '+catLab); renderAll();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+
 /* Move um lançamento para outra empresa (ex.: gasto do MAC lançado por engano no CCMQ) */
 function openMoverLanc(lancId){
   const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
@@ -1605,7 +1655,9 @@ function openLinkNota(chave){
     let comp=null; for(const id of sel){ const c=await syncCompDaNota(id); if(c) comp=c; }
     if(difIds.length && confirm(`Criar apelido pra SEMPRE reconhecer esse(s) pagamento(s) como "${(n.emitente||'').slice(0,40)}"?`)){
       for(const id of difIds){ const l=ST.lanc.find(x=>String(x.id)===String(id)); if(l) await salvarApelido(splitFornecedor(l.memo).disp, n.emitente); } }
-    closeSheet(); toast(sel.size+' pagamento(s) associado(s)'+(comp?' · competência '+compLabel(comp):'')); renderNotas(); renderLanc();
+    const qtd=sel.size, unico=qtd===1?[...sel][0]:null;
+    closeSheet(); toast(qtd+' pagamento(s) associado(s)'+(comp?' · competência '+compLabel(comp):'')); renderNotas(); renderLanc();
+    if(unico) openDiferenca(unico);   // pagamento > nota: pergunta do que é a sobra
   };
 }
 // A PARTIR DO PAGAMENTO: marca 1+ notas (ex.: 1 pagamento cobre várias notas)
@@ -1621,11 +1673,17 @@ function openLinkPagamento(lancId, forcePicker){
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'')}</div><div class="date" style="font-size:11px">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</div></div><div class="amt neg">${brl(-(+n.valor_total||0))}</div><button class="iconbtn" data-unl="${n.chave}" title="Remover associação"><i class="ph-duotone ph-link-break"></i></button></div>
         ${its.length?`<div style="margin-top:8px;border-top:1px solid var(--fio);padding-top:6px">${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12.5px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:11px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12.5px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}</div>`:'<div class="note" style="font-size:12px;margin-top:6px">Sem produtos detalhados nesta nota.</div>'}
       </div>`; }).join('');
+    const sb=sobraDoLanc(lancId);
+    const sobraHint = (sb && sb.dif>0.01)
+      ? `<div class="note" style="font-size:12px"><i class="ph-duotone ph-warning"></i> O pagamento é <b>${brl(sb.dif)}</b> maior que a(s) nota(s) — tarifa, juros ou frete?</div>
+         <button class="btn o difOpen" style="margin-top:8px"><i class="ph-duotone ph-scissors"></i> Separar a diferença (${brl(sb.dif)})</button>`
+      : '';
     openSheet(`<h3>Nota(s) da conta</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)}</div>
-      ${notasHTML}
-      <button class="btn p" id="pgReclass2" style="margin-top:4px"><i class="ph-duotone ph-tag"></i> Classificar este lançamento</button>
+      ${notasHTML}${sobraHint}
+      <button class="btn p" id="pgReclass2" style="margin-top:8px"><i class="ph-duotone ph-tag"></i> Classificar este lançamento</button>
       <button class="btn o" id="pgSplitN" style="margin-top:8px"><i class="ph-duotone ph-scissors"></i> Destrinchar por nota (valores e categorias)</button>
       <button class="btn o" id="pgMore" style="margin-top:8px"><i class="ph-duotone ph-plus"></i> Associar mais notas</button>`);
+    { const db=$('#sheetBody .difOpen'); if(db) db.onclick=()=>openDiferenca(lancId); }
     $('#pgReclass2').onclick=()=>{ closeSheet(); openCatPicker(lancId); };
     $('#pgSplitN').onclick=()=>openSplitPorNotas(lancId);
     $('#pgMore').onclick=()=>openLinkPagamento(lancId, true);
@@ -1712,7 +1770,8 @@ function openLinkPagamento(lancId, forcePicker){
     const comp=await syncCompDaNota(lancId);
     closeSheet(); toast(n+' nota(s) associada(s)'+(comp?' · competência '+compLabel(comp):'')); renderNotas(); renderLanc();
     // várias notas num pagamento só: normalmente cada uma tem sua categoria
-    if(n>1 && confirm(`Este pagamento cobre ${n} notas.\n\nQuer destrinchar agora — uma parte por nota, cada uma com sua categoria?`)) openSplitPorNotas(lancId);
+    if(n>1){ if(confirm(`Este pagamento cobre ${n} notas.\n\nQuer destrinchar agora — uma parte por nota, cada uma com sua categoria?`)) openSplitPorNotas(lancId); return; }
+    openDiferenca(lancId);   // pagamento > nota: pergunta do que é a sobra (tarifa, juros...)
   };
 }
 
