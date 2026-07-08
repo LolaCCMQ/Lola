@@ -209,6 +209,36 @@
   .hyb-scount{font-size:11.5px;color:var(--muted);font-weight:700;flex-shrink:0}
   .hyb-scount.warn{color:#B5302E}
   .hyb-panel{border:none;border-top:1px solid #EFE6DC;border-radius:0;padding:18px 16px;cursor:default}
+  .panel .section-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  /* ===== Barra de etapas (Rodada 1 · 08/07/2026) ===== */
+  .stepbar-wrap{position:sticky;top:0;z-index:20;background:var(--cream);padding:8px 0 6px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+  .stepbar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .stepbar::-webkit-scrollbar{height:4px}
+  .stepbar::-webkit-scrollbar-thumb{background:var(--vinho-muted);border-radius:4px}
+  .step{flex:0 0 auto;display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--border);border-radius:20px;padding:7px 13px 7px 8px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap;min-height:40px;cursor:pointer;font-family:var(--sans)}
+  .step:hover{border-color:var(--vinho);color:var(--vinho)}
+  .step .n{width:21px;height:21px;border-radius:50%;background:var(--warm);color:var(--muted);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .step.done{color:#4E6B58}
+  .step.done .n{background:var(--green);color:#fff}
+  .step.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
+  .step.on .n{background:rgba(255,255,255,.28);color:#fff}
+  .step.warn .n{background:var(--amber);color:#fff}
+  .stepgrp{flex:0 0 auto;display:flex;align-items:center;color:#C6B4A8;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:0 4px;white-space:nowrap}
+  .sk-title{margin-left:auto;font-weight:600}
+  .menu-cat{display:inline-flex;gap:3px}
+  .menu-cat button{width:30px;height:30px;border-radius:9px;border:1px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:800;padding:0;cursor:pointer}
+  .menu-cat button.on.C{background:#B5302E;border-color:#B5302E;color:#fff}
+  .menu-cat button.on.B{background:#2C5AA0;border-color:#2C5AA0;color:#fff}
+  .menu-cat button.on.M{background:#9A6B1E;border-color:#9A6B1E;color:#fff}
+  .mtag{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:7px;font-size:11px;font-weight:800}
+  .mtag.C{background:#FBE4E0;color:#B5302E}
+  .mtag.B{background:#E6EEF8;color:#2C5AA0}
+  .mtag.M{background:#FBF0DD;color:#9A6B1E}
+  .lista-sep{border:1px solid var(--border);border-radius:13px;padding:14px;margin-bottom:12px;background:var(--cream)}
+  .lista-sep h4{margin:0 0 8px;font-family:var(--serif);font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .lista-sep .cnt{font-size:11px;font-weight:800;color:var(--muted);background:#fff;border:1px solid var(--border);padding:2px 8px;border-radius:20px}
+  .lista-sep table{background:#fff;border-radius:9px}
+  .pill-ok{background:var(--green-pale);color:var(--green);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
   @media(max-width:640px){
     .wrap{padding:12px}
     .detail-head{padding:16px}
@@ -218,6 +248,9 @@
     .panel thead{display:none}
     .panel tr{border:1px solid var(--border);border-radius:12px;padding:8px 10px;margin-bottom:8px;background:#fff}
     .panel td{display:block;border:none;padding:3px 0}
+    .panel td[data-l]{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .panel td[data-l]:before{content:attr(data-l);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:800;flex:0 0 auto}
+    .panel td[data-l] input,.panel td[data-l] select{max-width:58%}
     .panel td.no-print{text-align:right}
     .totals{max-width:none}
     .orc-add{flex-direction:column;align-items:stretch}
@@ -340,6 +373,7 @@ const FASES = [
 const SECTIONS = [
   {id:"triagem", kind:"triagemfull", icon:"✅", label:"Triagem", tipos:ALL},
   {id:"info", kind:"form", icon:"📋", label:"Dados", tipos:ALL},
+  {id:"menu", kind:"menu", icon:"🍽️", label:"Menu", tipos:ALL},
   {id:"os", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
   {id:"show", kind:"fase", tipos:["show"]},
   {id:"equipe", kind:"equipe", icon:"👥", label:"Equipe", tipos:["reserva_perso","personalizado","show"]},
@@ -488,9 +522,9 @@ function secLabel(ev,id){const s=SECTIONS.find(x=>x.id===id);if(!s)return id;if(
 /* ===== Blocos híbridos (Padrão V3): resumo + sanfona ===== */
 const BLOCOS=[
   {id:'plan', icon:'📋', label:'Planejamento', secs:['triagem','info']},
-  {id:'oper', icon:'🍳', label:'Operação', secs:['os','show','equipe','layout']},
+  {id:'oper', icon:'🍳', label:'Operação', secs:['menu','os','show','equipe']},
   {id:'fin', icon:'💰', label:'Financeiro', secs:['orc']},
-  {id:'diad', icon:'🥂', label:'Dia D', secs:['convidados','dia','despro']}
+  {id:'diad', icon:'🥂', label:'Dia D', secs:['layout','convidados','dia','despro']}
 ];
 function blocoOf(secId){const b=BLOCOS.find(x=>x.secs.includes(secId));return b?b.id:'plan';}
 function secInfo(ev,s){
@@ -498,6 +532,7 @@ function secInfo(ev,s){
   if(s.kind==='fase'){const f=FASES.find(x=>x.id===s.id);const fp=faseProgress(ev,f);return {c:fp.done+'/'+fp.tot,done:fp.tot>0&&fp.done===fp.tot,warn:false};}
   if(s.kind==='triagemfull'){const a=faseProgress(ev,FASES.find(x=>x.id==='triagem'));const b=faseProgress(ev,FASES.find(x=>x.id==='negociacao'));const d=a.done+b.done,t=a.tot+b.tot;return {c:d+'/'+t,done:t>0&&d===t,warn:false};}
   if(s.kind==='equipe'){const g=ev.equipe||[];const v=g.filter(r=>!String(r.nome||'').trim()).length;return {c:g.length?(v?(v+' vaga'+(v>1?'s':'')+' em aberto'):(g.length+' escalado'+(g.length>1?'s':''))):'montar',done:g.length>0&&v===0,warn:v>0};}
+  if(s.kind==='menu'){const m=ev.menu||[];const pg=ev.pag||{};return {c:m.length?(pg.menuAprovado?(pg.menuEnviado?'enviado ✓':'aprovado'):(m.length+' iten'+(m.length>1?'s':''))):'montar',done:m.length>0&&!!pg.menuAprovado,warn:false};}
   if(s.kind==='orc'){const pg=ev.pag||{};return {c:pg.pedidoNum?('pedido #'+pg.pedidoNum+' ✓'):(pg.orcAutorizado?'autorizado':fmt(orcTotal(ev))),done:!!pg.orcAutorizado,warn:false};}
   if(s.kind==='convidados'){const n=(ev.convidados||[]).length;return {c:n?(n+' convidado'+(n>1?'s':'')):'—',done:n>0,warn:false};}
   if(s.kind==='form'){const ok=!!(ev.nome&&ev.data&&ev.local);return {c:ok?'ok':'completar',done:ok,warn:false};}
@@ -542,26 +577,15 @@ function renderDetail(){
   let curIdx=order.findIndex(id=>!estados[id].done);if(curIdx<0)curIdx=order.length-1;
   const alerts=resolverAgora(ev);
   const segs=order.map((id,i)=>'<i class="'+(estados[id].done?'d':(i===curIdx?'c':''))+'"></i>').join('');
-  const blocosHtml=BLOCOS.map(b=>{
-    const secs=b.secs.filter(id=>order.includes(id));
-    if(!secs.length)return '';
-    const on=view.bloco===b.id;
-    const okN=secs.filter(id=>estados[id].done).length;
-    const rows=on?secs.map(id=>{
-      const n=order.indexOf(id)+1;const stt=estados[id];const act=view.tab===id;
-      return '<div class="hyb-sec'+(act?' on':'')+'" id="sec_'+id+'"'+(act?'':' onclick="gotoTab(\''+id+'\')"')+'>'
-        +'<span class="hyb-ck'+(stt.done?' ok':'')+'">'+(stt.done?'✓':n)+'</span>'
-        +'<span class="hyb-slabel">'+secLabel(ev,id)+'</span>'
-        +'<span class="hyb-scount'+(stt.warn?' warn':'')+'">'+(stt.c||'')+'</span></div>'
-        +(act?'<div class="panel hyb-panel" id="tabContent"></div>':'');
-    }).join(''):'';
-    return '<div class="hyb-bloco'+(on?' on':'')+'">'
-      +'<div class="hyb-bhead" onclick="toggleBloco(\''+b.id+'\')">'
-      +'<span class="hyb-bico">'+b.icon+'</span>'
-      +'<div style="flex:1;min-width:0"><div class="hyb-btit">'+b.label+'</div><div class="hyb-bsub">'+secs.map(id=>secLabel(ev,id)).join(' · ')+'</div></div>'
-      +'<span class="hyb-bstate'+(okN?'':' zero')+'">'+okN+'/'+secs.length+'</span>'
-      +'<span class="hyb-chev">'+(on?'▲':'▼')+'</span></div>'
-      +rows+'</div>';
+  const grpOf={};BLOCOS.forEach(b=>b.secs.forEach(id=>grpOf[id]=b.label));
+  let lastG=null;
+  const stepbarHtml=order.map((id,i)=>{
+    const st=estados[id];const g=grpOf[id]||'';
+    let out='';
+    if(g!==lastG){out+='<span class="stepgrp">'+g+'</span>';lastG=g;}
+    const cls='step'+(st.done?' done':'')+(id===view.tab?' on':'')+(st.warn?' warn':'');
+    out+='<button class="'+cls+'" id="step_'+id+'" onclick="gotoTab(\''+id+'\')"><span class="n">'+(st.done?'✓':(i+1))+'</span>'+secLabel(ev,id)+'</button>';
+    return out;
   }).join('');
   document.getElementById('detail').innerHTML=`
     <button class="back" onclick="backToDash()">← Voltar aos eventos</button>
@@ -589,10 +613,12 @@ function renderDetail(){
       </div>
       ${alerts.length?('<div class="hyb-alert"><div class="hyb-atit">Resolver agora · '+alerts.length+'</div>'+alerts.map(a=>'<div class="hyb-arow">'+a+'</div>').join('')+'</div>'):''}
     </div>
-    ${blocosHtml}`;
-  if(document.getElementById('tabContent'))renderTab();
+    <div class="stepbar-wrap no-print"><div class="stepbar" id="stepbar">${stepbarHtml}</div></div>
+    <div class="panel" id="tabContent"></div>`;
+  renderTab();
+  try{const el=document.getElementById('step_'+view.tab);if(el)el.scrollIntoView({inline:'center',block:'nearest'});}catch(e){}
 }
-function gotoTab(id){view.tab=id;view.bloco=blocoOf(id);renderDetail();try{const el=document.getElementById('sec_'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}}
+function gotoTab(id){view.tab=id;view.bloco=blocoOf(id);renderDetail();window.scrollTo({top:0,behavior:'smooth'});}
 function stepNav(ev){
   const order=tabOrder(ev);const idx=order.indexOf(view.tab);
   const prev=idx>0?order[idx-1]:null;const next=idx<order.length-1?order[idx+1]:null;
@@ -612,6 +638,7 @@ function renderTab(){
   const s=SECTIONS.find(x=>x.id===view.tab)||SECTIONS[0];
   let html='';
   if(s.kind==='form')html=formHTML(ev);
+  else if(s.kind==='menu')html=menuHTML(ev);
   else if(s.kind==='triagemfull'){const f1=FASES.find(x=>x.id==='triagem');const f2=FASES.find(x=>x.id==='negociacao');html=(f1?faseHTML(ev,f1):'')+'<div style="height:16px"></div>'+(f2?faseHTML(ev,f2):'');}
   else if(s.kind==='orc')html=orcHTML(ev);
   else if(s.kind==='equipe')html=equipeHTML(ev);
@@ -664,9 +691,14 @@ function setField(key,val){const ev=getEvent(view.id);ev[key]=val;save();
   if(key==="data"||key==="horario"){const el=document.getElementById('subDateTime');if(el){const dt=ev.data?new Date(ev.data+'T00:00').toLocaleDateString('pt-BR'):'A definir';el.textContent='📅 '+dt+(ev.horario?' '+ev.horario:'');}return;}
   if(["nome","status","tipo","local","responsavel","paxIn","paxOut"].includes(key))renderDetail();
 }
+function skipBtn(ev){
+  const order=tabOrder(ev);const i=order.indexOf(view.tab);
+  const n=(i>=0&&i<order.length-1)?order[i+1]:null;
+  return n?'<span class="sk-title"><button class="btn-skip" onclick="gotoTab(\''+n+'\')">pular para '+secLabel(ev,n)+' →</button></span>':'';
+}
 function faseHTML(ev,f){
   const fp=faseProgress(ev,f);
-  return `<div class="section-title">${f.nome} — ${fp.done}/${fp.tot} concluídos</div>
+  return `<div class="section-title">${f.nome} — ${fp.done}/${fp.tot} concluídos ${skipBtn(ev)}</div>
   <div class="phase-bar"><div style="width:${fp.pct}%"></div></div>
   ${f.id==='despro'?(desproLoucasHTML(ev)+perdasHTML(ev)):''}
   ${f.itens.map((it,i)=>{
@@ -677,7 +709,7 @@ function faseHTML(ev,f){
       <div class="ck-body">
         <div class="txt">${it.t}</div>
         ${it.d?`<div class="desc">${it.d}</div>`:''}
-        ${it.t.indexOf('Louça')===0?`<button class="btn-ghost btn-sm" style="margin-top:6px" onclick="gotoTab('materiais')">🍽️ Selecionar louças do catálogo →</button>`:''}
+        ${it.t.indexOf('Louça')===0?`<button class="btn-ghost btn-sm" style="margin-top:6px" onclick="gotoTab('menu')">🍽️ Definir louças na aba Menu →</button>`:''}
         <textarea class="ck-note" placeholder="Anotação..." onchange="setNote('${f.id}',${i},this.value)">${esc(ck.note)}</textarea>
         <div class="ck-link">
           <input type="url" placeholder="🔗 Colar link (ficha, proposta Canva, Drive...)" value="${esc(ck.link)}" onchange="setLink('${f.id}',${i},this.value)">
@@ -824,7 +856,7 @@ function setPerda(i,k,v){const ev=getEvent(view.id);ev.perdas[i][k]=v;save(false
 function delPerda(i){const ev=getEvent(view.id);ev.perdas.splice(i,1);save(false);renderDetail();}
 function desproLoucasHTML(ev){
   const m=(ev.materiais||[]).filter(function(r){return r.item;});
-  if(!m.length) return `<div class="intro">🍽️ Nenhuma louça/utensílio na lista ainda. Selecione na aba <b>Materiais</b> (ou pelo item "Louça necessária" do Operacional). <button class="btn-ghost btn-sm" onclick="gotoTab('materiais')">Ir para Materiais →</button></div>`;
+  if(!m.length) return `<div class="intro">🍽️ Nenhuma louça/utensílio na lista ainda. Cadastre na aba <b>Menu</b> como categoria <b>M</b> (materiais). <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Ir para o Menu →</button></div>`;
   return `<div class="section-title" style="font-size:15px;margin-top:4px">🍽️ Louças e utensílios usados — para onde voltou</div>
   <table><thead><tr><th style="width:46px"></th><th>Item</th><th style="width:70px">Qtd</th><th style="width:160px">Destino</th></tr></thead><tbody>
   ${m.map(function(r){var i=ev.materiais.indexOf(r);return `<tr>
@@ -834,7 +866,7 @@ function desproLoucasHTML(ev){
     <td>${destinoSelect(i,r.destino)}</td>
   </tr>`;}).join('')}
   </tbody></table>
-  <div class="intro" style="margin-top:6px">Editar quantidades ou adicionar itens? <button class="btn-ghost btn-sm" onclick="gotoTab('materiais')">Abrir aba Materiais →</button></div>`;
+  <div class="intro" style="margin-top:6px">Editar quantidades ou adicionar itens? <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Abrir a aba Menu →</button></div>`;
 }
 function materiaisHTML(ev){
   const m=ev.materiais||[];
@@ -1000,43 +1032,97 @@ function equipeHTML(ev){
 function addEq(){const ev=getEvent(view.id);ev.equipe=ev.equipe||[];ev.equipe.push({cargo:"Cozinha",nome:"",entrada:"",saida:"",valor:15});save(false);renderDetail();}
 function setEq(i,k,v){const ev=getEvent(view.id);ev.equipe[i][k]=v;save(false);renderDetail();}
 function delEq(i){const ev=getEvent(view.id);ev.equipe.splice(i,1);save(false);renderDetail();}
+/* ===== ABA MENU (Rodada 1 · 08/07/2026) ===== */
+const SECOES=["Comidinhas","Mini porção","Lanchinho de pista","Bebidas","Sobremesa","Outros"];
+const CAT_NOME={C:'Produções de comida',B:'Produções de bebidas',M:'Lista de materiais'};
+function mcat(m){return (m.cat==='B'||m.cat==='M')?m.cat:'C';}
+function subCat(ev,c){const pax=Number(ev.pax)||0;let t=0;(ev.menu||[]).forEach(m=>{if(mcat(m)===c)t+=lineTotal(m,pax);});return t;}
+function setMenuCat(i,c){const ev=getEvent(view.id);ev.menu[i].cat=c;save(false);renderDetail();}
+function toggleMenuAprovado(){const ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag.menuAprovado=!ev.pag.menuAprovado;save(false);renderDetail();}
+async function enviarMenuCentral(){const ev=getEvent(view.id);ev.pag=ev.pag||{};await enviarPedidoCentral();if(ev.pag.pedidoNum){ev.pag.menuEnviado=true;save(false);renderDetail();}}
+function listaCatHTML(ev,c){
+  const pax=Number(ev.pax)||0;
+  const its=(ev.menu||[]).map((m,i)=>({m,i})).filter(x=>mcat(x.m)===c);
+  let body;
+  if(!its.length) body='<div class="intro" style="margin:0">nenhum item nesta lista ainda</div>';
+  else body='<table><thead><tr><th>Item</th><th>Qtd</th><th>Un</th>'+(c==='M'?'':'<th>Louça / talher</th>')+'<th class="num">Total</th></tr></thead><tbody>'
+    +its.map(x=>'<tr><td data-l="Item">'+esc(x.m.nome)+(x.m.secao?' <span class="hint">· '+esc(x.m.secao)+'</span>':'')+'</td>'
+      +'<td data-l="Qtd">'+(x.m.perPax?((Number(x.m.qtd)||0)*pax)+' <span class="hint">('+esc(x.m.qtd)+'/pax)</span>':esc(x.m.qtd))+'</td>'
+      +'<td data-l="Un">'+esc(x.m.un||'')+'</td>'
+      +(c==='M'?'':'<td data-l="Louça">'+(x.m.louca?esc(x.m.louca):'<span class="hint">—</span>')+'</td>')
+      +'<td data-l="Total" class="num"><b>'+fmt(lineTotal(x.m,pax))+'</b></td></tr>').join('')
+    +'</tbody></table>';
+  return '<div class="lista-sep"><h4><span class="mtag '+c+'">'+c+'</span> '+CAT_NOME[c]+' <span class="cnt">'+its.length+' itens · '+fmt(subCat(ev,c))+'</span></h4>'+body+'</div>';
+}
+function menuHTML(ev){
+  const pax=Number(ev.pax)||0;
+  const pg=ev.pag||{};
+  const datalist=FICHAS.map(p=>'<option value="'+esc(p.n)+'">'+esc(p.cat||'')+' · '+fmt(p.p)+'</option>').join('');
+  const fichaNote=FICHAS.length?('Comida e bebida puxam a <b>ficha técnica + pré-produções</b> ('+FICHAS.length+' itens) — o preço preenche sozinho. Não achou? Digite nome e preço na mão.'):'⚠️ Não carregou a ficha técnica do portal — dá pra digitar itens e preços manualmente.';
+  const totMenu=subCat(ev,'C')+subCat(ev,'B')+subCat(ev,'M');
+  return '<div class="section-title">Montagem do Pacote '+skipBtn(ev)+'</div>'
+  +'<div class="intro">Categoria pela primeira letra: <span class="mtag C">C</span> comida · <span class="mtag B">B</span> bebida · <span class="mtag M">M</span> materiais (talheres, copos, louças). 💡 '+fichaNote+'</div>'
+  +'<div class="toolrow no-print"><div class="field" style="max-width:170px"><label>Nº de pax do orçamento</label><input type="number" value="'+esc(ev.pax)+'" onchange="setOrc(\'pax\',this.value)" placeholder="ex: 50"></div></div>'
+  +'<div class="orc-add no-print">'
+    +'<div class="field" style="max-width:80px"><label>Cat</label><select id="addCat"><option value="C">C</option><option value="B">B</option><option value="M">M</option></select></div>'
+    +'<div class="field"><label>Item (ficha, pré-produção ou avulso)</label><input id="addItem" list="precoslist" placeholder="Digite ou escolha..." onchange="autoPreco()"><datalist id="precoslist">'+datalist+'</datalist></div>'
+    +'<div class="field" style="max-width:150px"><label>Seção no PDF</label><select id="addSecao">'+SECOES.map(x=>'<option>'+x+'</option>').join('')+'</select></div>'
+    +'<div class="field" style="max-width:110px"><label>Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"></div>'
+    +'<div class="field" style="max-width:110px"><label>Preço un. (R$)</label><input id="addPreco" type="number" step="0.01" placeholder="auto"></div>'
+    +'<div class="field" style="max-width:95px"><label>Unidade</label><input id="addUn" type="text" placeholder="un/porção/g"></div>'
+    +'<button class="btn-primary" style="height:38px" onclick="addMenuItem()">+ Adicionar</button>'
+  +'</div>'
+  +'<table><thead><tr><th style="width:105px">Cat</th><th>Item</th><th style="width:130px">Seção</th><th style="width:78px">Qtd</th><th style="width:60px">Un</th><th style="width:52px">/pax</th><th style="width:90px">Preço</th><th>Descrição p/ cliente</th><th style="width:150px">Louça / talher</th><th class="num" style="width:105px">Total</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>'
+  +((ev.menu||[]).length?ev.menu.map((m,i)=>'<tr>'
+      +'<td data-l="Categoria"><span class="menu-cat">'+['C','B','M'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
+      +'<td data-l="Item" class="name">'+esc(m.nome)+'</td>'
+      +'<td data-l="Seção"><select onchange="setMenu('+i+',\'secao\',this.value)">'+['']. concat(SECOES).map(x=>'<option '+((m.secao||'')===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
+      +'<td data-l="Qtd"><input type="number" step="0.01" value="'+esc(m.qtd)+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
+      +'<td data-l="Un"><input type="text" value="'+esc(m.un||'')+'" onchange="setMenu('+i+',\'un\',this.value)" style="width:54px"></td>'
+      +'<td data-l="Por pax" style="text-align:center"><input type="checkbox" style="width:auto" '+(m.perPax?'checked':'')+' onchange="setMenu('+i+',\'perPax\',this.checked)"></td>'
+      +'<td data-l="Preço"><input type="number" step="0.01" value="'+esc(m.preco)+'" onchange="setMenu('+i+',\'preco\',this.value)"></td>'
+      +'<td data-l="Descrição"><input type="text" placeholder="'+(mcat(m)==='M'?'—':'texto que sai no PDF')+'" value="'+esc(m.desc||'')+'" onchange="setMenu('+i+',\'desc\',this.value)"></td>'
+      +'<td data-l="Louça"><input type="text" placeholder="'+(mcat(m)==='M'?'—':'ex.: prato P + garfo')+'" value="'+esc(m.louca||'')+'" onchange="setMenu('+i+',\'louca\',this.value)"></td>'
+      +'<td data-l="Total" class="num">'+fmt(lineTotal(m,pax))+'</td>'
+      +'<td class="no-print"><button class="del-row" onclick="delMenu('+i+')">×</button></td></tr>').join('')
+    :'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione acima.</td></tr>')
+  +'</tbody></table>'
+  +'<div class="section-title" style="margin-top:22px">Listas separadas</div>'
+  +listaCatHTML(ev,'C')+listaCatHTML(ev,'B')+listaCatHTML(ev,'M')
+  +'<div class="totals"><div class="line grand"><span>Total do menu (comida + bebida + materiais)</span><span>'+fmt(totMenu)+'</span></div></div>'
+  +'<div class="no-print" style="margin:16px 0;padding:12px 14px;border:1.5px solid var(--vinho-muted);border-radius:12px;background:var(--cream)">'
+    +'<div style="font-weight:700;color:var(--vinho-deep);margin-bottom:8px">Aprovação do menu</div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'
+      +'<button class="'+(pg.menuAprovado?'btn-primary':'btn-ghost')+' btn-sm" onclick="toggleMenuAprovado()">'+(pg.menuAprovado?'✅ Menu aprovado':'Marcar menu como aprovado')+'</button>'
+      +(pg.menuAprovado?(pg.pedidoNum?('<span class="pill-ok">🛒 Pedido #'+pg.pedidoNum+' enviado à central ✓</span>'):'<button class="btn-primary btn-sm" onclick="enviarMenuCentral()">🛒 Enviar à central</button>'):'<span style="color:var(--muted);font-size:.85em">Aprove o menu para liberar o envio à central.</span>')
+    +'</div>'
+  +'</div>';
+}
 function orcTotal(ev){const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});var moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0,mo=(moV*moQ)||(Number(ev.maoObra)||0);var gorj=sub*(Number(ev.gorjeta)||0)/100;var base=sub+mo+gorj;var imp=base*(Number(ev.imposto)||0)/100;return base+imp;}
 function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
 function orcHTML(ev){
   const pax=Number(ev.pax)||0;
   let sub=0;(ev.menu||[]).forEach(m=>sub+=lineTotal(m,pax));
   const moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0;const mo=(moV*moQ)||(Number(ev.maoObra)||0);const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const ipct=Number(ev.imposto)||0;const imp=(sub+mo+gorj)*ipct/100;const total=sub+mo+gorj+imp;
-  const datalist=FICHAS.map(p=>`<option value="${esc(p.n)}">${esc(p.cat||'')} · ${fmt(p.p)}</option>`).join('');
-  const pg=ev.pag||{};const sinal=Number(pg.sinalValor)||0;const saldo=total-sinal;
-  const fichaNote=FICHAS.length?`Itens e preços vêm da <b>ficha técnica + pré-produções</b> (${FICHAS.length} itens). Escolha pela busca; o preço preenche sozinho. <b>Não está na lista?</b> Digite o nome e o preço manualmente que ele entra no cálculo do pacote.`:`⚠️ Não carregou a ficha técnica do portal — você ainda pode digitar itens e preços manualmente.`;
+  const pg=ev.pag||{};const sinal=Number(pg.sinalValor)||0;const saldo=(sub+mo+gorj+imp)-sinal;
+  const nItens=(ev.menu||[]).length;
+  const subC=subCat(ev,'C'),subB=subCat(ev,'B'),subM=subCat(ev,'M');
   return `
-  <div class="section-title">Montagem do pacote</div>
+  <div class="section-title">Orçamento ${skipBtn(ev)}</div>
+  <div class="intro">O pacote é montado na <b>aba Menu</b>. Aqui os valores só se somam.
+    <button class="btn-ghost btn-sm" style="margin-left:6px" onclick="gotoTab('menu')">Abrir o Menu →</button></div>
   <div class="toolrow no-print">
     <div class="field" style="max-width:170px"><label>Nº de pax do orçamento</label><input type="number" value="${esc(ev.pax)}" onchange="setOrc('pax',this.value)" placeholder="ex: 50"></div>
     <button class="btn-ghost btn-sm" style="margin-top:18px" onclick="openPrintDialog()">🖨 Imprimir cardápio</button>
   </div>
-  <div class="intro">💡 ${fichaNote}</div>
-  <div class="orc-add no-print">
-    <div class="field"><label>Item (ficha, pré-produção ou avulso)</label>
-      <input id="addItem" list="precoslist" placeholder="Digite ou escolha..." onchange="autoPreco()"><datalist id="precoslist">${datalist}</datalist></div>
-    <div class="field" style="max-width:110px"><label>Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"></div>
-    <div class="field" style="max-width:110px"><label>Preço un. (R$)</label><input id="addPreco" type="number" step="0.01" placeholder="auto"></div>
-    <div class="field" style="max-width:95px"><label>Unidade</label><input id="addUn" type="text" placeholder="un/porção/g"></div>
-    <button class="btn-primary" style="height:38px" onclick="addMenuItem()">+ Adicionar</button>
-  </div>
-  <table>
-    <thead><tr><th>Item</th><th style="width:80px">Qtd/pax</th><th style="width:62px">Unid.</th><th style="width:55px">Por pax</th><th style="width:95px">Preço un.</th><th class="num" style="width:110px">Total</th><th style="width:28px" class="no-print"></th></tr></thead>
+  ${nItens?`<table>
+    <thead><tr><th>De onde vem</th><th class="num">Valor</th></tr></thead>
     <tbody>
-    ${(ev.menu||[]).length? ev.menu.map((m,i)=>`<tr>
-      <td class="name">${esc(m.nome)}</td>
-      <td><input type="number" step="0.01" value="${esc(m.qtd)}" onchange="setMenu(${i},'qtd',this.value)"></td>
-      <td><input type="text" value="${esc(m.un||'')}" onchange="setMenu(${i},'un',this.value)" style="width:54px"></td>
-      <td style="text-align:center"><input type="checkbox" style="width:auto" ${m.perPax?'checked':''} onchange="setMenu(${i},'perPax',this.checked)"></td>
-      <td><input type="number" step="0.01" value="${esc(m.preco)}" onchange="setMenu(${i},'preco',this.value)"></td>
-      <td class="num">${fmt(lineTotal(m,pax))}</td>
-      <td class="no-print"><button class="del-row" onclick="delMenu(${i})">×</button></td>
-    </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione itens da ficha técnica acima.</td></tr>`}
+      <tr><td data-l="Origem"><span class="mtag C">C</span> Produções de comida</td><td data-l="Valor" class="num">${fmt(subC)}</td></tr>
+      <tr><td data-l="Origem"><span class="mtag B">B</span> Produções de bebidas</td><td data-l="Valor" class="num">${fmt(subB)}</td></tr>
+      <tr><td data-l="Origem"><span class="mtag M">M</span> Materiais</td><td data-l="Valor" class="num">${fmt(subM)}</td></tr>
     </tbody>
+  </table>`:`<div class="intro">Nenhum item no pacote ainda. <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Ir para o Menu →</button></div>`}
   </table>
   <div class="totals">
     <div class="line"><span>Subtotal cardápio</span><b>${fmt(sub)}</b></div>
@@ -1154,7 +1240,10 @@ function addMenuItem(){
   let un=(document.getElementById('addUn').value||'').trim();
   let ficha=null;
   if(!preco){const f=FICHAS.find(p=>p.n.toLowerCase()===nome.toLowerCase());preco=f?f.p:0;if(f){ficha=f.n;if(!un)un=f.un||'';}}
-  ev.menu=ev.menu||[];ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:true,ficha});
+  ev.menu=ev.menu||[];
+  const cat=(document.getElementById('addCat')&&document.getElementById('addCat').value)||'C';
+  const secao=(document.getElementById('addSecao')&&document.getElementById('addSecao').value)||'';
+  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:true,ficha,cat,secao,desc:'',louca:''});
   save(false);renderTab();renderDetail();
 }
 function setMenu(i,k,v){const ev=getEvent(view.id);ev.menu[i][k]=v;save(false);renderTab();renderDetail();}
