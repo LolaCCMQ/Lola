@@ -163,7 +163,7 @@
 
   /* ===== Padrão V3 Lola (overlay) ===== */
   :root{--vinho:#A82A2A;--vinho-deep:#7E1E1F;--vinho-pale:#FBE4E0;--vinho-light:#C0392B;--vinho-muted:#E8CFC7;--cream:#FBF7F1;--warm:#F7EFE6;--border:#ECE3D9;--ink:#2A1A17;--muted:#8A7A72;--green:#2C7A4B;--green-pale:#E6F3EA;--amber:#9A6B1E;--amber-pale:#FBF0DD;--blue:#2C5AA0;--blue-pale:#E6EEF8;--shadow:0 1px 2px rgba(42,26,23,.05),0 12px 26px -16px rgba(42,26,23,.22);--serif:'Fraunces',Georgia,serif;--sans:'Hanken Grotesk',-apple-system,'Segoe UI',sans-serif}
-  header{background:transparent;border-top:none;box-shadow:none;border-bottom:1px solid #EFE6DC}
+  header{background:var(--cream);border-top:none;box-shadow:none;border-bottom:1px solid #EFE6DC}
   h1,h2,h3{font-weight:600}
   .logo-text{font-style:normal}
   .card{box-shadow:none;border-radius:16px}
@@ -256,6 +256,12 @@
     .orc-add{flex-direction:column;align-items:stretch}
     .orc-add .field{max-width:none!important}
     .stepbar-wrap{position:static;top:auto}
+    header{padding:10px 12px;flex-wrap:wrap;gap:6px}
+    .brand .titles h1{font-size:14px}
+    .brand .titles small{display:none}
+    .top-actions{gap:6px;flex-wrap:wrap}
+    .top-actions button{padding:7px 10px;font-size:12px}
+    .top-actions a.home{padding:7px 4px;font-size:12px}
     .menu-cat button{width:34px;height:34px}
     .lista-sep .panel td[data-l]{padding:3px 0}
   }
@@ -374,13 +380,14 @@ const FASES = [
   ]},
 ];
 const SECTIONS = [
-  {id:"triagem", kind:"triagemfull", icon:"✅", label:"Triagem", tipos:ALL},
+  {id:"triagem", kind:"fase", icon:"✅", label:"Triagem", tipos:ALL},
   {id:"info", kind:"form", icon:"📋", label:"Dados", tipos:ALL},
   {id:"menu", kind:"menu", icon:"🍽️", label:"Menu", tipos:ALL},
   {id:"os", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
   {id:"show", kind:"fase", tipos:["show"]},
   {id:"equipe", kind:"equipe", icon:"👥", label:"Equipe", tipos:["reserva_perso","personalizado","show"]},
   {id:"orc", kind:"orc", icon:"💰", label:"Orçamento e Pagamentos", tipos:ALL},
+  {id:"negociacao", kind:"fase", icon:"🤝", label:"Negociação", tipos:ALL},
   {id:"layout", kind:"layout", icon:"🪑", label:"Layout de Mesas", tipos:["reserva_perso","personalizado","show"]},
   {id:"convidados", kind:"convidados", icon:"👥", label:"Convidados", tipos:ALL},
   {id:"dia", kind:"fase", tipos:["reserva_perso","personalizado","show"]},
@@ -521,12 +528,12 @@ async function newEvent(){
 function open_(id){view.screen="detail";view.id=id;view.bloco=null;view.tab="info";const _ev=getEvent(id);if(_ev){const _o=tabOrder(_ev);const _f=_o.find(t=>!secInfo(_ev,SECTIONS.find(x=>x.id===t)).done);view.tab=_f||_o[0]||"info";view.bloco=blocoOf(view.tab);}document.getElementById('dashboard').classList.add('hidden');document.getElementById('detail').classList.remove('hidden');renderDetail();window.scrollTo(0,0);}
 function backToDash(){view.screen="dash";document.getElementById('detail').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');renderFilters();renderList();window.scrollTo(0,0);}
 function tabOrder(ev){const rel=relevantSections(ev).map(s=>s.id);const seq=[];BLOCOS.forEach(b=>b.secs.forEach(id=>{if(rel.indexOf(id)>=0)seq.push(id);}));rel.forEach(id=>{if(seq.indexOf(id)<0)seq.push(id);});return seq;}
-function secLabel(ev,id){const s=SECTIONS.find(x=>x.id===id);if(!s)return id;if(s.kind==='fase'){const f=FASES.find(x=>x.id===id);return f?f.nome.replace(/^\d+ · /,''):id;}return s.label;}
+function secLabel(ev,id){const s=SECTIONS.find(x=>x.id===id);if(!s)return id;if(s.label)return s.label;if(s.kind==='fase'){const f=FASES.find(x=>x.id===id);return f?f.nome.replace(/^\d+ · /,''):id;}return s.label;}
 /* ===== Blocos híbridos (Padrão V3): resumo + sanfona ===== */
 const BLOCOS=[
   {id:'plan', icon:'📋', label:'Planejamento', secs:['triagem','info']},
   {id:'oper', icon:'🍳', label:'Operação', secs:['menu','os','show','equipe']},
-  {id:'fin', icon:'💰', label:'Financeiro', secs:['orc']},
+  {id:'fin', icon:'💰', label:'Financeiro', secs:['orc','negociacao']},
   {id:'diad', icon:'🥂', label:'Dia D', secs:['layout','convidados','dia','despro']}
 ];
 function blocoOf(secId){const b=BLOCOS.find(x=>x.secs.includes(secId));return b?b.id:'plan';}
