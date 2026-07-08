@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Lola · Notas & Divergências</title>
+<title>Lola · Entrada de Notas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
@@ -93,8 +93,8 @@ a.file{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight
   <header>
     <button class="back" id="btnBack" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
     <div>
-      <h1>Notas &amp; Divergências</h1>
-      <div class="sub" id="hSub">Pendências e baixa de notas</div>
+      <h1>Entrada de Notas</h1>
+      <div class="sub" id="hSub">Baixa de notas e pendências</div>
     </div>
     <div class="spacer"></div>
     <button class="act" id="btnReload" title="Atualizar"><i class="ph-duotone ph-arrows-clockwise"></i></button>
@@ -302,7 +302,7 @@ $('#btnBack').onclick=()=>{ location.href='../'; };
 
 /* ===== LOGIN REAL — qualquer papel (admin, financeiro ou operacional) ===== */
 (async()=>{
-  const sess=await lolaGate({titulo:'Notas & Divergências'});
+  const sess=await lolaGate({titulo:'Entrada de Notas'});
   $('#hSub').textContent=`${sess.nome||sess.email} · ${PAPEL_NOME[sess.papel]||sess.papel}`;
   carregar();
 })();
