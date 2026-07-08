@@ -1169,8 +1169,9 @@ async function importTxns(txns,src){
   const have=new Set(ST.lanc.map(l=>l.fitid).filter(Boolean));
   const catMap=fornecedorCatMap(); let auto=0;
   const novos=txns.filter(t=>!have.has(t.fitid))
-    .map(t=>{const row={unit:ST.unit,fitid:t.fitid,date:t.date,competencia:compFromDate(t.date),memo:t.memo,amount:t.amount,manual:src!=='ofx'};
-      const k=splitFornecedor(t.memo).key; const cat=applyRules(t.memo)||catMap[k]; if(cat){row.category=cat;auto++;} return row;});
+    .map(t=>{const k=splitFornecedor(t.memo).key; const cat=applyRules(t.memo)||catMap[k]||null; if(cat)auto++;
+      // TODAS as linhas precisam ter as MESMAS chaves (PostgREST: "All object keys must match")
+      return {unit:ST.unit,fitid:t.fitid,date:t.date,competencia:compFromDate(t.date),memo:t.memo,amount:t.amount,manual:src!=='ofx',category:cat};});
   const dup=txns.length-novos.length;
   if(!novos.length){toast('Todos já importados ('+dup+' duplicados)');closeSheet();return;}
   try{
