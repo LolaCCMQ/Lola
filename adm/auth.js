@@ -9,7 +9,7 @@ const SB_URL='https://mvjbsdpfjhywhaonvpfl.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12amJzZHBmamh5d2hhb252cGZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDk2OTAsImV4cCI6MjA5NTM4NTY5MH0.i_3sqgQa6umsIYBmAwWz_NP6nYuT3GfIZid24zHXSEI';
 const _LS='lolaSess';
 
-const PAPEL_NOME={admin:'Administradora',financeiro:'Financeiro',operacional:'Operacional'};
+const PAPEL_NOME={admin:'Administradora',financeiro:'Financeiro',gerente:'Gerente',operacional:'Operacional'};
 
 function _sessGet(){ try{ return JSON.parse(localStorage.getItem(_LS)||'null'); }catch(e){ return null; } }
 function _sessSet(s){ localStorage.setItem(_LS, JSON.stringify(s)); }
