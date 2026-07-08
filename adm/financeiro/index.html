@@ -987,12 +987,14 @@ function openEdit(id){
     <div class="fld"><label>Competência</label><select id="e_comp">${monthList().map(c=>`<option value="${c}" ${c===l.competencia?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
     <div class="fld"><label>Observação</label><textarea id="e_note">${esc(l.note||'')}</textarea></div>
     <button class="btn o" id="e_split" style="margin-bottom:10px"><i class="ph-duotone ph-scissors"></i> Dividir em partes (rateio)</button>
+    <button class="btn o" id="e_mover" style="margin-bottom:10px"><i class="ph-duotone ph-arrows-left-right"></i> Mover para outra empresa</button>
     <div style="display:flex;gap:10px;margin-top:0">
       <button class="btn d" id="e_del" style="flex:0 0 46px"><i class="ph-duotone ph-trash"></i></button>
       <button class="btn p" id="e_save" style="flex:1">Salvar</button>
     </div>`);
   $('#e_amt').onblur=()=>{const n=parseFloat(($('#e_amt').value||'').replace(/\./g,'').replace(',','.'));if(!isNaN(n))$('#e_amt').value=n.toFixed(2).replace('.',',');};
   $('#e_split').onclick=()=>openSplit(id);
+  $('#e_mover').onclick=()=>openMoverLanc(id);
   $('#e_save').onclick=async()=>{
     const amt=parseFloat($('#e_amt').value.replace(/\./g,'').replace(',','.'));
     const catEl=$('#sheetBody .pCat');
@@ -1004,6 +1006,33 @@ function openEdit(id){
     await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     ST.lanc=ST.lanc.filter(x=>x.id!==id); closeSheet(); toast('Excluído'); renderAll();
   };
+}
+
+/* Move um lançamento para outra empresa (ex.: gasto do MAC lançado por engano no CCMQ) */
+function openMoverLanc(lancId){
+  const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
+  const destinos=UNITS.filter(u=>u.id!==ST.unit);
+  const nfs=notasDoLanc(l.id).length;
+  openSheet(`<h3>Mover para outra empresa</h3>
+    <div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)} · ${fmtDate(l.date)}</div>
+    <div class="note" style="font-size:12px">Sai de <b>${U(ST.unit).nome}</b> e vai para a empresa escolhida, mantendo valor, data, competência e categoria.${nfs?` <b>${nfs} nota(s)</b> associada(s) aqui serão desvinculadas — você reassocia lá.`:''} A conciliação é desmarcada para você conferir na outra empresa.</div>
+    <div class="catlist">${destinos.map(u=>`<div class="catopt" data-dest="${u.id}"><span class="cbar" style="background:${u.fg}"></span><div style="flex:1;font-weight:600">${u.nome}</div><i class="ph-duotone ph-caret-right"></i></div>`).join('')}</div>`);
+  $$('#sheetBody [data-dest]').forEach(o=>o.onclick=async()=>{
+    const dest=o.dataset.dest;
+    try{
+      await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},
+        body:JSON.stringify({unit:dest, conciliado:false})});
+      // vínculos de nota são por empresa: desfaz
+      await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+      ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
+      // a pendência (se houver) acompanha o lançamento
+      api(`lola_divergencias?lanc_id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:dest})}).catch(()=>{});
+      ST.divs=(ST.divs||[]).filter(d=>String(d.lanc_id)!==String(l.id));
+      ST.lanc=ST.lanc.filter(x=>String(x.id)!==String(l.id));
+      ST.sel.delete(l.id);
+      closeSheet(); toast('Movido para '+U(dest).nome); renderAll(); updateSelBar();
+    }catch(e){ toast('Erro: '+e.message); }
+  });
 }
 
 /* ========================= DIVIDIR (rateio) ========================= */
