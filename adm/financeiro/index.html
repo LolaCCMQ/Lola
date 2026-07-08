@@ -650,11 +650,12 @@ function lancOfComp(){ return ST.lancComp==='todas' ? ST.lanc.slice() : ST.lanc.
    Retorna null se o texto não for uma data. */
 function parseBuscaData(txt){
   const raw=(txt||'').trim();
+  const ok=(d,mo)=>+d>=1 && +d<=31 && +mo>=1 && +mo<=12;   // senão "12.50" viraria data
   let m=raw.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?$/);
-  if(m){ let y=m[3]||''; if(y.length===2) y='20'+y;
+  if(m && ok(m[1],m[2])){ let y=m[3]||''; if(y.length===2) y='20'+y;
     return {dd:m[1].padStart(2,'0'), mm:m[2].padStart(2,'0'), yyyy:y}; }
   m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(m) return {dd:m[3], mm:m[2], yyyy:m[1]};
+  if(m && ok(m[3],m[2])) return {dd:m[3], mm:m[2], yyyy:m[1]};
   return null;
 }
 function renderLanc(){
