@@ -239,6 +239,18 @@
   .lista-sep .cnt{font-size:11px;font-weight:800;color:var(--muted);background:#fff;border:1px solid var(--border);padding:2px 8px;border-radius:20px}
   .lista-sep table{background:#fff;border-radius:9px}
   .pill-ok{background:var(--green-pale);color:var(--green);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
+  .facc{border:1px solid var(--border);border-radius:13px;margin-bottom:8px;background:#fff;overflow:hidden}
+  .facc.on{border-color:var(--vinho)}
+  .facc-h{display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:46px}
+  .facc-t{flex:1;font-weight:700;font-size:14px;min-width:0;cursor:pointer}
+  .facc-dot{color:var(--amber);font-size:20px;line-height:0;vertical-align:middle;margin-left:6px}
+  .facc-money{font-size:12px;font-weight:800;color:var(--vinho);background:var(--vinho-pale);padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .facc-chev{color:#C6B4A8;font-size:11px;cursor:pointer;padding:4px}
+  .facc-b{padding:0 14px 14px;border-top:1px solid var(--border);padding-top:12px}
+  .orc-line{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .orc-line label{font-size:12px;font-weight:700;color:var(--muted)}
+  .orc-line input{max-width:140px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media(max-width:640px){
     .wrap{padding:12px}
     .detail-head{padding:16px}
@@ -256,6 +268,8 @@
     .orc-add{flex-direction:column;align-items:stretch}
     .orc-add .field{max-width:none!important}
     .stepbar-wrap{position:static;top:auto}
+    .row2{grid-template-columns:1fr}
+    .orc-line input{max-width:none;flex:1}
     header{padding:10px 12px;flex-wrap:wrap;gap:6px}
     .brand .titles h1{font-size:14px}
     .brand .titles small{display:none}
@@ -340,17 +354,19 @@ const FASES = [
     {t:"Confirmar se precisa de nota / Danfe", d:""},
   ]},
   { id:"os", nome:"Operacional (OS)", tipos:["reserva_perso","personalizado","show"], itens:[
-    {t:"Menu e quantidades", d:"Definir na aba Orçamento"},
-    {t:"Louças e materiais necessários", d:"Pratos / copos / talheres · kit café / copos descartáveis"},
-    {t:"Equipamentos de som e iluminação", d:"Chamar? Contratante traz? Testar montagem"},
-    {t:"Outros equipamentos", d:"Máquina de café / mesa pra servir"},
+    {t:"Menus e outros impressos", d:"Quantidade e arquivo para impressão", impressos:true},
+    {t:"Louças e materiais necessários", d:"Cadastre como categoria M na aba Menu · pratos / copos / talheres · kit café / descartáveis"},
+    {t:"Equipamentos de som e iluminação", d:"Chamar? Contratante traz? Testar montagem", orc:true},
+    {t:"Outros equipamentos", d:"Máquina de café / mesa pra servir", orc:true},
     {t:"Botão no sistema", d:"Como serão lançados os pedidos"},
     {t:"Formato de venda", d:"Comanda / ticket"},
     {t:"Equipe", d:"Freelas? Recepção?"},
     {t:"Menus impressos", d:""},
-    {t:"Serviços externos parceiros", d:"ex. chopeira, iluminação, sonorização"},
+    {t:"Serviços externos parceiros", d:"ex. chopeira, iluminação, sonorização", orc:true},
     {t:"Conferência de serviços externos parceiros", d:"Está tudo ok?"},
     {t:"Treinamento das equipes de salão e cozinha", d:"⏰ Tarefa antecipada — no mínimo 2 dias antes"},
+    {t:"Gelo", d:"Quantos sacos? Entrega no dia?", orc:true},
+    {t:"Caixa de gelar", d:"Quantas? Locação ou própria?", orc:true},
   ]},
   { id:"show", nome:"Evento Lola / Show", tipos:["show"], itens:[
     {t:"Convidados (DJ, banda)", d:"Orçar e combinar data e programação"},
@@ -409,6 +425,7 @@ function fromRow(r){
     data:r.data||"", horario:r.horario||"", duracao:r.duracao||"", ocasiao:r.ocasiao||"",
     servico:r.servico||"", exclusividade:r.exclusividade||"", cupula:r.cupula||"nao", nota:r.nota||"nao",
     obs:r.obs||"", pax:r.pax==null?"":r.pax, maoObra:r.mao_obra==null?0:r.mao_obra, gorjeta:r.gorjeta==null?10:r.gorjeta,
+    imposto:r.imposto==null?10:r.imposto, orcExtras:r.orc_extras||[], orcVersao:r.orc_versao||0, fluxo:r.fluxo||[], contagem:r.contagem||[],
     checks:r.checks||{}, menu:r.menu||[], cozbar:r.cozbar||[], materiais:r.materiais||[], equipe:r.equipe||[],
     pag:r.pag||{}, criado:r.created_at, editadoPor:r.editado_por||"", editadoEm:r.updated_at||"", layoutPng:r.layout_png||"", convidados:r.convidados||[], perdas:r.perdas||[]
   };
@@ -420,6 +437,7 @@ function toRow(ev){
     data:ev.data||null, horario:ev.horario, duracao:ev.duracao, ocasiao:ev.ocasiao,
     servico:ev.servico, exclusividade:ev.exclusividade, cupula:ev.cupula, nota:ev.nota,
     obs:ev.obs, pax:intOrNull(ev.pax), mao_obra:numOr(ev.maoObra,0), gorjeta:numOr(ev.gorjeta,10),
+    imposto:numOr(ev.imposto,10), orc_extras:ev.orcExtras||[], orc_versao:intOrNull(ev.orcVersao)||0, fluxo:ev.fluxo||[], contagem:ev.contagem||[],
     checks:ev.checks||{}, menu:ev.menu||[], cozbar:ev.cozbar||[], materiais:ev.materiais||[], equipe:ev.equipe||[],
     pag:ev.pag||{}, editado_por:currentUserName(), updated_at:new Date().toISOString(), convidados:ev.convidados||[], perdas:ev.perdas||[]
   };
@@ -706,28 +724,114 @@ function skipBtn(ev){
   const n=(i>=0&&i<order.length-1)?order[i+1]:null;
   return n?'<span class="sk-title"><button class="btn-skip" onclick="gotoTab(\''+n+'\')">pular para '+secLabel(ev,n)+' →</button></span>':'';
 }
-function faseHTML(ev,f){
-  const fp=faseProgress(ev,f);
-  return `<div class="section-title">${f.nome} — ${fp.done}/${fp.tot} concluídos ${skipBtn(ev)}</div>
-  <div class="phase-bar"><div style="width:${fp.pct}%"></div></div>
-  ${f.id==='despro'?(desproLoucasHTML(ev)+perdasHTML(ev)):''}
-  ${f.itens.map((it,i)=>{
-    const k=f.id+"_"+i;const ck=ev.checks[k]||{done:false,note:"",link:""};
-    const hasLink=ck.link&&ck.link.trim();
-    return `<div class="ck-item ${ck.done?'done':''}">
-      <div class="ck-cb ${ck.done?'on':''}" onclick="toggleCheck('${f.id}',${i})">${ck.done?'✓':''}</div>
-      <div class="ck-body">
-        <div class="txt">${it.t}</div>
+let accOpen=null;
+function toggleAcc(fid,i){const key=fid+'_'+i;accOpen=(accOpen===key)?null:key;renderTab();}
+function setCheckField(fid,i,k,v){const ev=getEvent(view.id);const key=fid+"_"+i;ev.checks[key]=ev.checks[key]||{done:false,note:"",link:""};ev.checks[key][k]=v;save(false);renderDetail();}
+function faseAccordion(f){return f.id==='os'||f.id==='show';}
+function faseItemHTML(ev,f,it,i){
+  const k=f.id+"_"+i;const ck=ev.checks[k]||{done:false,note:"",link:""};
+  const hasLink=ck.link&&ck.link.trim();
+  const acc=faseAccordion(f);
+  const open=!acc||accOpen===k;
+  const temOrc=Number(ck.orc)>0;
+  const marca=(ck.note&&ck.note.trim())||hasLink||temOrc;
+  const corpo=`
         ${it.d?`<div class="desc">${it.d}</div>`:''}
         ${it.t.indexOf('Louça')===0?`<button class="btn-ghost btn-sm" style="margin-top:6px" onclick="gotoTab('menu')">🍽️ Definir louças na aba Menu →</button>`:''}
+        ${it.impressos?`<div class="row2" style="margin-top:8px">
+          <div class="field"><label>Quantidade</label><input type="number" value="${esc(ck.qtd||'')}" onchange="setCheckField('${f.id}',${i},'qtd',this.value)" placeholder="ex: 100"></div>
+          <div class="field"><label>Arquivo para impressão <span class="hint">link do PDF / Canva / Drive</span></label><input type="url" value="${esc(ck.arquivo||'')}" onchange="setCheckField('${f.id}',${i},'arquivo',this.value)" placeholder="colar link"></div>
+        </div>`:''}
         <textarea class="ck-note" placeholder="Anotação..." onchange="setNote('${f.id}',${i},this.value)">${esc(ck.note)}</textarea>
         <div class="ck-link">
           <input type="url" placeholder="🔗 Colar link (ficha, proposta Canva, Drive...)" value="${esc(ck.link)}" onchange="setLink('${f.id}',${i},this.value)">
           ${hasLink?`<a class="btn-ghost btn-sm" href="${esc(ck.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:''}
         </div>
-      </div>
+        ${it.orc?`<div class="orc-line">
+          <label>Incluir no orçamento:</label>
+          <input type="number" step="0.01" value="${esc(ck.orc||'')}" placeholder="0,00" onchange="setCheckField('${f.id}',${i},'orc',Number(this.value))">
+          ${temOrc?`<span class="pill-ok">no orçamento</span>`:'<span class="hint">soma na aba Orçamento</span>'}
+        </div>`:''}`;
+  if(!acc){
+    return `<div class="ck-item ${ck.done?'done':''}">
+      <div class="ck-cb ${ck.done?'on':''}" onclick="toggleCheck('${f.id}',${i})">${ck.done?'✓':''}</div>
+      <div class="ck-body"><div class="txt">${it.t}</div>${corpo}</div>
     </div>`;
-  }).join('')}`;
+  }
+  return `<div class="facc ${open?'on':''}">
+    <div class="facc-h">
+      <div class="ck-cb ${ck.done?'on':''}" onclick="event.stopPropagation();toggleCheck('${f.id}',${i})">${ck.done?'✓':''}</div>
+      <div class="facc-t" onclick="toggleAcc('${f.id}',${i})">${it.t}${marca&&!open?'<span class="facc-dot">•</span>':''}</div>
+      ${temOrc?`<span class="facc-money">${fmt(ck.orc)}</span>`:''}
+      <span class="facc-chev" onclick="toggleAcc('${f.id}',${i})">${open?'▲':'▼'}</span>
+    </div>
+    ${open?`<div class="facc-b">${corpo}</div>`:''}
+  </div>`;
+}
+function fluxoHTML(ev){
+  const fl=ev.fluxo||[];
+  return `<div class="section-title" style="margin-top:24px">Fluxo de serviço</div>
+  <div class="intro">Horários e programação do evento.</div>
+  <table><thead><tr><th style="width:120px">Horário</th><th>O que acontece</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>
+  ${fl.length?fl.map((x,i)=>`<tr>
+    <td data-l="Horário"><input type="time" value="${esc(x.h||'')}" onchange="setFluxo(${i},'h',this.value)"></td>
+    <td data-l="O que acontece"><input type="text" value="${esc(x.o||'')}" onchange="setFluxo(${i},'o',this.value)" placeholder="ex.: chegada da equipe, montagem"></td>
+    <td class="no-print"><button class="del-row" onclick="delFluxo(${i})">×</button></td></tr>`).join('')
+    :`<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:18px">Nenhum horário ainda.</td></tr>`}
+  </tbody></table>
+  <div style="margin-top:10px" class="no-print"><button class="btn-ghost btn-sm" onclick="addFluxo()">+ Adicionar horário</button></div>`;
+}
+function addFluxo(){const ev=getEvent(view.id);ev.fluxo=ev.fluxo||[];ev.fluxo.push({h:'',o:''});save(false);renderTab();}
+function setFluxo(i,k,v){const ev=getEvent(view.id);ev.fluxo[i][k]=v;save(false);}
+function delFluxo(i){const ev=getEvent(view.id);ev.fluxo.splice(i,1);save(false);renderTab();}
+function estoqueHTML(ev){
+  const bebidas=(ev.menu||[]).filter(m=>mcat(m)==='B');
+  const pax=Number(ev.pax)||0;
+  return `<div class="section-title" style="margin-top:24px">Saída / transferência de estoque</div>
+  <div class="intro">Registrar a saída de bebidas e insumos usados nas produções deste evento.</div>
+  ${bebidas.length?`<div class="lista-sep"><h4><span class="mtag B">B</span> Sugestão a partir da aba Menu <span class="cnt">${bebidas.length} itens</span></h4>
+    <table><thead><tr><th>Item</th><th>Qtd estimada</th></tr></thead><tbody>
+    ${bebidas.map(m=>`<tr><td data-l="Item">${esc(m.nome)}</td><td data-l="Qtd">${m.perPax?((Number(m.qtd)||0)*pax):(Number(m.qtd)||0)} ${esc(m.un||'')}</td></tr>`).join('')}
+    </tbody></table></div>`:`<div class="intro" style="margin:0 0 10px">Nenhuma bebida no menu ainda.</div>`}
+  <a class="btn-primary btn-sm" style="display:inline-block;text-decoration:none" href="https://lolaccmq.github.io/LolaEstoque/" target="_blank" rel="noopener">📦 Registrar saída no app de Estoque →</a>`;
+}
+function contagemHTML(ev){
+  const ct=ev.contagem||[];
+  return `<div class="section-title" style="margin-top:24px">Contagem de saída (fim do evento)</div>
+  <div class="intro">O que saiu e o que sobrou de comidas e bebidas — pra fechar o consumo real.</div>
+  <table><thead><tr><th>Item</th><th style="width:90px">Saiu</th><th style="width:90px">Sobrou</th><th style="width:110px" class="num">Consumo real</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>
+  ${ct.length?ct.map((c,i)=>{const real=(Number(c.saiu)||0)-(Number(c.sobrou)||0);return `<tr>
+    <td data-l="Item"><input type="text" value="${esc(c.item||'')}" onchange="setContagem(${i},'item',this.value)" placeholder="nome do item"></td>
+    <td data-l="Saiu"><input type="number" step="0.01" value="${esc(c.saiu||'')}" onchange="setContagem(${i},'saiu',this.value)"></td>
+    <td data-l="Sobrou"><input type="number" step="0.01" value="${esc(c.sobrou||'')}" onchange="setContagem(${i},'sobrou',this.value)"></td>
+    <td data-l="Consumo real" class="num"><b>${Math.round(real*100)/100} ${esc(c.un||'')}</b></td>
+    <td class="no-print"><button class="del-row" onclick="delContagem(${i})">×</button></td></tr>`;}).join('')
+    :`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px">Nenhum item contado ainda.</td></tr>`}
+  </tbody></table>
+  <div style="margin-top:10px" class="no-print"><button class="btn-ghost btn-sm" onclick="addContagem()">+ Adicionar item</button>
+  ${(ev.menu||[]).length?`<button class="btn-ghost btn-sm" style="margin-left:6px" onclick="puxarMenuContagem()">⤵ Puxar itens do Menu</button>`:''}</div>`;
+}
+function addContagem(){const ev=getEvent(view.id);ev.contagem=ev.contagem||[];ev.contagem.push({item:'',saiu:'',sobrou:'',un:''});save(false);renderTab();}
+function setContagem(i,k,v){const ev=getEvent(view.id);ev.contagem[i][k]=v;save(false);renderTab();}
+function delContagem(i){const ev=getEvent(view.id);ev.contagem.splice(i,1);save(false);renderTab();}
+function puxarMenuContagem(){
+  const ev=getEvent(view.id);const pax=Number(ev.pax)||0;ev.contagem=ev.contagem||[];
+  (ev.menu||[]).forEach(function(m){
+    if(mcat(m)==='M')return;
+    if(ev.contagem.some(function(c){return c.item===m.nome;}))return;
+    ev.contagem.push({item:m.nome,saiu:(m.perPax?(Number(m.qtd)||0)*pax:(Number(m.qtd)||0)),sobrou:'',un:m.un||''});
+  });
+  save(false);renderTab();
+}
+function faseHTML(ev,f){
+  const fp=faseProgress(ev,f);
+  return `<div class="section-title">${f.nome} — ${fp.done}/${fp.tot} concluídos ${skipBtn(ev)}</div>
+  <div class="phase-bar"><div style="width:${fp.pct}%"></div></div>
+  ${f.id==='despro'?(desproLoucasHTML(ev)+perdasHTML(ev)):''}
+  ${f.itens.map((it,i)=>faseItemHTML(ev,f,it,i)).join('')}
+  ${f.id==='os'?fluxoHTML(ev):''}
+  ${f.id==='dia'?estoqueHTML(ev):''}
+  ${f.id==='despro'?contagemHTML(ev):''}`;
 }
 function toggleCheck(fid,i){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].done=!ev.checks[k].done;save();renderDetail();}
 function setNote(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].note=v;save(false);}
@@ -1108,12 +1212,22 @@ function menuHTML(ev){
     +'</div>'
   +'</div>';
 }
-function orcTotal(ev){const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});var moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0,mo=(moV*moQ)||(Number(ev.maoObra)||0);var gorj=sub*(Number(ev.gorjeta)||0)/100;var base=sub+mo+gorj;var imp=base*(Number(ev.imposto)||0)/100;return base+imp;}
+function operOrcTotal(ev){var t=0;var f=FASES.find(x=>x.id==='os');if(!f)return 0;f.itens.forEach(function(it,i){if(it.orc){var c=ev.checks['os_'+i];if(c)t+=Number(c.orc)||0;}});return t;}
+function extrasTotal(ev){return (ev.orcExtras||[]).reduce(function(t,e){return t+(Number(e.valor)||0);},0);}
+function orcCalc(ev){
+  const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});
+  const gpct=Number(ev.gorjeta)||0;const serv=sub*gpct/100;
+  const moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0;const mo=(moV*moQ)||(Number(ev.maoObra)||0);
+  const oper=operOrcTotal(ev);const extras=extrasTotal(ev);
+  const base=sub+serv+mo+oper+extras;
+  const ipct=Number(ev.imposto)||0;const imp=base*ipct/100;
+  return {pax,sub,gpct,serv,mo,oper,extras,base,ipct,imp,total:base+imp};
+}
+function orcTotal(ev){return orcCalc(ev).total;}
 function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
 function orcHTML(ev){
-  const pax=Number(ev.pax)||0;
-  let sub=0;(ev.menu||[]).forEach(m=>sub+=lineTotal(m,pax));
-  const moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0;const mo=(moV*moQ)||(Number(ev.maoObra)||0);const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const ipct=Number(ev.imposto)||0;const imp=(sub+mo+gorj)*ipct/100;const total=sub+mo+gorj+imp;
+  const K=orcCalc(ev);
+  const pax=K.pax,sub=K.sub,mo=K.mo,gpct=K.gpct,gorj=K.serv,ipct=K.ipct,imp=K.imp,total=K.total;
   const pg=ev.pag||{};const sinal=Number(pg.sinalValor)||0;const saldo=(sub+mo+gorj+imp)-sinal;
   const nItens=(ev.menu||[]).length;
   const subC=subCat(ev,'C'),subB=subCat(ev,'B'),subM=subCat(ev,'M');
@@ -1134,13 +1248,31 @@ function orcHTML(ev){
     </tbody>
   </table>`:`<div class="intro">Nenhum item no pacote ainda. <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Ir para o Menu →</button></div>`}
   </table>
-  <div class="totals">
-    <div class="line"><span>Subtotal cardápio</span><b>${fmt(sub)}</b></div>
+  <div class="section-title" style="margin-top:22px">Custos extras</div>
+  <div class="intro">Gelo, transporte, aluguel… somam no orçamento, depois da mão de obra.</div>
+  <table><thead><tr><th>Descrição</th><th class="num" style="width:130px">Valor</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>
+  ${(ev.orcExtras||[]).length?(ev.orcExtras||[]).map((e,i)=>`<tr>
+    <td data-l="Descrição"><input type="text" value="${esc(e.desc||'')}" onchange="setExtra(${i},'desc',this.value)" placeholder="ex.: transporte / frete"></td>
+    <td data-l="Valor"><input type="number" step="0.01" value="${esc(e.valor||'')}" onchange="setExtra(${i},'valor',Number(this.value))"></td>
+    <td class="no-print"><button class="del-row" onclick="delExtra(${i})">×</button></td></tr>`).join('')
+   :`<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:18px">Nenhum custo extra.</td></tr>`}
+  </tbody></table>
+  <div style="margin-top:10px" class="no-print"><button class="btn-ghost btn-sm" onclick="addExtra()">+ Adicionar extra</button></div>
+
+  <div class="totals" style="margin-top:18px">
+    <div class="line"><span>Subtotal do pacote (comida + bebida + materiais)</span><b>${fmt(sub)}</b></div>
+    <div class="line no-print"><span>Serviço (<input class="mini-input num" style="max-width:55px" type="number" value="${gpct}" onchange="setOrc('gorjeta',this.value)">% sobre o pacote)</span><b>${fmt(gorj)}</b></div>
     <div class="line no-print" style="display:block"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>Mão de obra</span><b>${fmt(mo)}</b></div><div style="margin-top:5px;font-size:.86em;color:var(--muted)">R$ <input class="mini-input num" style="max-width:90px" type="number" step="0.01" value="${esc(ev.moValor||'')}" onchange="setOrc('moValor',this.value)"> por pessoa × <input class="mini-input num" style="max-width:60px" type="number" value="${esc(ev.moQtd||'')}" onchange="setOrc('moQtd',this.value)"> funcionários</div></div>
-    <div class="line no-print"><span>Gorjeta (<input class="mini-input num" style="max-width:55px" type="number" value="${gpct}" onchange="setOrc('gorjeta',this.value)">%)</span><b>${fmt(gorj)}</b></div>
+    ${K.oper?`<div class="line"><span>Itens do Operacional (gelo, caixa de gelar…)</span><b>${fmt(K.oper)}</b></div>`:''}
+    ${K.extras?`<div class="line"><span>Custos extras</span><b>${fmt(K.extras)}</b></div>`:''}
+    <div class="line" style="color:var(--muted)"><span>Subtotal</span><b>${fmt(K.base)}</b></div>
     <div class="line no-print"><span>Imposto (<input class="mini-input num" style="max-width:55px" type="number" value="${ipct}" onchange="setOrc('imposto',this.value)">%)</span><b>${fmt(imp)}</b></div>
     <div class="line grand"><span>TOTAL</span><span>${fmt(total)}</span></div>
     ${pax?`<div class="line" style="color:var(--muted)"><span>Por pessoa</span><span>${fmt(total/pax)}</span></div>`:''}
+  </div>
+  <div class="no-print" style="margin:14px 0;padding:12px 14px;border:1.5px solid var(--vinho-muted);border-radius:12px;background:var(--cream);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button class="btn-primary btn-sm" onclick="gerarProposta()">📄 Proposta de Orçamento (gera V${(Number(ev.orcVersao)||0)+1})</button>
+    <span class="hint">${(Number(ev.orcVersao)||0)?('última emissão: <b>'+esc(ev.nome)+' V'+ev.orcVersao+'</b>'):'nenhuma proposta emitida ainda'}</span>
   </div>
 
   <div class="no-print" style="margin:16px 0;padding:12px 14px;border:1.5px solid var(--vinho-muted);border-radius:12px;background:var(--cream)">
@@ -1199,8 +1331,131 @@ Conta: 58429028-2</div>
   </div>
   <div class="field full" style="margin-top:12px"><label>Observações de pagamento</label><textarea onchange="setPag('obs',this.value)" placeholder="Combinados de pagamento, parcelas, antecipação...">${esc(pg.obs)}</textarea></div>`;
 }
+/* ===== PROPOSTA DE ORÇAMENTO EM PDF (Rodada 2 · 08/07/2026) ===== */
+const PROP_ASSETS={logo:'https://equipelola.net/prop-logo.png',predio:'https://equipelola.net/prop-predio.png',selo:'https://equipelola.net/prop-selo.png'};
+const PROP_DIR=['Bebidas','Sobremesa'];
+const PROP_INFOS=[
+ 'Duração do evento: {DURACAO}',
+ 'Orçamento válido para 60 dias, sujeito a reajuste',
+ 'Orçamento para área da cúpula, sujeito ao clima.',
+ 'Não é permitido o uso de decorações coladas nas superfícies do espaço',
+ 'Custos de contratação, instalação de som e equipamentos de áudio e vídeo, entre outros serviços externos ao restaurante, por conta do contratante.',
+ 'O orçamento prevê quebra de 5% no número de convidados, para mais ou menos',
+ 'A confirmação da reserva é feita com o pagamento de entrada correspondente a 30% do valor total, o restante no dia via pix ou transferência',
+ 'Número de convidados precisa ser confirmado com antecedência mínima de 7 dias e não há desconto em caso de não comparecimento',
+ 'O prazo para a solicitação de cancelamento do evento e devolução do valor já pago é de no mínimo 15 dias antes do evento'];
+const PROP_REGRAS=[
+ 'É proibido tocar nas obras de arte.',
+ 'Não é permitido correr na Casa de Cultura.',
+ 'Bolsas pequenas são permitidas, desde que estejam visíveis.',
+ 'É proibido o consumo ou o porte de bebidas e alimentos nas galerias. Nas demais dependências da CCMQ é permitido o consumo de água apenas.',
+ 'Crianças devem estar sempre acompanhadas de seus responsáveis.',
+ 'Não é permitido o ingresso de visitantes com animais, exceto cão-guia para pessoas com deficiência visual.',
+ 'É permitido fotografar, porém não é permitido o uso de flash nas galerias. ATENÇÃO: Em algumas exposições, não será permitido fotografar por questões de direitos autorais. Nestes casos, isso SEMPRE estará informado no acesso às respectivas exposições. Não é permitido fotografias ou filmagens com fins comerciais, realizadas por equipes profissionais ou amadoras, sem autorização prévia da Direção.',
+ 'A Casa de Cultura reserva-se o direito de impedir o acesso de pessoas cuja conduta apresente risco à segurança das obras em exposição ou que possa perturbar o bem-estar dos demais visitantes ou colaboradores.',
+ 'É proibido tomar chimarrão nas dependências da Casa.',
+ 'A solicitação de utilização de qualquer espaço da CCMQ, incluindo corredores e áreas de passagem, deve ser encaminhada para avaliação. Exceções são os estabelecimentos comerciais (restaurantes, livraria) que têm gerência sobre seus espaços.',
+ 'Os responsáveis por atividades ocorrendo na CCMQ irão zelar pela conservação e limpeza dos espaços, seu mobiliário e equipamentos. Qualquer dano ao patrimônio da CCMQ deverá ser ressarcido.',
+ 'Não serão pendurados, pregados ou afixados cartazes, banners, quadros ou similares, nem serão utilizadas fitas adesivas ou qualquer material colante ou perfurante nos espaços da CCMQ.',
+ 'Caso seja utilizado aparelho de som, o volume não deverá interferir nas demais atividades da CCMQ, além de ser respeitado o horário de silêncio a partir das 22h.',
+ 'Não é permitido utilizar fogos de artifício, explosivos, material inflamável, projeção em papéis ou executar outras ações potencialmente geradoras de chamas.',
+ 'O horário de funcionamento da CCMQ é de terça-feira a domingo, das 10h às 20h. Clientes e/ou participantes de eventos no Lola Bar, ao deixarem o estabelecimento após às 20h, devem se dirigir diretamente ao andar térreo para saída da CCMQ.',
+ 'Não é permitido fumar nos espaços da CCMQ (Lei nº 9.294/1996).'];
+
+function propMesAno(ev){
+  if(!ev.data) return '';
+  const M=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const d=new Date(ev.data+'T00:00');
+  return M[d.getMonth()]+'/'+d.getFullYear();
+}
+function propPorcoes(ev){
+  const pax=Number(ev.pax)||0;let t=0;
+  (ev.menu||[]).forEach(function(m){ if(mcat(m)==='C') t+=(m.perPax?(Number(m.qtd)||0)*pax:(Number(m.qtd)||0)); });
+  return Math.round(t);
+}
+function propSecoes(ev,lado){
+  const out=[];
+  (ev.menu||[]).forEach(function(m){
+    if(mcat(m)==='M')return;
+    const sec=m.secao||'Outros';
+    const naDir=PROP_DIR.indexOf(sec)>=0;
+    if((lado==='dir')!==naDir)return;
+    let g=out.find(function(x){return x.t===sec;});
+    if(!g){g={t:sec,itens:[]};out.push(g);}
+    g.itens.push(m);
+  });
+  return out;
+}
+function propSecHTML(g,dir){
+  return '<div class="sec"><h3 contenteditable>'+esc(g.t)+'</h3>'
+    +g.itens.map(function(m){
+      return '<div class="item"><div class="iname" contenteditable>'+esc(m.nome)+'</div>'
+        +(m.desc?'<div class="idesc" contenteditable>'+esc(m.desc)+'</div>':'<div class="idesc" contenteditable></div>')+'</div>';
+    }).join('')
+    +'</div>';
+}
+function gerarProposta(){
+  const ev=getEvent(view.id);
+  if(!(ev.menu&&ev.menu.length)){showFlash('Monte o menu antes de gerar a proposta.',true);return;}
+  ev.orcVersao=(Number(ev.orcVersao)||0)+1;
+  save();
+  const v=ev.orcVersao;
+  const K=orcCalc(ev);
+  const nome=(ev.nome||'Evento')+' V'+v;
+  const ccmq=(ev.local==='ccmq');
+  const dur=ev.duracao||'a combinar';
+  const infos=PROP_INFOS.map(function(x){return x.replace('{DURACAO}',esc(dur));});
+  const esq=propSecoes(ev,'esq'),dir=propSecoes(ev,'dir');
+  const css='<style>'
+   +"@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');"
+   +':root{--cream:#FFEFEA;--vinho:#A82A2A;--gold:#C49955;--ink:#4A3F3B}'
+   +'*{box-sizing:border-box}body{margin:0;background:#E9E1DA;font-family:Poppins,sans-serif;color:var(--ink)}'
+   +'.bar{background:#FFF9EC;border-bottom:1px solid #F0DFB8;padding:10px 16px;font-size:13px;position:sticky;top:0;z-index:9;display:flex;gap:10px;align-items:center;flex-wrap:wrap}'
+   +'.bar b{color:var(--vinho)}.bar .t{flex:1;min-width:220px}'
+   +'.bar button{background:var(--vinho);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:600;cursor:pointer;font-family:inherit}'
+   +'[contenteditable]{outline:none;border-radius:4px}[contenteditable]:hover{background:rgba(196,153,85,.10)}[contenteditable]:focus{background:rgba(196,153,85,.18);box-shadow:0 0 0 2px rgba(196,153,85,.45)}'
+   +'.pg{width:210mm;min-height:297mm;background:var(--cream);margin:16px auto;position:relative;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:20mm 18mm}'
+   +'.logo{position:absolute;top:18mm;right:14mm;width:60mm}.predio{position:absolute;bottom:-4mm;right:8mm;width:66mm;opacity:.15}.selo{position:absolute;bottom:10mm;left:10mm;width:38mm;opacity:.9}'
+   +'h1{font-size:26px;color:var(--gold);margin:0;font-weight:700;max-width:60%}.mes{color:var(--gold);font-weight:600;font-size:12px;margin-top:2px}'
+   +'.cols{display:flex;gap:9mm;margin-top:16mm;position:relative;z-index:2}.col{flex:1;min-width:0}.col.r{padding-top:32mm;text-align:right}'
+   +'.sec{margin-bottom:8mm}.sec h3{font-size:17px;color:var(--vinho);margin:0 0 5px;font-weight:700}'
+   +'.item{margin-bottom:6px}.iname{font-size:12.5px;color:#3E3330}.idesc{font-size:10.5px;line-height:1.45;color:#6B5C57}'
+   +'.valores h3{font-size:19px}.pax{font-size:12px;color:var(--vinho);font-weight:500}.tot{font-size:15px;font-weight:700;color:#3E3330;margin-top:2px}.rod{font-size:9.5px;color:#8A7A72;margin-top:6px}'
+   +'h2{font-size:23px;color:var(--gold);font-weight:700;margin:0 0 8px}ul{margin:0 0 12mm;padding-left:16px}li{font-size:11px;line-height:1.6;margin-bottom:4px}li::marker{color:var(--vinho)}'
+   +'@media print{body{background:#fff}.bar{display:none}.pg{box-shadow:none;margin:0;page-break-after:always}[contenteditable]:hover,[contenteditable]:focus{background:none;box-shadow:none}@page{size:A4;margin:0}}'
+   +'</style>';
+  const pg1='<div class="pg">'
+   +'<img class="logo" src="'+PROP_ASSETS.logo+'" alt="Lola Bar CCMQ">'
+   +'<h1 contenteditable>'+esc(ev.nome||'')+'</h1>'
+   +'<div class="mes" contenteditable>'+esc(propMesAno(ev))+'</div>'
+   +'<div class="cols"><div class="col">'+esq.map(function(g){return propSecHTML(g,false);}).join('')+'</div>'
+   +'<div class="col r">'+dir.map(function(g){return propSecHTML(g,true);}).join('')
+   +'<div class="sec valores"><h3 contenteditable>valores</h3>'
+   +'<div class="pax" contenteditable>'+(Number(ev.pax)||0)+' pax'+(propPorcoes(ev)?(' · '+propPorcoes(ev)+' porções'):'')+'</div>'
+   +'<div class="tot" contenteditable>'+fmt(K.total)+'</div>'
+   +'<div class="rod" contenteditable>já incluídos '+K.gpct+'% de serviço e '+K.ipct+'% de imposto</div>'
+   +'</div></div></div>'
+   +'<img class="selo" src="'+PROP_ASSETS.selo+'" alt=""><img class="predio" src="'+PROP_ASSETS.predio+'" alt=""></div>';
+  const pg2='<div class="pg"><h2 contenteditable>informações importantes</h2><ul>'
+   +infos.map(function(x){return '<li contenteditable>'+x+'</li>';}).join('')+'</ul>'
+   +(ccmq?('<div style="height:8mm"></div><h2 contenteditable>regras gerais - Casa de Cultura Mario Quintana</h2><ul>'
+     +PROP_REGRAS.map(function(x){return '<li contenteditable>'+esc(x)+'</li>';}).join('')+'</ul>'):'')
+   +'</div>';
+  const bar='<div class="bar"><div class="t"><b>Proposta '+esc(nome)+'.</b> Clica em qualquer texto e ajusta. Depois "Gerar PDF" → Salvar como PDF.'
+   +(ccmq?'':' <i>(sem as regras da CCMQ — esta unidade não tem texto próprio ainda)</i>')+'</div>'
+   +'<button onclick="window.print()">🖨 Gerar PDF</button></div>';
+  const w=window.open('','_blank');
+  if(!w){showFlash('O navegador bloqueou a janela. Libere pop-ups.',true);return;}
+  w.document.write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>'+esc(nome)+'</title>'+css+'</head><body>'+bar+pg1+pg2+'</body></html>');
+  w.document.close();
+  renderDetail();
+  showFlash('Proposta '+nome+' gerada');
+}
 function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);if(f){document.getElementById('addPreco').value=f.p;var u=document.getElementById('addUn');if(u)u.value=f.un||'';}}
-function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();if(k==='pax')renderDetail();}
+function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();renderDetail();}
+function addExtra(){const ev=getEvent(view.id);ev.orcExtras=ev.orcExtras||[];ev.orcExtras.push({desc:'',valor:0});save(false);renderDetail();}
+function setExtra(i,k,v){const ev=getEvent(view.id);ev.orcExtras[i][k]=v;save(false);renderDetail();}
+function delExtra(i){const ev=getEvent(view.id);ev.orcExtras.splice(i,1);save(false);renderDetail();}
 function setPag(k,v){const ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag[k]=v;save(false);renderTab();}
 function toggleAutorizado(){var ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag.orcAutorizado=!ev.pag.orcAutorizado;save(false);renderTab();}
 async function enviarPedidoCentral(){
