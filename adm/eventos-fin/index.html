@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Eventos Financeiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#A82A2A; --vinhoH:#7E1E1F;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --okBg:#E6F3EA; --okFg:#2C7A4B; --pendBg:#FBF0DD; --pendFg:#9A6B1E; --urgBg:#FBEAE7; --urgFg:#B5302E;
+  --r-pill:9px; --r-btn:13px; --r-card:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 120px}
+
+/* cabeçalho */
+header{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:8px}
+header .back{background:none;border:0;color:var(--vinho);font-size:22px;display:flex;align-items:center;cursor:pointer;padding:4px}
+header h1{font-family:Fraunces,serif;font-weight:600;font-size:19px;color:var(--vinho);line-height:1.15}
+header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em}
+header .spacer{flex:1}
+header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:pointer;padding:4px}
+
+.lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin:24px 0 10px}
+
+/* cartão de evento */
+.item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:14px;margin-bottom:10px;cursor:pointer}
+.item .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.item .nome{font-weight:700;font-size:15px;overflow-wrap:anywhere}
+.item .val{font-family:Fraunces,serif;font-weight:600;font-size:16px;color:var(--okFg);white-space:nowrap}
+.item .meta{font-size:11.5px;color:var(--mut);margin-top:3px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tag{display:inline-flex;align-items:center;gap:5px;border-radius:var(--r-pill);padding:3px 9px;font-size:10.5px;font-weight:700}
+.tag.info{background:var(--cremeDark);color:var(--sec)}
+.tag.ok{background:var(--okBg);color:var(--okFg)}
+
+/* botões */
+.btn{border:0;border-radius:var(--r-btn);min-height:44px;padding:0 16px;font:inherit;font-weight:700;font-size:13.5px;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
+.btn.p{background:var(--vinho);color:#fff}
+.btn.p:active{background:var(--vinhoH)}
+.btn.g{background:var(--card);color:var(--sec);border:1px solid var(--border)}
+.btn.full{width:100%}
+.btn.sm{min-height:38px;font-size:12.5px;padding:0 12px}
+.btn.danger{background:var(--card);color:var(--urgFg);border:1px solid var(--urgBg)}
+
+/* FAB novo */
+.fab{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:120;
+  background:var(--vinho);color:#fff;border:0;border-radius:26px;min-height:52px;padding:0 22px;
+  font:inherit;font-weight:700;font-size:14.5px;display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+  box-shadow:0 8px 22px -8px rgba(168,42,42,.55)}
+.fab:active{background:var(--vinhoH)}
+
+/* campos */
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin-bottom:6px}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);
+  padding:12px;font:inherit;font-size:16px;color:var(--ink);min-height:46px}
+textarea{min-height:70px;resize:vertical;font-size:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1.4fr 1fr auto;gap:8px;align-items:end}
+
+.note{background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sec);margin-bottom:18px;overflow-wrap:anywhere}
+.empty{text-align:center;color:var(--mut);padding:48px 16px;font-size:13.5px}
+.empty i{font-size:34px;display:block;margin-bottom:12px;color:var(--lbl)}
+
+/* sub-lista de linhas (vendas / itens) */
+.sub-h{display:flex;align-items:center;justify-content:space-between;margin:22px 0 8px}
+.sub-h .t{font-size:12px;font-weight:700;color:var(--sec);text-transform:uppercase;letter-spacing:.06em}
+.linha{background:var(--cremeDark);border:1px solid var(--fio);border-radius:12px;padding:11px;margin-bottom:8px;position:relative}
+.linha .del{position:absolute;top:8px;right:8px;background:none;border:0;color:var(--urgFg);font-size:18px;cursor:pointer;padding:2px}
+.linha .fld{margin-bottom:9px}
+.linha .fld:last-child{margin-bottom:0}
+.addline{width:100%;background:var(--card);border:1px dashed var(--border);border-radius:12px;min-height:44px;
+  color:var(--vinho);font:inherit;font-weight:700;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
+.tot{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;padding:10px 12px;background:var(--okBg);border-radius:10px}
+.tot .k{font-size:12px;font-weight:700;color:var(--okFg)}
+.tot .v{font-family:Fraunces,serif;font-weight:600;font-size:16px;color:var(--okFg)}
+
+/* folha de baixo */
+.sheetBg{position:fixed;inset:0;background:rgba(42,26,23,.42);z-index:200;opacity:0;pointer-events:none;transition:.2s}
+.sheetBg.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:201;background:var(--creme);border-radius:20px 20px 0 0;
+  padding:20px 18px calc(24px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto;
+  transform:translateY(100%);transition:.26s cubic-bezier(.22,1,.36,1);max-width:760px;margin:0 auto}
+.sheet.on{transform:translateY(0)}
+.sheet h2{font-family:Fraunces,serif;font-weight:600;font-size:20px;color:var(--vinho);margin-bottom:4px}
+.sheet .sh-sub{font-size:12px;color:var(--mut);margin-bottom:18px}
+.sheet .grab{width:40px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 16px}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:88px;transform:translate(-50%,140%);background:#2A1A17;color:#fff;
+  padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:400;transition:.25s;max-width:92vw;text-align:center}
+#toast.on{transform:translate(-50%,0)}
+.spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--vinho);border-radius:50%;animation:sp .8s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+@media(min-width:900px){ .wrap{padding-left:24px;padding-right:24px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <button class="back" id="btnBack" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
+    <div>
+      <h1>Eventos Financeiro</h1>
+      <div class="sub" id="hSub">Fechamento financeiro dos eventos</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="act" id="btnReload" title="Atualizar"><i class="ph-duotone ph-arrows-clockwise"></i></button>
+  </header>
+
+  <div id="lista"><div class="spin"></div></div>
+</div>
+
+<button class="fab" id="fabNovo"><i class="ph-duotone ph-plus"></i> Novo evento</button>
+
+<div class="sheetBg" id="sheetBg"></div>
+<div class="sheet" id="sheet"></div>
+<div id="toast"></div>
+
+<script src="../auth.js"></script>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST={eventos:[], edit:null};
+const TIPOS=['Comandas','Tickets','Dinheiro'];
+
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600);}
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function brl(v){return (v==null||isNaN(v))?'R$ 0,00':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+function num(v){v=(''+(v??'')).trim().replace(/\./g,'').replace(',','.');const n=parseFloat(v);return isNaN(n)?0:n;}
+function fmtDate(d){if(!d)return'sem data';const[y,m,dd]=String(d).slice(0,10).split('-');return `${dd}/${m}/${y}`;}
+async function api(path,opt={}){
+  await lolaEnsure();
+  const headers=Object.assign(lolaHeaders(), opt.headers||{});
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{...opt,headers});
+  if(!r.ok) throw new Error(await r.text()||('HTTP '+r.status));
+  return r.status===204?null:r.json().catch(()=>null);
+}
+function meuNome(){ const s=lolaSession(); return (s&&s.nome)||''; }
+const somaVendas=e=>(e.vendas||[]).reduce((s,v)=>s+num(v.valor),0);
+
+/* ============ LISTA ============ */
+async function carregar(){
+  try{ ST.eventos=await api('lola_eventos_fin?select=*&order=data.desc.nullslast,created_at.desc'); render(); }
+  catch(e){ $('#lista').innerHTML=`<div class="empty"><i class="ph-duotone ph-warning"></i>Erro ao carregar: ${esc(e.message)}</div>`; }
+}
+function render(){
+  const el=$('#lista');
+  if(!ST.eventos.length){ el.innerHTML=`<div class="empty"><i class="ph-duotone ph-confetti"></i>Nenhum evento lançado ainda.<br>Toque em “Novo evento” para começar.</div>`; return; }
+  el.innerHTML=ST.eventos.map(e=>{
+    const nV=(e.vendas||[]).length, nI=(e.itens||[]).length;
+    return `<div class="item" data-id="${e.id}">
+      <div class="top">
+        <div style="flex:1;min-width:0">
+          <div class="nome">${esc(e.nome||'(sem nome)')}</div>
+          <div class="meta">${fmtDate(e.data)}${e.pax?' · '+e.pax+' pessoas':''}${e.editado_por?' · '+esc(e.editado_por):''}</div>
+        </div>
+        <div class="val">${brl(somaVendas(e))}</div>
+      </div>
+      <div class="chips">
+        ${nV?`<span class="tag info"><i class="ph-duotone ph-credit-card"></i>${nV} venda(s)</span>`:''}
+        ${nI?`<span class="tag info"><i class="ph-duotone ph-fork-knife"></i>${nI} item(ns)</span>`:''}
+        ${!nV&&!nI?`<span class="tag info">Sem dados ainda</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  $$('#lista .item').forEach(c=>c.onclick=()=>abrir(c.dataset.id));
+}
+
+/* ============ FOLHA DE EDIÇÃO ============ */
+function novo(){ ST.edit={nome:'',data:'',pax:'',vendas:[{maquininha:'',valor:'',tipo:'Comandas'}],itens:[{nome:'',qtd:'',valor:''}],obs:''}; sheet(); }
+function abrir(id){
+  const e=ST.eventos.find(x=>x.id===id); if(!e) return;
+  ST.edit=JSON.parse(JSON.stringify({id:e.id, nome:e.nome||'', data:e.data||'', pax:e.pax||'',
+    vendas:(e.vendas&&e.vendas.length)?e.vendas:[{maquininha:'',valor:'',tipo:'Comandas'}],
+    itens:(e.itens&&e.itens.length)?e.itens:[{nome:'',qtd:'',valor:''}], obs:e.obs||''}));
+  sheet();
+}
+function closeSheet(){ $('#sheet').classList.remove('on'); $('#sheetBg').classList.remove('on'); }
+function tipoOpts(sel){ return TIPOS.map(t=>`<option ${t===sel?'selected':''}>${t}</option>`).join(''); }
+
+function sheet(){
+  const e=ST.edit, ed=!!e.id;
+  const vendasHTML=e.vendas.map((v,i)=>`
+    <div class="linha" data-vi="${i}">
+      ${e.vendas.length>1?`<button class="del" data-delv="${i}" title="Remover"><i class="ph-duotone ph-x-circle"></i></button>`:''}
+      <div class="fld"><label>Maquininha</label><input type="text" class="vMaq" data-i="${i}" value="${esc(v.maquininha||'')}" placeholder="Ex.: Stone azul, PagBank…"></div>
+      <div class="row2">
+        <div class="fld"><label>Quanto vendeu (R$)</label><input type="text" inputmode="decimal" class="vVal" data-i="${i}" value="${v.valor!==''&&v.valor!=null?esc(''+v.valor):''}" placeholder="0,00"></div>
+        <div class="fld"><label>Tipo de venda</label><select class="vTipo" data-i="${i}">${tipoOpts(v.tipo)}</select></div>
+      </div>
+    </div>`).join('');
+  const itensHTML=e.itens.map((it,i)=>`
+    <div class="linha" data-ii="${i}">
+      ${e.itens.length>1?`<button class="del" data-deli="${i}" title="Remover"><i class="ph-duotone ph-x-circle"></i></button>`:''}
+      <div class="fld"><label>Item</label><input type="text" class="iNome" data-i="${i}" value="${esc(it.nome||'')}" placeholder="Ex.: Papas bravas"></div>
+      <div class="row2">
+        <div class="fld"><label>Qtd vendida</label><input type="text" inputmode="decimal" class="iQtd" data-i="${i}" value="${it.qtd!==''&&it.qtd!=null?esc(''+it.qtd):''}" placeholder="0"></div>
+        <div class="fld"><label>Valor total (R$) — opcional</label><input type="text" inputmode="decimal" class="iVal" data-i="${i}" value="${it.valor!==''&&it.valor!=null?esc(''+it.valor):''}" placeholder="0,00"></div>
+      </div>
+    </div>`).join('');
+
+  $('#sheet').innerHTML=`
+    <div class="grab"></div>
+    <h2>${ed?'Editar evento':'Novo evento'}</h2>
+    <div class="sh-sub">Preencha o fechamento. Nome e data são digitados aqui — para mais detalhes, consulte o app de Eventos.</div>
+
+    <div class="fld"><label>Nome do evento</label><input type="text" id="fNome" value="${esc(e.nome)}" placeholder="Ex.: Casamento Renan"></div>
+    <div class="row2">
+      <div class="fld"><label>Data</label><input type="date" id="fData" value="${esc(e.data)}"></div>
+      <div class="fld"><label>Pessoas atendidas</label><input type="text" inputmode="numeric" id="fPax" value="${esc(''+(e.pax||''))}" placeholder="Ex.: 120"></div>
+    </div>
+
+    <div class="sub-h"><span class="t">Vendas nas maquininhas</span></div>
+    <div id="vendasBox">${vendasHTML}</div>
+    <button class="addline" id="addVenda"><i class="ph-duotone ph-plus"></i> Adicionar maquininha / forma</button>
+    <div class="tot"><span class="k">Total vendido</span><span class="v" id="totVendas">R$ 0,00</span></div>
+
+    <div class="sub-h"><span class="t">Itens vendidos no evento</span></div>
+    <div id="itensBox">${itensHTML}</div>
+    <button class="addline" id="addItem"><i class="ph-duotone ph-plus"></i> Adicionar item</button>
+
+    <div class="fld" style="margin-top:22px"><label>Observações</label><textarea id="fObs" placeholder="Qualquer detalhe do fechamento">${esc(e.obs)}</textarea></div>
+
+    <button class="btn p full" id="fSalvar" style="margin-top:8px"><i class="ph-duotone ph-check"></i> ${ed?'Salvar alterações':'Criar evento'}</button>
+    ${ed?`<button class="btn danger full" id="fExcluir" style="margin-top:10px"><i class="ph-duotone ph-trash"></i> Excluir evento</button>`:''}
+  `;
+  wireSheet();
+  $('#sheetBg').classList.add('on'); $('#sheet').classList.add('on');
+  $('#sheet').scrollTop=0;
+  recalc();
+}
+
+function coletar(){
+  const e=ST.edit;
+  e.nome=$('#fNome').value.trim();
+  e.data=$('#fData').value||null;
+  e.pax=$('#fPax').value.trim();
+  e.obs=$('#fObs').value.trim();
+  e.vendas=$$('#vendasBox .linha').map(l=>{const i=l.dataset.vi;
+    return {maquininha:l.querySelector('.vMaq').value.trim(), valor:l.querySelector('.vVal').value.trim(), tipo:l.querySelector('.vTipo').value};});
+  e.itens=$$('#itensBox .linha').map(l=>{
+    return {nome:l.querySelector('.iNome').value.trim(), qtd:l.querySelector('.iQtd').value.trim(), valor:l.querySelector('.iVal').value.trim()};});
+}
+function recalc(){ const t=$$('#vendasBox .vVal').reduce((s,i)=>s+num(i.value),0); $('#totVendas').textContent=brl(t); }
+function wireSheet(){
+  $('#addVenda').onclick=()=>{ coletar(); ST.edit.vendas.push({maquininha:'',valor:'',tipo:'Comandas'}); sheet(); };
+  $('#addItem').onclick=()=>{ coletar(); ST.edit.itens.push({nome:'',qtd:'',valor:''}); sheet(); };
+  $$('[data-delv]').forEach(b=>b.onclick=()=>{ coletar(); ST.edit.vendas.splice(+b.dataset.delv,1); sheet(); });
+  $$('[data-deli]').forEach(b=>b.onclick=()=>{ coletar(); ST.edit.itens.splice(+b.dataset.deli,1); sheet(); });
+  $$('#vendasBox .vVal').forEach(i=>i.oninput=recalc);
+  $('#fSalvar').onclick=salvar;
+  const ex=$('#fExcluir'); if(ex) ex.onclick=excluir;
+}
+
+async function salvar(){
+  coletar(); const e=ST.edit;
+  if(!e.nome){ toast('Coloque o nome do evento'); return; }
+  const vendas=e.vendas.filter(v=>v.maquininha||v.valor).map(v=>({maquininha:v.maquininha,valor:num(v.valor),tipo:v.tipo}));
+  const itens=e.itens.filter(it=>it.nome).map(it=>({nome:it.nome,qtd:num(it.qtd),valor:num(it.valor)}));
+  const body={nome:e.nome, data:e.data||null, pax:e.pax?parseInt(e.pax,10)||null:null,
+    vendas, itens, obs:e.obs||null, editado_por:meuNome()||null, updated_at:new Date().toISOString()};
+  const btn=$('#fSalvar'); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML='<i class="ph-duotone ph-spinner"></i> Salvando…';
+  try{
+    if(e.id) await api(`lola_eventos_fin?id=eq.${e.id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(body)});
+    else await api('lola_eventos_fin',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(body)});
+    closeSheet(); toast('Salvo!'); carregar();
+  }catch(err){ toast('Erro: '+err.message); btn.disabled=false; btn.innerHTML=old; }
+}
+async function excluir(){
+  if(!ST.edit.id) return;
+  if(!confirm('Excluir este evento? Não dá pra desfazer.')) return;
+  try{ await api(`lola_eventos_fin?id=eq.${ST.edit.id}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    closeSheet(); toast('Excluído'); carregar(); }catch(e){ toast('Erro: '+e.message); }
+}
+
+/* ============ NAV ============ */
+$('#fabNovo').onclick=novo;
+$('#sheetBg').onclick=closeSheet;
+$('#btnReload').onclick=()=>{ $('#lista').innerHTML='<div class="spin"></div>'; carregar(); };
+$('#btnBack').onclick=()=>{ location.href='../'; };
+
+/* ===== LOGIN REAL — admin ou gerente ===== */
+(async()=>{
+  const sess=await lolaGate({papeis:['admin','gerente'], titulo:'Eventos Financeiro'});
+  $('#hSub').textContent=`${sess.nome||sess.email} · ${PAPEL_NOME[sess.papel]||sess.papel}`;
+  carregar();
+})();
+</script>
+</body>
+</html>
