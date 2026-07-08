@@ -86,29 +86,9 @@ a.file{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight
 @keyframes sp{to{transform:rotate(360deg)}}
 .hidden{display:none!important}
 @media(min-width:900px){ .wrap{padding-left:24px;padding-right:24px} }
-/* gate */
-#gate{position:fixed;inset:0;background:var(--creme);z-index:50;display:flex;align-items:center;justify-content:center;padding:24px}
-#gate.hide{display:none}
-.gbox{width:100%;max-width:340px;text-align:center}
-.gbox .mark{font-family:Fraunces,serif;font-weight:600;font-size:30px;color:var(--vinho);margin-bottom:6px}
-.gbox p{font-size:13px;color:var(--mut);margin-bottom:26px}
-.gbox input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);
-  padding:14px;font:inherit;font-size:16px;text-align:center;min-height:50px;margin-bottom:12px}
-.gbox button{width:100%;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);
-  min-height:50px;font:inherit;font-weight:700;font-size:14.5px;cursor:pointer}
-.gerr{color:#B5302E;font-size:12.5px;font-weight:600;min-height:20px;margin-top:10px}
 </style>
 </head>
 <body>
-<div id="gate">
-  <div class="gbox">
-    <div class="mark">Lola</div>
-    <p>Notas &amp; Divergências</p>
-    <input type="password" id="gPass" placeholder="Senha do administrativo" autocomplete="current-password">
-    <button id="gBtn">Entrar</button>
-    <div class="gerr" id="gErr"></div>
-  </div>
-</div>
 <div class="wrap">
   <header>
     <button class="back" id="btnBack" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
@@ -157,10 +137,9 @@ a.file{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight
 </div>
 <div id="toast"></div>
 
+<script src="../auth.js"></script>
 <script>
-const SB_URL='https://mvjbsdpfjhywhaonvpfl.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12amJzZHBmamh5d2hhb252cGZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDk2OTAsImV4cCI6MjA5NTM4NTY5MH0.i_3sqgQa6umsIYBmAwWz_NP6nYuT3GfIZid24zHXSEI';
-const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+const H=()=>lolaHeaders();
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const ST={itens:[], filtro:'aberto'};
 
@@ -172,11 +151,13 @@ function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 function brl(v){return (v==null||isNaN(v))?'—':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
 function fmtDate(d){if(!d)return'—';const[y,m,dd]=String(d).slice(0,10).split('-');return `${dd}/${m}/${y}`;}
 async function api(path,opt={}){
-  const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:H,...opt});
+  await lolaEnsure(); // renova o token se preciso
+  const headers=Object.assign(lolaHeaders(), opt.headers||{});
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{...opt,headers});
   if(!r.ok) throw new Error(await r.text()||('HTTP '+r.status));
   return r.status===204?null:r.json().catch(()=>null);
 }
-function meuNome(){ return localStorage.getItem('divNome')||''; }
+function meuNome(){ const s=lolaSession(); return (s&&s.nome)||localStorage.getItem('divNome')||''; }
 
 /* ============ PENDÊNCIAS ============ */
 async function carregar(){
@@ -241,19 +222,21 @@ async function salvar(id,btn){
   try{
     let url=null,nomeArq=null;
     if(arq){
+      await lolaEnsure();
       const path=`${id}/${Date.now()}_${arq.name.replace(/[^\w.\-]/g,'_')}`;
-      const up=await fetch(`${SB_URL}/storage/v1/object/divergencias/${path}`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},body:arq});
+      const hh=lolaHeaders(); delete hh['Content-Type'];
+      const up=await fetch(`${SB_URL}/storage/v1/object/divergencias/${path}`,{method:'POST',headers:hh,body:arq});
       if(!up.ok) throw new Error('falha ao subir o arquivo');
       url=`${SB_URL}/storage/v1/object/public/divergencias/${path}`; nomeArq=arq.name;
     }
-    await api(`lola_divergencias?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},
+    await api(`lola_divergencias?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},
       body:JSON.stringify({status:'resolvido',obs:obs||null,resolvido_por:nome,resolved_at:new Date().toISOString(),
         ...(url?{arquivo_url:url,arquivo_nome:nomeArq}:{})})});
     toast('Resolvido!'); await carregar();
   }catch(e){ toast('Erro: '+e.message); btn.disabled=false; btn.innerHTML=old; }
 }
 async function reabrir(id){
-  try{ await api(`lola_divergencias?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},
+  try{ await api(`lola_divergencias?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},
     body:JSON.stringify({status:'aberto',resolved_at:null})});
     toast('Reaberta'); await carregar(); }catch(e){ toast('Erro: '+e.message); }
 }
@@ -292,7 +275,7 @@ async function importar(){
     if(!todas.length){ toast('Nenhuma NF-e válida nos arquivos'); return; }
     const rows=todas.map(n=>({...n,unit}));
     const ins=await api('financeiro_notas?on_conflict=chave',{method:'POST',
-      headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
+      headers:{'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
     const novas=(ins||[]).length, jaTinha=rows.length-novas;
     const comParc=(ins||[]).filter(n=>n.parcelas&&n.parcelas.length).length;
     $('#impMsg').innerHTML=`<div class="note" style="background:var(--okBg);color:var(--okFg)">
@@ -317,18 +300,12 @@ $('#btnReload').onclick=()=>{ $('#listaPend').innerHTML='<div class="spin"></div
 $('#impGo').onclick=importar;
 $('#btnBack').onclick=()=>{ location.href='../'; };
 
-/* ===== GATE (senha do ADMINISTRATIVO — a mesma do menu /adm/) ===== */
-const ADM_HASH='c9f52f63be9b4073f88df3a51435e59928701c742976d3b965d32474f67945c7';
-async function sha256hex(m){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
-async function tentar(){
-  const h=await sha256hex($('#gPass').value);
-  if(h===ADM_HASH){ localStorage.setItem('admHub',ADM_HASH); $('#gate').classList.add('hide'); carregar(); }
-  else { $('#gErr').textContent='Senha incorreta.'; }
-}
-if(localStorage.getItem('admHub')===ADM_HASH){ $('#gate').classList.add('hide'); carregar(); }
-else { $('#gPass').focus(); }
-$('#gBtn').onclick=tentar;
-$('#gPass').addEventListener('keydown',e=>{ if(e.key==='Enter') tentar(); });
+/* ===== LOGIN REAL — qualquer papel (admin, financeiro ou operacional) ===== */
+(async()=>{
+  const sess=await lolaGate({titulo:'Notas & Divergências'});
+  $('#hSub').textContent=`${sess.nome||sess.email} · ${PAPEL_NOME[sess.papel]||sess.papel}`;
+  carregar();
+})();
 </script>
 </body>
 </html>
