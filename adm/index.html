@@ -52,24 +52,17 @@ a.app .go{color:var(--lbl);font-size:20px;display:flex}
   min-height:50px;font:inherit;font-weight:700;font-size:14.5px;cursor:pointer}
 .gbox button:active{background:var(--vinhoH)}
 .gerr{color:#B5302E;font-size:12.5px;font-weight:600;min-height:20px;margin-top:10px}
+.quem{font-size:12.5px;color:var(--mut);margin-top:4px}
+.quem b{color:var(--sec)}
 </style>
 </head>
 <body>
-
-<div id="gate">
-  <div class="gbox">
-    <div class="mark">Lola</div>
-    <p>Área administrativa</p>
-    <input type="password" id="gPass" placeholder="Senha" autocomplete="current-password">
-    <button id="gBtn">Entrar</button>
-    <div class="gerr" id="gErr"></div>
-  </div>
-</div>
 
 <div class="wrap">
   <header>
     <h1>Administrativo</h1>
     <div class="sub">Lola · gestão interna</div>
+    <div class="quem" id="quem"></div>
   </header>
 
   <div class="lbl">Aplicativos</div>
@@ -83,38 +76,32 @@ a.app .go{color:var(--lbl);font-size:20px;display:flex}
     <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
   </a>
 
-  <a class="app" href="financeiro/">
+  <a class="app" href="financeiro/" id="cardFin" style="display:none">
     <span class="ico"><i class="ph-duotone ph-chart-line-up"></i></span>
     <span class="t">
       <b>Financeiro</b>
       <span>DRE, conciliação e lançamentos — CCMQ, MAC, Central e Eventos</span>
-      <span class="lock"><i class="ph-duotone ph-lock-key"></i> senha própria</span>
+      <span class="lock"><i class="ph-duotone ph-lock-key"></i> acesso restrito</span>
     </span>
     <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
   </a>
 
-  <button class="sair" id="btnSair">Sair do administrativo</button>
+  <button class="sair" id="btnSair">Sair da conta</button>
 
   <div class="foot">
     <a href="https://equipelola.net/">‹ Voltar ao portal do Lola</a>
   </div>
 </div>
 
+<script src="auth.js"></script>
 <script>
-/* senha do ADMINISTRATIVO (sha-256) — libera o menu e o app de Divergências */
-const ADM_HASH='c9f52f63be9b4073f88df3a51435e59928701c742976d3b965d32474f67945c7';
 const $=s=>document.querySelector(s);
-async function sha256hex(m){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
-async function tentar(){
-  const h=await sha256hex($('#gPass').value);
-  if(h===ADM_HASH){ localStorage.setItem('admHub',ADM_HASH); $('#gate').classList.add('hide'); }
-  else { $('#gErr').textContent='Senha incorreta.'; }
-}
-if(localStorage.getItem('admHub')===ADM_HASH) $('#gate').classList.add('hide');
-$('#gBtn').onclick=tentar;
-$('#gPass').addEventListener('keydown',e=>{ if(e.key==='Enter') tentar(); });
-$('#gPass').focus();
-$('#btnSair').onclick=()=>{ localStorage.removeItem('admHub'); localStorage.removeItem('finLola'); location.reload(); };
+(async()=>{
+  const sess=await lolaGate({titulo:'Área administrativa'});
+  $('#quem').innerHTML=`Você é <b>${sess.nome||sess.email}</b> · ${PAPEL_NOME[sess.papel]||sess.papel}`;
+  if(sess.papel==='admin'||sess.papel==='financeiro') $('#cardFin').style.display='flex';
+})();
+$('#btnSair').onclick=()=>{ lolaLogout(); location.reload(); };
 </script>
 </body>
 </html>
