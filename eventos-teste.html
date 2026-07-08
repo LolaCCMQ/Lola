@@ -416,8 +416,22 @@ let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozF
 /* ===== Mapeamento banco <-> app ===== */
 function intOrNull(v){const n=parseInt(v);return isNaN(n)?null:n;}
 function numOr(v,d){const n=Number(v);return isNaN(n)?d:n;}
+/* Migração automática: itens de categoria M no menu viram materiais (Operacional). */
+function migraMenuM(menu,materiais){
+  const m=(menu||[]).slice(), mat=(materiais||[]).slice();
+  const alvo=m.filter(function(x){return x&&x.cat==='M';});
+  if(!alvo.length) return {menu:m,materiais:mat,mudou:false};
+  alvo.forEach(function(x){
+    const preco=Number(x.preco)||0;
+    mat.push({item:x.nome||'',origem:'',qtdSaida:(x.qtd==null?1:x.qtd),saiu:false,qtdVolta:'',voltou:false,
+      obs:'migrado do Menu (categoria M)',destino:'',comprar:preco>0,custo:preco});
+  });
+  return {menu:m.filter(function(x){return !x||x.cat!=='M';}),materiais:mat,mudou:true};
+}
 function fromRow(r){
+  const mig=migraMenuM(r.menu,r.materiais);
   return {
+    _precisaMigrar:mig.mudou,
     id:r.id, nome:r.nome||"", responsavel:r.responsavel||"", cliente:r.cliente||"", contato:r.contato||"",
     tipo:r.tipo||"personalizado", local:r.local||"", status:r.status||"pre",
     paxIn:r.pax_in==null?"":r.pax_in, paxOut:r.pax_out==null?"":r.pax_out,
@@ -425,7 +439,7 @@ function fromRow(r){
     servico:r.servico||"", exclusividade:r.exclusividade||"", cupula:r.cupula||"nao", nota:r.nota||"nao",
     obs:r.obs||"", pax:r.pax==null?"":r.pax, maoObra:r.mao_obra==null?0:r.mao_obra, gorjeta:r.gorjeta==null?10:r.gorjeta,
     imposto:r.imposto==null?10:r.imposto, orcExtras:r.orc_extras||[], orcVersao:r.orc_versao||0, fluxo:r.fluxo||[], contagem:r.contagem||[],
-    checks:r.checks||{}, menu:r.menu||[], cozbar:r.cozbar||[], materiais:r.materiais||[], equipe:r.equipe||[],
+    checks:r.checks||{}, menu:mig.menu, cozbar:r.cozbar||[], materiais:mig.materiais, equipe:r.equipe||[],
     pag:r.pag||{}, criado:r.created_at, editadoPor:r.editado_por||"", editadoEm:r.updated_at||"", layoutPng:r.layout_png||"", convidados:r.convidados||[], perdas:r.perdas||[]
   };
 }
@@ -456,6 +470,11 @@ async function init(){
       .concat((pp.data||[]).map(f=>({n:f.nome,p:Math.round((Number(f.valor_venda_central)||0)*100)/100,cat:'pré-produção',card:null,un:(f.rendimento_un==='g'?'kg':f.rendimento_un==='ml'?'L':(f.rendimento_un||''))})))
       .sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));
     setConn(true);
+    const migrar=DB.events.filter(function(e){return e._precisaMigrar;});
+    if(migrar.length){
+      console.log('Migrando '+migrar.length+' evento(s): menu categoria M -> materiais');
+      for(const e of migrar){ delete e._precisaMigrar; await sb.from('lola_eventos_teste').update({menu:e.menu,materiais:e.materiais}).eq('id',e.id); }
+    }
   }catch(e){
     console.error(e);setConn(false);
     document.getElementById('list').innerHTML=`<div class="empty full" style="grid-column:1/-1"><div class="big">⚠️</div><h3>Não consegui conectar ao banco</h3><p>Verifique a conexão e clique em ↻ Atualizar.</p></div>`;
