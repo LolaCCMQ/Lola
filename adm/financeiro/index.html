@@ -258,6 +258,8 @@ section.view{display:none} section.view.on{display:block}
         <button class="chip" data-f="pendentes">A classificar</button>
         <button class="chip" data-f="classificados">Classificados</button>
         <button class="chip" data-f="naoconc">Não conciliados</button>
+        <button class="chip" data-f="notaok">Nota localizada</button>
+        <button class="chip" data-f="procurando">Procurando nota</button>
       </div>
       <div class="sum" id="lancSum"></div>
       <div class="catsearch" id="lancSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="lancSearch" placeholder="Buscar por descrição ou valor…" autocomplete="off"></div>
@@ -540,6 +542,12 @@ async function loadRegras(){
 async function loadApelidos(){ ST.apelidos=await api('financeiro_apelidos?select=*').catch(()=>[]); }
 async function loadDivs(){ ST.divs=await api('lola_divergencias?select=id,lanc_id,status,fornecedor').catch(()=>[]); }
 function divAberta(lancId){ return (ST.divs||[]).some(d=>String(d.lanc_id)===String(lancId) && d.status==='aberto'); }
+// null = sem pendência · 'aberto' = Paola procurando · 'resolvido' = ela achou, pode associar
+function divStatus(lancId){
+  const ds=(ST.divs||[]).filter(d=>String(d.lanc_id)===String(lancId));
+  if(!ds.length) return null;
+  return ds.some(d=>d.status==='aberto') ? 'aberto' : 'resolvido';
+}
 // abre uma pendência pra funcionária localizar a nota (aparece no app "Notas & Divergências" do portal)
 function openDivergencia(lancId){
   const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
@@ -649,6 +657,8 @@ function renderLanc(){
   if(ST.statusF==='pendentes')rows=rows.filter(l=>!l.category);
   if(ST.statusF==='classificados')rows=rows.filter(l=>l.category);
   if(ST.statusF==='naoconc')rows=rows.filter(l=>!l.conciliado);
+  if(ST.statusF==='notaok')rows=rows.filter(l=>divStatus(l.id)==='resolvido' && notasDoLanc(l.id).length===0);
+  if(ST.statusF==='procurando')rows=rows.filter(l=>divStatus(l.id)==='aberto');
   ST.visibleIds=rows.map(l=>l.id);
   const el=$('#lancList');
   if(!rows.length){const filtrando=ST.search||ST.catF||ST.lancComp==='todas'||ST.statusF!=='todos';
@@ -664,7 +674,12 @@ function renderLanc(){
     const nfHtml=nfN
       ? `<button class="catbtn set" data-nf="${l.id}" title="Nota(s) associada(s) — tocar para ver/editar"><span class="cbar" style="background:#2C7A4B"></span>${nfN} NF ✓</button>`
       : `<button class="catbtn miss" data-nf="${l.id}" title="Associar nota fiscal"><i class="ph-duotone ph-receipt"></i> Associar NF</button>`;
-    const divHtml=divAberta(l.id)?`<span class="catbtn" style="background:#FBF0DD;color:#9A6B1E;border-color:#F0DFC0;pointer-events:none" title="Pendência aberta para localizar a nota"><i class="ph-duotone ph-magnifying-glass"></i> Procurando nota</span>`:'';
+    const dv=divStatus(l.id);
+    const divHtml = dv==='aberto'
+      ? `<span class="catbtn" style="background:#FBF0DD;color:#9A6B1E;border-color:#F0DFC0;pointer-events:none" title="Pendência aberta — a Paola está procurando esta nota"><i class="ph-duotone ph-magnifying-glass"></i> Procurando nota</span>`
+      : (dv==='resolvido' && !nfN)
+        ? `<span class="catbtn" style="background:#E6F3EA;color:#2C7A4B;border-color:#CBE6D5;pointer-events:none" title="A Paola já localizou — agora é só associar"><i class="ph-duotone ph-check-circle"></i> Nota localizada — associe</span>`
+        : '';
     return `<div class="lc">
       <div class="r1" style="align-items:center">
         <button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button>
@@ -676,6 +691,7 @@ function renderLanc(){
         <span class="compchip" data-comp="${l.id}"><i class="ph-duotone ph-calendar-blank"></i> ${compLabel(l.competencia)}</span>
         ${nfHtml}${divHtml}
         <div class="mini">
+          ${(!nfN && !dv)?`<button class="iconbtn" data-flag="${l.id}" title="Não achei a nota — pedir pra localizar"><i class="ph-duotone ph-flag"></i></button>`:''}
           <button class="iconbtn ${l.conciliado?'on':''}" data-conc="${l.id}" title="Conciliado"><i class="ph-duotone ph-check-circle"></i></button>
           <button class="iconbtn" data-edit="${l.id}" title="Editar"><i class="ph-duotone ph-pencil-simple"></i></button>
           <button class="iconbtn del" data-del="${l.id}" title="Excluir"><i class="ph-duotone ph-trash"></i></button>
@@ -699,6 +715,7 @@ function renderLanc(){
   el.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{const ids=ST.dayIds[b.dataset.day]||[];const allSel=ids.length&&ids.every(id=>ST.sel.has(id));ids.forEach(id=>allSel?ST.sel.delete(id):ST.sel.add(id));renderLanc();});
   el.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>openCatPicker(b.dataset.cat));
   el.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>openLinkPagamento(b.dataset.nf));
+  el.querySelectorAll('[data-flag]').forEach(b=>b.onclick=()=>openDivergencia(b.dataset.flag));
   el.querySelectorAll('[data-conc]').forEach(b=>b.onclick=()=>toggleConc(b.dataset.conc));
   el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
   el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteLanc(b.dataset.del));
