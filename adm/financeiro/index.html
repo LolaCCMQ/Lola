@@ -739,15 +739,17 @@ function renderLanc(){
   };
   // separa por DATA (como extrato): mais recente no topo, cabeçalho de dia + subtotal
   const ordenados=[...rows].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const totDia={}, dayIds={}; ordenados.forEach(l=>{ const d=l.date||'—'; if(!isNeutro(l))totDia[d]=(totDia[d]||0)+ +l.amount; (dayIds[d]=dayIds[d]||[]).push(l.id); });
+  const totDia={}, dayIds={}, concDia={}; ordenados.forEach(l=>{ const d=l.date||'—'; if(!isNeutro(l))totDia[d]=(totDia[d]||0)+ +l.amount; (dayIds[d]=dayIds[d]||[]).push(l.id); if(l.conciliado)concDia[d]=(concDia[d]||0)+1; });
   ST.dayIds=dayIds;
   let out='', lastD=null;
-  if(bd) out+=`<div class="note" style="font-size:12px"><i class="ph-duotone ph-calendar-blank"></i> Busca por data — ${rows.length} lançamento(s) em <b>${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}</b>, de todas as competências.</div>`;
+  if(bd) out+=`<div class="note" style="font-size:12px"><i class="ph-duotone ph-calendar-blank"></i> Busca por data — ${rows.length} lançamento(s) em <b>${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}</b>, de todas as competências. Use pra bater com o extrato do dia.</div>`;
   ordenados.forEach(l=>{
     if(l.date!==lastD){ lastD=l.date; const d=l.date||'—'; const ids=dayIds[d]||[]; const allSel=ids.length&&ids.every(id=>ST.sel.has(id));
-      out+=`<div class="dayhead"><span style="display:flex;align-items:center;gap:9px">
-        <button class="daysel${allSel?' on':''}" data-day="${d}" title="Selecionar o dia">${allSel?'<i class="ph-duotone ph-check"></i>':''}</button>
-        ${dowLabel(l.date)}</span><span class="dsub">${brl(totDia[d]||0)}</span></div>`; }
+      const nc=concDia[d]||0, nt=ids.length, tudo=nc===nt;
+      const selo=`<span style="font-size:10.5px;font-weight:700;border-radius:8px;padding:2px 7px;background:${tudo?'#E6F3EA':'#FBF0DD'};color:${tudo?'#2C7A4B':'#9A6B1E'}">${tudo?'<i class="ph-duotone ph-check-circle"></i> tudo conciliado':`${nc}/${nt} conciliados`}</span>`;
+      out+=`<div class="dayhead"><span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        <button class="daysel${allSel?' on':''}" data-day="${d}" title="Selecionar o dia todo">${allSel?'<i class="ph-duotone ph-check"></i>':''}</button>
+        ${dowLabel(l.date)} ${selo}</span><span class="dsub">${brl(totDia[d]||0)}</span></div>`; }
     out+=cardHTML(l);
   });
   el.innerHTML=out;
