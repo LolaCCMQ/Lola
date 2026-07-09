@@ -1,1 +1,1 @@
-kick 2026-07-06T15:58:25Z — build do teste/index (Escala em Aplicativos)
+deploy kick 2026-07-09 11:2x — destravar fila do Pages (financeiro: conciliação manual + relatório só conciliados)
