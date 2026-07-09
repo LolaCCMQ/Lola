@@ -742,18 +742,19 @@ function renderLanc(){
   const totDia={}, dayIds={}, concDia={}; ordenados.forEach(l=>{ const d=l.date||'—'; if(!isNeutro(l))totDia[d]=(totDia[d]||0)+ +l.amount; (dayIds[d]=dayIds[d]||[]).push(l.id); if(l.conciliado)concDia[d]=(concDia[d]||0)+1; });
   ST.dayIds=dayIds;
   let out='', lastD=null;
-  if(bd) out+=`<div class="note" style="font-size:12px"><i class="ph-duotone ph-calendar-blank"></i> Busca por data — ${rows.length} lançamento(s) em <b>${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}</b>, de todas as competências. Use pra bater com o extrato do dia.</div>`;
+  if(bd) out+=`<div class="note" style="font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><i class="ph-duotone ph-calendar-blank"></i> <span style="flex:1">Busca por data — ${rows.length} lançamento(s) em <b>${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}</b>, de todas as competências. Use pra bater com o extrato do dia.</span></div>`;
   ordenados.forEach(l=>{
     if(l.date!==lastD){ lastD=l.date; const d=l.date||'—'; const ids=dayIds[d]||[]; const allSel=ids.length&&ids.every(id=>ST.sel.has(id));
       const nc=concDia[d]||0, nt=ids.length, tudo=nc===nt;
       const selo=`<span style="font-size:10.5px;font-weight:700;border-radius:8px;padding:2px 7px;background:${tudo?'#E6F3EA':'#FBF0DD'};color:${tudo?'#2C7A4B':'#9A6B1E'}">${tudo?'<i class="ph-duotone ph-check-circle"></i> tudo conciliado':`${nc}/${nt} conciliados`}</span>`;
       out+=`<div class="dayhead"><span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
         <button class="daysel${allSel?' on':''}" data-day="${d}" title="Selecionar o dia todo">${allSel?'<i class="ph-duotone ph-check"></i>':''}</button>
-        ${dowLabel(l.date)} ${selo}</span><span class="dsub">${brl(totDia[d]||0)}</span></div>`; }
+        ${dowLabel(l.date)} ${selo}</span><span style="display:flex;align-items:center;gap:8px"><span class="dsub">${brl(totDia[d]||0)}</span>${d!=='—'?`<button class="iconbtn" data-printday="${d}" title="Imprimir conferência deste dia"><i class="ph-duotone ph-printer"></i></button>`:''}</span></div>`; }
     out+=cardHTML(l);
   });
   el.innerHTML=out;
   el.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{const ids=ST.dayIds[b.dataset.day]||[];const allSel=ids.length&&ids.every(id=>ST.sel.has(id));ids.forEach(id=>allSel?ST.sel.delete(id):ST.sel.add(id));renderLanc();});
+  el.querySelectorAll('[data-printday]').forEach(b=>b.onclick=e=>{e.stopPropagation();printConferenciaDia(b.dataset.printday);});
   el.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>openCatPicker(b.dataset.cat));
   el.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>openLinkPagamento(b.dataset.nf));
   el.querySelectorAll('[data-flag]').forEach(b=>b.onclick=()=>openDivergencia(b.dataset.flag));
@@ -2085,6 +2086,45 @@ function printRelatorio(){
     <style>body{font-family:Georgia,serif;padding:30px;color:#2A1A17}h1{color:#A82A2A;font-size:22px}h2{font-size:14px;color:#8A7A72;font-weight:normal;margin-bottom:20px}table{width:100%;border-collapse:collapse}td{padding:6px 8px;border-bottom:1px solid #eee;font-size:13px}</style></head>
     <body><h1>Lola · Relatório por plano de contas — ${U(ST.unit).nome}</h1><h2>${comp==='todas'?'Todas as competências':'Competência '+compLabel(comp)} · ${ST.relSoConc?'somente conciliados (fechamento)':'todos os lançamentos (prévia)'} · gerado em ${new Date().toLocaleDateString('pt-BR')}</h2>
     <table><tr style="font-weight:700"><td>Conta</td><td style="text-align:right">Qtde</td><td style="text-align:right">Total</td></tr>${rows}</table></body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),300);
+}
+
+/* Conferência de um DIA (bater com o extrato): lista cada lançamento com status */
+function printConferenciaDia(date){
+  const its=ST.lanc.filter(l=>(l.date||'').slice(0,10)===date).sort((a,b)=>Math.abs(+b.amount)-Math.abs(+a.amount));
+  if(!its.length){ toast('Nenhum lançamento neste dia'); return; }
+  const nc=its.filter(l=>l.conciliado).length;
+  const tot=its.filter(l=>!isNeutro(l)).reduce((s,l)=>s+ +l.amount,0);
+  const [y,m,d]=date.split('-');
+  const linhas=its.map(l=>{
+    const cat=ST.planoById[l.category]; const nf=notasDoLanc(l.id).length;
+    return `<tr>
+      <td style="text-align:center;font-size:16px">${l.conciliado?'☑':'☐'}</td>
+      <td>${esc(l.memo||'—')}${l.note?`<div style="font-size:11px;color:#8A7A72">↳ ${esc(l.note)}</div>`:''}</td>
+      <td>${cat?esc(cat.label):'<span style="color:#B5302E">sem categoria</span>'}</td>
+      <td style="text-align:center;font-size:11px;color:#8A7A72">${compLabel(l.competencia)}</td>
+      <td style="text-align:center">${nf?'NF ✓':'—'}</td>
+      <td style="text-align:right;white-space:nowrap">${brl(+l.amount)}</td>
+    </tr>`;
+  }).join('');
+  const w=window.open('','_print');
+  w.document.write(`<html><head><title>Conferência ${d}/${m}/${y} — ${U(ST.unit).nome}</title>
+    <style>body{font-family:Georgia,serif;padding:28px;color:#2A1A17}h1{color:#A82A2A;font-size:20px;margin-bottom:2px}
+    h2{font-size:13px;color:#8A7A72;font-weight:normal;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;color:#8A7A72;border-bottom:2px solid #A82A2A;padding:6px 8px}
+    td{padding:7px 8px;border-bottom:1px solid #eee;font-size:12.5px;vertical-align:top}
+    .tot{margin-top:14px;font-size:14px;font-weight:700;text-align:right}
+    .sub{margin-top:4px;font-size:12px;color:#8A7A72;text-align:right}</style></head>
+    <body>
+    <h1>Conferência bancária — ${d}/${m}/${y}</h1>
+    <h2>${U(ST.unit).nome} · ${its.length} lançamento(s) · ${nc} conciliado(s), ${its.length-nc} a conferir · gerado em ${new Date().toLocaleDateString('pt-BR')}</h2>
+    <table>
+      <tr><th style="text-align:center">Conc.</th><th>Lançamento</th><th>Categoria</th><th style="text-align:center">Competência</th><th style="text-align:center">NF</th><th style="text-align:right">Valor</th></tr>
+      ${linhas}
+    </table>
+    <div class="tot">Total do dia: ${brl(tot)}</div>
+    <div class="sub">☑ = conciliado (você conferiu com o extrato) · ☐ = ainda a conferir</div>
+    </body></html>`);
   w.document.close(); setTimeout(()=>w.print(),300);
 }
 
