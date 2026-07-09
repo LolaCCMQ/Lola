@@ -1494,12 +1494,14 @@ function impTab(s){
       <div class="fld"><label>Tipo</label>
         <select id="m_tipo"><option value="-1">Despesa (saída)</option><option value="1">Receita (entrada)</option></select></div>
       <div class="fld"><label>Competência</label><select id="m_comp">${monthList().map(c=>`<option value="${c}" ${c===ST.comp?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
+      <div class="fld"><label>Categoria</label>${catSelectHTML(null)}</div>
       <button class="btn p" id="m_go">Adicionar lançamento</button>`;
     $('#m_go').onclick=async()=>{
       let amt=parseFloat(($('#m_amt').value||'').replace(/\./g,'').replace(',','.'));
       if(isNaN(amt)){toast('Informe o valor');return;}
       amt=Math.abs(amt)*(+$('#m_tipo').value);
-      const row={unit:ST.unit,date:$('#m_date').value,competencia:$('#m_comp').value,memo:$('#m_memo').value||'(sem descrição)',amount:amt,manual:true,fitid:'man'+Date.now()};
+      const catEl=$('#sheetBody .pCat');
+      const row={unit:ST.unit,date:$('#m_date').value,competencia:$('#m_comp').value,memo:$('#m_memo').value||'(sem descrição)',amount:amt,category:catEl?(catEl.value||null):null,manual:true,fitid:'man'+Date.now()};
       await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(row)}).then(r=>ST.lanc.unshift(r[0]));
       closeSheet();toast('Lançado');renderAll();
     };
