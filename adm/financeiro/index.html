@@ -1731,7 +1731,10 @@ function openLinkPagamento(lancId, forcePicker){
       <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'(sem emitente)')}</div>
       <div class="date" style="font-size:11px;color:var(--mut)">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</div>
       ${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:5px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div>
-      <div class="amt neg">${brl(-(+n.valor_total||0))}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        <div class="amt neg">${brl(-(+n.valor_total||0))}</div>
+        <button type="button" class="assocUm" data-assoc="${n.chave}"${diff?' data-diff="1"':''} style="background:var(--vinho);color:#fff;border:0;border-radius:9px;font:inherit;font-weight:700;font-size:11.5px;padding:5px 11px;min-height:30px;cursor:pointer">Associar</button>
+      </div></div>
       <div class="prodbox" data-pn="${n.chave}" style="display:none;padding:2px 12px 10px 42px">
         ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
       </div>`;
@@ -1781,6 +1784,17 @@ function openLinkPagamento(lancId, forcePicker){
     $$('#sheetBody .verprod').forEach(b=>b.onclick=(e)=>{ e.stopPropagation();
       const box=$(`#sheetBody .prodbox[data-pn="${b.dataset.vn}"]`); if(!box)return;
       box.style.display=box.style.display==='none'?'block':'none'; b.style.opacity=box.style.display==='none'?'1':'.6'; });
+    // botão "Associar" direto na nota — sem precisar rolar até o fim
+    $$('#sheetBody .assocUm').forEach(b=>b.onclick=async(e)=>{ e.stopPropagation();
+      const ch=b.dataset.assoc, diff=b.dataset.diff;
+      if(diff && !confirm('Esta nota parece de fornecedor diferente do pagamento. Associar mesmo assim?')) return;
+      await linkNotaLanc(ch,lancId);
+      if(diff){ const termo=splitFornecedor(l.memo).disp; const nn=notaObj(ch);
+        if(nn && confirm(`Criar apelido pra SEMPRE reconhecer "${termo}" como ${esc(nn.emitente||'esse fornecedor')}?`)) await salvarApelido(termo, nn.emitente); }
+      const comp=await syncCompDaNota(lancId);
+      closeSheet(); toast('Nota associada'+(comp?' · competência '+compLabel(comp):'')); renderNotas(); renderLanc();
+      openDiferenca(lancId);   // se o pagamento for maior que a nota, pergunta o que é a sobra
+    });
   };
   const paint=(q)=>{ $('#lnkList').innerHTML=buildRows(q); wireRows(); };
   paint(''); recalc();
