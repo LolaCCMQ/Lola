@@ -242,6 +242,15 @@
   .viewtoggle{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff}
   .viewtoggle button{background:none;border:none;padding:8px 12px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:5px}
   .viewtoggle button.on{background:var(--vinho);color:#fff}
+  .list-filters{display:none;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:14px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:13px}
+  .list-filters.on{display:flex}
+  .list-filters .lf{display:flex;flex-direction:column;gap:3px}
+  .list-filters label{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:800}
+  .list-filters select,.list-filters input{padding:8px 10px;min-height:40px}
+  .list-filters select{min-width:150px}
+  .list-filters .lf-clear{background:none;border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:9px 13px;font-weight:700;cursor:pointer;min-height:40px}
+  .list-filters .lf-clear:hover{border-color:var(--vinho);color:var(--vinho)}
+  @media(max-width:720px){.list-filters .lf{flex:1;min-width:42%}.list-filters select{min-width:0;width:100%}}
   .pay{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;letter-spacing:.2px}
   .pay-pago{background:var(--green-pale);color:var(--green)}
   .pay-parcial{background:var(--amber-pale);color:var(--amber)}
@@ -331,6 +340,7 @@
       <button class="btn-primary" onclick="newEvent()">+ Novo evento</button>
     </div>
     <div class="filters" id="filters"></div>
+    <div id="listFilters" class="list-filters"></div>
     <div id="list" class="grid" style="margin-top:18px"><div class="loading">Carregando eventos…</div></div>
   </div>
   <div id="detail" class="hidden"></div>
@@ -441,7 +451,7 @@ const SECTIONS = [
 
 let DB={events:[]};
 let FICHAS=[];
-let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
+let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", dtDe:"", dtAte:"", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
 
 /* ===== Mapeamento banco <-> app ===== */
 function intOrNull(v){const n=parseInt(v);return isNaN(n)?null:n;}
@@ -560,7 +570,21 @@ function payStatus(ev){
   if(!temValor) return {cls:'pay-sem', txt:'—', ico:''};
   return {cls:'pay-pend', txt:'Pendente', ico:'○'};
 }
-function setModo(m){view.modo=m;try{localStorage.setItem('evtModo',m);}catch(e){}renderViewToggle();renderList();}
+function setModo(m){view.modo=m;try{localStorage.setItem('evtModo',m);}catch(e){}renderViewToggle();renderListFilters();renderList();}
+function setLocFilter(v){view.locFilter=v;renderList();}
+function setDt(k,v){view[k]=v;renderList();}
+function clearListFilters(){view.locFilter="";view.dtDe="";view.dtAte="";renderListFilters();renderList();}
+function renderListFilters(){
+  const w=document.getElementById('listFilters');if(!w)return;
+  if(view.modo!=='lista'){w.className='list-filters';w.innerHTML='';return;}
+  w.className='list-filters on';
+  const locOpts=[{v:'',l:'Todos os locais'}].concat(LOCAIS.filter(function(l){return l.v;}).map(function(l){return {v:l.v,l:l.l};}));
+  w.innerHTML=''
+    +'<div class="lf"><label>Local</label><select onchange="setLocFilter(this.value)">'+locOpts.map(function(o){return '<option value="'+o.v+'"'+(view.locFilter===o.v?' selected':'')+'>'+o.l+'</option>';}).join('')+'</select></div>'
+    +'<div class="lf"><label>De</label><input type="date" value="'+esc(view.dtDe)+'" onchange="setDt(\'dtDe\',this.value)"></div>'
+    +'<div class="lf"><label>Até</label><input type="date" value="'+esc(view.dtAte)+'" onchange="setDt(\'dtAte\',this.value)"></div>'
+    +((view.locFilter||view.dtDe||view.dtAte)?'<button class="lf-clear" onclick="clearListFilters()">✕ Limpar</button>':'');
+}
 function renderViewToggle(){
   const w=document.getElementById('viewToggle');if(!w)return;
   w.innerHTML='<button class="'+(view.modo==='cards'?'on':'')+'" onclick="setModo(\'cards\')">▦ Cartões</button>'
@@ -568,6 +592,7 @@ function renderViewToggle(){
 }
 function renderFilters(){
   renderViewToggle();
+  renderListFilters();
   const wrap=document.getElementById('filters');
   const opts=[{v:"todos",l:"Todos"}].concat(STATUS.map(s=>({v:s.v,l:s.l})));
   wrap.innerHTML=opts.map(o=>`<button class="chip ${view.filter===o.v?'active':''}" onclick="setFilter('${o.v}')">${o.l}</button>`).join('');
@@ -578,10 +603,15 @@ function renderList(){
   let evs=DB.events.slice().sort((a,b)=>{var ca=(a.status==='realizado'||a.status==='cancelado')?1:0,cb=(b.status==='realizado'||b.status==='cancelado')?1:0;if(ca!==cb)return ca-cb;return (a.data||"9999").localeCompare(b.data||"9999");});
   if(view.filter!=="todos")evs=evs.filter(e=>e.status===view.filter);
   if(q)evs=evs.filter(e=>[e.nome,e.responsavel,e.ocasiao,e.contato].join(' ').toLowerCase().includes(q));
+  if(view.modo==='lista'){
+    if(view.locFilter)evs=evs.filter(e=>(e.local||'')===view.locFilter);
+    if(view.dtDe)evs=evs.filter(e=>e.data&&e.data>=view.dtDe);
+    if(view.dtAte)evs=evs.filter(e=>e.data&&e.data<=view.dtAte);
+  }
   const list=document.getElementById('list');
   if(!evs.length){
     list.innerHTML=`<div class="empty full" style="grid-column:1/-1"><div class="big">🥂</div>
-      <h3>Nenhum evento ${view.filter!=='todos'?'neste status':'ainda'}</h3>
+      <h3>Nenhum evento ${(view.filter!=='todos'||view.locFilter||view.dtDe||view.dtAte)?'com esses filtros':'ainda'}</h3>
       <p>Clique em <b>+ Novo evento</b> para começar a organizar.</p></div>`;
     return;
   }
