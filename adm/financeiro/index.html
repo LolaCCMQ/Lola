@@ -281,8 +281,12 @@ section.view{display:none} section.view.on{display:block}
 
     <!-- RELATÓRIO por competência + plano de contas -->
     <section class="view" id="v-relatorio">
-      <div class="note"><b>Relatório por plano de contas.</b> Total de cada categoria na competência escolhida. Toque na categoria para ver os lançamentos.</div>
+      <div class="note"><b>Relatório por plano de contas.</b> Este é o fechamento do mês: entram só os lançamentos <b>conciliados</b> (que você conferiu). Toque na categoria para ver os lançamentos.</div>
       <div class="monthsel"><span class="lblcap">Competência</span><select id="relComp"></select></div>
+      <div class="filters" id="relConcTog" style="margin-bottom:12px">
+        <button class="chip on" data-rc="1">Só conciliados</button>
+        <button class="chip" data-rc="0">Todos (prévia)</button>
+      </div>
       <div class="catsearch" id="relSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="relSearch" placeholder="Buscar categoria…" autocomplete="off"></div>
       <div id="relBody"></div>
       <button class="btn o" id="relPrint" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir / PDF</button>
@@ -403,7 +407,7 @@ const GRUPOS=[
 const grupoInfo=id=>GRUPOS.find(g=>g.id===id)||{id,label:id,type:'despesa',dre:id};
 
 /* ========================= STATE ========================= */
-let ST={ unit:null, plano:[], planoById:{}, lanc:[], notas:[], regras:[], comp:null, lancComp:null, catF:'', statusF:'todos', dreScope:null, lancMode:'lista', fgroups:{}, expandedGroups:new Set(), selMode:false, sel:new Set(), search:'', regrasSearch:'' };
+let ST={ unit:null, plano:[], planoById:{}, lanc:[], notas:[], regras:[], comp:null, lancComp:null, catF:'', statusF:'todos', dreScope:null, lancMode:'lista', fgroups:{}, expandedGroups:new Set(), selMode:false, sel:new Set(), search:'', regrasSearch:'', relSoConc:true };
 
 /* ========================= HELPERS ========================= */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -530,9 +534,7 @@ async function linkNotaLanc(chave,lancId){
   if((ST.notaLinks||[]).some(x=>x.nota_chave===chave && String(x.lanc_id)===String(lancId))) return;
   const ins=await api('financeiro_nota_lanc',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify({unit:ST.unit,nota_chave:chave,lanc_id:lancId})});
   if(ins&&ins[0]) ST.notaLinks.push(ins[0]); else ST.notaLinks.push({unit:ST.unit,nota_chave:chave,lanc_id:lancId});
-  // auto-concilia o pagamento se já tiver categoria
-  const l=ST.lanc.find(x=>String(x.id)===String(lancId));
-  if(l&&l.category&&!l.conciliado){ l.conciliado=true; api(`financeiro_lancamentos?id=eq.${lancId}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({conciliado:true})}).catch(()=>{}); }
+  // conciliação é manual — associar nota NÃO concilia sozinho.
 }
 async function unlinkNotaLanc(chave,lancId){
   await api(`financeiro_nota_lanc?nota_chave=eq.${encodeURIComponent(chave)}&lanc_id=eq.${lancId}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
@@ -724,9 +726,10 @@ function renderLanc(){
         ${catHtml}
         <span class="compchip" data-comp="${l.id}"><i class="ph-duotone ph-calendar-blank"></i> ${compLabel(l.competencia)}</span>
         ${nfHtml}${divHtml}
+        ${l.conciliado?`<span class="catbtn" style="background:#E6F3EA;color:#2C7A4B;border-color:#CBE6D5;pointer-events:none" title="Você já conferiu — entra no relatório do mês"><i class="ph-duotone ph-seal-check"></i> Conciliado</span>`:''}
         <div class="mini">
           ${(!nfN && !dv)?`<button class="iconbtn" data-flag="${l.id}" title="Não achei a nota — pedir pra localizar"><i class="ph-duotone ph-flag"></i></button>`:''}
-          <button class="iconbtn ${l.conciliado?'on':''}" data-conc="${l.id}" title="Conciliado"><i class="ph-duotone ph-check-circle"></i></button>
+          <button class="iconbtn ${l.conciliado?'on':''}" data-conc="${l.id}" title="${l.conciliado?'Conciliado — tocar para desmarcar':'Marcar como conciliado (conferido)'}"><i class="ph-duotone ph-check-circle"></i></button>
           <button class="iconbtn" data-mv="${l.id}" title="Mover para outra empresa"><i class="ph-duotone ph-arrows-left-right"></i></button>
           <button class="iconbtn" data-edit="${l.id}" title="Editar"><i class="ph-duotone ph-pencil-simple"></i></button>
           <button class="iconbtn del" data-del="${l.id}" title="Excluir"><i class="ph-duotone ph-trash"></i></button>
@@ -1023,9 +1026,7 @@ function openCatPicker(lancId){
 /* ========================= EDIT / TOGGLE ========================= */
 async function patchLanc(id,body){
   const i=ST.lanc.findIndex(l=>l.id===id); if(i>=0)Object.assign(ST.lanc[i],body);
-  // auto-concilia quando categoria + nota já estão vinculadas (a menos que o próprio patch mexa em conciliado)
-  if(i>=0 && !('conciliado' in body)){ const l=ST.lanc[i];
-    if(l.category && notasDoLanc(l.id).length && !l.conciliado){ l.conciliado=true; body={...body,conciliado:true}; } }
+  // conciliado é MANUAL (o "conferi" da Bianca) — nada marca sozinho.
   await api(`financeiro_lancamentos?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(body)});
 }
 async function toggleConc(id){const l=ST.lanc.find(x=>x.id===id);await patchLanc(id,{conciliado:!l.conciliado});renderLanc();}
@@ -2011,15 +2012,24 @@ function renderDRE(){
 /* ========================= RELATÓRIO (por competência + plano de contas) ========================= */
 function relData(){
   const comp=ST.relComp||ST.comp;
-  const scope=ST.lanc.filter(l=>!isNeutro(l) && (comp==='todas'||l.competencia===comp));
+  const base=ST.lanc.filter(l=>!isNeutro(l) && (comp==='todas'||l.competencia===comp));
+  // pendências de conciliação = tem categoria mas não foi conferido (não entra no fechamento)
+  const pend=base.filter(l=>l.category && !l.conciliado);
+  const pendTot=pend.reduce((s,l)=>s+ +l.amount,0);
+  const scope=ST.relSoConc ? base.filter(l=>l.conciliado || !l.category) : base;
   const byCat={}; scope.forEach(l=>{ const k=l.category||'__none'; (byCat[k]=byCat[k]||[]).push(l); });
-  return {comp, byCat};
+  return {comp, byCat, pendN:pend.length, pendTot};
 }
 function renderRelatorio(){
-  const {comp,byCat}=relData();
+  const {comp,byCat,pendN,pendTot}=relData();
   const q=normSearch(ST.relSearch||'');
   ST.relExp=ST.relExp||new Set();
   let html=''; let grandR=0,grandD=0;
+  if(ST.relSoConc && pendN){
+    html+=`<div class="note" style="background:var(--amberBg);color:var(--amber);display:flex;align-items:center;gap:8px;cursor:pointer" id="relPendBanner">
+      <i class="ph-duotone ph-warning-circle" style="font-size:20px"></i>
+      <span style="flex:1"><b>${pendN} lançamento(s)</b> com categoria ainda não conciliados (${brl(pendTot)}) — <b>não entram</b> neste fechamento. Toque para conferir na aba Lançamentos.</span></div>`;
+  }
   GRUPOS.forEach(g=>{
     const cats=ST.plano.filter(p=>p.group_id===g.id).filter(c=>!q||normSearch(c.label).includes(q));
     const rows=cats.map(c=>({c, items:(byCat[c.id]||[])})).filter(r=>r.items.length);
@@ -2048,6 +2058,11 @@ function renderRelatorio(){
   $('#relBody').innerHTML=head+(html||'<div class="empty"><i class="ph-duotone ph-list-magnifying-glass"></i>Nada nesta competência.</div>');
   $$('#relBody [data-rel]').forEach(b=>b.onclick=()=>{const k=b.dataset.rel;ST.relExp.has(k)?ST.relExp.delete(k):ST.relExp.add(k);renderRelatorio();});
   $$('#relBody [data-relanc]').forEach(b=>b.onclick=e=>{e.stopPropagation();openEdit(b.dataset.relanc);});
+  { const pb=$('#relPendBanner'); if(pb) pb.onclick=()=>{ // vai conferir os pendentes na aba Lançamentos
+      ST.lancComp=comp==='todas'?'todas':comp; ST.statusF='naoconc';
+      $('#compSel').value=ST.lancComp;
+      $$('#statusFilters .chip').forEach(x=>x.classList.toggle('on',x.dataset.f==='naoconc'));
+      switchView('lanc'); }; }
 }
 function printRelatorio(){
   const {comp,byCat}=relData();
@@ -2062,7 +2077,7 @@ function printRelatorio(){
   const w=window.open('','_print');
   w.document.write(`<html><head><title>Relatório ${U(ST.unit).nome} ${comp==='todas'?'Todas':compLabel(comp)}</title>
     <style>body{font-family:Georgia,serif;padding:30px;color:#2A1A17}h1{color:#A82A2A;font-size:22px}h2{font-size:14px;color:#8A7A72;font-weight:normal;margin-bottom:20px}table{width:100%;border-collapse:collapse}td{padding:6px 8px;border-bottom:1px solid #eee;font-size:13px}</style></head>
-    <body><h1>Lola · Relatório por plano de contas — ${U(ST.unit).nome}</h1><h2>${comp==='todas'?'Todas as competências':'Competência '+compLabel(comp)} · gerado em ${new Date().toLocaleDateString('pt-BR')}</h2>
+    <body><h1>Lola · Relatório por plano de contas — ${U(ST.unit).nome}</h1><h2>${comp==='todas'?'Todas as competências':'Competência '+compLabel(comp)} · ${ST.relSoConc?'somente conciliados (fechamento)':'todos os lançamentos (prévia)'} · gerado em ${new Date().toLocaleDateString('pt-BR')}</h2>
     <table><tr style="font-weight:700"><td>Conta</td><td style="text-align:right">Qtde</td><td style="text-align:right">Total</td></tr>${rows}</table></body></html>`);
   w.document.close(); setTimeout(()=>w.print(),300);
 }
@@ -2107,6 +2122,7 @@ $('#btnBack').onclick=()=>{$('#app').classList.remove('show');$('#gate').classLi
 $('#compSel').onchange=e=>{ST.lancComp=e.target.value;renderLanc();};
 $('#dreComp').onchange=e=>{ST.comp=e.target.value;renderDRE();};
 $('#relComp').onchange=e=>{ST.relComp=e.target.value;renderRelatorio();};
+$$('#relConcTog .chip').forEach(c=>c.onclick=()=>{$$('#relConcTog .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.relSoConc=c.dataset.rc==='1';renderRelatorio();});
 $('#relSearch').oninput=e=>{ST.relSearch=e.target.value;renderRelatorio();};
 $('#relPrint').onclick=printRelatorio;
 $('#catFilter').onchange=e=>{ST.catF=e.target.value;renderLanc();};
