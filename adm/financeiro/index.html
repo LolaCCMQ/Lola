@@ -1051,7 +1051,7 @@ function openEdit(id){
     </div>
     <div class="fld"><label>Categoria</label>${catSelectHTML(l.category)}</div>
     <div class="fld"><label>Competência</label><select id="e_comp">${monthList().map(c=>`<option value="${c}" ${c===l.competencia?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
-    <div class="fld"><label>Observação</label><textarea id="e_note">${esc(l.note||'')}</textarea></div>
+    <div class="fld"><label>Observação / justificativa</label><textarea id="e_note" placeholder="Ex.: pagamento à Julia Maciel = frete do evento X · Getech = máquina de gelo">${esc(l.note||'')}</textarea><div class="note" style="font-size:11px;margin:6px 0 0">Aparece no Relatório, embaixo do lançamento — pra explicar pagamentos fora do comum.</div></div>
     ${notasDoLanc(id).length?`<button class="btn o" id="e_splitn" style="margin-bottom:10px"><i class="ph-duotone ph-scissors"></i> Destrinchar por nota (${notasDoLanc(id).length})</button>`:''}
     <button class="btn o" id="e_split" style="margin-bottom:10px"><i class="ph-duotone ph-scissors"></i> Dividir em partes (rateio)</button>
     <button class="btn o" id="e_mover" style="margin-bottom:10px"><i class="ph-duotone ph-arrows-left-right"></i> Mover para outra empresa</button>
@@ -2036,7 +2036,7 @@ function renderRelatorio(){
           <div class="amt ${tot<0?'neg':'pos'}">${brl(tot)}</div>
           <i class="ph-duotone ph-caret-${exp?'up':'down'}" style="margin-left:8px;color:var(--mut)"></i>
         </div>
-        ${exp?`<div style="border-top:1px solid var(--fio);margin-top:8px;padding-top:6px">${r.items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(l=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 2px;font-size:12.5px;border-bottom:1px solid var(--fio)"><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div><div class="date" style="font-size:11px">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div></div><div class="amt ${+l.amount<0?'neg':'pos'}" style="font-size:12.5px">${brl(+l.amount)}</div></div>`).join('')}</div>`:''}
+        ${exp?`<div style="border-top:1px solid var(--fio);margin-top:8px;padding-top:6px">${r.items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(l=>`<div class="relrow" data-relanc="${l.id}" style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;font-size:12.5px;border-bottom:1px solid var(--fio);cursor:pointer"><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div><div class="date" style="font-size:11px">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div>${l.note?`<div style="font-size:11.5px;color:var(--amber);background:var(--amberBg);border-radius:8px;padding:4px 8px;margin-top:5px;white-space:normal"><i class="ph-duotone ph-note-pencil"></i> ${esc(l.note)}</div>`:''}</div><div style="display:flex;align-items:center;gap:8px"><div class="amt ${+l.amount<0?'neg':'pos'}" style="font-size:12.5px">${brl(+l.amount)}</div><i class="ph-duotone ph-pencil-simple" style="color:var(--mut)"></i></div></div>`).join('')}<div class="note" style="font-size:11px;margin:8px 0 0">Toque num lançamento para editar competência, valor, categoria…</div></div>`:''}
       </div>`;
     });
   });
@@ -2047,6 +2047,7 @@ function renderRelatorio(){
   const head=`<div class="sum" style="margin-bottom:12px"><div><div class="v" style="color:var(--pos)">${brl(grandR)}</div><div class="k">Receitas</div></div><div><div class="v" style="color:var(--neg)">${brl(grandD)}</div><div class="k">Despesas</div></div><div><div class="v">${brl(grandR+grandD)}</div><div class="k">Resultado</div></div></div>`;
   $('#relBody').innerHTML=head+(html||'<div class="empty"><i class="ph-duotone ph-list-magnifying-glass"></i>Nada nesta competência.</div>');
   $$('#relBody [data-rel]').forEach(b=>b.onclick=()=>{const k=b.dataset.rel;ST.relExp.has(k)?ST.relExp.delete(k):ST.relExp.add(k);renderRelatorio();});
+  $$('#relBody [data-relanc]').forEach(b=>b.onclick=e=>{e.stopPropagation();openEdit(b.dataset.relanc);});
 }
 function printRelatorio(){
   const {comp,byCat}=relData();
@@ -2080,7 +2081,8 @@ function switchView(v){
   $('#fab').style.display = (v==='lanc'||v==='notas')?'inline-flex':'none';
   if(v==='lanc')renderLanc(); if(v==='dre')renderDRE(); if(v==='relatorio')renderRelatorio(); if(v==='notas')renderNotas(); if(v==='regras')renderRegras(); if(v==='categorias')renderCategorias();
 }
-function renderAll(){renderLanc();renderDRE();renderNotas();}
+function renderAll(){renderLanc();renderDRE();renderNotas();
+  const rv=document.getElementById('v-relatorio'); if(rv&&rv.classList.contains('on')) renderRelatorio();}
 
 /* ========================= PRINT ========================= */
 function printDRE(){
