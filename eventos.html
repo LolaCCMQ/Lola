@@ -239,6 +239,44 @@
   .lista-sep .cnt{font-size:11px;font-weight:800;color:var(--muted);background:#fff;border:1px solid var(--border);padding:2px 8px;border-radius:20px}
   .lista-sep table{background:#fff;border-radius:9px}
   .pill-ok{background:var(--green-pale);color:var(--green);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
+  .viewtoggle{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff}
+  .viewtoggle button{background:none;border:none;padding:8px 12px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:5px}
+  .viewtoggle button.on{background:var(--vinho);color:#fff}
+  .list-filters{display:none;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:14px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:13px}
+  .list-filters.on{display:flex}
+  .list-filters .lf{display:flex;flex-direction:column;gap:3px}
+  .list-filters label{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:800}
+  .list-filters select,.list-filters input{padding:8px 10px;min-height:40px}
+  .list-filters select{min-width:150px}
+  .list-filters .lf-clear{background:none;border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:9px 13px;font-weight:700;cursor:pointer;min-height:40px}
+  .list-filters .lf-clear:hover{border-color:var(--vinho);color:var(--vinho)}
+  @media(max-width:720px){.list-filters .lf{flex:1;min-width:42%}.list-filters select{min-width:0;width:100%}}
+  .pay{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;letter-spacing:.2px}
+  .pay-pago{background:var(--green-pale);color:var(--green)}
+  .pay-parcial{background:var(--amber-pale);color:var(--amber)}
+  .pay-pend{background:#FBE4E0;color:#B5302E}
+  .pay-sem{background:var(--warm);color:var(--muted)}
+  .list-tbl{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .list-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:800;padding:11px 12px;background:var(--cream);border-bottom:1px solid var(--border)}
+  .list-tbl td{padding:11px 12px;border-bottom:1px solid #F3EBE2;font-size:13.5px;vertical-align:middle}
+  .list-tbl tr:last-child td{border-bottom:none}
+  .list-tbl tr.row{cursor:pointer}
+  .list-tbl tr.row:hover td{background:var(--cream)}
+  .list-tbl tr.done td{opacity:.55}
+  .list-tbl .lt-nome{font-family:var(--serif);font-weight:600;font-size:15px;color:var(--ink)}
+  .list-tbl .lt-num{text-align:right;font-weight:700;white-space:nowrap}
+  .lt-locdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  @media(max-width:720px){
+    .list-tbl thead{display:none}
+    .list-tbl,.list-tbl tbody,.list-tbl tr,.list-tbl td{display:block;width:100%}
+    .list-tbl{border:none;background:none}
+    .list-tbl tr.row{background:#fff;border:1px solid var(--border);border-radius:13px;margin-bottom:10px;padding:6px 4px}
+    .list-tbl td{border:none;padding:5px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .list-tbl td:before{content:attr(data-l);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:800}
+    .list-tbl td.lt-nomewrap:before{display:none}
+    .list-tbl td.lt-nomewrap{display:block}
+    .list-tbl .lt-num{text-align:left}
+  }
   .facc{border:1px solid var(--border);border-radius:13px;margin-bottom:8px;background:#fff;overflow:hidden}
   .facc.on{border-color:var(--vinho)}
   .facc-h{display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:46px}
@@ -298,9 +336,11 @@
   <div id="dashboard">
     <div class="toolbar">
       <input class="search" id="search" placeholder="🔍 Buscar evento, responsável, ocasião..." oninput="renderList()">
+      <div class="viewtoggle" id="viewToggle"></div>
       <button class="btn-primary" onclick="newEvent()">+ Novo evento</button>
     </div>
     <div class="filters" id="filters"></div>
+    <div id="listFilters" class="list-filters"></div>
     <div id="list" class="grid" style="margin-top:18px"><div class="loading">Carregando eventos…</div></div>
   </div>
   <div id="detail" class="hidden"></div>
@@ -411,7 +451,7 @@ const SECTIONS = [
 
 let DB={events:[]};
 let FICHAS=[];
-let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos"};
+let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", dtDe:"", dtAte:"", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
 
 /* ===== Mapeamento banco <-> app ===== */
 function intOrNull(v){const n=parseInt(v);return isNaN(n)?null:n;}
@@ -519,7 +559,40 @@ function progress(ev){let tot=0,done=0;relevantFases(ev).forEach(f=>f.itens.forE
 function faseProgress(ev,f){let tot=f.itens.length,done=0;f.itens.forEach((it,i)=>{if(ev.checks[f.id+"_"+i]&&ev.checks[f.id+"_"+i].done)done++;});return {done,tot,pct:tot?Math.round(done/tot*100):0};}
 function locPill(v){const l=LOCAIS.find(x=>x.v===v);if(!l||!v)return '';return `<span class="loc-pill ${l.c}">📍 ${l.l.replace('Lola ','')}</span>`;}
 
+function payStatus(ev){
+  const pg=ev.pag||{};
+  const total=orcTotal(ev);
+  const temValor=total>0||Number(pg.sinalValor)>0;
+  const pago = pg.pago==='Pago' || (pg.sinalPago&&pg.saldoPago);
+  const parcial = !pago && (pg.pago==='Parcial' || pg.sinalPago || (Number(pg.sinalValor)>0&&pg.sinalPago));
+  if(pago) return {cls:'pay-pago', txt:'Pago', ico:'✓'};
+  if(parcial) return {cls:'pay-parcial', txt:'Parcial', ico:'◐'};
+  if(!temValor) return {cls:'pay-sem', txt:'—', ico:''};
+  return {cls:'pay-pend', txt:'Pendente', ico:'○'};
+}
+function setModo(m){view.modo=m;try{localStorage.setItem('evtModo',m);}catch(e){}renderViewToggle();renderListFilters();renderList();}
+function setLocFilter(v){view.locFilter=v;renderListFilters();renderList();}
+function setDt(k,v){view[k]=v;renderListFilters();renderList();}
+function clearListFilters(){view.locFilter="";view.dtDe="";view.dtAte="";renderListFilters();renderList();}
+function renderListFilters(){
+  const w=document.getElementById('listFilters');if(!w)return;
+  if(view.modo!=='lista'){w.className='list-filters';w.innerHTML='';return;}
+  w.className='list-filters on';
+  const locOpts=[{v:'',l:'Todos os locais'}].concat(LOCAIS.filter(function(l){return l.v;}).map(function(l){return {v:l.v,l:l.l};}));
+  w.innerHTML=''
+    +'<div class="lf"><label>Local</label><select onchange="setLocFilter(this.value)">'+locOpts.map(function(o){return '<option value="'+o.v+'"'+(view.locFilter===o.v?' selected':'')+'>'+o.l+'</option>';}).join('')+'</select></div>'
+    +'<div class="lf"><label>De</label><input type="date" value="'+esc(view.dtDe)+'" onchange="setDt(\'dtDe\',this.value)"></div>'
+    +'<div class="lf"><label>Até</label><input type="date" value="'+esc(view.dtAte)+'" onchange="setDt(\'dtAte\',this.value)"></div>'
+    +((view.locFilter||view.dtDe||view.dtAte)?'<button class="lf-clear" onclick="clearListFilters()">✕ Limpar</button>':'');
+}
+function renderViewToggle(){
+  const w=document.getElementById('viewToggle');if(!w)return;
+  w.innerHTML='<button class="'+(view.modo==='cards'?'on':'')+'" onclick="setModo(\'cards\')">▦ Cartões</button>'
+    +'<button class="'+(view.modo==='lista'?'on':'')+'" onclick="setModo(\'lista\')">☰ Lista</button>';
+}
 function renderFilters(){
+  renderViewToggle();
+  renderListFilters();
   const wrap=document.getElementById('filters');
   const opts=[{v:"todos",l:"Todos"}].concat(STATUS.map(s=>({v:s.v,l:s.l})));
   wrap.innerHTML=opts.map(o=>`<button class="chip ${view.filter===o.v?'active':''}" onclick="setFilter('${o.v}')">${o.l}</button>`).join('');
@@ -530,13 +603,44 @@ function renderList(){
   let evs=DB.events.slice().sort((a,b)=>{var ca=(a.status==='realizado'||a.status==='cancelado')?1:0,cb=(b.status==='realizado'||b.status==='cancelado')?1:0;if(ca!==cb)return ca-cb;return (a.data||"9999").localeCompare(b.data||"9999");});
   if(view.filter!=="todos")evs=evs.filter(e=>e.status===view.filter);
   if(q)evs=evs.filter(e=>[e.nome,e.responsavel,e.ocasiao,e.contato].join(' ').toLowerCase().includes(q));
+  if(view.modo==='lista'){
+    if(view.locFilter)evs=evs.filter(e=>(e.local||'')===view.locFilter);
+    if(view.dtDe)evs=evs.filter(e=>e.data&&e.data>=view.dtDe);
+    if(view.dtAte)evs=evs.filter(e=>e.data&&e.data<=view.dtAte);
+  }
   const list=document.getElementById('list');
   if(!evs.length){
     list.innerHTML=`<div class="empty full" style="grid-column:1/-1"><div class="big">🥂</div>
-      <h3>Nenhum evento ${view.filter!=='todos'?'neste status':'ainda'}</h3>
+      <h3>Nenhum evento ${(view.filter!=='todos'||view.locFilter||view.dtDe||view.dtAte)?'com esses filtros':'ainda'}</h3>
       <p>Clique em <b>+ Novo evento</b> para começar a organizar.</p></div>`;
     return;
   }
+  if(view.modo==='lista'){
+    list.className='';
+    const locColor={central:'#2C5AA0',ccmq:'#C0392B',mac:'#2C7A4B',catering:'#B23A6B'};
+    list.innerHTML='<table class="list-tbl"><thead><tr>'
+      +'<th>Evento</th><th>Data</th><th>Pax</th><th>Status</th><th>Pagamento</th><th style="text-align:right">Orçamento</th>'
+      +'</tr></thead><tbody>'
+      +evs.map(function(e){
+        const st=STATUS.find(function(s){return s.v===e.status;})||STATUS[0];
+        const pax=[e.paxIn,e.paxOut].filter(function(x){return x!=='';}).join(' + ');
+        const dt=e.data?(function(){var _d=new Date(e.data+'T00:00');return _d.toLocaleDateString('pt-BR')+' · '+_d.toLocaleDateString('pt-BR',{weekday:'short'}).toUpperCase().replace('.','');})():'A definir';
+        const loc=e.local?((LOCAIS.find(function(l){return l.v===e.local;})||{}).l||'').replace('Lola ',''):'';
+        const pay=payStatus(e);
+        const done=(e.status==='realizado'||e.status==='cancelado');
+        return '<tr class="row'+(done?' done':'')+'" onclick="open_(\''+e.id+'\')">'
+          +'<td class="lt-nomewrap"><span class="lt-nome"><span class="lt-locdot" style="background:'+(locColor[e.local]||'#ccc')+'"></span>'+(esc(e.nome)||'(sem nome)')+'</span>'+(loc?' <span class="meta" style="font-size:11px;color:var(--muted)">'+esc(loc)+'</span>':'')+'</td>'
+          +'<td data-l="Data">'+dt+(e.horario?' '+esc(e.horario):'')+'</td>'
+          +'<td data-l="Pax">'+(pax||'—')+'</td>'
+          +'<td data-l="Status"><span class="badge '+st.c+'">'+st.l+'</span></td>'
+          +'<td data-l="Pagamento"><span class="pay '+pay.cls+'">'+(pay.ico?pay.ico+' ':'')+pay.txt+'</span></td>'
+          +'<td class="lt-num" data-l="Orçamento">'+fmt(orcTotal(e))+'</td>'
+          +'</tr>';
+      }).join('')
+      +'</tbody></table>';
+    return;
+  }
+  list.className='grid';
   list.innerHTML=evs.map(e=>{
     const st=STATUS.find(s=>s.v===e.status)||STATUS[0];
     const tp=TIPOS.find(t=>t.v===e.tipo);
@@ -549,7 +653,7 @@ function renderList(){
       <div class="meta">📅 ${dt}${e.horario?' · '+e.horario:''} ${locPill(e.local)}</div>
       <div class="meta">👤 ${esc(e.responsavel)||'—'}${pax?' · 👥 '+pax+' pax':''}</div>
       ${e.editadoEm?`<div class="meta" style="font-size:11px;color:var(--muted)">✏️ ${new Date(e.editadoEm).toLocaleDateString('pt-BR')} ${new Date(e.editadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}${e.editadoPor&&e.editadoPor!=='portal'?' · '+esc(e.editadoPor):''}</div>`:''}
-      <div style="margin-top:10px"><span class="badge ${st.c}">${st.l}</span></div>
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="badge ${st.c}">${st.l}</span>${(()=>{const pay=payStatus(e);return pay.txt==='—'?'':'<span class="pay '+pay.cls+'">'+(pay.ico?pay.ico+' ':'')+pay.txt+'</span>';})()}</div>
       <div class="progress"><div style="width:${pct}%"></div></div>
       <div class="pct"><span>Checklist</span><span>${pct}%</span></div>
     </div>`;
