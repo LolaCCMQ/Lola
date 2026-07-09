@@ -1425,6 +1425,7 @@ function impTab(s){
     el.innerHTML=`<div class="note">Puxa as <b>Compras no Cartão</b> (app do portal) desta empresa para cá, como lançamentos — pra você categorizar, ajustar competência e conciliar junto com o resto. Já importadas não duplicam.</div>
       <div id="cartaoMsg" class="note" style="background:var(--cremeDark)">Carregando…</div>
       <button class="btn p" id="cartaoGo" disabled style="opacity:.5"><i class="ph-duotone ph-credit-card"></i> Puxar compras do cartão</button>`;
+    $('#cartaoGo').onclick=importComprasCartao;
     carregarComprasCartao();
   } else if(s==='colar'){
     el.innerHTML=`<div class="note">Cole as linhas do extrato (PDF/tela do banco). Tento achar <b>data</b> e <b>valor</b> em cada linha. Revise os sinais (+/−) depois de importar.</div>
@@ -1503,6 +1504,38 @@ function impTab(s){
       closeSheet();toast('Lançado');renderAll();
     };
   }
+}
+/* ===== COMPRAS NO CARTÃO (app do portal) → lançamentos ===== */
+const CARTAO_EMPRESA={ccmq:'Lola',mac:'Lola MAC',central:'Cozinha Central',eventos:'Lola Eventos'};
+async function carregarComprasCartao(){
+  const emp=CARTAO_EMPRESA[ST.unit]||'Lola';
+  const msg=$('#cartaoMsg'), btn=$('#cartaoGo');
+  try{
+    const compras=await api(`compras_cartao?empresa=eq.${encodeURIComponent(emp)}&select=*&order=data.desc`);
+    const have=new Set(ST.lanc.map(l=>l.fitid).filter(Boolean));
+    const novas=compras.filter(c=>!have.has('cartao_'+c.id));
+    ST._comprasCartao=novas;
+    if(!compras.length){ msg.innerHTML=`Nenhuma compra no cartão registrada para <b>${esc(emp)}</b>.`; return; }
+    if(!novas.length){ msg.innerHTML=`Todas as ${compras.length} compras de <b>${esc(emp)}</b> já foram importadas.`; return; }
+    const tot=novas.reduce((s,c)=>s+Math.abs(+c.valor||0),0);
+    msg.innerHTML=`<b>${novas.length} compra(s) nova(s)</b> de ${esc(emp)} · ${brl(-tot)}. As já importadas não entram de novo.`;
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+  }catch(e){ msg.innerHTML='Erro ao carregar: '+esc(e.message); }
+}
+async function importComprasCartao(){
+  const novas=ST._comprasCartao||[]; if(!novas.length){toast('Nada novo pra importar');return;}
+  const btn=$('#cartaoGo'), old=btn?btn.innerHTML:''; if(btn){btn.disabled=true;btn.innerHTML='<i class="ph-duotone ph-spinner"></i> Importando…';}
+  const rows=novas.map(c=>{
+    const memo=(c.loja?c.loja+' · ':'')+(c.descricao||'compra no cartão')+(c.cartao?' ['+c.cartao+']':'');
+    return {unit:ST.unit,fitid:'cartao_'+c.id,date:c.data,competencia:c.competencia||compFromDate(c.data),
+      memo:memo,amount:-(Math.abs(+c.valor||0)),manual:true,category:applyRules(memo)||null};
+  });
+  try{
+    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+    ins.forEach(r=>ST.lanc.unshift(r));
+    const auto=rows.filter(r=>r.category).length;
+    closeSheet(); toast(ins.length+' compra(s) do cartão importada(s)'+(auto?', '+auto+' auto-classificadas':'')); renderAll();
+  }catch(e){ toast('Erro: '+e.message); if(btn){btn.disabled=false;btn.innerHTML=old;} }
 }
 async function importTxns(txns,src){
   if(!txns.length){toast('Nada para importar');return;}
