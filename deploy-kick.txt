@@ -1,1 +1,1 @@
-deploy kick 2026-07-09 11:2x — destravar fila do Pages (financeiro: conciliação manual + relatório só conciliados)
+deploy kick 2026-07-09 b — destravar fila do Pages (financeiro: imprimir conferência do dia)
