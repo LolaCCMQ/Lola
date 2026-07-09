@@ -783,7 +783,7 @@ function toggleSelectAll(){ const ids=ST.visibleIds||[];
 function openMultiClassify(){
   const ids=[...ST.sel]; if(!ids.length){toast('Marque ao menos um');return;}
   openSheet(`<h3>Classificar ${ids.length} lançamento(s)</h3>`+catPickerBody());
-  wireCatSearch(async cat=>{ await classifyIds(ids,cat); ST.sel.clear(); closeSheet(); toast(ids.length+' classificado(s)'); renderAll(); updateSelBar(); });
+  wireCatSearch(async cat=>{ await classifyIds(ids,cat); closeSheet(); toast(ids.length+' classificado(s) — seleção mantida'); renderAll(); updateSelBar(); });
 }
 async function classifyIds(ids,catId){
   for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
@@ -799,7 +799,7 @@ function openMultiComp(){
     try{ for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
       await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({competencia:comp})});}
       ids.forEach(id=>{const l=ST.lanc.find(x=>x.id===id);if(l)l.competencia=comp;});
-      ST.sel.clear(); closeSheet(); toast(ids.length+' movido(s) para '+compLabel(comp)); renderAll(); updateSelBar();
+      closeSheet(); toast(ids.length+' → '+compLabel(comp)+' — seleção mantida'); renderAll(); updateSelBar();
     }catch(e){toast('Erro: '+e.message);} };
 }
 async function deleteSelecionados(){
@@ -846,8 +846,8 @@ async function conciliarSelecionados(){
   try{
     for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
       await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({conciliado:true})});}
-    const set=new Set(ids); ST.lanc.forEach(l=>{if(set.has(l.id))l.conciliado=true;}); ST.sel.clear();
-    toast(ids.length+' conciliado(s)'); renderLanc(); updateSelBar();
+    const set=new Set(ids); ST.lanc.forEach(l=>{if(set.has(l.id))l.conciliado=true;});
+    toast(ids.length+' conciliado(s) — seleção mantida'); renderLanc(); updateSelBar();
   }catch(e){toast('Erro: '+e.message);}
 }
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
