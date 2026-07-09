@@ -1050,12 +1050,16 @@ function openEdit(id){
       </div>
       <div class="fld"><label>Data</label><input id="e_date" type="date" value="${l.date||''}"></div>
     </div>
-    <div class="fld"><label>Categoria</label>${catSelectHTML(l.category)}</div>
-    <div class="fld"><label>Competência</label><select id="e_comp">${monthList().map(c=>`<option value="${c}" ${c===l.competencia?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
-    <div class="fld"><label>Observação / justificativa</label><textarea id="e_note" placeholder="Ex.: pagamento à Julia Maciel = frete do evento X · Getech = máquina de gelo">${esc(l.note||'')}</textarea><div class="note" style="font-size:11px;margin:6px 0 0">Aparece no Relatório, embaixo do lançamento — pra explicar pagamentos fora do comum.</div></div>
-    ${notasDoLanc(id).length?`<button class="btn o" id="e_splitn" style="margin-bottom:10px"><i class="ph-duotone ph-scissors"></i> Destrinchar por nota (${notasDoLanc(id).length})</button>`:''}
-    <button class="btn o" id="e_split" style="margin-bottom:10px"><i class="ph-duotone ph-scissors"></i> Dividir em partes (rateio)</button>
-    <button class="btn o" id="e_mover" style="margin-bottom:10px"><i class="ph-duotone ph-arrows-left-right"></i> Mover para outra empresa</button>
+    <div class="row2">
+      <div class="fld"><label>Categoria</label>${catSelectHTML(l.category)}</div>
+      <div class="fld"><label>Competência</label><select id="e_comp">${monthList().map(c=>`<option value="${c}" ${c===l.competencia?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
+    </div>
+    <div class="fld"><label>Observação / justificativa <span class="mut" style="text-transform:none;letter-spacing:0;font-weight:400">— aparece no Relatório</span></label><textarea id="e_note" rows="1" style="min-height:44px" placeholder="Ex.: Getech = máquina de gelo">${esc(l.note||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      ${notasDoLanc(id).length?`<button class="btn o" id="e_splitn" style="flex:1"><i class="ph-duotone ph-scissors"></i> Por nota (${notasDoLanc(id).length})</button>`:''}
+      <button class="btn o" id="e_split" style="flex:1"><i class="ph-duotone ph-scissors"></i> Dividir</button>
+      <button class="btn o" id="e_mover" style="flex:1"><i class="ph-duotone ph-arrows-left-right"></i> Mover</button>
+    </div>
     <div style="display:flex;gap:10px;margin-top:0">
       <button class="btn d" id="e_del" style="flex:0 0 46px"><i class="ph-duotone ph-trash"></i></button>
       <button class="btn p" id="e_save" style="flex:1">Salvar</button>
