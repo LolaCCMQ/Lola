@@ -84,6 +84,7 @@
   .pill.orcado{background:var(--roxo-bg);color:var(--roxo)}
   .pill.feito{background:var(--ok-bg);color:var(--ok)}
   .pill.uni{padding:3px 8px;background:#FBE4E0;color:#C0392B;cursor:default}
+  .tkdel{color:var(--rotulo);cursor:pointer;font-size:14px;padding:2px 5px;flex:0 0 auto}
   .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 
   .nota{background:var(--card);border:1px solid var(--borda);border-radius:13px;padding:12px 13px;margin-bottom:9px}
@@ -98,6 +99,7 @@
   .metaline b{color:var(--vinho2)}
   textarea,input[type=text],input[type=date],select{width:100%;font-family:inherit;font-size:14.5px;padding:10px 12px;border:1px solid var(--borda);border-radius:12px;background:#fff;color:var(--t1)}
   textarea{min-height:140px;resize:vertical}
+  #ataTexto,#fTexto{min-height:440px;line-height:1.5}
   input:focus,textarea:focus,select:focus{outline:none;border-color:var(--vinho)}
   .lab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--rotulo);margin:12px 0 5px}
   .lab .free{text-transform:none;font-weight:400;color:var(--t3)}
@@ -360,7 +362,8 @@ function taskRow(t){
   return '<div class="tk'+(done?' done':'')+'" onclick="abrirTarefa(\''+t.id+'\')">'
     +'<div class="main"><div class="tit">'+esc(t.titulo||'(sem título)')+'</div>'
     +'<div class="meta">criada por <b>'+esc(t.criado_por||'—')+'</b> · pra <b>'+esc(para)+'</b>'+(t.data?(' · '+fmtData(t.data)):'')+'</div></div>'
-    +'<span class="pill '+(t.status||'afazer')+'" onclick="cicloStatus(\''+t.id+'\',event)">'+ELAB[t.status||'afazer']+'</span></div>';
+    +'<span class="pill '+(t.status||'afazer')+'" onclick="cicloStatus(\''+t.id+'\',event)">'+ELAB[t.status||'afazer']+'</span>'
+    +'<span class="tkdel" title="excluir tarefa" onclick="excluirTarefa(\''+t.id+'\',event)">✕</span></div>';
 }
 function renderTarefas(v){
   let h='<button class="cta" onclick="novaTarefa()"><i class="ph-duotone ph-plus"></i>Nova tarefa</button>';
@@ -401,24 +404,20 @@ function salvarNovaTarefa(){
 }
 function abrirTarefa(id){
   const t=DB.tarefas.find(x=>x.id===id);if(!t)return;
-  let h='<div class="metaline" style="margin-bottom:2px">TAREFA</div>';
-  h+='<div class="lab">O que precisa ser feito</div><input type="text" id="dTit" value="'+esc(t.titulo||'')+'">';
-  h+='<div class="metaline" style="margin-top:10px">✍️ criada por <b>'+esc(t.criado_por||'—')+'</b></div>';
-  h+='<div class="lab">Pra quem é</div><div class="pick" id="dPara"></div>';
-  h+='<div class="lab">Status</div><div class="stbtns" id="dStatus">'+ETAPAS.map(e=>'<span class="stbtn'+((t.status||'afazer')===e[0]?' on':'')+'" data-v="'+e[0]+'">'+e[1]+'</span>').join('')+'</div>';
-  h+='<div class="lab">Observações <span class="free">— ex.: já orcei, em andamento</span></div><div class="obs" id="dObs"></div>';
+  const para=(t.para||[]).length?(t.para||[]).join(', '):'ninguém';
+  let h='<div class="lab">O que precisa ser feito</div><input type="text" id="dTit" value="'+esc(t.titulo||'')+'">';
+  h+='<div class="metaline" style="margin-top:12px">✍️ criada por <b>'+esc(t.criado_por||'—')+'</b> · para <b>'+esc(para)+'</b></div>';
+  h+='<div class="lab" style="margin-top:12px">Observações <span class="free">— ex.: já orcei, em andamento</span></div><div class="obs" id="dObs"></div>';
   h+='<div class="obsadd"><input id="dObsIn" type="text" placeholder="Escrever observação…"><button onclick="addObs(\''+t.id+'\')">+</button></div>';
   h+='<div class="sheetfoot"><button class="cta ghost" onclick="closeSheet()">Fechar</button><button class="cta save" onclick="salvarTarefa(\''+t.id+'\')"><i class="ph-duotone ph-check"></i>Salvar</button></div>';
   h+='<div class="delrow"><span onclick="excluirTarefa(\''+t.id+'\')"><i class="ph-duotone ph-trash"></i> Excluir tarefa</span></div>';
   sheet('Tarefa',h);
-  pickInto('dPara',TEAM,(t.para||[]).slice());
-  document.querySelectorAll('#dStatus .stbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('#dStatus .stbtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
   renderObs(t);
 }
 function renderObs(t){const el=document.getElementById('dObs');if(!el)return;const o=t.obs||[];el.innerHTML=o.length?o.map(x=>'<div class="o"><b>'+esc(x.por||'—')+'</b>: '+esc(x.texto)+' <span class="qd">'+fmtData(x.em)+'</span></div>').join(''):'<div class="pinempty">Nenhuma ainda.</div>';}
 function addObs(id){const t=DB.tarefas.find(x=>x.id===id);const inp=document.getElementById('dObsIn');const v=(inp.value||'').trim();if(!v)return;t.obs=t.obs||[];t.obs.push({por:autorAtual()||'—',texto:v,em:new Date().toISOString()});saveDB();inp.value='';renderObs(t);}
 function salvarTarefa(id){const t=DB.tarefas.find(x=>x.id===id);if(!t)return;t.titulo=document.getElementById('dTit').value.trim()||t.titulo;t.para=pickVal('dPara');const on=document.querySelector('#dStatus .stbtn.on');t.status=on?on.getAttribute('data-v'):(t.status||'afazer');saveDB();closeSheet();render();toast('✓ Salvo');}
-function excluirTarefa(id,ev){if(ev)ev.preventDefault();if(!confirm('Excluir esta tarefa?'))return;DB.tarefas=DB.tarefas.filter(t=>t.id!==id);saveDB();closeSheet();render();toast('Excluída');}
+function excluirTarefa(id,ev){if(ev){ev.preventDefault();ev.stopPropagation();}if(!confirm('Excluir esta tarefa?'))return;DB.tarefas=DB.tarefas.filter(t=>t.id!==id);saveDB();closeSheet();render();toast('Excluída');}
 
 /* ---------- pickers / sheet ---------- */
 function pickInto(id,opts,state){const c=document.getElementById(id);c.innerHTML=opts.map(o=>'<span class="opt" data-v="'+esc(o)+'">'+esc(o)+'</span>').join('');c.querySelectorAll('.opt').forEach(el=>{if(state.indexOf(el.getAttribute('data-v'))>=0)el.classList.add('on');el.onclick=()=>el.classList.toggle('on');});}
