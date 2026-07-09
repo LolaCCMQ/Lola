@@ -783,7 +783,7 @@ function toggleSelectAll(){ const ids=ST.visibleIds||[];
 function openMultiClassify(){
   const ids=[...ST.sel]; if(!ids.length){toast('Marque ao menos um');return;}
   openSheet(`<h3>Classificar ${ids.length} lançamento(s)</h3>`+catPickerBody());
-  wireCatSearch(async cat=>{ await classifyIds(ids,cat); closeSheet(); toast(ids.length+' classificado(s) — seleção mantida'); renderAll(); updateSelBar(); });
+  wireCatSearch(async cat=>{ await classifyIds(ids,cat); ST.sel.clear(); closeSheet(); toast(ids.length+' classificado(s)'); renderAll(); updateSelBar(); });
 }
 async function classifyIds(ids,catId){
   for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
@@ -799,7 +799,7 @@ function openMultiComp(){
     try{ for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
       await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({competencia:comp})});}
       ids.forEach(id=>{const l=ST.lanc.find(x=>x.id===id);if(l)l.competencia=comp;});
-      closeSheet(); toast(ids.length+' → '+compLabel(comp)+' — seleção mantida'); renderAll(); updateSelBar();
+      ST.sel.clear(); closeSheet(); toast(ids.length+' → '+compLabel(comp)); renderAll(); updateSelBar();
     }catch(e){toast('Erro: '+e.message);} };
 }
 async function deleteSelecionados(){
@@ -846,8 +846,8 @@ async function conciliarSelecionados(){
   try{
     for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
       await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({conciliado:true})});}
-    const set=new Set(ids); ST.lanc.forEach(l=>{if(set.has(l.id))l.conciliado=true;});
-    toast(ids.length+' conciliado(s) — seleção mantida'); renderLanc(); updateSelBar();
+    const set=new Set(ids); ST.lanc.forEach(l=>{if(set.has(l.id))l.conciliado=true;}); ST.sel.clear();
+    toast(ids.length+' conciliado(s)'); renderLanc(); updateSelBar();
   }catch(e){toast('Erro: '+e.message);}
 }
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -1404,6 +1404,7 @@ function openImport(){
   openSheet(`<h3>Importar / lançar</h3><div class="hint">${U(ST.unit).nome}</div>
     <div class="seg" id="impSeg" style="flex-wrap:wrap">
       <button class="on" data-s="ofx">OFX</button>
+      <button data-s="cartao">Cartão</button>
       <button data-s="colar">Colar extrato</button>
       <button data-s="receita">Receita</button>
       <button data-s="manual">Manual</button>
@@ -1420,6 +1421,11 @@ function impTab(s){
       <button class="btn p" id="ofxGo">Importar OFX</button>`;
     $('#ofxGo').onclick=()=>{const f=$('#ofxFile').files[0];if(!f){toast('Escolha um arquivo');return;}
       const rd=new FileReader();rd.onload=()=>importTxns(parseOFX(rd.result),'ofx');rd.readAsText(f,'latin1');};
+  } else if(s==='cartao'){
+    el.innerHTML=`<div class="note">Puxa as <b>Compras no Cartão</b> (app do portal) desta empresa para cá, como lançamentos — pra você categorizar, ajustar competência e conciliar junto com o resto. Já importadas não duplicam.</div>
+      <div id="cartaoMsg" class="note" style="background:var(--cremeDark)">Carregando…</div>
+      <button class="btn p" id="cartaoGo" disabled style="opacity:.5"><i class="ph-duotone ph-credit-card"></i> Puxar compras do cartão</button>`;
+    carregarComprasCartao();
   } else if(s==='colar'){
     el.innerHTML=`<div class="note">Cole as linhas do extrato (PDF/tela do banco). Tento achar <b>data</b> e <b>valor</b> em cada linha. Revise os sinais (+/−) depois de importar.</div>
       <div class="fld"><label>Texto do extrato</label><textarea id="pasteTxt" style="min-height:150px" placeholder="05/05/2026  CAFE TRES CORACOES   -373,28&#10;06/05/2026  Vendas do dia         5.936,80"></textarea></div>
@@ -1879,7 +1885,8 @@ function openEditRule(id){
     try{
       await api(`financeiro_regras?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({termo,category:cat})});
       r.termo=termo; r.category=cat; ST.regras.sort((a,b)=>a.termo.localeCompare(b.termo));
-      closeSheet(); toast('Regra atualizada'); renderRegras();
+      const n=await aplicarRegraAgora(termo,cat);
+      closeSheet(); toast('Regra atualizada'+(n?` — ${n} classificado(s) agora`:'')); renderAll(); renderRegras();
     }catch(e){ toast('Erro: '+e.message); }
   });
 }
@@ -1894,11 +1901,22 @@ function openNewRule(prefTermo,prefCat){
   });
   if(prefCat){/* opcional: nada */}
 }
+/* aplica UM termo->categoria nos lançamentos SEM categoria da unidade atual (na hora) */
+async function aplicarRegraAgora(termo,category){
+  const t=normSearch(termo); if(!t) return 0;
+  const ids=(ST.lanc||[]).filter(l=>!l.category && normSearch(l.memo).includes(t)).map(l=>l.id);
+  if(!ids.length) return 0;
+  for(let i=0;i<ids.length;i+=50){ const ch=ids.slice(i,i+50);
+    await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({category})}); }
+  const set=new Set(ids); ST.lanc.forEach(l=>{if(set.has(l.id))l.category=category;});
+  return ids.length;
+}
 async function saveRule(termo,category){
   try{
     const ins=await api('financeiro_regras',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify({termo,category})});
     ST.regras.push(ins[0]); ST.regras.sort((a,b)=>a.termo.localeCompare(b.termo));
-    toast('Regra criada'); renderRegras();
+    const n=await aplicarRegraAgora(termo,category);   // classifica já os que batem
+    toast('Regra criada'+(n?` — ${n} classificado(s) agora`:'')); renderAll(); renderRegras();
   }catch(e){toast('Erro: '+e.message);}
 }
 async function deleteRule(id){
@@ -2187,14 +2205,14 @@ function printDRE(){
 /* ========================= EVENTS ========================= */
 $$('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.v));
 $('#btnBack').onclick=()=>{$('#app').classList.remove('show');$('#gate').classList.remove('hide');};
-$('#compSel').onchange=e=>{ST.lancComp=e.target.value;renderLanc();};
+$('#compSel').onchange=e=>{ST.lancComp=e.target.value;ST.sel.clear();renderLanc();updateSelBar();};
 $('#dreComp').onchange=e=>{ST.comp=e.target.value;renderDRE();};
 $('#relComp').onchange=e=>{ST.relComp=e.target.value;renderRelatorio();};
 $$('#relConcTog .chip').forEach(c=>c.onclick=()=>{$$('#relConcTog .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.relSoConc=c.dataset.rc==='1';renderRelatorio();});
 $('#relSearch').oninput=e=>{ST.relSearch=e.target.value;renderRelatorio();};
 $('#relPrint').onclick=printRelatorio;
-$('#catFilter').onchange=e=>{ST.catF=e.target.value;renderLanc();};
-$$('#statusFilters .chip').forEach(c=>c.onclick=()=>{$$('#statusFilters .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.statusF=c.dataset.f;renderLanc();});
+$('#catFilter').onchange=e=>{ST.catF=e.target.value;ST.sel.clear();renderLanc();updateSelBar();};
+$$('#statusFilters .chip').forEach(c=>c.onclick=()=>{$$('#statusFilters .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.statusF=c.dataset.f;ST.sel.clear();renderLanc();updateSelBar();});
 $$('#lancMode button').forEach(b=>b.onclick=()=>{$$('#lancMode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');ST.lancMode=b.dataset.m; ST.sel.clear(); renderLanc(); updateSelBar();});
 $('#lancSearch').oninput=e=>{ ST.search=e.target.value; renderLanc(); };
 $('#regrasSearch').oninput=e=>{ ST.regrasSearch=e.target.value; renderRegras(); };
