@@ -1760,7 +1760,15 @@ function openLinkPagamento(lancId, forcePicker){
     if(out.length) h+=`<div class="cg" style="color:var(--mut)">Outras notas sem pagamento</div>`+out.map(({n})=>nrow(n,true)).join('');
     return h||'<div class="note">Nenhuma nota deste mês sem pagamento. Use “ver todos os meses” ou busque acima.</div>';
   };
-  openSheet(`<h3>Associar notas ao pagamento</h3><div class="hint">${esc((l.memo||'').slice(0,44))} · Pagamento ${brl(+l.amount)}</div>
+  const forn=splitFornecedor(l.memo).disp||l.memo||'(sem descrição)';
+  openSheet(`<div style="position:sticky;top:0;z-index:6;background:#fff;padding:2px 0 9px;margin-bottom:11px;border-bottom:1px solid var(--fio)">
+      <h3 style="margin:0 0 4px">Associar notas ao pagamento</h3>
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
+        <div style="font-weight:700;font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(forn)}</div>
+        <div style="text-align:right;white-space:nowrap"><span class="amt neg" style="font-weight:700;font-size:14px">${brl(+l.amount)}</span></div>
+      </div>
+      <div class="mut" style="font-size:11.5px;margin-top:1px">Pagamento · ${fmtDate(l.date)}</div>
+    </div>
     <div class="catsearch" style="margin:2px 0 10px"><i class="ph-duotone ph-magnifying-glass"></i><input id="lnkSearch" placeholder="Buscar nota por nome ou valor…" autocomplete="off"></div>
     <button class="chip" id="lnkMes" style="margin-bottom:10px;color:var(--vinho);border-color:var(--vinho)"><i class="ph-duotone ph-funnel"></i> ${soMes?`Só ${compLabel(pcomp)} · tocar p/ ver todos os meses`:`Todos os meses · tocar p/ ver só ${compLabel(pcomp)}`}</button>
     ${ligHTML}
