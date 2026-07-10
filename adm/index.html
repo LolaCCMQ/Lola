@@ -89,6 +89,15 @@ a.app .t span.lock i{font-size:13px;line-height:1}
     <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
   </a>
 
+  <a class="app" href="central/" id="cardCentral" style="display:none">
+    <span class="ico"><i class="ph-duotone ph-gauge"></i></span>
+    <span class="t">
+      <b>Painel da Central</b>
+      <span>CMV da semana, produção e o placar do teste de 60 dias</span>
+    </span>
+    <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
+  </a>
+
   <a class="app" href="financeiro/" id="cardFin" style="display:none">
     <span class="ico"><i class="ph-duotone ph-chart-line-up"></i></span>
     <span class="t">
@@ -114,6 +123,7 @@ const $=s=>document.querySelector(s);
   $('#quem').innerHTML=`Você é <b>${sess.nome||sess.email}</b> · ${PAPEL_NOME[sess.papel]||sess.papel}`;
   if(sess.papel==='admin'||sess.papel==='financeiro') $('#cardFin').style.display='flex';
   if(sess.papel==='admin'||sess.papel==='gerente') $('#cardEvf').style.display='flex';
+  if(['admin','financeiro','gerente'].includes(sess.papel)) $('#cardCentral').style.display='flex';
 })();
 $('#btnSair').onclick=()=>{ lolaLogout(); location.reload(); };
 </script>
