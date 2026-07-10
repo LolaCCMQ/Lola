@@ -365,24 +365,24 @@ const U=id=>UNITS.find(u=>u.id===id)||UNITS[0];
 
 /* DRE: mapa grupo->linha, na ordem da consultora */
 const DRE_LINES=[
-  {key:'receita',   grupos:['receitas'],      lab:'Receita de Vendas', kind:'base'},
-  {key:'comissoes', grupos:['comissoes'],     lab:'(-) Comissões',           kind:'deduct'},
-  {key:'descontos', grupos:['descontos'],     lab:'(-) Descontos e Permutas',kind:'deduct'},
-  {key:'cmc',       grupos:['cmv'],           lab:'(-) CMC',                 kind:'deduct'},
-  {key:'lucroBruto',lab:'= Lucro Bruto',                                     kind:'sub'},
-  {key:'custosVar', grupos:['financeiras'],   lab:'(-) Custos Variáveis',    kind:'deduct'},
-  {key:'impostos',  grupos:['impostos'],      lab:'(-) Impostos',            kind:'deduct'},
-  {key:'margem',    lab:'= Margem de Contribuição',                          kind:'sub'},
-  {key:'pessoal',   grupos:['folha'],         lab:'(-) Despesas com Pessoal',kind:'deduct'},
-  {key:'prolabore', grupos:['prolabore'],     lab:'(-) Pró-Labore',          kind:'deduct'},
-  {key:'custosFixos',grupos:['operacionais'], lab:'(-) Custos Fixos',        kind:'deduct'},
-  {key:'ebitda',    lab:'= EBITDA',                                          kind:'res'},
-  {key:'invest',    grupos:['investimentos'], lab:'(-) Investimentos e outros',kind:'deduct'},
-  {key:'liquido',   lab:'= Lucro Líquido',                                   kind:'res'},
+  {key:'receita',    grupos:['receitas'],           lab:'Receita de Vendas',        kind:'base'},
+  {key:'descontos',  grupos:['descontos'],          lab:'(-) Descontos e Permutas', kind:'deduct'},
+  {key:'cmc',        grupos:['cmv'],                lab:'(-) CMV',                  kind:'deduct'},
+  {key:'lucroBruto', lab:'= Lucro Bruto',                                           kind:'sub'},
+  {key:'custosVar',  grupos:['custos_variaveis'],   lab:'(-) Custos Variáveis',     kind:'deduct'},
+  {key:'despFin',    grupos:['financeiras'],        lab:'(-) Despesas Financeiras', kind:'deduct'},
+  {key:'impostos',   grupos:['impostos'],           lab:'(-) Impostos',             kind:'deduct'},
+  {key:'margem',     lab:'= Margem de Contribuição',                                kind:'sub'},
+  {key:'pessoal',    grupos:['folha'],              lab:'(-) Despesas com Pessoal', kind:'deduct'},
+  {key:'prolabore',  grupos:['prolabore'],          lab:'(-) Pró-Labore',           kind:'deduct'},
+  {key:'custosFixos',grupos:['operacionais'],       lab:'(-) Custos Fixos',         kind:'deduct'},
+  {key:'ebitda',     lab:'= EBITDA',                                                kind:'res'},
+  {key:'invest',     grupos:['investimentos'],      lab:'(-) Investimentos e Outros',kind:'deduct'},
+  {key:'liquido',    lab:'= Lucro Líquido',                                         kind:'res'},
 ];
 /* cor por grupo (barrinha do card) */
 const GRUPO_COR={ transferencias:'#6B6258', receitas:'#2C7A4B', comissoes:'#7A4FA3', descontos:'#9A6B1E', cmv:'#B5302E',
-  financeiras:'#0F766E', impostos:'#4858A8', folha:'#8A6A2B', prolabore:'#6B4FA8',
+  custos_variaveis:'#0E7C86', financeiras:'#0F766E', impostos:'#4858A8', folha:'#8A6A2B', prolabore:'#6B4FA8',
   operacionais:'#2C5AA0', investimentos:'#B23A6B' };
 /* fontes de receita por unidade (checklist mensal de relatórios) */
 const RECEITA_FONTES_POR_UNIDADE={
@@ -392,17 +392,17 @@ const RECEITA_FONTES_PADRAO=[['stone','Vendas Stone'],['pix','PIX'],['dinheiro',
 function receitaFontes(){ return RECEITA_FONTES_POR_UNIDADE[ST.unit]||RECEITA_FONTES_PADRAO; }
 /* grupos canônicos (linha da DRE) — usados no gerenciador de categorias */
 const GRUPOS=[
-  {id:'receitas',      label:'RECEITAS',              type:'receita', dre:'Receitas'},
-  {id:'comissoes',     label:'COMISSÕES',             type:'despesa', dre:'Comissões'},
-  {id:'descontos',     label:'DESCONTOS E PERMUTAS',  type:'despesa', dre:'Descontos e Permutas'},
-  {id:'cmv',           label:'CMV',                   type:'despesa', dre:'CMV (custo de mercadoria)'},
-  {id:'financeiras',   label:'DESPESAS FINANCEIRAS',  type:'despesa', dre:'Custos Variáveis'},
-  {id:'impostos',      label:'IMPOSTOS',              type:'despesa', dre:'Impostos'},
-  {id:'folha',         label:'FOLHA DE PAGAMENTO',    type:'despesa', dre:'Despesas com Pessoal'},
-  {id:'prolabore',     label:'PRÓ-LABORE',            type:'despesa', dre:'Pró-Labore'},
-  {id:'operacionais',  label:'DESPESAS OPERACIONAIS', type:'despesa', dre:'Custos Fixos'},
-  {id:'investimentos', label:'INVESTIMENTOS',         type:'despesa', dre:'Investimentos e outros'},
-  {id:'transferencias',label:'TRANSFERÊNCIAS',        type:'neutro',  dre:'Fora da DRE (transferência entre contas)'},
+  {id:'receitas',        label:'RECEITAS',               type:'receita', dre:'Receitas'},
+  {id:'descontos',       label:'DESCONTOS E PERMUTAS',   type:'despesa', dre:'Descontos e Permutas'},
+  {id:'cmv',             label:'CMV',                    type:'despesa', dre:'CMV (custo de mercadoria)'},
+  {id:'custos_variaveis',label:'CUSTOS VARIÁVEIS',       type:'despesa', dre:'Custos Variáveis'},
+  {id:'financeiras',     label:'DESPESAS FINANCEIRAS',   type:'despesa', dre:'Despesas Financeiras'},
+  {id:'impostos',        label:'IMPOSTOS',               type:'despesa', dre:'Impostos'},
+  {id:'folha',           label:'DESPESAS COM PESSOAL',   type:'despesa', dre:'Despesas com Pessoal'},
+  {id:'prolabore',       label:'PRÓ-LABORE',             type:'despesa', dre:'Pró-Labore'},
+  {id:'operacionais',    label:'CUSTOS FIXOS',           type:'despesa', dre:'Custos Fixos'},
+  {id:'investimentos',   label:'INVESTIMENTOS E OUTROS', type:'despesa', dre:'Investimentos e outros'},
+  {id:'transferencias',  label:'TRANSFERÊNCIAS',         type:'neutro',  dre:'Fora da DRE (transferência entre contas)'},
 ];
 const grupoInfo=id=>GRUPOS.find(g=>g.id===id)||{id,label:id,type:'despesa',dre:id};
 
@@ -989,7 +989,7 @@ async function classifyGroup(key,catId,allMonths){
 
 /* ========================= CATEGORY PICKER ========================= */
 function groupsOrdered(){
-  const order=['transferencias','receitas','comissoes','descontos','cmv','financeiras','impostos','folha','prolabore','operacionais','investimentos'];
+  const order=['transferencias','receitas','descontos','cmv','custos_variaveis','financeiras','impostos','folha','prolabore','operacionais','investimentos'];
   const gs={}; ST.plano.forEach(p=>{(gs[p.group_id]=gs[p.group_id]||{label:p.group_label,items:[]}).items.push(p);});
   return order.filter(g=>gs[g]).map(g=>({id:g,...gs[g]}));
 }
@@ -1978,7 +1978,7 @@ async function applyRulesNow(){
 /* ========================= CATEGORIAS (plano de contas) ========================= */
 function renderCategorias(){
   const el=$('#catsList');
-  const order=['transferencias','receitas','comissoes','descontos','cmv','financeiras','impostos','folha','prolabore','operacionais','investimentos'];
+  const order=['transferencias','receitas','descontos','cmv','custos_variaveis','financeiras','impostos','folha','prolabore','operacionais','investimentos'];
   const gs={}; ST.plano.forEach(p=>{(gs[p.group_id]=gs[p.group_id]||[]).push(p);});
   const ordered=order.filter(g=>gs[g]).concat(Object.keys(gs).filter(g=>!order.includes(g)));
   el.innerHTML=ordered.map(gid=>{
@@ -2047,16 +2047,16 @@ function buildDRE(rows){
   const g={}; rows.forEach(r=>{const p=ST.planoById[r.category];if(!p)return;g[p.group_id]=(g[p.group_id]||0)+ +r.amount;});
   const val=k=>Math.abs(g[k]||0);
   const receita=g['receitas']||0;
-  const cmc=val('cmv'), comissoes=val('comissoes'), descontos=val('descontos');
-  const lucroBruto=receita-comissoes-descontos-cmc;
-  const custosVar=val('financeiras'), impostos=val('impostos');
-  const margem=lucroBruto-custosVar-impostos;
+  const descontos=val('descontos'), cmc=val('cmv');
+  const lucroBruto=receita-descontos-cmc;
+  const custosVar=val('custos_variaveis'), despFin=val('financeiras'), impostos=val('impostos');
+  const margem=lucroBruto-custosVar-despFin-impostos;
   const pessoal=val('folha'), prolabore=val('prolabore'), custosFixos=val('operacionais');
   const ebitda=margem-pessoal-prolabore-custosFixos;
   const invest=val('investimentos');
   const liquido=ebitda-invest;
   const naoClass=rows.filter(r=>!r.category).length;
-  return {receita,comissoes,descontos,cmc,lucroBruto,custosVar,impostos,margem,pessoal,prolabore,custosFixos,ebitda,invest,liquido,base:receita,naoClass};
+  return {receita,descontos,cmc,lucroBruto,custosVar,despFin,impostos,margem,pessoal,prolabore,custosFixos,ebitda,invest,liquido,base:receita,naoClass};
 }
 function dreRowsForScope(comp){
   let src=ST.lanc;
