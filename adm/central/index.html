@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Painel da Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#A82A2A; --vinhoH:#7E1E1F;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --okBg:#E6F3EA; --okFg:#2C7A4B; --pendBg:#FBF0DD; --pendFg:#9A6B1E; --urgBg:#FBEAE7; --urgFg:#B5302E;
+  --r-pill:9px; --r-btn:13px; --r-card:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 96px}
+header{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:14px}
+header .back{background:none;border:0;color:var(--vinho);font-size:22px;display:flex;align-items:center;cursor:pointer;padding:4px}
+header h1{font-family:Fraunces,serif;font-weight:600;font-size:19px;color:var(--vinho);line-height:1.15}
+header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em}
+header .spacer{flex:1}
+header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:pointer;padding:4px}
+
+.note{background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sec);margin-bottom:16px;overflow-wrap:anywhere}
+.monthsel{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.monthsel span{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600}
+select{background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:10px 12px;font:inherit;font-size:14px;color:var(--ink);min-height:44px}
+.lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin:22px 0 10px}
+
+/* hero CMV */
+.hero{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px;text-align:center}
+.hero .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:700}
+.hero .big{font-family:Fraunces,serif;font-weight:600;font-size:52px;line-height:1;margin:8px 0 4px}
+.hero .meta{font-size:12.5px;color:var(--mut);font-weight:600}
+.hero .bar{height:10px;border-radius:6px;background:var(--cremeDark);margin:14px 0 4px;overflow:hidden;position:relative}
+.hero .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;display:block}
+.hero .barmark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--sec)}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:14px}
+.kpi .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl);font-weight:700}
+.kpi .v{font-family:Fraunces,serif;font-weight:600;font-size:22px;margin-top:4px}
+.kpi .s{font-size:11px;color:var(--mut);margin-top:2px}
+
+.score{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:6px 14px;margin-bottom:10px}
+.srow{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--fio)}
+.srow:last-child{border-bottom:0}
+.srow .ico{font-size:24px;flex-shrink:0;line-height:1;margin-top:1px}
+.srow .t b{display:block;font-size:14px;font-weight:700}
+.srow .t span{display:block;font-size:12px;color:var(--mut);margin-top:2px}
+.srow .st{margin-left:auto;flex-shrink:0;font-size:10.5px;font-weight:700;border-radius:8px;padding:4px 9px;white-space:nowrap}
+.st.ok{background:var(--okBg);color:var(--okFg)} .st.bad{background:var(--urgBg);color:var(--urgFg)} .st.warn{background:var(--pendBg);color:var(--pendFg)}
+
+table.hist{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden}
+.hist th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:var(--vinhoH);font-weight:700;padding:8px 6px;text-align:right}
+.hist th:first-child{text-align:left}
+.hist td{padding:8px 6px;font-size:12.5px;text-align:right;border-bottom:1px solid var(--fio)}
+.hist td:first-child{text-align:left;font-weight:600}
+.hist tr:last-child td{border-bottom:0}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140%);background:#2A1A17;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:.25s}
+#toast.on{transform:translate(-50%,0)}
+.spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--vinho);border-radius:50%;animation:sp .8s linear infinite;margin:50px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <button class="back" id="btnBack" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
+    <div>
+      <h1>Painel da Central</h1>
+      <div class="sub" id="hSub">Teste de 60 dias · controle do CMV e da produção</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="act" id="btnReload" title="Atualizar"><i class="ph-duotone ph-arrows-clockwise"></i></button>
+  </header>
+  <div id="app"><div class="spin"></div></div>
+</div>
+<div id="toast"></div>
+
+<script src="../auth.js"></script>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST={lancCentral:[], pedidos:[], prod:[], comp:null};
+const META_CMV=45; // meta do teste: CMV da Central <= 45%
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600);}
+function brl(v){return (v==null||isNaN(v))?'—':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+function pct(v){return (v==null||isNaN(v))?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';}
+function compLabel(c){if(!c)return'—';const[y,m]=c.split('-');const M=['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];return `${M[+m]} ${y}`;}
+async function api(path){ await lolaEnsure(); const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:lolaHeaders()}); if(!r.ok)throw new Error(await r.text()); return r.json(); }
+
+async function carregar(){
+  try{
+    ST.lancCentral = await api('financeiro_lancamentos?unit=eq.central&select=competencia,amount,category');
+    ST.pedidos     = await api('financeiro_lancamentos?category=eq.cmv__central&select=competencia,amount,unit');
+    ST.prod        = await api('lola_producao_central?select=id,created_at').catch(()=>[]);
+    // competências disponíveis (da central + dos pedidos)
+    const comps=[...new Set([...ST.lancCentral,...ST.pedidos].map(l=>l.competencia).filter(Boolean))].sort().reverse();
+    ST.comp = ST.comp || comps[0] || null;
+    render(comps);
+  }catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
+}
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function dadosDaComp(comp){
+  const insumo = ST.lancCentral.filter(l=>l.competencia===comp && (l.category||'').startsWith('cmv__')).reduce((s,l)=>s+Math.abs(+l.amount||0),0);
+  const custoTotal = ST.lancCentral.filter(l=>l.competencia===comp).reduce((s,l)=>s+ (+l.amount<0?Math.abs(+l.amount):0),0);
+  const receitaInterna = ST.pedidos.filter(l=>l.competencia===comp).reduce((s,l)=>s+Math.abs(+l.amount||0),0);
+  const cmvPct = receitaInterna>0 ? insumo/receitaInterna*100 : null;
+  const resultado = receitaInterna - custoTotal; // negativo = prejuízo
+  const prodN = ST.prod.filter(p=>(p.created_at||'').slice(0,7)===comp).length;
+  return {insumo, custoTotal, receitaInterna, cmvPct, resultado, prodN};
+}
+
+function render(comps){
+  const comp=ST.comp; const d=dadosDaComp(comp);
+  const cmv=d.cmvPct;
+  const cmvColor = cmv==null?'var(--mut)':(cmv<=META_CMV?'var(--okFg)':(cmv<=70?'var(--pendFg)':'var(--urgFg)'));
+  const barPct = cmv==null?0:Math.min(100, cmv);
+  const barColor = cmv==null?'var(--border)':(cmv<=META_CMV?'var(--okFg)':(cmv<=70?'var(--pendFg)':'var(--urgFg)'));
+
+  // placar do teste
+  const cmvOk = cmv!=null && cmv<=META_CMV;
+  const prodOk = d.prodN>0;
+  const s1 = cmv==null
+    ? {cls:'warn',txt:'sem venda',ico:'ph-minus-circle',icocolor:'var(--mut)'}
+    : cmvOk ? {cls:'ok',txt:'na meta',ico:'ph-check-circle',icocolor:'var(--okFg)'}
+            : {cls:'bad',txt:'acima',ico:'ph-warning-circle',icocolor:'var(--urgFg)'};
+  const s3 = prodOk ? {cls:'ok',txt:d.prodN+' registros',ico:'ph-check-circle',icocolor:'var(--okFg)'}
+                    : {cls:'bad',txt:'nada lançado',ico:'ph-warning-circle',icocolor:'var(--urgFg)'};
+
+  // histórico últimos meses
+  const hist = comps.slice(0,8).map(c=>{const x=dadosDaComp(c);
+    const cor=x.cmvPct==null?'var(--mut)':(x.cmvPct<=META_CMV?'var(--okFg)':(x.cmvPct<=70?'var(--pendFg)':'var(--urgFg)'));
+    return `<tr><td>${compLabel(c).replace(' 20',' /')}</td><td>${x.receitaInterna?brl(x.receitaInterna):'—'}</td><td>${brl(x.insumo)}</td><td style="color:${cor};font-weight:700">${x.cmvPct==null?'—':pct(x.cmvPct)}</td><td style="color:var(--urgFg)">${brl(-x.custoTotal)}</td></tr>`;
+  }).join('');
+
+  $('#app').innerHTML=`
+    <div class="note"><b>O número que decide o teste é o CMV da Central</b> — quanto ela gasta de insumo para cada real que as lojas compram dela. Meta do teste: <b>≤ ${META_CMV}%</b>. Acima disso, a Central perde em cada pedido.</div>
+    <div class="monthsel"><span>Competência</span>
+      <select id="compSel">${comps.map(c=>`<option value="${c}" ${c===comp?'selected':''}>${compLabel(c)}</option>`).join('')}</select>
+    </div>
+
+    <div class="hero">
+      <div class="k">CMV da Central · ${compLabel(comp)}</div>
+      <div class="big" style="color:${cmvColor}">${cmv==null?'—':pct(cmv)}</div>
+      <div class="meta">${cmv==null?'A Central ainda não vendeu para as lojas neste mês':(cmvOk?'Dentro da meta de '+META_CMV+'%':'Meta é ≤ '+META_CMV+'% — está '+pct(cmv-META_CMV)+' acima')}</div>
+      <div class="bar"><i style="width:${barPct}%;background:${barColor}"></i><span class="barmark" style="left:${META_CMV}%"></span></div>
+      <div style="font-size:10.5px;color:var(--mut);text-align:left;margin-top:4px">▲ marca = meta ${META_CMV}%</div>
+    </div>
+
+    <div class="grid">
+      <div class="kpi"><div class="k">Pedidos das lojas</div><div class="v">${brl(d.receitaInterna)}</div><div class="s">o que CCMQ/MAC compraram da Central</div></div>
+      <div class="kpi"><div class="k">Insumo da Central</div><div class="v" style="color:var(--urgFg)">${brl(d.insumo)}</div><div class="s">o que a Central gastou de comida</div></div>
+      <div class="kpi"><div class="k">Custo total</div><div class="v" style="color:var(--urgFg)">${brl(d.custoTotal)}</div><div class="s">insumo + folha + custos fixos</div></div>
+      <div class="kpi"><div class="k">Resultado do mês</div><div class="v" style="color:${d.resultado<0?'var(--urgFg)':'var(--okFg)'}">${brl(d.resultado)}</div><div class="s">${d.resultado<0?'prejuízo':'lucro'}</div></div>
+    </div>
+
+    <div class="lbl">Placar do teste de 60 dias</div>
+    <div class="score">
+      <div class="srow"><i class="ph-duotone ph-scales ico" style="color:${s1.icocolor}"></i>
+        <div class="t"><b>1. Controlar o insumo (CMV ≤ ${META_CMV}%)</b><span>Ficha técnica, porção e desperdício sob controle</span></div>
+        <span class="st ${s1.cls}">${s1.txt}</span></div>
+      <div class="srow"><i class="ph-duotone ph-arrows-left-right ico" style="color:var(--mut)"></i>
+        <div class="t"><b>2. Parar o custo duplicado</b><span>Cozinha do CCMQ precisa encolher com a Central assumindo produção — acompanhar na folha do CCMQ</span></div>
+        <span class="st warn">acompanhar</span></div>
+      <div class="srow"><i class="ph-duotone ph-clipboard-text ico" style="color:${s3.icocolor}"></i>
+        <div class="t"><b>3. Registrar a produção do dia</b><span>Sem registro do chefe não há visibilidade — app "Produção do dia" no Estoque</span></div>
+        <span class="st ${s3.cls}">${s3.txt}</span></div>
+    </div>
+
+    <div class="lbl">Histórico mês a mês</div>
+    <table class="hist">
+      <tr><th>Mês</th><th>Pedidos lojas</th><th>Insumo</th><th>CMV%</th><th>Custo total</th></tr>
+      ${hist}
+    </table>
+    <div class="note" style="margin-top:14px;font-size:11.5px">Como é calculado: <b>CMV% = insumo da Central ÷ pedidos das lojas</b>. "Pedidos das lojas" vem da categoria <b>Pedidos Central</b> nos lançamentos de CCMQ/MAC; "insumo" e "custo total" vêm dos lançamentos da unidade Central. Quanto mais completo o financeiro, mais fiel o painel.</div>
+  `;
+  $('#compSel').onchange=e=>{ST.comp=e.target.value;render(comps);};
+}
+
+$('#btnBack').onclick=()=>{ location.href='../'; };
+$('#btnReload').onclick=()=>{ $('#app').innerHTML='<div class="spin"></div>'; carregar(); };
+
+/* ===== LOGIN REAL — admin, financeiro ou gerente ===== */
+(async()=>{
+  const sess=await lolaGate({papeis:['admin','financeiro','gerente'], titulo:'Painel da Central'});
+  $('#hSub').textContent=`${sess.nome||sess.email} · ${PAPEL_NOME[sess.papel]||sess.papel}`;
+  carregar();
+})();
+</script>
+</body>
+</html>
