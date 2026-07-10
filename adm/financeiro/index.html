@@ -156,6 +156,9 @@ section.view{display:none} section.view.on{display:block}
 .seg{display:flex;gap:6px;margin-bottom:16px;background:var(--cremeDark);padding:4px;border-radius:12px}
 .seg button{flex:1;padding:9px;border-radius:9px;font-weight:600;font-size:12.5px;color:var(--sec)}
 .seg button.on{background:#fff;color:var(--vinho);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.segbig{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 10px;font:inherit;font-weight:700;font-size:13.5px;color:var(--sec);cursor:pointer;text-align:center;line-height:1.35;transition:.15s}
+.segbig i{font-size:22px;color:var(--vinho);display:block;margin-bottom:5px}
+.segbig.on{border-color:var(--vinho);background:var(--negBg);color:var(--vinho);box-shadow:0 2px 8px -4px rgba(168,42,42,.4)}
 
 /* category picker search */
 .catsearch{position:sticky;top:0;z-index:5;background:#fff;display:flex;align-items:center;gap:8px;
@@ -1402,25 +1405,32 @@ async function doSplit(id){
 /* ========================= IMPORT / ADD SHEET ========================= */
 function openImport(){
   openSheet(`<h3>Importar / lançar</h3><div class="hint">${U(ST.unit).nome}</div>
-    <div class="seg" id="impSeg" style="flex-wrap:wrap">
-      <button class="on" data-s="ofx">OFX</button>
+    <div style="display:flex;gap:10px;margin-bottom:6px">
+      <button class="segbig on" data-s="arquivos" style="flex:1"><i class="ph-duotone ph-folder-open"></i> Importar arquivos<br><span style="font-weight:400;font-size:11px;opacity:.85">Notas XML ou extratos OFX</span></button>
+      <button class="segbig" data-s="manual" style="flex:1"><i class="ph-duotone ph-pencil-simple"></i> Lançar manual<br><span style="font-weight:400;font-size:11px;opacity:.85">Uma despesa/receita à mão</span></button>
+    </div>
+    <div class="seg" id="impSeg" style="flex-wrap:wrap;margin-top:4px">
+      <button class="on" data-s="arquivos" style="display:none"></button>
+      <button data-s="manual" style="display:none"></button>
+      <div style="width:100%;font-size:10.5px;color:var(--lbl);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin:6px 2px 2px">Outras opções</div>
       <button data-s="cartao">Cartão</button>
-      <button data-s="colar">Colar extrato</button>
       <button data-s="receita">Receita</button>
-      <button data-s="manual">Manual</button>
+      <button data-s="colar">Colar extrato</button>
     </div>
     <div id="impBody"></div>`);
-  $$('#impSeg button').forEach(b=>b.onclick=()=>{$$('#impSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');impTab(b.dataset.s);});
-  impTab('ofx');
+  const setTab=s=>{ $$('#impSeg button,.segbig').forEach(x=>x.classList.remove('on'));
+    $$(`[data-s="${s}"]`).forEach(x=>x.classList.add('on')); impTab(s); };
+  $$('#impSeg button,.segbig').forEach(b=>b.onclick=()=>setTab(b.dataset.s));
+  impTab('arquivos');
 }
 function impTab(s){
   const el=$('#impBody');
-  if(s==='ofx'){
-    el.innerHTML=`<div class="note">Exporte o extrato do banco em <b>.OFX</b> e selecione abaixo. A competência é sugerida pelo mês de cada lançamento (você ajusta depois). Duplicados (mesmo FITID) são ignorados.</div>
-      <div class="fld"><label>Arquivo OFX</label><input type="file" id="ofxFile" accept=".ofx,.OFX,text/plain"></div>
-      <button class="btn p" id="ofxGo">Importar OFX</button>`;
-    $('#ofxGo').onclick=()=>{const f=$('#ofxFile').files[0];if(!f){toast('Escolha um arquivo');return;}
-      const rd=new FileReader();rd.onload=()=>importTxns(parseOFX(rd.result),'ofx');rd.readAsText(f,'latin1');};
+  if(s==='arquivos'){
+    el.innerHTML=`<div class="note">Selecione os arquivos — pode misturar <b>notas fiscais (.xml)</b> e <b>extratos do banco (.ofx)</b>, vários de uma vez. As notas vão pra aba Notas; os lançamentos do OFX entram pra classificar. Nada duplica (nota pela chave, extrato pelo FITID).</div>
+      <div class="fld"><label>Arquivos (.xml e/ou .ofx)</label><input type="file" id="arqFiles" accept=".xml,.XML,.ofx,.OFX,text/xml,text/plain" multiple></div>
+      <button class="btn p full" id="arqGo"><i class="ph-duotone ph-upload-simple"></i> Importar</button>
+      <div id="arqMsg" style="margin-top:14px"></div>`;
+    $('#arqGo').onclick=importArquivos;
   } else if(s==='cartao'){
     el.innerHTML=`<div class="note">Puxa as <b>Compras no Cartão</b> (app do portal) desta empresa para cá, como lançamentos — pra você categorizar, ajustar competência e conciliar junto com o resto. Já importadas não duplicam.</div>
       <div id="cartaoMsg" class="note" style="background:var(--cremeDark)">Carregando…</div>
@@ -1538,6 +1548,49 @@ async function importComprasCartao(){
     const auto=rows.filter(r=>r.category).length;
     closeSheet(); toast(ins.length+' compra(s) do cartão importada(s)'+(auto?', '+auto+' auto-classificadas':'')); renderAll();
   }catch(e){ toast('Erro: '+e.message); if(btn){btn.disabled=false;btn.innerHTML=old;} }
+}
+/* Importa arquivos misturados: .xml (notas) e .ofx (extrato) de uma vez */
+async function importArquivos(){
+  const fs=[...$('#arqFiles').files]; if(!fs.length){toast('Escolha os arquivos');return;}
+  const btn=$('#arqGo'), old=btn?btn.innerHTML:''; if(btn){btn.disabled=true;btn.innerHTML='<i class="ph-duotone ph-spinner"></i> Importando…';}
+  const readAs=(f,enc)=>new Promise(r=>{const rd=new FileReader();rd.onload=()=>r(rd.result);rd.readAsText(f,enc);});
+  let notas=[], txns=[];
+  for(const f of fs){
+    const nm=(f.name||'').toLowerCase();
+    try{
+      if(nm.endsWith('.ofx')){ txns=txns.concat(parseOFX(await readAs(f,'latin1'))); }
+      else if(nm.endsWith('.xml')){ notas=notas.concat(parseNFeXML(await f.text())); }
+      else { const txt=await f.text(); if(/<STMTTRN|<OFX/i.test(txt)) txns=txns.concat(parseOFX(txt)); else notas=notas.concat(parseNFeXML(txt)); }
+    }catch(e){}
+  }
+  const parts=[];
+  try{
+    if(notas.length){
+      const have=new Set(ST.notas.map(n=>n.chave));
+      const novas=notas.filter(n=>n.chave && !have.has(n.chave)).map(n=>({...n,unit:ST.unit}));
+      if(novas.length){
+        const ins=await api('financeiro_notas?on_conflict=chave',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(novas)});
+        (ins||[]).forEach(r=>ST.notas.unshift(r));
+        const skip=novas.length-(ins||[]).length;
+        parts.push(`${(ins||[]).length} nota(s)`+(skip?` (${skip} já existiam)`:''));
+      } else parts.push('notas já importadas');
+    }
+    if(txns.length){
+      const have=new Set(ST.lanc.map(l=>l.fitid).filter(Boolean));
+      const catMap=fornecedorCatMap(); let auto=0;
+      const novos=txns.filter(t=>!have.has(t.fitid)).map(t=>{const k=splitFornecedor(t.memo).key; const cat=applyRules(t.memo)||catMap[k]||null; if(cat)auto++;
+        return {unit:ST.unit,fitid:t.fitid,date:t.date,competencia:compFromDate(t.date),memo:t.memo,amount:t.amount,manual:false,category:cat};});
+      const dup=txns.length-novos.length;
+      if(novos.length){
+        const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(novos)});
+        (ins||[]).forEach(r=>ST.lanc.unshift(r));
+        api('financeiro_importacoes',{method:'POST',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:ST.unit,tipo:'ofx',qtd:novos.length})}).catch(()=>{});
+        parts.push(`${novos.length} lançamento(s) do extrato`+(auto?`, ${auto} auto-classificados`:'')+(dup?`, ${dup} duplicados`:''));
+      } else parts.push('extrato já importado');
+    }
+    if(!notas.length && !txns.length){ toast('Nenhuma nota (.xml) ou extrato (.ofx) reconhecido'); if(btn){btn.disabled=false;btn.innerHTML=old;} return; }
+    closeSheet(); toast('Importado: '+parts.join(' · ')); renderAll();
+  }catch(e){ const m=$('#arqMsg'); if(m) m.innerHTML=`<div class="note" style="background:var(--negBg);color:var(--neg)">Erro: ${esc(e.message)}</div>`; if(btn){btn.disabled=false;btn.innerHTML=old;} }
 }
 async function importTxns(txns,src){
   if(!txns.length){toast('Nada para importar');return;}
