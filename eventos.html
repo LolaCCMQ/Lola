@@ -1360,7 +1360,7 @@ function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number
 function orcHTML(ev){
   const K=orcCalc(ev);
   const pax=K.pax,sub=K.sub,mo=K.mo,gpct=K.gpct,gorj=K.serv,ipct=K.ipct,imp=K.imp,total=K.total;
-  const pg=ev.pag||{};const sinal=Number(pg.sinalValor)||0;const saldo=(sub+mo+gorj+imp)-sinal;
+  const pg=ev.pag||{};const sinal=Number(pg.sinalValor)||0;const saldo=total-sinal;
   const nItens=(ev.menu||[]).length;
   const subC=subCat(ev,'C'),subB=subCat(ev,'B');
   return `
