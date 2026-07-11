@@ -244,12 +244,13 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
   <div class="im-head"><h3 id="resTitle">Alerta</h3><button class="x" id="resX"><i class="ph-duotone ph-x"></i></button></div>
   <div class="im-body">
     <div class="imnote">Por que esse item foi comprado se a gente não usa? (ex.: refeição do funcionário, teste de prato novo)</div>
-    <label class="iml">Justificativa</label>
+    <label class="iml">Justificativa (obrigatória) *</label>
     <textarea id="resJust" rows="3" placeholder="escreva o motivo…"></textarea>
+    <label class="iml" style="margin-top:14px">O que fazer com o item?</label>
   </div>
   <div class="im-foot">
-    <button class="btn" id="resSaveJust" style="margin-bottom:8px"><i class="ph-duotone ph-check"></i> Salvar justificativa</button>
-    <button class="btn sec" id="resAbrir"><i class="ph-duotone ph-file-arrow-down"></i> Na verdade é insumo — abrir a nota pra lançar</button>
+    <button class="btn" id="resCentral" style="margin-bottom:8px"><i class="ph-duotone ph-stack"></i> Adicionar ao estoque da Central</button>
+    <button class="btn sec" id="resCcmq"><i class="ph-duotone ph-arrow-right"></i> Enviar para o CCMQ (uso)</button>
   </div>
 </div>
 <div id="toast"></div>
@@ -481,17 +482,25 @@ function openResolver(id){
   setTimeout(()=>$('#resJust').focus(),60);
 }
 function closeRes(){ $('#resBg').classList.remove('on'); $('#resModal').classList.remove('on'); }
-async function resSalvar(abrirDepois){
+async function resSalvar(destino){
   const a=RES_AL; if(!a)return; const just=$('#resJust').value.trim();
+  if(!just){ toast('Escreva a justificativa (é obrigatória).'); $('#resJust').focus(); return; }
+  $('#resCentral').setAttribute('disabled',''); $('#resCcmq').setAttribute('disabled','');
   try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_central_alertas?id=eq.'+a.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({justificativa:just||null, resolvido:true})});
+    await fetch(SB_URL+'/rest/v1/lola_central_alertas?id=eq.'+a.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({justificativa:just, resolvido:true})});
     const x=(ST.alertas||[]).find(y=>y.id===a.id); if(x){x.justificativa=just; x.resolvido=true;}
-    closeRes();
-    if(abrirDepois){ const n=ST.notas.find(nn=>nn.chave===a.nota_chave);
+    $('#resCentral').removeAttribute('disabled'); $('#resCcmq').removeAttribute('disabled'); closeRes();
+    if(destino==='central'){ const n=ST.notas.find(nn=>nn.chave===a.nota_chave);
       if(n){ ST.tab='ent'; render(); abrirNota(a.nota_chave); }
-      else { toast('Justificado. A nota não está na lista da Central (pode ter sido movida).'); render(); } }
-    else { toast('Justificado e resolvido ✓'); render(); }
-  }catch(e){ toast('Erro: '+e.message); }
+      else { toast('Justificado. A nota não está na lista da Central (já pode ter sido movida).'); render(); } }
+    else {
+      await fetch(SB_URL+'/rest/v1/financeiro_notas?chave=eq.'+encodeURIComponent(a.nota_chave),{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({unit:'ccmq'})});
+      const nl=await (await fetch(SB_URL+'/rest/v1/financeiro_nota_lanc?nota_chave=eq.'+encodeURIComponent(a.nota_chave)+'&select=lanc_id',{headers:lolaHeaders()})).json().catch(()=>[]);
+      const ids=(nl||[]).map(z=>z.lanc_id).filter(Boolean);
+      if(ids.length) await fetch(SB_URL+'/rest/v1/financeiro_lancamentos?id=in.('+ids.join(',')+')',{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({unit:'ccmq'})});
+      toast('Justificado e enviado pro CCMQ ✓'); await carregar();
+    }
+  }catch(e){ toast('Erro: '+e.message); $('#resCentral').removeAttribute('disabled'); $('#resCcmq').removeAttribute('disabled'); }
 }
 
 function viewEntrada(){
@@ -846,7 +855,7 @@ $('#btnBack').onclick=()=>{ location.href='../'; };
 let onSave=salvarEntrada;
 $('#shX').onclick=closeSheet; $('#sheetBg').onclick=closeSheet; $('#shSave').onclick=()=>onSave();
 $('#imX').onclick=closeIns; $('#insBg').onclick=closeIns; $('#imSave').onclick=salvarInsumo;
-$('#resX').onclick=closeRes; $('#resBg').onclick=closeRes; $('#resSaveJust').onclick=()=>resSalvar(false); $('#resAbrir').onclick=()=>resSalvar(true);
+$('#resX').onclick=closeRes; $('#resBg').onclick=closeRes; $('#resCentral').onclick=()=>resSalvar('central'); $('#resCcmq').onclick=()=>resSalvar('ccmq');
 
 (async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Estoque da Central'}); carregar(); })();
 </script>
