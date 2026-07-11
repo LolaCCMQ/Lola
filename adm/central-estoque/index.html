@@ -525,7 +525,8 @@ async function salvarEntrada(){
     $('#shBody').prepend(b); $('#shBody').scrollTop=0;
     return;
   }
-  if(!usar.length && !alertas.length){ toast('Nenhum item pra lançar.'); return; }
+  const ignorados=ST.itens.filter(i=>i.ignorar);
+  if(!usar.length && !alertas.length && !ignorados.length){ toast('Diga o que fazer com os itens: escolha o insumo, ou marque "não é insumo" / "não usamos".'); return; }
   $('#shSave').setAttribute('disabled','');
   try{
     const jaImp=ST.imp.has(nota.chave);
@@ -552,7 +553,8 @@ async function salvarEntrada(){
     await post('lola_central_estoque_nota?on_conflict=nota_chave',
       {nota_chave:nota.chave, itens_total:ST.itens.length, itens_ok:usar.length, importada_em:new Date().toISOString(), por:quem},
       'resolution=merge-duplicates,return=minimal');
-    toast(alertas.length? `Entrada lançada · ${alertas.length} alerta(s) registrado(s) ⚠` : 'Entrada lançada no estoque ✓');
+    toast(usar.length ? (alertas.length? `Entrada lançada · ${alertas.length} alerta(s) ⚠` : 'Entrada lançada no estoque ✓')
+                      : (alertas.length? `Nota concluída · ${alertas.length} alerta(s) ⚠` : 'Nota concluída (nada foi pro estoque) ✓'));
     closeSheet(); await carregar();
   }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
