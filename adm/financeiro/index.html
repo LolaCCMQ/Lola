@@ -362,7 +362,7 @@ const UNITS=[
   {id:'ccmq',   nome:'Lola CCMQ',  desc:'Restaurante',      icon:'ph-storefront', bg:'#FBE4E0', fg:'#C0392B'},
   {id:'mac',    nome:'Lola MAC',   desc:'MAC',              icon:'ph-coffee',     bg:'#E6F3EA', fg:'#2C7A4B'},
   {id:'central',nome:'Central',    desc:'Produção',         icon:'ph-package',    bg:'#E6EEF8', fg:'#2C5AA0'},
-  {id:'eventos',nome:'Eventos',    desc:'Eventos',          icon:'ph-confetti',   bg:'#FBEAF1', fg:'#B23A6B'},
+  {id:'eventos',nome:'Eventos',    desc:'Fechamento',       icon:'ph-confetti',   bg:'#FBEAF1', fg:'#B23A6B'},
 ];
 const U=id=>UNITS.find(u=>u.id===id)||UNITS[0];
 
@@ -620,7 +620,7 @@ function renderGate(){
       <i class="ph-duotone ${u.icon}" style="color:${u.fg}"></i>
       <div class="un">${u.nome}</div><div class="ud">${u.desc}</div>
     </button>`).join('');
-  $$('#unitPick .ucard').forEach(b=>b.onclick=()=>enter(b.dataset.u));
+  $$('#unitPick .ucard').forEach(b=>b.onclick=()=>{ if(b.dataset.u==='eventos'){ location.href='../eventos-fin/'; return; } enter(b.dataset.u); });
 }
 async function enter(uid){
   ST.unit=uid; ST.dreScope=uid;
