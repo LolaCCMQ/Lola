@@ -454,8 +454,8 @@ function viewReceitas(){
   h+=`<div class="toolbar"><input type="search" id="bqr" placeholder="Buscar receita…" value="${esc(ST.buscaR||'')}"></div>`;
   let list=r.slice(); if(ST.buscaR){const b=norm(ST.buscaR); list=list.filter(x=>norm(x.nome).includes(b));}
   if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-notebook"></i>Nenhuma receita.</div>`; return h; }
-  let cat='';
-  list.forEach(x=>{ if((x.categoria||'')!==cat){cat=x.categoria||''; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`;}
+  h+=`<div class="lbl">Produções da Central (${list.length})</div>`;
+  list.forEach(x=>{
     h+=`<div class="ritem" data-id="${x.id}"><div class="srow srow-c"><div class="t"><b>${esc(x.nome)}</b><span>toque p/ ver ingredientes</span></div><div class="r"><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div></div><div class="usos ringr"></div></div>`; });
   return h;
 }
@@ -839,7 +839,7 @@ $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
 $('#tabSal').onclick=()=>{ST.tab='sal';render();};
 $('#tabProd').onclick=()=>{ST.tab='prod';render();};
 $('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
-  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&select=id,nome,categoria&order=categoria,nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
+  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,categoria&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
 $('#btnBack').onclick=()=>{ location.href='../'; };
