@@ -84,6 +84,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .pacts{display:flex;gap:8px;margin-top:10px}
 .prodbtn{flex:1;background:var(--okBg);color:var(--okFg);border:0;border-radius:10px;min-height:42px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .pacts .pdel{background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:17px;cursor:pointer;padding:0 15px}
+.pplink{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
 .sitem{margin-bottom:8px}
 .sitem .srow{margin-bottom:0}
 .srow-c{cursor:pointer}
@@ -411,14 +412,17 @@ async function openProduzir(id){
     <div class="mf"><label>Data</label><input type="date" id="prodData" value="${hoje}"></div>
     <div class="mf"><label>Quanto produziu (${esc(p.unidade||'')})</label><input type="number" id="prodQtd" step="0.001" placeholder="0" inputmode="decimal"></div>
     <div class="entra on" id="prodNovo">Saldo atual: <b>${num(p.saldo)} ${esc(p.unidade||'')}</b></div>
+    <div id="prodLinkBox"></div>
     <div id="prodRec"></div><div id="prodHist"></div>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Registrar produção';
   $('#shSave').removeAttribute('disabled'); onSave=salvarProduzir; openSheet();
   $('#prodQtd').oninput=()=>{ const q=+$('#prodQtd').value||0; $('#prodNovo').innerHTML=`Saldo atual ${num(p.saldo)} + produzido ${num(q)} = <b>${num((+p.saldo||0)+q)} ${esc(p.unidade||'')}</b>`; };
   setTimeout(()=>$('#prodQtd').focus(),60);
-  if(p.preproducao_id){ try{ const r=await post('rpc/central_receita_itens',{pid:p.preproducao_id});
-    if(Array.isArray(r)&&r.length) $('#prodRec').innerHTML=`<div class="lbl">Receita (ingredientes)</div><div class="usos on">${r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('')}</div>`; }catch(e){} }
-  else $('#prodRec').innerHTML=`<div class="uinfo" style="margin-top:10px">Receita não vinculada — ligue na aba Receitas depois.</div>`;
+  const pl=await ensurePPList();
+  $('#prodLinkBox').innerHTML=`<label class="iml" style="margin-top:6px">Receita / pré-produção vinculada</label>
+    <select id="prodLink" class="pplink"><option value="">— nenhuma (escolher receita) —</option>${pl.map(x=>`<option value="${x.id}"${p.preproducao_id===x.id?' selected':''}>${esc(x.nome)}</option>`).join('')}</select>`;
+  $('#prodLink').onchange=()=>vincularReceita(p.id, $('#prodLink').value);
+  loadReceitaInto('#prodRec', p.preproducao_id);
   try{ const hs=await api('lola_central_prod_hist?prod_id=eq.'+id+'&select=data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=8');
     if(hs&&hs.length) $('#prodHist').innerHTML=`<div class="lbl">Últimas produções</div><div class="usos on">`+hs.map(x=>`<div class="ring"><span>${fmtData(x.data)}${x.criado_por?' · '+esc(x.criado_por):''}</span><b>+${num(x.qtd_produzida)} → ${num(x.saldo_depois)}</b></div>`).join('')+`</div>`;
   }catch(e){}
@@ -433,6 +437,23 @@ async function salvarProduzir(){
     await post('lola_central_prod_hist',[{prod_id:p.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem}],'return=minimal');
     p.saldo=novo; toast('Produção registrada ✓ (+'+num(q)+' '+esc(p.unidade||'')+')'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function ensurePPList(){ if(ST.pplist)return ST.pplist; try{ ST.pplist=await api('lola_preproducoes?ativo=neq.false&select=id,nome&order=nome'); }catch(e){ ST.pplist=[]; } return ST.pplist; }
+async function loadReceitaInto(sel, ppId){
+  const box=$(sel); if(!box)return;
+  if(!ppId){ box.innerHTML=`<div class="uinfo" style="margin-top:10px">Ainda sem receita vinculada — escolha acima.</div>`; return; }
+  box.innerHTML='<div class="uinfo" style="margin-top:10px">carregando receita…</div>';
+  try{ const r=await post('rpc/central_receita_itens',{pid:ppId});
+    if(Array.isArray(r)&&r.length) box.innerHTML=`<div class="lbl">Receita (ingredientes)</div><div class="usos on">${r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('')}</div>`;
+    else box.innerHTML='<div class="uinfo" style="margin-top:10px">Essa receita não tem ingredientes cadastrados.</div>';
+  }catch(e){ box.innerHTML='<div class="uinfo" style="margin-top:10px">Erro ao carregar a receita.</div>'; }
+}
+async function vincularReceita(prodId, ppId){
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_prod?id=eq.'+prodId,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({preproducao_id:ppId||null})});
+    const p=(ST.prod||[]).find(x=>x.id===prodId); if(p)p.preproducao_id=ppId||null;
+    loadReceitaInto('#prodRec', ppId); toast(ppId?'Receita vinculada ✓':'Desvinculado');
+  }catch(e){ toast('Erro: '+e.message); }
 }
 async function saveProdSaldo(id, saldo){
   try{ await lolaEnsure();
