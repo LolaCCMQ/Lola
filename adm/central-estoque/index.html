@@ -101,6 +101,14 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .item .l2 .ignbtn.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
 .item .auto{font-size:11px;color:var(--okFg);font-weight:700;margin-top:6px;display:none}
 .item .auto.on{display:block}
+.item.alerta{border-color:#EFD9AE;background:#FDF7EC}
+.item .fchint{display:none;font-size:11.5px;color:var(--okFg);font-weight:600;margin-top:7px;line-height:1.35}
+.item .fchint.on{display:block}
+.item .l2 .unit{font-size:12px;color:var(--mut);font-weight:700}
+.item .l3{display:flex;gap:8px;margin-top:8px}
+.item .l3 button{flex:1;background:none;border:1px solid var(--border);border-radius:10px;padding:9px 6px;font:inherit;font-size:12px;font-weight:700;color:var(--sec);cursor:pointer;min-height:42px;display:flex;align-items:center;justify-content:center;gap:5px}
+.item .l3 .usbtn.on{background:var(--pendBg);color:var(--pendFg);border-color:#EFD9AE}
+.item .l3 .ignbtn.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
 
 /* entrada manual */
 .mf{margin-bottom:10px}
@@ -169,28 +177,50 @@ async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders
 
 async function carregar(){
   try{
-    const [notas, imp, insumos, mapa, movs] = await Promise.all([
+    const [notas, imp, insumos, mapa, movs, fc] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
       api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
-      api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total')
+      api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total'),
+      api('lola_central_fc?select=insumo_norm,peso_medio_g,fc')
     ]);
     ST.notas=notas||[]; ST.imp=new Set((imp||[]).map(r=>r.nota_chave));
     ST.insumos=insumos||[]; ST.byId={}; ST.insumos.forEach(i=>ST.byId[i.id]=i);
     ST.map={}; (mapa||[]).forEach(m=>ST.map[m.desc_norm]={insumo_id:m.insumo_id,fator:+m.fator||1,ignorar:m.ignorar});
+    ST.fc={}; (fc||[]).forEach(f=>ST.fc[f.insumo_norm]={peso_medio_g:f.peso_medio_g!=null?+f.peso_medio_g:null, fc:f.fc!=null?+f.fc:null});
     ST.movs=movs||[];
     buildInsumoOptions();
     render();
   }catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
 }
 
+const FOOD_CATS=new Set(['Insumos Alimentos','Hortifruti','Carnes e Pescados','Pães']);
+const isFood=i=>i&&FOOD_CATS.has(i.categoria);
 let OPTS_ALL='';
 function buildInsumoOptions(){
   let cat='', h='';
-  ST.insumos.forEach(i=>{ if(i.categoria!==cat){ if(cat)h+='</optgroup>'; cat=i.categoria; h+=`<optgroup label="${esc(cat||'Sem categoria')}">`; }
+  ST.insumos.filter(isFood).forEach(i=>{ if(i.categoria!==cat){ if(cat)h+='</optgroup>'; cat=i.categoria; h+=`<optgroup label="${esc(cat||'Sem categoria')}">`; }
     h+=`<option value="${i.id}">${esc(i.nome)}${i.unidade_custo?' ('+esc(i.unidade_custo)+')':''}</option>`; });
   if(cat)h+='</optgroup>'; OPTS_ALL=h;
+}
+// fator automático: converte a unidade da nota p/ a unidade do insumo e aplica o FC (fator de correção)
+const CONT=new Set(['un','und','unid','unidade','maço','maco','pç','pc','peça','peca','pct','pacote','cx','caixa','mç','mc']);
+function computeFator(it){
+  const ins=ST.byId[it.insumo_id]; if(!ins) return {fator:it.fator||1, hint:''};
+  const iu=(ins.unidade_custo||'').toLowerCase().trim();
+  const nu=(it.un||'').toLowerCase().trim();
+  const rec=ST.fc[norm(ins.nome)]||{}; const F=rec.fc||1; const peso=rec.peso_medio_g||null;
+  let fator=null, hint='';
+  const nf=n=>(+n).toLocaleString('pt-BR',{maximumFractionDigits:3});
+  if(iu==='kg'){
+    if(nu==='kg'){ fator=1/F; if(F!==1) hint=`FC ${nf(F)} · entra ${nf(1/F)} kg líquido por kg bruto`; }
+    else if(nu==='g'){ fator=(1/1000)/F; if(F!==1) hint=`FC ${nf(F)} aplicado`; }
+    else if(CONT.has(nu)){ if(peso){ fator=(peso/1000)/F; hint=`1 ${it.un||'un'} ≈ ${peso}g bruto`+(F!==1?` → ${Math.round(peso/F)}g líquido (FC ${nf(F)})`:'')+` = ${nf(fator)} kg`; } }
+  } else if(iu==='un'||iu==='und'){ if(CONT.has(nu)) fator=1; }
+  else if(iu==='g'){ if(nu==='g') fator=1/F; else if(nu==='kg') fator=1000/F; else if(CONT.has(nu)&&peso) fator=peso/F; }
+  if(fator==null) return {fator: it.fator||1, hint:''};
+  return {fator: Math.round(fator*100000)/100000, hint};
 }
 
 /* ============ RENDER ============ */
@@ -267,7 +297,7 @@ async function abrirNota(chave){
   ST.itens=(n.itens||[]).map((it,ix)=>{
     const dn=norm(it.desc); const m=ST.map[dn]||{};
     return { ix, desc:it.desc||'', dn, un:it.un||'', qtd:+it.qtd||0, vunit:+it.vunit||0, vtotal:+it.vtotal||0,
-      insumo_id:m.insumo_id||'', fator:m.fator||1, ignorar:!!m.ignorar, auto:!!m.insumo_id };
+      insumo_id:m.insumo_id||'', fator:m.fator||1, ignorar:!!m.ignorar, naousamos:false, auto:!!m.insumo_id };
   });
   $('#shTitle').textContent=n.emitente||'Nota';
   const tot=ST.itens.reduce((s,i)=>s+i.vtotal,0);
@@ -282,67 +312,94 @@ async function abrirNota(chave){
   ST.itens.forEach(it=>{ if(!it.insumo_id && !it.ignorar) sugerir(it); });
 }
 function itemHTML(it){
-  const sel=id=> it.insumo_id===id?' selected':'';
-  return `<div class="item ${it.ignorar?'ign':''}" data-ix="${it.ix}">
+  const bloq=it.ignorar||it.naousamos;
+  return `<div class="item ${it.ignorar?'ign':''} ${it.naousamos?'alerta':''}" data-ix="${it.ix}">
     <div class="top"><b>${esc(it.desc)}</b><div class="q">${num(it.qtd)} ${esc(it.un)}<br>${brl(it.vtotal)}</div></div>
-    <select class="selins" ${it.ignorar?'disabled':''}>
+    <select class="selins" ${bloq?'disabled':''}>
       <option value=""${it.insumo_id?'':' selected'}>— escolher insumo —</option>
       <optgroup label="Sugestões" class="sugg"></optgroup>
       ${OPTS_ALL}
     </select>
     <div class="auto ${it.auto?'on':''}"><i class="ph-duotone ph-magic-wand"></i> insumo memorizado desta descrição</div>
-    <div class="l2"><label>fator</label><input type="number" class="fat" step="0.001" value="${it.fator}" title="multiplica a qtd da nota p/ a unidade do insumo">
-      <button class="ignbtn ${it.ignorar?'on':''}"><i class="ph-duotone ph-prohibit"></i> não é insumo</button></div>
+    <div class="fchint"></div>
+    <div class="l2"><label>fator</label><input type="number" class="fat" step="0.00001" value="${it.fator}" title="multiplica a qtd da nota p/ a unidade do insumo"><span class="unit"></span></div>
+    <div class="l3">
+      <button class="usbtn ${it.naousamos?'on':''}"><i class="ph-duotone ph-warning-circle"></i> não usamos</button>
+      <button class="ignbtn ${it.ignorar?'on':''}"><i class="ph-duotone ph-prohibit"></i> não é insumo</button>
+    </div>
   </div>`;
+}
+function refreshFator(el, it){
+  const {fator,hint}=computeFator(it);
+  it.fator=fator;
+  const fin=el.querySelector('.fat'); if(fin) fin.value=fator;
+  const ins=ST.byId[it.insumo_id];
+  el.querySelector('.unit').textContent = ins?('→ '+(ins.unidade_custo||'')):'';
+  const hd=el.querySelector('.fchint'); hd.textContent=hint||''; hd.classList.toggle('on',!!hint);
 }
 function wireItens(){
   $$('#shBody .item').forEach(el=>{
     const ix=+el.dataset.ix, it=ST.itens[ix];
     const s=el.querySelector('.selins'); if(it.insumo_id) s.value=it.insumo_id;
-    s.onchange=()=>{ it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); };
+    refreshFator(el, it);
+    s.onchange=()=>{ it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); };
     el.querySelector('.fat').oninput=e=>{ it.fator=+e.target.value||0; };
-    el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; el.classList.toggle('ign',it.ignorar);
-      el.querySelector('.ignbtn').classList.toggle('on',it.ignorar); s.disabled=it.ignorar; };
+    el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; if(it.ignorar)it.naousamos=false;
+      el.classList.toggle('ign',it.ignorar); el.classList.remove('alerta');
+      el.querySelector('.ignbtn').classList.toggle('on',it.ignorar); el.querySelector('.usbtn').classList.remove('on');
+      s.disabled=it.ignorar||it.naousamos; };
+    el.querySelector('.usbtn').onclick=()=>{ it.naousamos=!it.naousamos; if(it.naousamos)it.ignorar=false;
+      el.classList.toggle('alerta',it.naousamos); el.classList.remove('ign');
+      el.querySelector('.usbtn').classList.toggle('on',it.naousamos); el.querySelector('.ignbtn').classList.remove('on');
+      s.disabled=it.ignorar||it.naousamos; };
   });
 }
 async function sugerir(it){
-  try{ const r=await post('rpc/central_sugere_insumo',{txt:it.desc});
-    if(!Array.isArray(r)||!r.length)return;
+  try{ let r=await post('rpc/central_sugere_insumo',{txt:it.desc});
+    if(!Array.isArray(r))return;
+    r=r.filter(x=>FOOD_CATS.has(x.categoria)); if(!r.length)return;
     const el=$(`#shBody .item[data-ix="${it.ix}"]`); if(!el)return;
     const og=el.querySelector('optgroup.sugg'); if(!og)return;
     og.innerHTML=r.map(x=>`<option value="${x.id}">${esc(x.nome)}${x.unidade_custo?' ('+esc(x.unidade_custo)+')':''} · ${Math.round((x.sim||0)*100)}%</option>`).join('');
-    // pré-seleciona a melhor se a semelhança for boa e ainda não escolhido
     const best=r[0];
-    if(best && (best.sim||0)>=0.6 && !it.insumo_id){ it.insumo_id=best.id; el.querySelector('.selins').value=best.id; }
+    if(best && (best.sim||0)>=0.6 && !it.insumo_id){ it.insumo_id=best.id; el.querySelector('.selins').value=best.id; refreshFator(el,it); }
   }catch(e){}
 }
 
 async function salvarEntrada(){
   const nota=ST.nota; if(!nota)return;
-  const usar=ST.itens.filter(i=>!i.ignorar);
+  const usar=ST.itens.filter(i=>!i.ignorar && !i.naousamos);
+  const alertas=ST.itens.filter(i=>i.naousamos);
   const semins=usar.filter(i=>!i.insumo_id);
-  if(semins.length){ toast(`Faltou escolher o insumo de ${semins.length} ${semins.length===1?'item':'itens'} (ou marque "não é insumo").`); return; }
-  if(!usar.length){ toast('Nenhum item pra lançar.'); return; }
+  if(semins.length){ toast(`Faltou escolher o insumo de ${semins.length} ${semins.length===1?'item':'itens'} (ou marque "não é insumo" / "não usamos").`); return; }
+  if(!usar.length && !alertas.length){ toast('Nenhum item pra lançar.'); return; }
   $('#shSave').setAttribute('disabled','');
   try{
     const jaImp=ST.imp.has(nota.chave);
-    // se relançar, apaga movimentos anteriores desta nota
     if(jaImp){ await lolaEnsure(); const h=lolaHeaders();
       await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?origem_tipo=eq.nota&origem_ref=eq.'+encodeURIComponent(nota.chave),{method:'DELETE',headers:h}); }
     const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
-    const movs=usar.map(i=>{ const q=i.qtd*(i.fator||1); const cu=i.qtd? i.vtotal/i.qtd/(i.fator||1) : i.vunit;
-      return { insumo_id:i.insumo_id, tipo:'entrada', qtd:q, unidade:(ST.byId[i.insumo_id]||{}).unidade_custo||i.un,
-        custo_unit:cu, custo_total:i.vtotal, origem_tipo:'nota', origem_ref:nota.chave, data:nota.data_emissao, obs:i.desc, criado_por:quem }; });
-    await post('lola_central_estoque_mov', movs, 'return=minimal');
-    // memoriza o mapeamento (upsert por desc_norm)
+    if(usar.length){
+      const movs=usar.map(i=>{ const q=i.qtd*(i.fator||1); const cu=q? i.vtotal/q : i.vunit;
+        return { insumo_id:i.insumo_id, tipo:'entrada', qtd:q, unidade:(ST.byId[i.insumo_id]||{}).unidade_custo||i.un,
+          custo_unit:cu, custo_total:i.vtotal, origem_tipo:'nota', origem_ref:nota.chave, data:nota.data_emissao, obs:i.desc, criado_por:quem }; });
+      await post('lola_central_estoque_mov', movs, 'return=minimal');
+    }
+    // alertas "não usamos — por que foi pedido?"
+    if(alertas.length){
+      const arows=alertas.map(i=>({ nota_chave:nota.chave, desc_item:i.desc, insumo_id:i.insumo_id||null,
+        motivo:'nao_usamos', obs:(nota.emitente||'')+' · '+brl(i.vtotal), criado_por:quem }));
+      await post('lola_central_alertas', arows, 'return=minimal');
+    }
+    // memoriza o mapeamento (só dos que viraram estoque ou 'não é insumo')
     const seen={}; const maprows=[];
-    ST.itens.forEach(i=>{ if(seen[i.dn])return; seen[i.dn]=1;
+    ST.itens.filter(i=>!i.naousamos).forEach(i=>{ if(seen[i.dn])return; seen[i.dn]=1;
       maprows.push({ desc_norm:i.dn, desc_orig:i.desc, insumo_id:i.ignorar?null:i.insumo_id, fator:i.fator||1, ignorar:i.ignorar, criado_por:quem, updated_at:new Date().toISOString() }); });
-    await post('lola_central_estoque_map?on_conflict=desc_norm', maprows, 'resolution=merge-duplicates,return=minimal');
+    if(maprows.length) await post('lola_central_estoque_map?on_conflict=desc_norm', maprows, 'resolution=merge-duplicates,return=minimal');
     await post('lola_central_estoque_nota?on_conflict=nota_chave',
       {nota_chave:nota.chave, itens_total:ST.itens.length, itens_ok:usar.length, importada_em:new Date().toISOString(), por:quem},
       'resolution=merge-duplicates,return=minimal');
-    toast('Entrada lançada no estoque ✓');
+    toast(alertas.length? `Entrada lançada · ${alertas.length} alerta(s) registrado(s) ⚠` : 'Entrada lançada no estoque ✓');
     closeSheet(); await carregar();
   }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
