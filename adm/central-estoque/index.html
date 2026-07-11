@@ -85,6 +85,19 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ugrp{font-size:12px;color:var(--sec);line-height:1.5;margin:3px 0;overflow-wrap:anywhere}
 .ugrp b{color:var(--ink);font-weight:700}
 .uinfo{font-size:12px;color:var(--mut)}
+.btn2{display:flex;gap:8px;margin-bottom:12px}
+.btn2 .btn{margin-bottom:0}
+.citem{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.citem .ct{flex:1;min-width:0}
+.citem .ct b{display:block;font-size:13.5px;font-weight:700}
+.citem .ct span{display:block;font-size:11.5px;color:var(--mut)}
+.citem .ccont{width:80px;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
+.citem .cu{font-size:12px;color:var(--mut);font-weight:700;min-width:22px}
+.ritem{margin-bottom:8px}
+.ritem .srow{margin-bottom:0}
+.ring{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:4px 0;border-bottom:1px solid var(--fio)}
+.ring:last-child{border-bottom:0}
+.ring b{color:var(--ink);font-weight:700;white-space:nowrap}
 
 /* janela centralizada */
 #sheetBg{position:fixed;inset:0;background:rgba(42,26,23,.42);z-index:200;opacity:0;pointer-events:none;transition:.2s}
@@ -192,6 +205,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button id="tabEnt" class="on"><i class="ph-duotone ph-file-arrow-down"></i> Notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
     <button id="tabSal"><i class="ph-duotone ph-stack"></i> Insumos</button>
     <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
+    <button id="tabRec"><i class="ph-duotone ph-notebook"></i> Receitas</button>
     <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
   </div>
 
@@ -319,12 +333,13 @@ function render(){
   $('#tabEnt').classList.toggle('on',ST.tab==='ent');
   $('#tabSal').classList.toggle('on',ST.tab==='sal');
   $('#tabProd').classList.toggle('on',ST.tab==='prod');
+  $('#tabRec').classList.toggle('on',ST.tab==='rec');
   $('#tabAl').classList.toggle('on',ST.tab==='al');
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, sal:viewSaldo, prod:viewProd, al:viewAlertas};
-  const W={ent:wireEntrada, sal:wireSaldo, prod:wireProd, al:wireAlertas};
+  const V={ent:viewEntrada, sal:viewSaldo, prod:viewProd, rec:viewReceitas, al:viewAlertas};
+  const W={ent:wireEntrada, sal:wireSaldo, prod:wireProd, rec:wireReceitas, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -347,7 +362,7 @@ function wireAlertas(){
 function viewProd(){
   const p=ST.prod||[];
   let h=`<div class="note">Estoque das <b>produções prontas</b> da Central (o que o Arthur produz e manda pro CCMQ/MAC). Toque no número pra ajustar o saldo.</div>`;
-  h+=`<button class="btn sec" id="btnAddProd" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Adicionar produção</button>`;
+  h+=`<div class="btn2"><button class="btn sec" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button><button class="btn sec" id="btnAddProd"><i class="ph-duotone ph-plus-circle"></i> Adicionar</button></div>`;
   h+=`<div class="toolbar"><input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}"></div>`;
   let list=p.slice();
   if(ST.buscaP){ const b=norm(ST.buscaP); list=list.filter(x=>norm(x.nome).includes(b)); }
@@ -364,6 +379,7 @@ function viewProd(){
 function wireProd(){
   const bq=$('#bqp'); if(bq){ bq.oninput=()=>{ST.buscaP=bq.value; const pos=bq.selectionStart; render(); const n=$('#bqp'); if(n){n.focus();n.setSelectionRange(pos,pos);} }; }
   $('#btnAddProd')&&($('#btnAddProd').onclick=addProd);
+  $('#btnContProd')&&($('#btnContProd').onclick=()=>openContagem('producao'));
   $$('#app .srow[data-id]').forEach(el=>{
     const id=el.dataset.id, inp=el.querySelector('.psaldo');
     if(inp) inp.onchange=()=>saveProdSaldo(id,+inp.value||0);
@@ -392,6 +408,66 @@ async function addProd(){
     if(Array.isArray(rows)&&rows[0]) ST.prod.push(rows[0]);
     toast('Produção adicionada ✓'); render();
   }catch(e){ toast('Erro: '+e.message); }
+}
+/* ===== CONTAGEM semanal (insumos e produções) ===== */
+let CONT_TIPO=null, CONT_ITEMS=[];
+function openContagem(tipo){
+  CONT_TIPO=tipo; let items=[];
+  if(tipo==='producao'){ items=(ST.prod||[]).map(p=>({ref_id:p.id, nome:p.nome, unidade:p.unidade, sistema:+p.saldo||0})); }
+  else { const sal={}; ST.movs.forEach(m=>{ if(!m.insumo_id)return; sal[m.insumo_id]=(sal[m.insumo_id]||0)+(+m.qtd||0); });
+    items=Object.keys(sal).filter(id=>Math.abs(sal[id])>1e-9).map(id=>{const i=ST.byId[id]||{}; return {ref_id:id, nome:i.nome||'?', unidade:i.unidade_custo||'', sistema:sal[id]};});
+    items.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')); }
+  CONT_ITEMS=items;
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Contagem — '+(tipo==='producao'?'Produções':'Insumos');
+  let h=`<div class="note">Conte o que está fisicamente na Central e escreva a quantidade <b>contada</b>. Fica gravado com a data pra comparar depois. Deixe em branco o que não contar.</div>
+    <div class="mf"><label>Data da contagem</label><input type="date" id="contData" value="${hoje}"></div>
+    <div class="lbl">Itens (${items.length})</div>`;
+  if(!items.length) h+=`<div class="empty">Nenhum item pra contar.</div>`;
+  items.forEach((it,ix)=>{ h+=`<div class="citem"><div class="ct"><b>${esc(it.nome)}</b><span>sistema: ${num(it.sistema)} ${esc(it.unidade||'')}</span></div>
+    <input type="number" class="ccont" data-ix="${ix}" step="0.001" placeholder="contado" inputmode="decimal"><span class="cu">${esc(it.unidade||'')}</span></div>`; });
+  $('#shBody').innerHTML=h;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar contagem';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarContagem; openSheet();
+}
+async function salvarContagem(){
+  const data=$('#contData').value||new Date().toISOString().slice(0,10);
+  const itens=[]; $$('#shBody .ccont').forEach(inp=>{ const v=inp.value.trim(); if(v==='')return; const it=CONT_ITEMS[+inp.dataset.ix]; if(!it)return;
+    itens.push({ref_id:it.ref_id, nome:it.nome, unidade:it.unidade, qtd_sistema:it.sistema, qtd_contada:+v||0}); });
+  if(!itens.length){ toast('Preencha ao menos um item contado.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const rows=await post('lola_central_contagem',[{tipo:CONT_TIPO, data, criado_por:quem}],'return=representation');
+    const cid=(Array.isArray(rows)&&rows[0])?rows[0].id:null; if(!cid) throw new Error('sem retorno do banco');
+    await post('lola_central_contagem_item', itens.map(i=>({contagem_id:cid, ...i})),'return=minimal');
+    toast('Contagem salva ✓ ('+itens.length+' itens, '+fmtData(data)+')'); closeSheet();
+  }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+/* ===== RECEITAS (pré-produções, mesma base do portal) ===== */
+function viewReceitas(){
+  let h=`<div class="note">As <b>pré-produções com as receitas</b> — a MESMA base do portal. O que mudar aqui muda lá (é o mesmo dado). Toque numa pra ver os ingredientes.</div>`;
+  if(ST.receitas==='loading'||!ST.receitas){ h+=`<div class="spin"></div>`; return h; }
+  const r=ST.receitas||[];
+  h+=`<div class="toolbar"><input type="search" id="bqr" placeholder="Buscar receita…" value="${esc(ST.buscaR||'')}"></div>`;
+  let list=r.slice(); if(ST.buscaR){const b=norm(ST.buscaR); list=list.filter(x=>norm(x.nome).includes(b));}
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-notebook"></i>Nenhuma receita.</div>`; return h; }
+  let cat='';
+  list.forEach(x=>{ if((x.categoria||'')!==cat){cat=x.categoria||''; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`;}
+    h+=`<div class="ritem" data-id="${x.id}"><div class="srow srow-c"><div class="t"><b>${esc(x.nome)}</b><span>toque p/ ver ingredientes</span></div><div class="r"><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div></div><div class="usos ringr"></div></div>`; });
+  return h;
+}
+function wireReceitas(){
+  const bq=$('#bqr'); if(bq){ bq.oninput=()=>{ST.buscaR=bq.value;const p=bq.selectionStart;render();const n=$('#bqr');if(n){n.focus();n.setSelectionRange(p,p);}}; }
+  $$('#app .ritem').forEach(el=>{ el.querySelector('.srow-c').onclick=()=>toggleReceita(el); });
+}
+async function toggleReceita(el){
+  const box=el.querySelector('.ringr'), id=el.dataset.id;
+  if(box.classList.contains('on')){ box.classList.remove('on'); box.innerHTML=''; return; }
+  box.classList.add('on'); box.innerHTML='<div class="uinfo">carregando…</div>';
+  try{ const r=await post('rpc/central_receita_itens',{pid:id});
+    if(!Array.isArray(r)||!r.length){ box.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; return; }
+    box.innerHTML=r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('');
+  }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
 }
 let RES_AL=null;
 function openResolver(id){
@@ -456,6 +532,7 @@ function viewSaldo(){
   if(ST.busca){ const b=norm(ST.busca); ids=ids.filter(id=>norm(ST.byId[id]?.nome).includes(b)); }
   ids.sort((a,b)=>{ const A=ST.byId[a]||{},B=ST.byId[b]||{}; return (A.categoria||'').localeCompare(B.categoria||'')||(A.nome||'').localeCompare(B.nome||''); });
   let h=`<div class="tot"><div class="k">Valor em estoque</div><div class="big">${brl(totalV)}</div><div class="s">${ids.length} ${ids.length===1?'insumo':'insumos'} com movimento</div></div>`;
+  h+=`<button class="btn sec" id="btnContIns" style="margin-bottom:12px"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem dos insumos</button>`;
   h+=`<div class="toolbar"><input type="search" id="bq" placeholder="Buscar insumo…" value="${esc(ST.busca)}">
       <button class="chip ${ST.soComSaldo?'on':''}" id="chSaldo">só com saldo</button></div>`;
   if(!ids.length){ h+=`<div class="empty"><i class="ph-duotone ph-stack"></i>Ainda não há movimento de estoque.<br>Lance as notas na aba ao lado.</div>`; return h; }
@@ -471,6 +548,7 @@ function viewSaldo(){
 function wireSaldo(){
   const bq=$('#bq'); if(bq){ bq.oninput=()=>{ST.busca=bq.value; const p=bq.selectionStart; render(); const n=$('#bq'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $('#chSaldo')&&($('#chSaldo').onclick=()=>{ST.soComSaldo=!ST.soComSaldo;render();});
+  $('#btnContIns')&&($('#btnContIns').onclick=()=>openContagem('insumo'));
   $$('#app .sitem').forEach(el=>{ el.querySelector('.srow-c').onclick=()=>toggleUsos(el); });
 }
 async function toggleUsos(el){
@@ -755,6 +833,8 @@ function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classLi
 $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
 $('#tabSal').onclick=()=>{ST.tab='sal';render();};
 $('#tabProd').onclick=()=>{ST.tab='prod';render();};
+$('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
+  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&select=id,nome,categoria&order=categoria,nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
 $('#btnBack').onclick=()=>{ location.href='../'; };
