@@ -90,6 +90,18 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .pcard .plink i{font-size:15px;color:var(--lbl);flex-shrink:0}
 .pcard .plink.on{border-style:solid;border-color:var(--okFg);color:var(--okFg);background:var(--okBg)}
 .pcard .plink.on i{color:var(--okFg)}
+.pcard .prow .t.ptog{cursor:pointer}
+.pstock{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-width:64px;min-height:46px;background:var(--creme);border:1px solid var(--border);border-radius:12px;cursor:pointer;padding:4px 8px}
+.pstock b{font-family:Fraunces,serif;font-weight:600;font-size:16px;color:var(--ink);line-height:1}
+.pstock span{font-size:10px;color:var(--mut);font-weight:700;margin-top:2px}
+.pstock.on{background:var(--okBg);border-color:var(--okFg)}
+.pstock.on b{color:var(--okFg)}
+.nrow{display:flex;gap:6px;margin-bottom:7px;align-items:center}
+.nrow .nrn{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:42px}
+.nrow .nrq{width:64px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;text-align:right;min-height:42px}
+.nrow .nru{width:52px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:42px}
+.nrow .nrx{flex-shrink:0;background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:15px;cursor:pointer;padding:0 10px;min-height:42px}
+#shBody textarea{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px;font:inherit;font-size:15px;resize:vertical}
 .vsearch{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font:inherit;font-size:16px;min-height:46px;margin-bottom:10px}
 .vrow{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:7px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}
 .vrow.on{border-color:var(--okFg);background:var(--okBg);color:var(--okFg)}
@@ -295,7 +307,7 @@ async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders
 
 async function carregar(){
   try{
-    const [notas, imp, insumos, mapa, movs, fc, alertas, prod, pplist] = await Promise.all([
+    const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
       api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade&order=categoria,nome'),
@@ -304,11 +316,13 @@ async function carregar(){
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
-      api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome&order=nome').catch(()=>null)
+      api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_un,porcao_un&order=nome').catch(()=>null),
+      api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por').catch(()=>[])
     ]);
     ST.alertas=alertas||[];
     ST.prod=prod||[];
-    if(pplist) ST.pplist=pplist;
+    if(receitas) ST.receitas=receitas;
+    ST.saldo={}; (saldo||[]).forEach(s=>ST.saldo[s.preproducao_id]=s);
     try{ const uu=await api('rpc/central_insumos_usados'); ST.usados=new Set((uu||[]).map(x=>(x&&typeof x==='object')?Object.values(x)[0]:x)); }catch(e){ ST.usados=new Set(); }
     ST.notas=notas||[]; ST.imp=new Set((imp||[]).map(r=>r.nota_chave));
     ST.insumos=insumos||[]; ST.byId={}; ST.insumos.forEach(i=>ST.byId[i.id]=i);
@@ -384,146 +398,155 @@ function wireAlertas(){
   $$('.resolv').forEach(b=>b.onclick=()=>openResolver(b.dataset.id));
 }
 /* ===== PRODUÇÕES (estoque de produções prontas) ===== */
+function prodUn(r){ const s=(ST.saldo||{})[r.id]; return (s&&s.unidade)||r.rendimento_un||r.porcao_un||'un'; }
 function viewProd(){
-  const p=ST.prod||[];
-  let h=`<div class="note">Estoque das <b>produções prontas</b> da Central (o que o Arthur produz e manda pro CCMQ/MAC). Toque no número pra ajustar o saldo.</div>`;
-  h+=`<div class="btn2"><button class="btn sec" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button><button class="btn sec" id="btnAddProd"><i class="ph-duotone ph-plus-circle"></i> Adicionar</button></div>`;
+  const R=ST.receitas;
+  let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
+  h+=`<button class="btn" id="btnNovaProd" style="margin-bottom:10px"><i class="ph-duotone ph-plus-circle"></i> Adicionar nova produção</button>`;
+  h+=`<div class="btn2"><button class="btn sec" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem geral</button></div>`;
   h+=`<div class="toolbar"><input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}"></div>`;
-  let list=p.slice();
+  if(R==='loading'||!R){ h+=`<div class="spin"></div>`; return h; }
+  let list=(R||[]).slice();
   if(ST.buscaP){ const b=norm(ST.buscaP); list=list.filter(x=>norm(x.nome).includes(b)); }
-  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-cooking-pot"></i>Nenhuma produção.</div>`; return h; }
-  [...new Set(list.map(x=>x.categoria||'Outras'))].forEach(cat=>{
-    h+=`<div class="catrow"><span>${esc(cat)}</span></div>`;
-    const pl=ST.pplist||[];
-    list.filter(x=>(x.categoria||'Outras')===cat).forEach(x=>{
-      const pp=x.preproducao_id?pl.find(y=>y.id===x.preproducao_id):null;
-      const titulo=pp?pp.nome:x.nome;
-      const sub=pp && norm(pp.nome)!==norm(x.nome) ? `<span>era: ${esc(x.nome)}</span>` : (x.obs?`<span>${esc(x.obs)}</span>`:'');
-      const linkTxt = pp ? `<i class="ph-duotone ph-link"></i><span>${esc(pp.nome)}</span>` : `<i class="ph-duotone ph-link-simple"></i><span>vincular</span>`;
-      h+=`<div class="pcard" data-id="${x.id}">
-        <div class="prow"><div class="t"><b>${esc(titulo)}</b>${sub}</div>
-          <div class="prodq"><input type="number" class="psaldo" step="0.001" value="${x.saldo}"><span class="pu">${esc(x.unidade||'')}</span></div></div>
-        <div class="pacts"><button class="plink${pp?' on':''}">${linkTxt}</button><button class="prodbtn"><i class="ph-duotone ph-plus-circle"></i> Produzir</button><button class="pdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
-      </div>`;
-    });
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-cooking-pot"></i>Nenhuma produção. Use “Adicionar nova produção”.</div>`; return h; }
+  h+=`<div class="lbl">Produções da Central (${list.length})</div>`;
+  list.forEach(x=>{
+    const s=(ST.saldo||{})[x.id]; const un=prodUn(x);
+    const tem = s && s.saldo_data;
+    const dataTxt = tem ? ('atualizado '+fmtData(String(s.saldo_data).slice(0,10))) : 'sem contagem — toque no estoque';
+    h+=`<div class="pcard" data-id="${x.id}">
+      <div class="prow"><div class="t ptog"><b>${esc(x.nome)}</b><span>${dataTxt}</span></div>
+        <button class="pstock${tem?' on':''}" title="atualizar estoque"><b>${tem?num(s.saldo):'—'}</b><span>${esc(un)}</span></button></div>
+      <div class="usos ringr"></div>
+      <div class="pacts"><button class="prodbtn"><i class="ph-duotone ph-plus-circle"></i> Produzir</button></div>
+    </div>`;
   });
   return h;
 }
 function wireProd(){
   const bq=$('#bqp'); if(bq){ bq.oninput=()=>{ST.buscaP=bq.value; const pos=bq.selectionStart; render(); const n=$('#bqp'); if(n){n.focus();n.setSelectionRange(pos,pos);} }; }
-  $('#btnAddProd')&&($('#btnAddProd').onclick=addProd);
+  $('#btnNovaProd')&&($('#btnNovaProd').onclick=openNovaReceita);
   $('#btnContProd')&&($('#btnContProd').onclick=()=>openContagem('producao'));
   $$('#app .pcard').forEach(el=>{
-    const id=el.dataset.id, inp=el.querySelector('.psaldo');
-    if(inp) inp.onchange=()=>saveProdSaldo(id,+inp.value||0);
+    const id=el.dataset.id;
+    const tg=el.querySelector('.ptog'); if(tg) tg.onclick=()=>toggleProdIngr(el);
+    const st=el.querySelector('.pstock'); if(st) st.onclick=()=>openEstoque(id);
     const pb=el.querySelector('.prodbtn'); if(pb) pb.onclick=()=>openProduzir(id);
-    const lk=el.querySelector('.plink'); if(lk) lk.onclick=()=>openVincular(id);
-    const del=el.querySelector('.pdel'); if(del) del.onclick=()=>delProd(id, el.querySelector('.t b').textContent);
   });
 }
+async function toggleProdIngr(el){
+  const box=el.querySelector('.ringr'), id=el.dataset.id;
+  if(box.classList.contains('on')){ box.classList.remove('on'); box.innerHTML=''; return; }
+  box.classList.add('on'); box.innerHTML='<div class="uinfo">carregando…</div>';
+  try{ const r=await post('rpc/central_receita_itens',{pid:id});
+    if(!Array.isArray(r)||!r.length){ box.innerHTML='<div class="uinfo">Sem ingredientes cadastrados. Use “Adicionar preparo” na aba Receitas.</div>'; return; }
+    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('');
+  }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+/* ---- atualizar estoque (com data) ---- */
+let SALDO_CUR=null;
+function openEstoque(id){
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; SALDO_CUR=r;
+  const s=(ST.saldo||{})[id]||{}; const un=prodUn(r);
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Estoque — '+r.nome;
+  $('#shBody').innerHTML=`<div class="note">Diga quanto tem <b>agora</b> na Central. Fica gravado com a data.</div>
+    <div class="mf"><label>Data da contagem</label><input type="date" id="estData" value="${hoje}"></div>
+    <div class="mf"><label>Quanto tem</label><input type="number" id="estQtd" step="0.001" inputmode="decimal" value="${s.saldo!=null?s.saldo:''}" placeholder="0"></div>
+    <div class="mf"><label>Unidade</label><input type="text" id="estUn" value="${esc(un)}"></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar estoque';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEstoque; openSheet();
+  setTimeout(()=>$('#estQtd').focus(),60);
+}
+async function salvarEstoque(){
+  const r=SALDO_CUR; if(!r)return;
+  const qtd=+$('#estQtd').value||0, data=$('#estData').value||new Date().toISOString().slice(0,10), un=($('#estUn').value||'').trim()||'un';
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:qtd, unidade:un, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+    await post('lola_central_saldo_log',[{preproducao_id:r.id, data, saldo_novo:qtd, por:quem}],'return=minimal');
+    ST.saldo=ST.saldo||{}; ST.saldo[r.id]={preproducao_id:r.id, saldo:qtd, unidade:un, saldo_data:data, atualizado_por:quem};
+    toast('Estoque atualizado ✓'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+/* ---- produzir mais ---- */
 let PROD_CUR=null;
 async function openProduzir(id){
-  const p=(ST.prod||[]).find(x=>x.id===id); if(!p)return; PROD_CUR=p;
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; PROD_CUR=r;
+  const s=(ST.saldo||{})[id]||{}; const atual=+s.saldo||0; const un=prodUn(r);
   const hoje=new Date().toISOString().slice(0,10);
-  $('#shTitle').textContent='Produzir — '+p.nome;
-  $('#shBody').innerHTML=`<div class="note">Registre quanto você produziu. O saldo sobe e fica no histórico com a data.</div>
+  $('#shTitle').textContent='Produzir — '+r.nome;
+  $('#shBody').innerHTML=`<div class="note">Registre quanto você produziu. O estoque sobe e fica no histórico com a data.</div>
     <div class="mf"><label>Data</label><input type="date" id="prodData" value="${hoje}"></div>
-    <div class="mf"><label>Quanto produziu (${esc(p.unidade||'')})</label><input type="number" id="prodQtd" step="0.001" placeholder="0" inputmode="decimal"></div>
-    <div class="entra on" id="prodNovo">Saldo atual: <b>${num(p.saldo)} ${esc(p.unidade||'')}</b></div>
-    <div id="prodLinkBox"></div>
+    <div class="mf"><label>Quanto produziu (${esc(un)})</label><input type="number" id="prodQtd" step="0.001" placeholder="0" inputmode="decimal"></div>
+    <div class="entra on" id="prodNovo">Estoque atual: <b>${num(atual)} ${esc(un)}</b></div>
     <div id="prodRec"></div><div id="prodHist"></div>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Registrar produção';
   $('#shSave').removeAttribute('disabled'); onSave=salvarProduzir; openSheet();
-  $('#prodQtd').oninput=()=>{ const q=+$('#prodQtd').value||0; $('#prodNovo').innerHTML=`Saldo atual ${num(p.saldo)} + produzido ${num(q)} = <b>${num((+p.saldo||0)+q)} ${esc(p.unidade||'')}</b>`; };
+  $('#prodQtd').oninput=()=>{ const q=+$('#prodQtd').value||0; $('#prodNovo').innerHTML=`Estoque atual ${num(atual)} + produzido ${num(q)} = <b>${num(atual+q)} ${esc(un)}</b>`; };
   setTimeout(()=>$('#prodQtd').focus(),60);
-  const pl=await ensurePPList();
-  $('#prodLinkBox').innerHTML=`<label class="iml" style="margin-top:6px">Receita / pré-produção vinculada</label>
-    <select id="prodLink" class="pplink"><option value="">— nenhuma (escolher receita) —</option>${pl.map(x=>`<option value="${x.id}"${p.preproducao_id===x.id?' selected':''}>${esc(x.nome)}</option>`).join('')}</select>`;
-  $('#prodLink').onchange=()=>vincularReceita(p.id, $('#prodLink').value);
-  loadReceitaInto('#prodRec', p.preproducao_id);
-  try{ const hs=await api('lola_central_prod_hist?prod_id=eq.'+id+'&select=data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=8');
-    if(hs&&hs.length) $('#prodHist').innerHTML=`<div class="lbl">Últimas produções</div><div class="usos on">`+hs.map(x=>`<div class="ring"><span>${fmtData(x.data)}${x.criado_por?' · '+esc(x.criado_por):''}</span><b>+${num(x.qtd_produzida)} → ${num(x.saldo_depois)}</b></div>`).join('')+`</div>`;
+  loadReceitaInto('#prodRec', id);
+  try{ const hs=await api('lola_central_prod_hist?preproducao_id=eq.'+id+'&select=data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=8');
+    if(hs&&hs.length) $('#prodHist').innerHTML=`<div class="lbl">Últimas produções</div><div class="usos on">`+hs.map(x=>`<div class="ring"><span>${fmtData(String(x.data).slice(0,10))}${x.criado_por?' · '+esc(x.criado_por):''}</span><b>+${num(x.qtd_produzida)} → ${num(x.saldo_depois)}</b></div>`).join('')+`</div>`;
   }catch(e){}
 }
 async function salvarProduzir(){
-  const p=PROD_CUR; if(!p)return; const q=+$('#prodQtd').value||0;
+  const r=PROD_CUR; if(!r)return; const q=+$('#prodQtd').value||0;
   if(q<=0){ toast('Diga quanto foi produzido.'); return; }
   const data=$('#prodData').value||new Date().toISOString().slice(0,10);
-  const novo=(+p.saldo||0)+q; $('#shSave').setAttribute('disabled','');
-  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal'; await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_central_prod?id=eq.'+p.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})});
-    await post('lola_central_prod_hist',[{prod_id:p.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem}],'return=minimal');
-    p.saldo=novo; toast('Produção registrada ✓ (+'+num(q)+' '+esc(p.unidade||'')+')'); closeSheet(); render();
+  const s=(ST.saldo||{})[r.id]||{}; const novo=(+s.saldo||0)+q; const un=prodUn(r);
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+    await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem}],'return=minimal');
+    ST.saldo=ST.saldo||{}; ST.saldo[r.id]={preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem};
+    toast('Produção registrada ✓ (+'+num(q)+' '+esc(un)+')'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
-async function ensurePPList(){ if(ST.pplist)return ST.pplist; try{ ST.pplist=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome&order=nome'); }catch(e){ ST.pplist=[]; } return ST.pplist; }
-async function openVincular(id){
-  const p=(ST.prod||[]).find(x=>x.id===id); if(!p)return;
-  const pl=await ensurePPList();
-  $('#shTitle').textContent='Vincular — '+p.nome;
-  $('.sh-foot').style.display='none';
-  const drawList=(f)=>{
-    const b=norm(f||'');
-    const rows=pl.filter(y=>!b||norm(y.nome).includes(b));
-    let hh='';
-    if(p.preproducao_id) hh+=`<button class="vrow" data-v=""><i class="ph-duotone ph-x-circle"></i> Desvincular</button>`;
-    hh+=rows.map(y=>`<button class="vrow${p.preproducao_id===y.id?' on':''}" data-v="${y.id}"><i class="ph-duotone ${p.preproducao_id===y.id?'ph-check-circle':'ph-circle'}"></i> ${esc(y.nome)}</button>`).join('');
-    if(!rows.length) hh+=`<div class="uinfo" style="margin-top:8px">Nada encontrado para "${esc(f)}".</div>`;
-    $('#vList').innerHTML=hh;
-    $$('#vList .vrow').forEach(el=>el.onclick=async()=>{ await vincularReceita(id, el.dataset.v); closeVincular(); render(); });
-  };
-  $('#shBody').innerHTML=`<div class="note">Escolha a pré-produção/receita deste item.</div>
-    <input type="search" class="vsearch" id="vBusca" placeholder="Buscar pré-produção…" autocomplete="off">
-    <div id="vList"></div>`;
-  openSheet();
-  drawList('');
-  const bi=$('#vBusca'); bi.oninput=()=>drawList(bi.value); setTimeout(()=>bi.focus(),80);
-}
-function closeVincular(){ closeSheet(); $('.sh-foot').style.display=''; }
 async function loadReceitaInto(sel, ppId){
   const box=$(sel); if(!box)return;
-  if(!ppId){ box.innerHTML=`<div class="uinfo" style="margin-top:10px">Ainda sem receita vinculada — escolha acima.</div>`; return; }
   box.innerHTML='<div class="uinfo" style="margin-top:10px">carregando receita…</div>';
   try{ const r=await post('rpc/central_receita_itens',{pid:ppId});
     if(Array.isArray(r)&&r.length) box.innerHTML=`<div class="lbl">Receita (ingredientes)</div><div class="usos on">${r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('')}</div>`;
-    else box.innerHTML='<div class="uinfo" style="margin-top:10px">Essa receita não tem ingredientes cadastrados.</div>';
+    else box.innerHTML='<div class="uinfo" style="margin-top:10px">Sem ingredientes cadastrados nesta receita ainda.</div>';
   }catch(e){ box.innerHTML='<div class="uinfo" style="margin-top:10px">Erro ao carregar a receita.</div>'; }
 }
-async function vincularReceita(prodId, ppId){
-  try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_central_prod?id=eq.'+prodId,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({preproducao_id:ppId||null})});
-    const p=(ST.prod||[]).find(x=>x.id===prodId); if(p)p.preproducao_id=ppId||null;
-    loadReceitaInto('#prodRec', ppId); toast(ppId?'Receita vinculada ✓':'Desvinculado');
-  }catch(e){ toast('Erro: '+e.message); }
+/* ---- adicionar nova produção = nova receita ---- */
+function novaIngrRow(){ return `<div class="nrow"><input type="text" class="nrn" placeholder="ingrediente"><input type="number" class="nrq" step="0.001" placeholder="qtd" inputmode="decimal"><input type="text" class="nru" placeholder="un"><button class="nrx" title="remover"><i class="ph-duotone ph-x"></i></button></div>`; }
+function wireNovaIngr(){ $$('#nrIngr .nrx').forEach(b=>b.onclick=()=>{ const rows=$$('#nrIngr .nrow'); if(rows.length>1) b.closest('.nrow').remove(); else { b.closest('.nrow').querySelectorAll('input').forEach(i=>i.value=''); } }); }
+function openNovaReceita(){
+  $('#shTitle').textContent='Nova produção / receita';
+  $('#shBody').innerHTML=`<div class="note">Isso cria uma <b>nova receita</b> da Central — fica salva pra todos verem (aqui e no portal). Preencha o preparo e os ingredientes.</div>
+    <div class="mf"><label>Nome da produção</label><input type="text" id="nrNome" placeholder="ex.: Molho de queijo"></div>
+    <div class="mf"><label>Unidade do estoque</label><input type="text" id="nrUn" placeholder="kg, un, balde, pote…" value="kg"></div>
+    <div class="mf"><label>Modo de preparo</label><textarea id="nrPrep" rows="3" placeholder="Escreva como se faz…"></textarea></div>
+    <div class="lbl">Ingredientes</div>
+    <div id="nrIngr">${novaIngrRow()}${novaIngrRow()}</div>
+    <button class="btn sec" id="nrAdd" style="margin-top:2px"><i class="ph-duotone ph-plus"></i> mais um ingrediente</button>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar receita';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarNovaReceita; openSheet();
+  $('#nrAdd').onclick=()=>{ $('#nrIngr').insertAdjacentHTML('beforeend', novaIngrRow()); wireNovaIngr(); };
+  wireNovaIngr(); setTimeout(()=>$('#nrNome').focus(),60);
 }
-async function saveProdSaldo(id, saldo){
-  try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_central_prod?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo,updated_at:new Date().toISOString()})});
-    const p=(ST.prod||[]).find(x=>x.id===id); if(p)p.saldo=saldo; toast('Saldo atualizado ✓');
-  }catch(e){ toast('Erro: '+e.message); }
-}
-async function delProd(id, nome){
-  if(!confirm('Remover "'+nome+'" das produções?')) return;
-  try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_central_prod?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({ativo:false})});
-    ST.prod=(ST.prod||[]).filter(x=>x.id!==id); toast('Removida'); render();
-  }catch(e){ toast('Erro: '+e.message); }
-}
-async function addProd(){
-  const nome=prompt('Nome da produção (ex.: Molho de queijo):'); if(!nome||!nome.trim())return;
-  const unidade=(prompt('Unidade (kg, un, g, pç, pacote, pote, balde):','un')||'un').trim();
-  const saldo=+(prompt('Saldo atual:','0')||0);
-  try{
-    const rows=await post('lola_central_prod',[{nome:nome.trim(), nome_norm:norm(nome), categoria:'Outras', unidade, saldo, ativo:true}],'return=representation');
-    if(Array.isArray(rows)&&rows[0]) ST.prod.push(rows[0]);
-    toast('Produção adicionada ✓'); render();
-  }catch(e){ toast('Erro: '+e.message); }
+async function salvarNovaReceita(){
+  const nome=($('#nrNome').value||'').trim(); if(!nome){ toast('Dê um nome à produção.'); return; }
+  const un=($('#nrUn').value||'').trim()||'un', modo=($('#nrPrep').value||'').trim();
+  const ings=[]; $$('#nrIngr .nrow').forEach(el=>{ const n=(el.querySelector('.nrn').value||'').trim(); if(!n)return;
+    const q=+el.querySelector('.nrq').value||0, u=(el.querySelector('.nru').value||'').trim()||un; ings.push({nome_manual:n, unidade:u, qtd_bruta:q, qtd_liquida:q}); });
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const rows=await post('lola_preproducoes',[{nome, categoria:'central', e_preparo:true, ativo:true, rendimento_un:un, porcao_un:un, modo_preparo:modo||null, editado_por:quem, editado_em:new Date().toISOString()}],'return=representation');
+    const novo=(Array.isArray(rows)&&rows[0])?rows[0]:null; if(!novo) throw new Error('sem retorno do banco');
+    if(ings.length) await post('lola_preproducoes_itens', ings.map(i=>({preproducao_id:novo.id, ...i})),'return=minimal');
+    ST.receitas=ST.receitas||[]; ST.receitas.push({id:novo.id, nome, rendimento_un:un, porcao_un:un}); ST.receitas.sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+    toast('Receita criada ✓'); closeSheet(); ST.tab='prod'; render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
 /* ===== CONTAGEM semanal (insumos e produções) ===== */
 let CONT_TIPO=null, CONT_ITEMS=[];
 function openContagem(tipo){
   CONT_TIPO=tipo; let items=[];
-  if(tipo==='producao'){ items=(ST.prod||[]).map(p=>({ref_id:p.id, nome:p.nome, unidade:p.unidade, sistema:+p.saldo||0})); }
+  if(tipo==='producao'){ items=(ST.receitas||[]).map(r=>{ const s=(ST.saldo||{})[r.id]||{}; return {ref_id:r.id, nome:r.nome, unidade:(s.unidade)||r.rendimento_un||r.porcao_un||'un', sistema:+s.saldo||0}; }); }
   else { const sal={}; ST.movs.forEach(m=>{ if(!m.insumo_id)return; sal[m.insumo_id]=(sal[m.insumo_id]||0)+(+m.qtd||0); });
     items=Object.keys(sal).filter(id=>Math.abs(sal[id])>1e-9).map(id=>{const i=ST.byId[id]||{}; return {ref_id:id, nome:i.nome||'?', unidade:i.unidade_custo||'', sistema:sal[id]};});
     items.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')); }
@@ -550,12 +573,18 @@ async function salvarContagem(){
     const rows=await post('lola_central_contagem',[{tipo:CONT_TIPO, data, criado_por:quem}],'return=representation');
     const cid=(Array.isArray(rows)&&rows[0])?rows[0].id:null; if(!cid) throw new Error('sem retorno do banco');
     await post('lola_central_contagem_item', itens.map(i=>({contagem_id:cid, ...i})),'return=minimal');
-    toast('Contagem salva ✓ ('+itens.length+' itens, '+fmtData(data)+')'); closeSheet();
+    if(CONT_TIPO==='producao'){
+      await post('lola_central_saldo?on_conflict=preproducao_id', itens.map(i=>({preproducao_id:i.ref_id, saldo:i.qtd_contada, unidade:i.unidade, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()})),'resolution=merge-duplicates,return=minimal');
+      await post('lola_central_saldo_log', itens.map(i=>({preproducao_id:i.ref_id, data, saldo_novo:i.qtd_contada, por:quem})),'return=minimal');
+      ST.saldo=ST.saldo||{}; itens.forEach(i=>{ ST.saldo[i.ref_id]={preproducao_id:i.ref_id, saldo:i.qtd_contada, unidade:i.unidade, saldo_data:data, atualizado_por:quem}; });
+    }
+    toast('Contagem salva ✓ ('+itens.length+' itens, '+fmtData(data)+')'); closeSheet(); render();
   }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
 /* ===== RECEITAS (pré-produções, mesma base do portal) ===== */
 function viewReceitas(){
   let h=`<div class="note">As <b>pré-produções com as receitas</b> — a MESMA base do portal. O que mudar aqui muda lá (é o mesmo dado). Toque numa pra ver os ingredientes.</div>`;
+  h+=`<button class="btn" id="btnNovaRec" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Adicionar preparo / nova receita</button>`;
   if(ST.receitas==='loading'||!ST.receitas){ h+=`<div class="spin"></div>`; return h; }
   const r=ST.receitas||[];
   h+=`<div class="toolbar"><input type="search" id="bqr" placeholder="Buscar receita…" value="${esc(ST.buscaR||'')}"></div>`;
@@ -568,6 +597,7 @@ function viewReceitas(){
 }
 function wireReceitas(){
   const bq=$('#bqr'); if(bq){ bq.oninput=()=>{ST.buscaR=bq.value;const p=bq.selectionStart;render();const n=$('#bqr');if(n){n.focus();n.setSelectionRange(p,p);}}; }
+  $('#btnNovaRec')&&($('#btnNovaRec').onclick=openNovaReceita);
   $$('#app .ritem').forEach(el=>{ el.querySelector('.srow-c').onclick=()=>toggleReceita(el); });
 }
 async function toggleReceita(el){
@@ -954,7 +984,7 @@ $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
 $('#tabSal').onclick=()=>{ST.tab='sal';render();};
 $('#tabProd').onclick=()=>{ST.tab='prod';render();};
 $('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
-  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,categoria&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
+  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_un,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
 $('#btnBack').onclick=()=>{ location.href='../'; };
