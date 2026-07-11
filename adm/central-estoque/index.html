@@ -130,6 +130,11 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .item.falta{border-color:#E9A8A2;box-shadow:0 0 0 2px #FBEAE7}
 .falta-banner{background:var(--urgBg);color:var(--urgFg);border:1px solid #E9A8A2;border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.4;margin-bottom:12px}
 .falta-banner b{font-weight:700}
+.movbtn{min-height:40px;font-size:12.5px;margin-bottom:12px}
+.movsel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--cremeDark);border-radius:12px;padding:11px 12px;margin-bottom:12px}
+.movsel span{font-size:12.5px;color:var(--sec);font-weight:600;flex-basis:100%}
+.movsel button{flex:1;background:var(--vinho);color:#fff;border:0;border-radius:10px;min-height:42px;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.movsel button.cancel{background:var(--card);color:var(--sec);border:1px solid var(--border)}
 .item .l2 .unit{font-size:12px;color:var(--mut);font-weight:700}
 .item .l3{display:flex;gap:8px;margin-top:8px}
 .item .l3 button{flex:1;background:none;border:1px solid var(--border);border-radius:10px;padding:9px 6px;font:inherit;font-size:12px;font-weight:700;color:var(--sec);cursor:pointer;min-height:42px;display:flex;align-items:center;justify-content:center;gap:5px}
@@ -352,6 +357,7 @@ async function abrirNota(chave){
   $('#shTitle').textContent=n.emitente||'Nota';
   const tot=ST.itens.reduce((s,i)=>s+i.vtotal,0);
   let h=`<div class="note">${fmtData(n.data_emissao)} · ${ST.itens.length} itens · ${brl(tot)}${jaImp?' · <b style="color:var(--okFg)">já lançada</b> (relançar substitui)':''}</div>`;
+  h+=`<div id="movBox"><button class="btn sec movbtn" id="btnMover"><i class="ph-duotone ph-arrows-left-right"></i> Esta nota é de outra unidade? Mover</button></div>`;
   ST.itens.forEach(it=>{ h+=itemHTML(it); });
   $('#shBody').innerHTML=h;
   $('#shSave').innerHTML = jaImp?'<i class="ph-duotone ph-arrows-clockwise"></i> Relançar entrada':'<i class="ph-duotone ph-check"></i> Dar entrada no estoque';
@@ -359,8 +365,29 @@ async function abrirNota(chave){
   onSave=salvarEntrada;
   openSheet();
   wireItens();
+  const bm=$('#btnMover'); if(bm) bm.onclick=()=>renderMover(n.chave);
   // sugestões p/ itens sem mapa
   ST.itens.forEach(it=>{ if(!it.insumo_id && !it.ignorar) sugerir(it); });
+}
+function renderMover(chave){
+  const box=$('#movBox'); if(!box) return;
+  box.innerHTML=`<div class="movsel"><span>Mover esta nota para:</span>
+    <button data-u="ccmq">CCMQ</button><button data-u="mac">MAC</button><button data-u="__cancel" class="cancel">cancelar</button></div>`;
+  box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    if(b.dataset.u==='__cancel'){ box.innerHTML=`<button class="btn sec movbtn" id="btnMover"><i class="ph-duotone ph-arrows-left-right"></i> Esta nota é de outra unidade? Mover</button>`; box.querySelector('#btnMover').onclick=()=>renderMover(chave); return; }
+    moverNota(chave, b.dataset.u);
+  });
+}
+async function moverNota(chave, u){
+  try{
+    await lolaEnsure();
+    let r=await fetch(SB_URL+'/rest/v1/financeiro_notas?chave=eq.'+encodeURIComponent(chave),{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({unit:u})});
+    if(!r.ok) throw new Error(await r.text());
+    const nl=await (await fetch(SB_URL+'/rest/v1/financeiro_nota_lanc?nota_chave=eq.'+encodeURIComponent(chave)+'&select=lanc_id',{headers:lolaHeaders()})).json().catch(()=>[]);
+    const ids=(nl||[]).map(x=>x.lanc_id).filter(Boolean);
+    if(ids.length) await fetch(SB_URL+'/rest/v1/financeiro_lancamentos?id=in.('+ids.join(',')+')',{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({unit:u})});
+    toast('Nota movida para '+u.toUpperCase()+' ✓'); closeSheet(); await carregar();
+  }catch(e){ toast('Erro ao mover: '+e.message); }
 }
 function itemHTML(it){
   const bloq=it.ignorar||it.naousamos;
