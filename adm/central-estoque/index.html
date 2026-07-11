@@ -85,6 +85,8 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ugrp{font-size:12px;color:var(--sec);line-height:1.5;margin:3px 0;overflow-wrap:anywhere}
 .ugrp b{color:var(--ink);font-weight:700}
 .uinfo{font-size:12px;color:var(--mut)}
+.norec{display:inline-flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;font-weight:700;color:var(--urgFg);background:var(--urgBg);border-radius:8px;padding:3px 9px}
+.norec i{font-size:13px}
 .btn2{display:flex;gap:8px;margin-bottom:12px}
 .btn2 .btn{margin-bottom:0}
 .citem{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px}
@@ -285,6 +287,7 @@ async function carregar(){
     ]);
     ST.alertas=alertas||[];
     ST.prod=prod||[];
+    try{ const uu=await api('rpc/central_insumos_usados'); ST.usados=new Set((uu||[]).map(x=>(x&&typeof x==='object')?Object.values(x)[0]:x)); }catch(e){ ST.usados=new Set(); }
     ST.notas=notas||[]; ST.imp=new Set((imp||[]).map(r=>r.nota_chave));
     ST.insumos=insumos||[]; ST.byId={}; ST.insumos.forEach(i=>ST.byId[i.id]=i);
     ST.map={}; (mapa||[]).forEach(m=>ST.map[m.desc_norm]={insumo_id:m.insumo_id,fator:+m.fator||1,ignorar:m.ignorar});
@@ -539,7 +542,9 @@ function viewSaldo(){
   let cat='';
   ids.forEach(id=>{ const i=ST.byId[id]||{nome:'(insumo removido)'}; const s=sal[id];
     if(i.categoria!==cat){ cat=i.categoria; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
-    h+=`<div class="sitem" data-ins="${id}"><div class="srow srow-c"><div class="t"><b>${esc(i.nome)}</b><span>${i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):''} · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado</span></div>
+    const usado=ST.usados&&ST.usados.has(id);
+    const sub=i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):'';
+    h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<span class="norec"><i class="ph-duotone ph-warning-circle"></i> não está em nenhuma receita</span>'}</div>
       <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div></div>
       <div class="usos"></div></div>`;
   });
@@ -549,7 +554,7 @@ function wireSaldo(){
   const bq=$('#bq'); if(bq){ bq.oninput=()=>{ST.busca=bq.value; const p=bq.selectionStart; render(); const n=$('#bq'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $('#chSaldo')&&($('#chSaldo').onclick=()=>{ST.soComSaldo=!ST.soComSaldo;render();});
   $('#btnContIns')&&($('#btnContIns').onclick=()=>openContagem('insumo'));
-  $$('#app .sitem').forEach(el=>{ el.querySelector('.srow-c').onclick=()=>toggleUsos(el); });
+  $$('#app .sitem').forEach(el=>{ const c=el.querySelector('.srow-c'); if(c) c.onclick=()=>toggleUsos(el); });
 }
 async function toggleUsos(el){
   const box=el.querySelector('.usos'), id=el.dataset.ins;
