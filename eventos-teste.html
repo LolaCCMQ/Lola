@@ -451,7 +451,7 @@ const SECTIONS = [
 
 let DB={events:[]};
 let FICHAS=[];
-let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", dtDe:"", dtAte:"", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
+let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", mesFilter:"", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
 
 /* ===== Mapeamento banco <-> app ===== */
 function intOrNull(v){const n=parseInt(v);return isNaN(n)?null:n;}
@@ -572,18 +572,20 @@ function payStatus(ev){
 }
 function setModo(m){view.modo=m;try{localStorage.setItem('evtModo',m);}catch(e){}renderViewToggle();renderListFilters();renderList();}
 function setLocFilter(v){view.locFilter=v;renderListFilters();renderList();}
-function setDt(k,v){view[k]=v;renderListFilters();renderList();}
-function clearListFilters(){view.locFilter="";view.dtDe="";view.dtAte="";renderListFilters();renderList();}
+function setMes(v){view.mesFilter=v;renderListFilters();renderList();}
+function clearListFilters(){view.locFilter="";view.mesFilter="";renderListFilters();renderList();}
 function renderListFilters(){
   const w=document.getElementById('listFilters');if(!w)return;
   if(view.modo!=='lista'){w.className='list-filters';w.innerHTML='';return;}
   w.className='list-filters on';
   const locOpts=[{v:'',l:'Todos os locais'}].concat(LOCAIS.filter(function(l){return l.v;}).map(function(l){return {v:l.v,l:l.l};}));
+  const MESNOME=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const meses=Array.from(new Set(DB.events.filter(function(e){return e.data;}).map(function(e){return e.data.slice(0,7);}))).sort();
+  const mesOpts=[{v:'',l:'Todos os meses'}].concat(meses.map(function(ym){var p=ym.split('-');return {v:ym,l:MESNOME[Number(p[1])-1]+'/'+p[0]};}));
   w.innerHTML=''
     +'<div class="lf"><label>Local</label><select onchange="setLocFilter(this.value)">'+locOpts.map(function(o){return '<option value="'+o.v+'"'+(view.locFilter===o.v?' selected':'')+'>'+o.l+'</option>';}).join('')+'</select></div>'
-    +'<div class="lf"><label>De</label><input type="date" value="'+esc(view.dtDe)+'" onchange="setDt(\'dtDe\',this.value)"></div>'
-    +'<div class="lf"><label>Até</label><input type="date" value="'+esc(view.dtAte)+'" onchange="setDt(\'dtAte\',this.value)"></div>'
-    +((view.locFilter||view.dtDe||view.dtAte)?'<button class="lf-clear" onclick="clearListFilters()">✕ Limpar</button>':'');
+    +'<div class="lf"><label>Mês de competência</label><select onchange="setMes(this.value)">'+mesOpts.map(function(o){return '<option value="'+o.v+'"'+(view.mesFilter===o.v?' selected':'')+'>'+o.l+'</option>';}).join('')+'</select></div>'
+    +((view.locFilter||view.mesFilter)?'<button class="lf-clear" onclick="clearListFilters()">✕ Limpar</button>':'');
 }
 function renderViewToggle(){
   const w=document.getElementById('viewToggle');if(!w)return;
@@ -605,13 +607,12 @@ function renderList(){
   if(q)evs=evs.filter(e=>[e.nome,e.responsavel,e.ocasiao,e.contato].join(' ').toLowerCase().includes(q));
   if(view.modo==='lista'){
     if(view.locFilter)evs=evs.filter(e=>(e.local||'')===view.locFilter);
-    if(view.dtDe)evs=evs.filter(e=>e.data&&e.data>=view.dtDe);
-    if(view.dtAte)evs=evs.filter(e=>e.data&&e.data<=view.dtAte);
+    if(view.mesFilter)evs=evs.filter(e=>e.data&&e.data.slice(0,7)===view.mesFilter);
   }
   const list=document.getElementById('list');
   if(!evs.length){
     list.innerHTML=`<div class="empty full" style="grid-column:1/-1"><div class="big">🥂</div>
-      <h3>Nenhum evento ${(view.filter!=='todos'||view.locFilter||view.dtDe||view.dtAte)?'com esses filtros':'ainda'}</h3>
+      <h3>Nenhum evento ${(view.filter!=='todos'||view.locFilter||view.mesFilter)?'com esses filtros':'ainda'}</h3>
       <p>Clique em <b>+ Novo evento</b> para começar a organizar.</p></div>`;
     return;
   }
