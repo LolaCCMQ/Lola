@@ -71,6 +71,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .srow .r{text-align:right;flex-shrink:0}
 .srow .r .q{font-family:Fraunces,serif;font-weight:600;font-size:15px}
 .srow .r .v{font-size:11.5px;color:var(--mut);margin-top:1px}
+.srow .resolv{flex-shrink:0;min-height:38px;padding:0 14px;font-size:12px}
 
 /* janela centralizada */
 #sheetBg{position:fixed;inset:0;background:rgba(42,26,23,.42);z-index:200;opacity:0;pointer-events:none;transition:.2s}
@@ -172,8 +173,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
   </header>
 
   <div class="tabs">
-    <button id="tabEnt" class="on"><i class="ph-duotone ph-file-arrow-down"></i> Entrada de notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
+    <button id="tabEnt" class="on"><i class="ph-duotone ph-file-arrow-down"></i> Notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
     <button id="tabSal"><i class="ph-duotone ph-stack"></i> Saldo</button>
+    <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
   </div>
 
   <div id="app"><div class="spin"></div></div>
@@ -209,7 +211,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 <script src="../auth.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], tab:'ent',
+const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], fc:{}, alertas:[], tab:'ent',
   busca:'', soComSaldo:false, verImport:false, comp:'all', nota:null, itens:[]};
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800);}
 function brl(v){return (v==null||isNaN(v))?'—':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
@@ -227,14 +229,16 @@ async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders
 
 async function carregar(){
   try{
-    const [notas, imp, insumos, mapa, movs, fc] = await Promise.all([
+    const [notas, imp, insumos, mapa, movs, fc, alertas] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
       api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total'),
-      api('lola_central_fc?select=insumo_norm,peso_medio_g,fc')
+      api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
+      api('lola_central_alertas?motivo=eq.nao_usamos&resolvido=eq.false&select=id,nota_chave,desc_item,obs,criado_por,criado_em&order=criado_em.desc').catch(()=>[])
     ]);
+    ST.alertas=alertas||[];
     ST.notas=notas||[]; ST.imp=new Set((imp||[]).map(r=>r.nota_chave));
     ST.insumos=insumos||[]; ST.byId={}; ST.insumos.forEach(i=>ST.byId[i.id]=i);
     ST.map={}; (mapa||[]).forEach(m=>ST.map[m.desc_norm]={insumo_id:m.insumo_id,fator:+m.fator||1,ignorar:m.ignorar});
@@ -282,10 +286,28 @@ function computeFator(it){
 function render(){
   $('#tabEnt').classList.toggle('on',ST.tab==='ent');
   $('#tabSal').classList.toggle('on',ST.tab==='sal');
+  $('#tabAl').classList.toggle('on',ST.tab==='al');
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
-  $('#app').innerHTML = ST.tab==='ent' ? viewEntrada() : viewSaldo();
-  if(ST.tab==='ent') wireEntrada(); else wireSaldo();
+  const na=(ST.alertas||[]).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
+  $('#app').innerHTML = ST.tab==='al' ? viewAlertas() : (ST.tab==='sal' ? viewSaldo() : viewEntrada());
+  if(ST.tab==='al') wireAlertas(); else if(ST.tab==='sal') wireSaldo(); else wireEntrada();
+}
+function viewAlertas(){
+  const a=ST.alertas||[];
+  let h=`<div class="note">Itens marcados como <b>"não usamos / por que foi pedido?"</b> ao dar baixa nas notas — sinal de compra que talvez não devesse ter acontecido.</div>`;
+  h+=`<div class="lbl">Não usamos (${a.length})</div>`;
+  if(!a.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>Nenhum alerta. Tudo o que entra está sendo usado.</div>`; return h; }
+  a.forEach(x=>{ h+=`<div class="srow"><div class="t"><b>${esc(x.desc_item)}</b><span>${esc(x.obs||'')}${x.criado_por?' · '+esc(x.criado_por):''} · ${fmtData((x.criado_em||'').slice(0,10))}</span></div>
+    <button class="chip resolv" data-id="${x.id}">resolver</button></div>`; });
+  return h;
+}
+function wireAlertas(){ $$('.resolv').forEach(b=>b.onclick=()=>resolverAlerta(b.dataset.id)); }
+async function resolverAlerta(id){
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_alertas?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({resolvido:true})});
+    ST.alertas=(ST.alertas||[]).filter(x=>x.id!==id); toast('Alerta resolvido ✓'); render();
+  }catch(e){ toast('Erro: '+e.message); }
 }
 
 function viewEntrada(){
@@ -612,6 +634,7 @@ function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classLi
 /* ============ eventos base ============ */
 $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
 $('#tabSal').onclick=()=>{ST.tab='sal';render();};
+$('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
 $('#btnBack').onclick=()=>{ location.href='../'; };
 let onSave=salvarEntrada;
