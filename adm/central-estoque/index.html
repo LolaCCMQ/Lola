@@ -428,6 +428,7 @@ function openCriarInsumo(it){
   const cu = it.qtd ? it.vtotal/it.qtd : (it.vunit||0);
   $('#imCusto').value = cu ? (Math.round(cu*100)/100) : ''; $('#imPeso').value=''; $('#imFC').value='';
   $('#imCat').onchange=toggleHort; toggleHort();
+  $('#imSave').removeAttribute('disabled');
   $('#insBg').classList.add('on'); $('#insModal').classList.add('on');
   setTimeout(()=>$('#imNome').focus(),60);
 }
@@ -462,7 +463,7 @@ async function salvarInsumo(){
       sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`;
       it.insumo_id=row.id; sel.value=row.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
     }
-    closeIns(); toast('Insumo criado ✓');
+    $('#imSave').removeAttribute('disabled'); closeIns(); toast('Insumo criado ✓');
   }catch(e){ toast('Erro ao criar: '+e.message); $('#imSave').removeAttribute('disabled'); }
 }
 
