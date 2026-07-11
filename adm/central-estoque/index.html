@@ -122,6 +122,10 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .item.alerta{border-color:#EFD9AE;background:#FDF7EC}
 .item .fchint{display:none;font-size:11.5px;color:var(--okFg);font-weight:600;margin-top:7px;line-height:1.35}
 .item .fchint.on{display:block}
+.item .fchint.warn{color:var(--pendFg)}
+.item.falta{border-color:#E9A8A2;box-shadow:0 0 0 2px #FBEAE7}
+.falta-banner{background:var(--urgBg);color:var(--urgFg);border:1px solid #E9A8A2;border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.4;margin-bottom:12px}
+.falta-banner b{font-weight:700}
 .item .l2 .unit{font-size:12px;color:var(--mut);font-weight:700}
 .item .l3{display:flex;gap:8px;margin-top:8px}
 .item .l3 button{flex:1;background:none;border:1px solid var(--border);border-radius:10px;padding:9px 6px;font:inherit;font-size:12px;font-weight:700;color:var(--sec);cursor:pointer;min-height:42px;display:flex;align-items:center;justify-content:center;gap:5px}
@@ -246,16 +250,21 @@ function computeFator(it){
   const iu=(ins.unidade_custo||'').toLowerCase().trim();
   const nu=(it.un||'').toLowerCase().trim();
   const rec=ST.fc[norm(ins.nome)]||{}; const F=rec.fc||1; const peso=rec.peso_medio_g||null;
-  let fator=null, hint='';
   const nf=n=>(+n).toLocaleString('pt-BR',{maximumFractionDigits:3});
+  const cont=CONT.has(nu); let fator=null, hint='', warn=false;
   if(iu==='kg'){
-    if(nu==='kg'){ fator=1/F; if(F!==1) hint=`FC ${nf(F)} · entra ${nf(1/F)} kg líquido por kg bruto`; }
-    else if(nu==='g'){ fator=(1/1000)/F; if(F!==1) hint=`FC ${nf(F)} aplicado`; }
-    else if(CONT.has(nu)){ if(peso){ fator=(peso/1000)/F; hint=`1 ${it.un||'un'} ≈ ${peso}g bruto`+(F!==1?` → ${Math.round(peso/F)}g líquido (FC ${nf(F)})`:'')+` = ${nf(fator)} kg`; } }
-  } else if(iu==='un'||iu==='und'){ if(CONT.has(nu)) fator=1; }
-  else if(iu==='g'){ if(nu==='g') fator=1/F; else if(nu==='kg') fator=1000/F; else if(CONT.has(nu)&&peso) fator=peso/F; }
-  if(fator==null) return {fator: it.fator||1, hint:''};
-  return {fator: Math.round(fator*100000)/100000, hint};
+    if(nu==='kg'){ fator=1/F; hint = F!==1 ? `Fator ${nf(1/F)}: FC ${nf(F)} — cada 1 kg comprado rende ${nf(1/F)} kg limpo` : `Fator 1: entra igual à nota (${nf(it.qtd)} kg), sem correção`; }
+    else if(nu==='g'){ fator=(1/1000)/F; hint=`Fator ${nf(fator)}: ${nf(it.qtd)} g = ${nf(it.qtd/1000)} kg`+(F!==1?` · FC ${nf(F)}`:''); }
+    else if(cont && peso){ fator=(peso/1000)/F; hint=`Fator ${nf(fator)}: 1 ${it.un} pesa ~${peso} g`+(F!==1?` bruto → ${Math.round(peso/F)} g limpo (FC ${nf(F)})`:'')+` = ${nf(fator)} kg cada`; }
+    else if(cont){ fator=1; warn=true; hint=`A nota veio em "${it.un}" e o insumo é em kg — sem peso cadastrado ficou fator 1. Ajuste na mão ou cadastre o peso.`; }
+  } else if(iu==='un'||iu==='und'){ if(cont){ fator=1; hint=`Fator 1: ${nf(it.qtd)} unidade(s), entra igual à nota`; } }
+  else if(iu==='l'||iu==='ml'){
+    if(nu==='l'||nu==='lt'){ fator=1; hint=`Fator 1: entra ${nf(it.qtd)} L igual à nota`; }
+    else if(nu==='ml'){ fator=1/1000; hint=`Fator ${nf(1/1000)}: ${nf(it.qtd)} ml = ${nf(it.qtd/1000)} L`; }
+    else if(cont){ fator=1; warn=true; hint=`A nota veio em "${it.un}" e o insumo é em L — confira quantos litros tem 1 ${it.un} e ajuste o fator.`; }
+  } else if(iu==='g'){ if(nu==='g'){fator=1/F;hint=F!==1?`Fator ${nf(1/F)}: FC ${nf(F)}`:`Fator 1: entra igual à nota`;} else if(nu==='kg'){fator=1000/F;hint=`Fator ${nf(1000/F)}: ${nf(it.qtd)} kg = ${nf(it.qtd*1000)} g`;} }
+  if(fator==null){ warn=true; return {fator: it.fator||1, hint:`Nota em "${it.un||'?'}", insumo em ${iu||'?'} — confira se precisa converter o fator.`, warn:true}; }
+  return {fator: Math.round(fator*100000)/100000, hint, warn};
 }
 
 /* ============ RENDER ============ */
@@ -340,6 +349,7 @@ async function abrirNota(chave){
   ST.itens.forEach(it=>{ h+=itemHTML(it); });
   $('#shBody').innerHTML=h;
   $('#shSave').innerHTML = jaImp?'<i class="ph-duotone ph-arrows-clockwise"></i> Relançar entrada':'<i class="ph-duotone ph-check"></i> Dar entrada no estoque';
+  $('#shSave').removeAttribute('disabled');
   onSave=salvarEntrada;
   openSheet();
   wireItens();
@@ -366,12 +376,12 @@ function itemHTML(it){
   </div>`;
 }
 function refreshFator(el, it){
-  const {fator,hint}=computeFator(it);
+  const {fator,hint,warn}=computeFator(it);
   it.fator=fator;
   const fin=el.querySelector('.fat'); if(fin) fin.value=fator;
   const ins=ST.byId[it.insumo_id];
   el.querySelector('.unit').textContent = ins?('→ '+(ins.unidade_custo||'')):'';
-  const hd=el.querySelector('.fchint'); hd.textContent=hint||''; hd.classList.toggle('on',!!hint);
+  const hd=el.querySelector('.fchint'); hd.textContent=hint||''; hd.classList.toggle('on',!!hint); hd.classList.toggle('warn',!!warn);
 }
 function wireItens(){
   $$('#shBody .item').forEach(el=>{
@@ -447,7 +457,15 @@ async function salvarEntrada(){
   const usar=ST.itens.filter(i=>!i.ignorar && !i.naousamos);
   const alertas=ST.itens.filter(i=>i.naousamos);
   const semins=usar.filter(i=>!i.insumo_id);
-  if(semins.length){ toast(`Faltou escolher o insumo de ${semins.length} ${semins.length===1?'item':'itens'} (ou marque "não é insumo" / "não usamos").`); return; }
+  const oldB=$('#shFalta'); if(oldB) oldB.remove();
+  $$('#shBody .item').forEach(el=>el.classList.remove('falta'));
+  if(semins.length){
+    semins.forEach(i=>{ const el=$(`#shBody .item[data-ix="${i.ix}"]`); if(el) el.classList.add('falta'); });
+    const b=document.createElement('div'); b.id='shFalta'; b.className='falta-banner';
+    b.innerHTML=`<b>Falta escolher o insumo de ${semins.length} ${semins.length===1?'item':'itens'}:</b> ${semins.map(i=>esc(i.desc)).join(' · ')}.<br>Escolha o insumo (ou "+ criar novo insumo"), ou marque "não é insumo" / "não usamos".`;
+    $('#shBody').prepend(b); $('#shBody').scrollTop=0;
+    return;
+  }
   if(!usar.length && !alertas.length){ toast('Nenhum item pra lançar.'); return; }
   $('#shSave').setAttribute('disabled','');
   try{
