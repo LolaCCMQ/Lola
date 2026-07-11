@@ -285,7 +285,7 @@ async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders
 
 async function carregar(){
   try{
-    const [notas, imp, insumos, mapa, movs, fc, alertas, prod] = await Promise.all([
+    const [notas, imp, insumos, mapa, movs, fc, alertas, prod, pplist] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
       api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade&order=categoria,nome'),
@@ -293,10 +293,12 @@ async function carregar(){
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
-      api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs&order=categoria,nome').catch(()=>[])
+      api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
+      api('lola_preproducoes?ativo=neq.false&select=id,nome&order=nome').catch(()=>null)
     ]);
     ST.alertas=alertas||[];
     ST.prod=prod||[];
+    if(pplist) ST.pplist=pplist;
     try{ const uu=await api('rpc/central_insumos_usados'); ST.usados=new Set((uu||[]).map(x=>(x&&typeof x==='object')?Object.values(x)[0]:x)); }catch(e){ ST.usados=new Set(); }
     ST.notas=notas||[]; ST.imp=new Set((imp||[]).map(r=>r.nota_chave));
     ST.insumos=insumos||[]; ST.byId={}; ST.insumos.forEach(i=>ST.byId[i.id]=i);
@@ -382,10 +384,16 @@ function viewProd(){
   if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-cooking-pot"></i>Nenhuma produção.</div>`; return h; }
   [...new Set(list.map(x=>x.categoria||'Outras'))].forEach(cat=>{
     h+=`<div class="catrow"><span>${esc(cat)}</span></div>`;
+    const pl=ST.pplist||[];
     list.filter(x=>(x.categoria||'Outras')===cat).forEach(x=>{
+      const pp=x.preproducao_id?pl.find(y=>y.id===x.preproducao_id):null;
+      const titulo=pp?pp.nome:x.nome;
+      const sub=pp && norm(pp.nome)!==norm(x.nome) ? `<span>era: ${esc(x.nome)}</span>` : (x.obs?`<span>${esc(x.obs)}</span>`:'');
+      const opts=`<option value="">— vincular pré-produção —</option>`+pl.map(y=>`<option value="${y.id}"${x.preproducao_id===y.id?' selected':''}>${esc(y.nome)}</option>`).join('');
       h+=`<div class="pcard" data-id="${x.id}">
-        <div class="prow"><div class="t"><b>${esc(x.nome)}</b>${x.obs?`<span>${esc(x.obs)}</span>`:''}</div>
+        <div class="prow"><div class="t"><b>${esc(titulo)}</b>${sub}</div>
           <div class="prodq"><input type="number" class="psaldo" step="0.001" value="${x.saldo}"><span class="pu">${esc(x.unidade||'')}</span></div></div>
+        <select class="pplink plink" style="margin-top:8px">${opts}</select>
         <div class="pacts"><button class="prodbtn"><i class="ph-duotone ph-plus-circle"></i> Produzir mais</button><button class="pdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
       </div>`;
     });
@@ -400,6 +408,7 @@ function wireProd(){
     const id=el.dataset.id, inp=el.querySelector('.psaldo');
     if(inp) inp.onchange=()=>saveProdSaldo(id,+inp.value||0);
     const pb=el.querySelector('.prodbtn'); if(pb) pb.onclick=()=>openProduzir(id);
+    const lk=el.querySelector('.plink'); if(lk) lk.onchange=async()=>{ await vincularReceita(id, lk.value); render(); };
     const del=el.querySelector('.pdel'); if(del) del.onclick=()=>delProd(id, el.querySelector('.t b').textContent);
   });
 }
