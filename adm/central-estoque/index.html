@@ -76,6 +76,15 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .prodq .psaldo{width:76px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
 .prodq .pu{font-size:12px;color:var(--mut);font-weight:700;min-width:24px}
 .prodq .pdel{background:none;border:0;color:var(--lbl);font-size:17px;cursor:pointer;padding:2px}
+.sitem{margin-bottom:8px}
+.sitem .srow{margin-bottom:0}
+.srow-c{cursor:pointer}
+.srow-c .t span i{color:var(--vinho);font-size:12px}
+.usos{display:none}
+.usos.on{display:block;background:var(--cremeDark);border-radius:12px;padding:10px 13px;margin:6px 0 0}
+.ugrp{font-size:12px;color:var(--sec);line-height:1.5;margin:3px 0;overflow-wrap:anywhere}
+.ugrp b{color:var(--ink);font-weight:700}
+.uinfo{font-size:12px;color:var(--mut)}
 
 /* janela centralizada */
 #sheetBg{position:fixed;inset:0;background:rgba(42,26,23,.42);z-index:200;opacity:0;pointer-events:none;transition:.2s}
@@ -97,9 +106,12 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 /* modal criar insumo */
 #insBg{position:fixed;inset:0;background:rgba(42,26,23,.5);z-index:210;opacity:0;pointer-events:none;transition:.2s}
 #insBg.on{opacity:1;pointer-events:auto}
-#insModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);z-index:211;width:calc(100% - 32px);max-width:420px;
+#insModal,#resModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);z-index:211;width:calc(100% - 32px);max-width:420px;
   background:var(--creme);border-radius:18px;opacity:0;pointer-events:none;transition:.2s;max-height:90vh;display:flex;flex-direction:column}
-#insModal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+#insModal.on,#resModal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+#resBg{position:fixed;inset:0;background:rgba(42,26,23,.5);z-index:210;opacity:0;pointer-events:none;transition:.2s}
+#resBg.on{opacity:1;pointer-events:auto}
+.im-body textarea{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;color:var(--ink);resize:vertical}
 .im-head{display:flex;align-items:center;gap:10px;padding:16px 16px 10px;border-bottom:1px solid var(--fio)}
 .im-head h3{flex:1;font-family:Fraunces,serif;font-weight:600;font-size:17px;color:var(--vinho)}
 .im-head .x{background:none;border:0;font-size:22px;color:var(--sec);cursor:pointer}
@@ -211,6 +223,19 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
   </div>
   <div class="im-foot"><button class="btn" id="imSave"><i class="ph-duotone ph-check"></i> Criar e usar</button></div>
 </div>
+<div id="resBg"></div>
+<div id="resModal">
+  <div class="im-head"><h3 id="resTitle">Alerta</h3><button class="x" id="resX"><i class="ph-duotone ph-x"></i></button></div>
+  <div class="im-body">
+    <div class="imnote">Por que esse item foi comprado se a gente não usa? (ex.: refeição do funcionário, teste de prato novo)</div>
+    <label class="iml">Justificativa</label>
+    <textarea id="resJust" rows="3" placeholder="escreva o motivo…"></textarea>
+  </div>
+  <div class="im-foot">
+    <button class="btn" id="resSaveJust" style="margin-bottom:8px"><i class="ph-duotone ph-check"></i> Salvar justificativa</button>
+    <button class="btn sec" id="resAbrir"><i class="ph-duotone ph-file-arrow-down"></i> Na verdade é insumo — abrir a nota pra lançar</button>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script src="../auth.js"></script>
@@ -241,7 +266,7 @@ async function carregar(){
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
-      api('lola_central_alertas?motivo=eq.nao_usamos&resolvido=eq.false&select=id,nota_chave,desc_item,obs,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
+      api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs&order=categoria,nome').catch(()=>[])
     ]);
     ST.alertas=alertas||[];
@@ -297,22 +322,27 @@ function render(){
   $('#tabAl').classList.toggle('on',ST.tab==='al');
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
-  const na=(ST.alertas||[]).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
+  const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
   const V={ent:viewEntrada, sal:viewSaldo, prod:viewProd, al:viewAlertas};
   const W={ent:wireEntrada, sal:wireSaldo, prod:wireProd, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
 function viewAlertas(){
-  const a=ST.alertas||[];
+  const all=ST.alertas||[]; const abertos=all.filter(x=>!x.resolvido), resolvidos=all.filter(x=>x.resolvido);
+  const list=ST.verResolv?resolvidos:abertos;
   let h=`<div class="note">Itens marcados como <b>"não usamos / por que foi pedido?"</b> ao dar baixa nas notas — sinal de compra que talvez não devesse ter acontecido.</div>`;
-  h+=`<div class="lbl">Não usamos (${a.length})</div>`;
-  if(!a.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>Nenhum alerta. Tudo o que entra está sendo usado.</div>`; return h; }
-  a.forEach(x=>{ h+=`<div class="srow"><div class="t"><b>${esc(x.desc_item)}</b><span>${esc(x.obs||'')}${x.criado_por?' · '+esc(x.criado_por):''} · ${fmtData((x.criado_em||'').slice(0,10))}</span></div>
-    <button class="chip resolv" data-id="${x.id}">resolver</button></div>`; });
+  h+=`<div class="lbl">${ST.verResolv?'Resolvidos':'Não usamos'} (${list.length}) <span class="spacer"></span>
+      <button class="chip ${ST.verResolv?'on':''}" id="chResolv">${ST.verResolv?'ver abertos':'ver resolvidos'}</button></div>`;
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>${ST.verResolv?'Nenhum resolvido ainda.':'Nenhum alerta aberto.'}</div>`; return h; }
+  list.forEach(x=>{ h+=`<div class="srow"><div class="t"><b>${esc(x.desc_item)}</b><span>${esc(x.obs||'')}${x.criado_por?' · '+esc(x.criado_por):''} · ${fmtData((x.criado_em||'').slice(0,10))}${x.justificativa?' · <i>“'+esc(x.justificativa)+'”</i>':''}</span></div>
+    ${x.resolvido?'<span class="chip" style="opacity:.55">resolvido</span>':`<button class="chip resolv" data-id="${x.id}">resolver</button>`}</div>`; });
   return h;
 }
-function wireAlertas(){ $$('.resolv').forEach(b=>b.onclick=()=>resolverAlerta(b.dataset.id)); }
+function wireAlertas(){
+  $('#chResolv')&&($('#chResolv').onclick=()=>{ST.verResolv=!ST.verResolv;render();});
+  $$('.resolv').forEach(b=>b.onclick=()=>openResolver(b.dataset.id));
+}
 /* ===== PRODUÇÕES (estoque de produções prontas) ===== */
 function viewProd(){
   const p=ST.prod||[];
@@ -363,10 +393,25 @@ async function addProd(){
     toast('Produção adicionada ✓'); render();
   }catch(e){ toast('Erro: '+e.message); }
 }
-async function resolverAlerta(id){
+let RES_AL=null;
+function openResolver(id){
+  const a=(ST.alertas||[]).find(x=>x.id===id); if(!a)return; RES_AL=a;
+  $('#resTitle').textContent=a.desc_item||'Alerta';
+  $('#resJust').value=a.justificativa||'';
+  $('#resBg').classList.add('on'); $('#resModal').classList.add('on');
+  setTimeout(()=>$('#resJust').focus(),60);
+}
+function closeRes(){ $('#resBg').classList.remove('on'); $('#resModal').classList.remove('on'); }
+async function resSalvar(abrirDepois){
+  const a=RES_AL; if(!a)return; const just=$('#resJust').value.trim();
   try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_central_alertas?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({resolvido:true})});
-    ST.alertas=(ST.alertas||[]).filter(x=>x.id!==id); toast('Alerta resolvido ✓'); render();
+    await fetch(SB_URL+'/rest/v1/lola_central_alertas?id=eq.'+a.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({justificativa:just||null, resolvido:true})});
+    const x=(ST.alertas||[]).find(y=>y.id===a.id); if(x){x.justificativa=just; x.resolvido=true;}
+    closeRes();
+    if(abrirDepois){ const n=ST.notas.find(nn=>nn.chave===a.nota_chave);
+      if(n){ ST.tab='ent'; render(); abrirNota(a.nota_chave); }
+      else { toast('Justificado. A nota não está na lista da Central (pode ter sido movida).'); render(); } }
+    else { toast('Justificado e resolvido ✓'); render(); }
   }catch(e){ toast('Erro: '+e.message); }
 }
 
@@ -417,14 +462,29 @@ function viewSaldo(){
   let cat='';
   ids.forEach(id=>{ const i=ST.byId[id]||{nome:'(insumo removido)'}; const s=sal[id];
     if(i.categoria!==cat){ cat=i.categoria; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
-    h+=`<div class="srow"><div class="t"><b>${esc(i.nome)}</b><span>${i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):''}</span></div>
-      <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div></div>`;
+    h+=`<div class="sitem" data-ins="${id}"><div class="srow srow-c"><div class="t"><b>${esc(i.nome)}</b><span>${i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):''} · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado</span></div>
+      <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div></div>
+      <div class="usos"></div></div>`;
   });
   return h;
 }
 function wireSaldo(){
   const bq=$('#bq'); if(bq){ bq.oninput=()=>{ST.busca=bq.value; const p=bq.selectionStart; render(); const n=$('#bq'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $('#chSaldo')&&($('#chSaldo').onclick=()=>{ST.soComSaldo=!ST.soComSaldo;render();});
+  $$('#app .sitem').forEach(el=>{ el.querySelector('.srow-c').onclick=()=>toggleUsos(el); });
+}
+async function toggleUsos(el){
+  const box=el.querySelector('.usos'), id=el.dataset.ins;
+  if(box.classList.contains('on')){ box.classList.remove('on'); box.innerHTML=''; return; }
+  box.classList.add('on'); box.innerHTML='<div class="uinfo">buscando…</div>';
+  try{ const r=await post('rpc/central_insumo_usos',{iid:id});
+    const pp=(r&&r.preproducoes)||[], pr=(r&&r.pratos)||[];
+    if(!pp.length && !pr.length){ box.innerHTML='<div class="uinfo">Não entra em nenhuma receita cadastrada.</div>'; return; }
+    let hh='';
+    if(pp.length) hh+=`<div class="ugrp"><b>Pré-produções (${pp.length}):</b> ${pp.map(esc).join(' · ')}</div>`;
+    if(pr.length) hh+=`<div class="ugrp"><b>Pratos (${pr.length}):</b> ${pr.map(esc).join(' · ')}</div>`;
+    box.innerHTML=hh;
+  }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
 }
 
 /* ============ FOLHA: abrir nota / mapear itens ============ */
@@ -701,6 +761,7 @@ $('#btnBack').onclick=()=>{ location.href='../'; };
 let onSave=salvarEntrada;
 $('#shX').onclick=closeSheet; $('#sheetBg').onclick=closeSheet; $('#shSave').onclick=()=>onSave();
 $('#imX').onclick=closeIns; $('#insBg').onclick=closeIns; $('#imSave').onclick=salvarInsumo;
+$('#resX').onclick=closeRes; $('#resBg').onclick=closeRes; $('#resSaveJust').onclick=()=>resSalvar(false); $('#resAbrir').onclick=()=>resSalvar(true);
 
 (async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Estoque da Central'}); carregar(); })();
 </script>
