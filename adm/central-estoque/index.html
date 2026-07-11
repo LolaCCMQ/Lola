@@ -124,6 +124,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .item .fchint{display:none;font-size:11.5px;color:var(--okFg);font-weight:600;margin-top:7px;line-height:1.35}
 .item .fchint.on{display:block}
 .item .fchint.warn{color:var(--pendFg)}
+.item .entra{display:none;font-size:12px;color:var(--sec);margin-top:7px;background:var(--cremeDark);border-radius:9px;padding:7px 10px}
+.item .entra.on{display:block}
+.item .entra b{color:var(--ink);font-weight:700}
 .item.falta{border-color:#E9A8A2;box-shadow:0 0 0 2px #FBEAE7}
 .falta-banner{background:var(--urgBg);color:var(--urgFg);border:1px solid #E9A8A2;border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.4;margin-bottom:12px}
 .falta-banner b{font-weight:700}
@@ -257,12 +260,12 @@ function computeFator(it){
     if(nu==='kg'){ fator=1/F; hint = F!==1 ? `Fator ${nf(1/F)}: FC ${nf(F)} — cada 1 kg comprado rende ${nf(1/F)} kg limpo` : `Fator 1: entra igual à nota (${nf(it.qtd)} kg), sem correção`; }
     else if(nu==='g'){ fator=(1/1000)/F; hint=`Fator ${nf(fator)}: ${nf(it.qtd)} g = ${nf(it.qtd/1000)} kg`+(F!==1?` · FC ${nf(F)}`:''); }
     else if(cont && peso){ fator=(peso/1000)/F; hint=`Fator ${nf(fator)}: 1 ${it.un} pesa ~${peso} g`+(F!==1?` bruto → ${Math.round(peso/F)} g limpo (FC ${nf(F)})`:'')+` = ${nf(fator)} kg cada`; }
-    else if(cont){ fator=1; warn=true; hint=`A nota veio em "${it.un}" e o insumo é em kg — sem peso cadastrado ficou fator 1. Ajuste na mão ou cadastre o peso.`; }
+    else if(cont){ fator=1; warn=true; hint=`Quanto pesa 1 "${it.un}"? Ponha esse peso no fator. Ex.: embalagem de 1,5 kg → ponha 1,5 (aí ${nf(it.qtd)} × 1,5 = ${nf(it.qtd*1.5)} kg).`; }
   } else if(iu==='un'||iu==='und'){ if(cont){ fator=1; hint=`Fator 1: ${nf(it.qtd)} unidade(s), entra igual à nota`; } }
   else if(iu==='l'||iu==='ml'){
     if(nu==='l'||nu==='lt'){ fator=1; hint=`Fator 1: entra ${nf(it.qtd)} L igual à nota`; }
     else if(nu==='ml'){ fator=1/1000; hint=`Fator ${nf(1/1000)}: ${nf(it.qtd)} ml = ${nf(it.qtd/1000)} L`; }
-    else if(cont){ fator=1; warn=true; hint=`A nota veio em "${it.un}" e o insumo é em L — confira quantos litros tem 1 ${it.un} e ajuste o fator.`; }
+    else if(cont){ fator=1; warn=true; hint=`Quantos litros tem 1 "${it.un}"? Ponha esse valor no fator. Ex.: 1 caixa de 1 L → ponha 1.`; }
   } else if(iu==='g'){ if(nu==='g'){fator=1/F;hint=F!==1?`Fator ${nf(1/F)}: FC ${nf(F)}`:`Fator 1: entra igual à nota`;} else if(nu==='kg'){fator=1000/F;hint=`Fator ${nf(1000/F)}: ${nf(it.qtd)} kg = ${nf(it.qtd*1000)} g`;} }
   if(fator==null){ warn=true; return {fator: it.fator||1, hint:`Nota em "${it.un||'?'}", insumo em ${iu||'?'} — confira se precisa converter o fator.`, warn:true}; }
   return {fator: Math.round(fator*100000)/100000, hint, warn};
@@ -370,6 +373,7 @@ function itemHTML(it){
     <div class="auto ${it.auto?'on':''}"><i class="ph-duotone ph-magic-wand"></i> insumo memorizado desta descrição</div>
     <div class="fchint"></div>
     <div class="l2"><label>fator</label><input type="number" class="fat" step="0.00001" value="${it.fator}" title="multiplica a qtd da nota p/ a unidade do insumo"><span class="unit"></span></div>
+    <div class="entra"></div>
     <div class="l3">
       <button class="usbtn ${it.naousamos?'on':''}"><i class="ph-duotone ph-warning-circle"></i> não usamos</button>
       <button class="ignbtn ${it.ignorar?'on':''}"><i class="ph-duotone ph-prohibit"></i> não é insumo</button>
@@ -383,6 +387,15 @@ function refreshFator(el, it){
   const ins=ST.byId[it.insumo_id];
   el.querySelector('.unit').textContent = ins?('→ '+(ins.unidade_custo||'')):'';
   const hd=el.querySelector('.fchint'); hd.textContent=hint||''; hd.classList.toggle('on',!!hint); hd.classList.toggle('warn',!!warn);
+  updateEntra(el, it);
+}
+function updateEntra(el, it){
+  const e=el.querySelector('.entra'); if(!e) return;
+  const ins=ST.byId[it.insumo_id];
+  if(!ins || it.ignorar || it.naousamos){ e.classList.remove('on'); e.textContent=''; return; }
+  const res=(it.qtd||0)*(it.fator||0);
+  e.innerHTML=`Entra no estoque: <b>${num(it.qtd)} ${esc(it.un||'')} × ${num(it.fator||0)} = ${num(res)} ${esc(ins.unidade_custo||'')}</b>`;
+  e.classList.add('on');
 }
 function wireItens(){
   $$('#shBody .item').forEach(el=>{
@@ -390,15 +403,15 @@ function wireItens(){
     const s=el.querySelector('.selins'); if(it.insumo_id) s.value=it.insumo_id;
     refreshFator(el, it);
     s.onchange=()=>{ if(s.value==='__novo'){ s.value=it.insumo_id||''; openCriarInsumo(it); return; } it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); };
-    el.querySelector('.fat').oninput=e=>{ it.fator=+e.target.value||0; };
+    el.querySelector('.fat').oninput=e=>{ it.fator=+e.target.value||0; updateEntra(el,it); };
     el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; if(it.ignorar)it.naousamos=false;
       el.classList.toggle('ign',it.ignorar); el.classList.remove('alerta');
       el.querySelector('.ignbtn').classList.toggle('on',it.ignorar); el.querySelector('.usbtn').classList.remove('on');
-      s.disabled=it.ignorar||it.naousamos; };
+      s.disabled=it.ignorar||it.naousamos; updateEntra(el,it); };
     el.querySelector('.usbtn').onclick=()=>{ it.naousamos=!it.naousamos; if(it.naousamos)it.ignorar=false;
       el.classList.toggle('alerta',it.naousamos); el.classList.remove('ign');
       el.querySelector('.usbtn').classList.toggle('on',it.naousamos); el.querySelector('.ignbtn').classList.remove('on');
-      s.disabled=it.ignorar||it.naousamos; };
+      s.disabled=it.ignorar||it.naousamos; updateEntra(el,it); };
   });
 }
 /* ===== criar insumo na hora ===== */
@@ -420,6 +433,18 @@ function openCriarInsumo(it){
 }
 async function salvarInsumo(){
   const nome=$('#imNome').value.trim(); if(!nome){ toast('Dê um nome ao insumo.'); return; }
+  // evita duplicado: se já existe um insumo com esse mesmo nome, usa o que já tem
+  const nn=norm(nome);
+  const existente=ST.insumos.find(x=>x.ativo!==false && norm(x.nome)===nn);
+  if(existente){
+    const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
+    if(el){ const sel=el.querySelector('.selins');
+      if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions();
+        sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`; }
+      it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); }
+    closeIns(); toast(`"${existente.nome}" já existe — usei o cadastro que já tinha.`);
+    return;
+  }
   const cat=$('#imCat').value, un=IM_UN, custo=+$('#imCusto').value||0;
   $('#imSave').setAttribute('disabled','');
   try{
