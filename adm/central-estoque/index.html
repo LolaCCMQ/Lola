@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Estoque da Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#A82A2A; --vinhoH:#7E1E1F;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --okBg:#E6F3EA; --okFg:#2C7A4B; --pendBg:#FBF0DD; --pendFg:#9A6B1E; --urgBg:#FBEAE7; --urgFg:#B5302E;
+  --r-pill:9px; --r-btn:13px; --r-card:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 96px}
+header{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:14px}
+header .back{background:none;border:0;color:var(--vinho);font-size:22px;display:flex;align-items:center;cursor:pointer;padding:4px}
+header h1{font-family:Fraunces,serif;font-weight:600;font-size:19px;color:var(--vinho);line-height:1.15}
+header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em}
+header .spacer{flex:1}
+header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:pointer;padding:4px}
+
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tabs button{flex:1;min-height:44px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);
+  font:inherit;font-weight:700;font-size:13.5px;color:var(--sec);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.tabs button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+.tabs button i{font-size:18px}
+.tabs button .cnt{font-size:11px;background:var(--urgBg);color:var(--urgFg);border-radius:999px;padding:1px 7px;font-weight:800}
+.tabs button.on .cnt{background:rgba(255,255,255,.24);color:#fff}
+
+.note{background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sec);margin-bottom:16px;overflow-wrap:anywhere}
+.lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin:20px 0 10px;display:flex;align-items:center;gap:8px}
+.lbl .spacer{flex:1}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:nowrap}
+.toolbar input[type=search]{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:11px 12px;font:inherit;font-size:14px;min-height:44px}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:0 14px;min-height:44px;font:inherit;font-weight:700;font-size:12.5px;color:var(--sec);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.chip.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+
+/* cartão de nota */
+.ncard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.ncard:active{background:var(--cremeDark)}
+.ncard .ic{font-size:26px;color:var(--vinho);flex-shrink:0}
+.ncard .t{flex:1;min-width:0}
+.ncard .t b{display:block;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ncard .t span{display:block;font-size:12px;color:var(--mut);margin-top:2px}
+.ncard .r{text-align:right;flex-shrink:0}
+.ncard .r .v{font-family:Fraunces,serif;font-weight:600;font-size:15px}
+.ncard .r .n{font-size:11px;color:var(--mut);margin-top:2px}
+.ncard.done .ic{color:var(--okFg)}
+
+/* saldo */
+.tot{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;text-align:center}
+.tot .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:700}
+.tot .big{font-family:Fraunces,serif;font-weight:600;font-size:38px;line-height:1;margin:6px 0 2px}
+.tot .s{font-size:12px;color:var(--mut);font-weight:600}
+.catrow{margin:18px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--lbl);font-weight:700;display:flex;justify-content:space-between}
+.srow{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.srow .t{flex:1;min-width:0}
+.srow .t b{display:block;font-size:13.5px;font-weight:700}
+.srow .t span{display:block;font-size:11.5px;color:var(--mut);margin-top:1px}
+.srow .r{text-align:right;flex-shrink:0}
+.srow .r .q{font-family:Fraunces,serif;font-weight:600;font-size:15px}
+.srow .r .v{font-size:11.5px;color:var(--mut);margin-top:1px}
+
+/* folha de baixo */
+#sheetBg{position:fixed;inset:0;background:rgba(42,26,23,.42);z-index:200;opacity:0;pointer-events:none;transition:.2s}
+#sheetBg.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:201;background:var(--creme);border-radius:20px 20px 0 0;
+  max-width:760px;margin:0 auto;max-height:92vh;display:flex;flex-direction:column;transform:translateY(100%);transition:.24s}
+#sheet.on{transform:translateY(0)}
+.sh-head{display:flex;align-items:center;gap:10px;padding:16px 16px 10px;border-bottom:1px solid var(--fio)}
+.sh-head h2{font-family:Fraunces,serif;font-weight:600;font-size:17px;color:var(--vinho);flex:1;line-height:1.15}
+.sh-head .x{background:none;border:0;font-size:24px;color:var(--sec);cursor:pointer;padding:2px}
+.sh-body{padding:14px 16px 6px;overflow-y:auto}
+.sh-foot{padding:12px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--fio);background:var(--creme)}
+.btn{width:100%;min-height:50px;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{background:var(--vinhoH)}
+.btn.sec{background:var(--card);color:var(--sec);border:1px solid var(--border)}
+.btn[disabled]{opacity:.5;pointer-events:none}
+
+.item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px;margin-bottom:10px}
+.item.ign{opacity:.55}
+.item .top{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px}
+.item .top b{font-size:13px;font-weight:700;line-height:1.25}
+.item .top .q{font-size:12px;color:var(--mut);white-space:nowrap;flex-shrink:0;text-align:right}
+.item select{width:100%;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;color:var(--ink);min-height:44px}
+.item .l2{display:flex;gap:8px;margin-top:8px;align-items:center}
+.item .l2 label{font-size:11px;color:var(--mut);font-weight:600}
+.item .l2 input{width:64px;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:13px;text-align:center;min-height:40px}
+.item .l2 .ignbtn{margin-left:auto;background:none;border:1px solid var(--border);border-radius:10px;padding:8px 11px;font:inherit;font-size:12px;font-weight:700;color:var(--sec);cursor:pointer;min-height:40px}
+.item .l2 .ignbtn.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
+.item .auto{font-size:11px;color:var(--okFg);font-weight:700;margin-top:6px;display:none}
+.item .auto.on{display:block}
+
+/* entrada manual */
+.mf{margin-bottom:10px}
+.mf label{display:block;font-size:11px;color:var(--mut);font-weight:600;margin-bottom:4px}
+.mf input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
+.mline{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:10px;margin-bottom:8px}
+.mline .mi{width:100%;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;min-height:44px;color:var(--ink)}
+.mrow{display:flex;gap:8px;margin-top:8px}
+.mrow .mq,.mrow .mc{flex:1;min-width:0;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;min-height:44px;text-align:center;color:var(--ink)}
+.mrow .mdel{background:var(--urgBg);color:var(--urgFg);border:0;border-radius:10px;padding:0 12px;min-height:44px;cursor:pointer;font-size:16px;flex-shrink:0}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140%);background:#2A1A17;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:.25s;max-width:88vw;text-align:center}
+#toast.on{transform:translate(-50%,0)}
+.spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--vinho);border-radius:50%;animation:sp .8s linear infinite;margin:50px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{text-align:center;color:var(--mut);font-size:13px;padding:38px 10px}
+.empty i{font-size:40px;color:var(--lbl);display:block;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <button class="back" id="btnBack" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
+    <div>
+      <h1>Estoque da Central</h1>
+      <div class="sub">Entrada das notas e saldo dos insumos</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="act" id="btnReload" title="Atualizar"><i class="ph-duotone ph-arrows-clockwise"></i></button>
+  </header>
+
+  <div class="tabs">
+    <button id="tabEnt" class="on"><i class="ph-duotone ph-file-arrow-down"></i> Entrada de notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
+    <button id="tabSal"><i class="ph-duotone ph-stack"></i> Saldo</button>
+  </div>
+
+  <div id="app"><div class="spin"></div></div>
+</div>
+
+<div id="sheetBg"></div>
+<div id="sheet">
+  <div class="sh-head"><h2 id="shTitle">Nota</h2><button class="x" id="shX"><i class="ph-duotone ph-x"></i></button></div>
+  <div class="sh-body" id="shBody"></div>
+  <div class="sh-foot"><button class="btn" id="shSave"><i class="ph-duotone ph-check"></i> Dar entrada no estoque</button></div>
+</div>
+<div id="toast"></div>
+
+<script src="../auth.js"></script>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], tab:'ent',
+  busca:'', soComSaldo:false, verImport:false, nota:null, itens:[]};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800);}
+function brl(v){return (v==null||isNaN(v))?'—':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+function num(v){return (+v||0).toLocaleString('pt-BR',{maximumFractionDigits:3});}
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function norm(t){return (t||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();}
+function fmtData(d){if(!d)return'';const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}
+
+async function api(path){ await lolaEnsure(); const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:lolaHeaders()}); if(!r.ok)throw new Error(await r.text()); return r.json(); }
+async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders(); h['Content-Type']='application/json'; if(prefer)h['Prefer']=prefer;
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{method:'POST',headers:h,body:JSON.stringify(body)}); if(!r.ok)throw new Error(await r.text());
+  return r.status===204?null:r.json().catch(()=>null); }
+
+async function carregar(){
+  try{
+    const [notas, imp, insumos, mapa, movs] = await Promise.all([
+      api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
+      api('lola_central_estoque_nota?select=nota_chave'),
+      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade&order=categoria,nome'),
+      api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
+      api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total')
+    ]);
+    ST.notas=notas||[]; ST.imp=new Set((imp||[]).map(r=>r.nota_chave));
+    ST.insumos=insumos||[]; ST.byId={}; ST.insumos.forEach(i=>ST.byId[i.id]=i);
+    ST.map={}; (mapa||[]).forEach(m=>ST.map[m.desc_norm]={insumo_id:m.insumo_id,fator:+m.fator||1,ignorar:m.ignorar});
+    ST.movs=movs||[];
+    buildInsumoOptions();
+    render();
+  }catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
+}
+
+let OPTS_ALL='';
+function buildInsumoOptions(){
+  let cat='', h='';
+  ST.insumos.forEach(i=>{ if(i.categoria!==cat){ if(cat)h+='</optgroup>'; cat=i.categoria; h+=`<optgroup label="${esc(cat||'Sem categoria')}">`; }
+    h+=`<option value="${i.id}">${esc(i.nome)}${i.unidade_custo?' ('+esc(i.unidade_custo)+')':''}</option>`; });
+  if(cat)h+='</optgroup>'; OPTS_ALL=h;
+}
+
+/* ============ RENDER ============ */
+function render(){
+  $('#tabEnt').classList.toggle('on',ST.tab==='ent');
+  $('#tabSal').classList.toggle('on',ST.tab==='sal');
+  const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
+  const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
+  $('#app').innerHTML = ST.tab==='ent' ? viewEntrada() : viewSaldo();
+  if(ST.tab==='ent') wireEntrada(); else wireSaldo();
+}
+
+function viewEntrada(){
+  const pend=ST.notas.filter(n=>!ST.imp.has(n.chave));
+  const feitas=ST.notas.filter(n=>ST.imp.has(n.chave));
+  const lista=ST.verImport?feitas:pend;
+  let h=`<div class="note">Cada nota da Central vira <b>entrada de estoque</b>. Confira o insumo de cada item (o sistema já sugere) e confirme — o saldo sobe sozinho.</div>`;
+  h+=`<button class="btn sec" id="btnManual" style="margin-bottom:4px"><i class="ph-duotone ph-plus-circle"></i> Lançar entrada manual (sem nota)</button>`;
+  h+=`<div class="lbl">${ST.verImport?'Notas já lançadas':'Notas a lançar'} <span class="spacer"></span>
+      <button class="chip ${ST.verImport?'on':''}" id="chImp">${ST.verImport?'ver pendentes':'ver lançadas'}</button></div>`;
+  if(!lista.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>${ST.verImport?'Nenhuma nota lançada ainda.':'Tudo lançado! Nenhuma nota pendente.'}</div>`; return h; }
+  lista.forEach(n=>{
+    const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0);
+    h+=`<div class="ncard ${ST.verImport?'done':''}" data-ch="${esc(n.chave)}">
+      <span class="ic"><i class="ph-duotone ph-${ST.verImport?'check-circle':'receipt'}"></i></span>
+      <div class="t"><b>${esc(n.emitente||'Fornecedor')}</b><span>${fmtData(n.data_emissao)} · ${its.length} ${its.length===1?'item':'itens'}</span></div>
+      <div class="r"><div class="v">${brl(tot)}</div><div class="n">${ST.verImport?'lançada':'toque p/ lançar'}</div></div>
+    </div>`;
+  });
+  return h;
+}
+function wireEntrada(){
+  $('#btnManual')&&($('#btnManual').onclick=abrirManual);
+  $('#chImp')&&($('#chImp').onclick=()=>{ST.verImport=!ST.verImport;render();});
+  $$('.ncard').forEach(c=>c.onclick=()=>abrirNota(c.dataset.ch));
+}
+
+function viewSaldo(){
+  // saldo por insumo
+  const sal={}; ST.movs.forEach(m=>{ if(!m.insumo_id)return; const s=sal[m.insumo_id]||(sal[m.insumo_id]={q:0,v:0}); s.q+=(+m.qtd||0); s.v+=(+m.custo_total||0); });
+  let ids=Object.keys(sal);
+  const totalV=ids.reduce((s,id)=>s+sal[id].v,0);
+  if(ST.soComSaldo) ids=ids.filter(id=>Math.abs(sal[id].q)>1e-9);
+  if(ST.busca){ const b=norm(ST.busca); ids=ids.filter(id=>norm(ST.byId[id]?.nome).includes(b)); }
+  ids.sort((a,b)=>{ const A=ST.byId[a]||{},B=ST.byId[b]||{}; return (A.categoria||'').localeCompare(B.categoria||'')||(A.nome||'').localeCompare(B.nome||''); });
+  let h=`<div class="tot"><div class="k">Valor em estoque</div><div class="big">${brl(totalV)}</div><div class="s">${ids.length} ${ids.length===1?'insumo':'insumos'} com movimento</div></div>`;
+  h+=`<div class="toolbar"><input type="search" id="bq" placeholder="Buscar insumo…" value="${esc(ST.busca)}">
+      <button class="chip ${ST.soComSaldo?'on':''}" id="chSaldo">só com saldo</button></div>`;
+  if(!ids.length){ h+=`<div class="empty"><i class="ph-duotone ph-stack"></i>Ainda não há movimento de estoque.<br>Lance as notas na aba ao lado.</div>`; return h; }
+  let cat='';
+  ids.forEach(id=>{ const i=ST.byId[id]||{nome:'(insumo removido)'}; const s=sal[id];
+    if(i.categoria!==cat){ cat=i.categoria; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
+    h+=`<div class="srow"><div class="t"><b>${esc(i.nome)}</b><span>${i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):''}</span></div>
+      <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div></div>`;
+  });
+  return h;
+}
+function wireSaldo(){
+  const bq=$('#bq'); if(bq){ bq.oninput=()=>{ST.busca=bq.value; const p=bq.selectionStart; render(); const n=$('#bq'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+  $('#chSaldo')&&($('#chSaldo').onclick=()=>{ST.soComSaldo=!ST.soComSaldo;render();});
+}
+
+/* ============ FOLHA: abrir nota / mapear itens ============ */
+async function abrirNota(chave){
+  const n=ST.notas.find(x=>x.chave===chave); if(!n)return; ST.nota=n;
+  const jaImp=ST.imp.has(chave);
+  ST.itens=(n.itens||[]).map((it,ix)=>{
+    const dn=norm(it.desc); const m=ST.map[dn]||{};
+    return { ix, desc:it.desc||'', dn, un:it.un||'', qtd:+it.qtd||0, vunit:+it.vunit||0, vtotal:+it.vtotal||0,
+      insumo_id:m.insumo_id||'', fator:m.fator||1, ignorar:!!m.ignorar, auto:!!m.insumo_id };
+  });
+  $('#shTitle').textContent=n.emitente||'Nota';
+  const tot=ST.itens.reduce((s,i)=>s+i.vtotal,0);
+  let h=`<div class="note">${fmtData(n.data_emissao)} · ${ST.itens.length} itens · ${brl(tot)}${jaImp?' · <b style="color:var(--okFg)">já lançada</b> (relançar substitui)':''}</div>`;
+  ST.itens.forEach(it=>{ h+=itemHTML(it); });
+  $('#shBody').innerHTML=h;
+  $('#shSave').innerHTML = jaImp?'<i class="ph-duotone ph-arrows-clockwise"></i> Relançar entrada':'<i class="ph-duotone ph-check"></i> Dar entrada no estoque';
+  onSave=salvarEntrada;
+  openSheet();
+  wireItens();
+  // sugestões p/ itens sem mapa
+  ST.itens.forEach(it=>{ if(!it.insumo_id && !it.ignorar) sugerir(it); });
+}
+function itemHTML(it){
+  const sel=id=> it.insumo_id===id?' selected':'';
+  return `<div class="item ${it.ignorar?'ign':''}" data-ix="${it.ix}">
+    <div class="top"><b>${esc(it.desc)}</b><div class="q">${num(it.qtd)} ${esc(it.un)}<br>${brl(it.vtotal)}</div></div>
+    <select class="selins" ${it.ignorar?'disabled':''}>
+      <option value=""${it.insumo_id?'':' selected'}>— escolher insumo —</option>
+      <optgroup label="Sugestões" class="sugg"></optgroup>
+      ${OPTS_ALL}
+    </select>
+    <div class="auto ${it.auto?'on':''}"><i class="ph-duotone ph-magic-wand"></i> insumo memorizado desta descrição</div>
+    <div class="l2"><label>fator</label><input type="number" class="fat" step="0.001" value="${it.fator}" title="multiplica a qtd da nota p/ a unidade do insumo">
+      <button class="ignbtn ${it.ignorar?'on':''}"><i class="ph-duotone ph-prohibit"></i> não é insumo</button></div>
+  </div>`;
+}
+function wireItens(){
+  $$('#shBody .item').forEach(el=>{
+    const ix=+el.dataset.ix, it=ST.itens[ix];
+    const s=el.querySelector('.selins'); if(it.insumo_id) s.value=it.insumo_id;
+    s.onchange=()=>{ it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); };
+    el.querySelector('.fat').oninput=e=>{ it.fator=+e.target.value||0; };
+    el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; el.classList.toggle('ign',it.ignorar);
+      el.querySelector('.ignbtn').classList.toggle('on',it.ignorar); s.disabled=it.ignorar; };
+  });
+}
+async function sugerir(it){
+  try{ const r=await post('rpc/central_sugere_insumo',{txt:it.desc});
+    if(!Array.isArray(r)||!r.length)return;
+    const el=$(`#shBody .item[data-ix="${it.ix}"]`); if(!el)return;
+    const og=el.querySelector('optgroup.sugg'); if(!og)return;
+    og.innerHTML=r.map(x=>`<option value="${x.id}">${esc(x.nome)}${x.unidade_custo?' ('+esc(x.unidade_custo)+')':''} · ${Math.round((x.sim||0)*100)}%</option>`).join('');
+    // pré-seleciona a melhor se a semelhança for boa e ainda não escolhido
+    const best=r[0];
+    if(best && (best.sim||0)>=0.6 && !it.insumo_id){ it.insumo_id=best.id; el.querySelector('.selins').value=best.id; }
+  }catch(e){}
+}
+
+async function salvarEntrada(){
+  const nota=ST.nota; if(!nota)return;
+  const usar=ST.itens.filter(i=>!i.ignorar);
+  const semins=usar.filter(i=>!i.insumo_id);
+  if(semins.length){ toast(`Faltou escolher o insumo de ${semins.length} ${semins.length===1?'item':'itens'} (ou marque "não é insumo").`); return; }
+  if(!usar.length){ toast('Nenhum item pra lançar.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const jaImp=ST.imp.has(nota.chave);
+    // se relançar, apaga movimentos anteriores desta nota
+    if(jaImp){ await lolaEnsure(); const h=lolaHeaders();
+      await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?origem_tipo=eq.nota&origem_ref=eq.'+encodeURIComponent(nota.chave),{method:'DELETE',headers:h}); }
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const movs=usar.map(i=>{ const q=i.qtd*(i.fator||1); const cu=i.qtd? i.vtotal/i.qtd/(i.fator||1) : i.vunit;
+      return { insumo_id:i.insumo_id, tipo:'entrada', qtd:q, unidade:(ST.byId[i.insumo_id]||{}).unidade_custo||i.un,
+        custo_unit:cu, custo_total:i.vtotal, origem_tipo:'nota', origem_ref:nota.chave, data:nota.data_emissao, obs:i.desc, criado_por:quem }; });
+    await post('lola_central_estoque_mov', movs, 'return=minimal');
+    // memoriza o mapeamento (upsert por desc_norm)
+    const seen={}; const maprows=[];
+    ST.itens.forEach(i=>{ if(seen[i.dn])return; seen[i.dn]=1;
+      maprows.push({ desc_norm:i.dn, desc_orig:i.desc, insumo_id:i.ignorar?null:i.insumo_id, fator:i.fator||1, ignorar:i.ignorar, criado_por:quem, updated_at:new Date().toISOString() }); });
+    await post('lola_central_estoque_map?on_conflict=desc_norm', maprows, 'resolution=merge-duplicates,return=minimal');
+    await post('lola_central_estoque_nota?on_conflict=nota_chave',
+      {nota_chave:nota.chave, itens_total:ST.itens.length, itens_ok:usar.length, importada_em:new Date().toISOString(), por:quem},
+      'resolution=merge-duplicates,return=minimal');
+    toast('Entrada lançada no estoque ✓');
+    closeSheet(); await carregar();
+  }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+
+/* ============ ENTRADA MANUAL (sem nota fiscal) ============ */
+function abrirManual(){
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Entrada manual';
+  $('#shBody').innerHTML=`
+    <div class="note">Pra compras <b>sem nota fiscal</b> (feira, açougue) ou ajustes de estoque. Escolha o insumo, a quantidade e quanto pagou no total.</div>
+    <div class="mf"><label>Data</label><input type="date" id="mData" value="${hoje}"></div>
+    <div class="mf"><label>Fornecedor / observação (opcional)</label><input type="text" id="mForn" placeholder="ex.: Feira do produtor"></div>
+    <div class="lbl" style="margin:16px 0 8px">Itens</div>
+    <div id="mLines"></div>
+    <button class="btn sec" id="mAdd" style="margin-top:2px"><i class="ph-duotone ph-plus"></i> adicionar item</button>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Lançar no estoque';
+  onSave=salvarManual;
+  $('#mAdd').onclick=()=>addManualLine();
+  addManualLine();
+  openSheet();
+}
+function addManualLine(){
+  const d=document.createElement('div'); d.className='mline';
+  d.innerHTML=`<select class="mi"><option value="">— escolher insumo —</option>${OPTS_ALL}</select>
+    <div class="mrow"><input type="number" class="mq" step="0.001" placeholder="qtd">
+      <input type="number" class="mc" step="0.01" placeholder="R$ total">
+      <button class="mdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>`;
+  $('#mLines').appendChild(d);
+  d.querySelector('.mdel').onclick=()=>{ d.remove(); if(!$$('#mLines .mline').length) addManualLine(); };
+}
+async function salvarManual(){
+  const data=$('#mData').value||new Date().toISOString().slice(0,10);
+  const forn=($('#mForn').value||'').trim();
+  const lines=$$('#mLines .mline').map(el=>({
+    insumo_id:el.querySelector('.mi').value,
+    qtd:+el.querySelector('.mq').value||0,
+    custo:+el.querySelector('.mc').value||0
+  })).filter(l=>l.insumo_id && l.qtd>0);
+  if(!lines.length){ toast('Escolha ao menos um insumo com quantidade.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const ref='manual:'+Date.now();
+    const movs=lines.map(l=>({ insumo_id:l.insumo_id, tipo:'entrada', qtd:l.qtd,
+      unidade:(ST.byId[l.insumo_id]||{}).unidade_custo||'', custo_unit:l.qtd?l.custo/l.qtd:l.custo,
+      custo_total:l.custo, origem_tipo:'manual', origem_ref:ref, data, obs:forn||'entrada manual', criado_por:quem }));
+    await post('lola_central_estoque_mov', movs, 'return=minimal');
+    toast('Entrada manual lançada ✓'); closeSheet(); await carregar();
+  }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+
+function openSheet(){ $('#sheetBg').classList.add('on'); $('#sheet').classList.add('on'); }
+function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classList.remove('on'); }
+
+/* ============ eventos base ============ */
+$('#tabEnt').onclick=()=>{ST.tab='ent';render();};
+$('#tabSal').onclick=()=>{ST.tab='sal';render();};
+$('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
+$('#btnBack').onclick=()=>{ location.href='../'; };
+let onSave=salvarEntrada;
+$('#shX').onclick=closeSheet; $('#sheetBg').onclick=closeSheet; $('#shSave').onclick=()=>onSave();
+
+(async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Estoque da Central'}); carregar(); })();
+</script>
+</body>
+</html>
