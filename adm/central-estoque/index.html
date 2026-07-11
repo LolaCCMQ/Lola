@@ -81,14 +81,15 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .pcard .prow .t{flex:1;min-width:0}
 .pcard .prow .t b{display:block;font-size:13.5px;font-weight:700}
 .pcard .prow .t span{display:block;font-size:11.5px;color:var(--mut)}
-.pacts{display:flex;gap:8px;margin-top:10px}
-.prodbtn{flex:1;background:var(--okBg);color:var(--okFg);border:0;border-radius:10px;min-height:42px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
-.pacts .pdel{background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:17px;cursor:pointer;padding:0 15px}
+.pacts{display:flex;gap:6px;margin-top:8px;align-items:stretch}
+.prodbtn{flex:0 0 auto;background:var(--okBg);color:var(--okFg);border:0;border-radius:10px;min-height:38px;padding:0 13px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+.pacts .pdel{background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:16px;cursor:pointer;padding:0 11px}
 .pplink{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
-.pcard>.plink{width:100%;margin-top:8px;background:var(--card);border:1px dashed var(--border);border-radius:10px;padding:0 12px;min-height:40px;font:inherit;font-size:12.5px;font-weight:700;color:var(--mut);cursor:pointer;display:flex;align-items:center;gap:7px}
-.pcard>.plink i{font-size:16px;color:var(--lbl)}
-.pcard>.plink.on{border-style:solid;border-color:var(--okFg);color:var(--okFg);background:var(--okBg)}
-.pcard>.plink.on i{color:var(--okFg)}
+.pcard .plink{flex:1;min-width:0;background:var(--card);border:1px dashed var(--border);border-radius:10px;padding:0 11px;min-height:38px;font:inherit;font-size:12px;font-weight:700;color:var(--mut);cursor:pointer;display:flex;align-items:center;gap:6px;overflow:hidden}
+.pcard .plink span{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.pcard .plink i{font-size:15px;color:var(--lbl);flex-shrink:0}
+.pcard .plink.on{border-style:solid;border-color:var(--okFg);color:var(--okFg);background:var(--okBg)}
+.pcard .plink.on i{color:var(--okFg)}
 .vsearch{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font:inherit;font-size:16px;min-height:46px;margin-bottom:10px}
 .vrow{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:7px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}
 .vrow.on{border-color:var(--okFg);background:var(--okBg);color:var(--okFg)}
@@ -398,12 +399,11 @@ function viewProd(){
       const pp=x.preproducao_id?pl.find(y=>y.id===x.preproducao_id):null;
       const titulo=pp?pp.nome:x.nome;
       const sub=pp && norm(pp.nome)!==norm(x.nome) ? `<span>era: ${esc(x.nome)}</span>` : (x.obs?`<span>${esc(x.obs)}</span>`:'');
-      const linkTxt = pp ? `<i class="ph-duotone ph-link"></i> ${esc(pp.nome)}` : `<i class="ph-duotone ph-link-simple"></i> vincular pré-produção`;
+      const linkTxt = pp ? `<i class="ph-duotone ph-link"></i><span>${esc(pp.nome)}</span>` : `<i class="ph-duotone ph-link-simple"></i><span>vincular</span>`;
       h+=`<div class="pcard" data-id="${x.id}">
         <div class="prow"><div class="t"><b>${esc(titulo)}</b>${sub}</div>
           <div class="prodq"><input type="number" class="psaldo" step="0.001" value="${x.saldo}"><span class="pu">${esc(x.unidade||'')}</span></div></div>
-        <button class="plink${pp?' on':''}">${linkTxt}</button>
-        <div class="pacts"><button class="prodbtn"><i class="ph-duotone ph-plus-circle"></i> Produzir mais</button><button class="pdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
+        <div class="pacts"><button class="plink${pp?' on':''}">${linkTxt}</button><button class="prodbtn"><i class="ph-duotone ph-plus-circle"></i> Produzir</button><button class="pdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
       </div>`;
     });
   });
