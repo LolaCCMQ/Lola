@@ -27,9 +27,9 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 header .spacer{flex:1}
 header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:pointer;padding:4px}
 
-.tabs{display:flex;gap:8px;margin-bottom:16px}
-.tabs button{flex:1;min-height:44px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);
-  font:inherit;font-weight:700;font-size:13.5px;color:var(--sec);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.tabs{display:flex;gap:7px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.tabs button{flex:1 0 auto;min-height:44px;white-space:nowrap;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);
+  font:inherit;font-weight:700;font-size:12.5px;color:var(--sec);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px}
 .tabs button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
 .tabs button i{font-size:18px}
 .tabs button .cnt{font-size:11px;background:var(--urgBg);color:var(--urgFg);border-radius:999px;padding:1px 7px;font-weight:800}
@@ -72,6 +72,10 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .srow .r .q{font-family:Fraunces,serif;font-weight:600;font-size:15px}
 .srow .r .v{font-size:11.5px;color:var(--mut);margin-top:1px}
 .srow .resolv{flex-shrink:0;min-height:38px;padding:0 14px;font-size:12px}
+.prodq{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.prodq .psaldo{width:76px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
+.prodq .pu{font-size:12px;color:var(--mut);font-weight:700;min-width:24px}
+.prodq .pdel{background:none;border:0;color:var(--lbl);font-size:17px;cursor:pointer;padding:2px}
 
 /* janela centralizada */
 #sheetBg{position:fixed;inset:0;background:rgba(42,26,23,.42);z-index:200;opacity:0;pointer-events:none;transition:.2s}
@@ -174,7 +178,8 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 
   <div class="tabs">
     <button id="tabEnt" class="on"><i class="ph-duotone ph-file-arrow-down"></i> Notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
-    <button id="tabSal"><i class="ph-duotone ph-stack"></i> Saldo</button>
+    <button id="tabSal"><i class="ph-duotone ph-stack"></i> Insumos</button>
+    <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
     <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
   </div>
 
@@ -229,16 +234,18 @@ async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders
 
 async function carregar(){
   try{
-    const [notas, imp, insumos, mapa, movs, fc, alertas] = await Promise.all([
+    const [notas, imp, insumos, mapa, movs, fc, alertas, prod] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
       api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
-      api('lola_central_alertas?motivo=eq.nao_usamos&resolvido=eq.false&select=id,nota_chave,desc_item,obs,criado_por,criado_em&order=criado_em.desc').catch(()=>[])
+      api('lola_central_alertas?motivo=eq.nao_usamos&resolvido=eq.false&select=id,nota_chave,desc_item,obs,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
+      api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs&order=categoria,nome').catch(()=>[])
     ]);
     ST.alertas=alertas||[];
+    ST.prod=prod||[];
     ST.notas=notas||[]; ST.imp=new Set((imp||[]).map(r=>r.nota_chave));
     ST.insumos=insumos||[]; ST.byId={}; ST.insumos.forEach(i=>ST.byId[i.id]=i);
     ST.map={}; (mapa||[]).forEach(m=>ST.map[m.desc_norm]={insumo_id:m.insumo_id,fator:+m.fator||1,ignorar:m.ignorar});
@@ -286,12 +293,15 @@ function computeFator(it){
 function render(){
   $('#tabEnt').classList.toggle('on',ST.tab==='ent');
   $('#tabSal').classList.toggle('on',ST.tab==='sal');
+  $('#tabProd').classList.toggle('on',ST.tab==='prod');
   $('#tabAl').classList.toggle('on',ST.tab==='al');
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  $('#app').innerHTML = ST.tab==='al' ? viewAlertas() : (ST.tab==='sal' ? viewSaldo() : viewEntrada());
-  if(ST.tab==='al') wireAlertas(); else if(ST.tab==='sal') wireSaldo(); else wireEntrada();
+  const V={ent:viewEntrada, sal:viewSaldo, prod:viewProd, al:viewAlertas};
+  const W={ent:wireEntrada, sal:wireSaldo, prod:wireProd, al:wireAlertas};
+  $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
+  (W[ST.tab]||wireEntrada)();
 }
 function viewAlertas(){
   const a=ST.alertas||[];
@@ -303,6 +313,56 @@ function viewAlertas(){
   return h;
 }
 function wireAlertas(){ $$('.resolv').forEach(b=>b.onclick=()=>resolverAlerta(b.dataset.id)); }
+/* ===== PRODUÇÕES (estoque de produções prontas) ===== */
+function viewProd(){
+  const p=ST.prod||[];
+  let h=`<div class="note">Estoque das <b>produções prontas</b> da Central (o que o Arthur produz e manda pro CCMQ/MAC). Toque no número pra ajustar o saldo.</div>`;
+  h+=`<button class="btn sec" id="btnAddProd" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Adicionar produção</button>`;
+  h+=`<div class="toolbar"><input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}"></div>`;
+  let list=p.slice();
+  if(ST.buscaP){ const b=norm(ST.buscaP); list=list.filter(x=>norm(x.nome).includes(b)); }
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-cooking-pot"></i>Nenhuma produção.</div>`; return h; }
+  [...new Set(list.map(x=>x.categoria||'Outras'))].forEach(cat=>{
+    h+=`<div class="catrow"><span>${esc(cat)}</span></div>`;
+    list.filter(x=>(x.categoria||'Outras')===cat).forEach(x=>{
+      h+=`<div class="srow" data-id="${x.id}"><div class="t"><b>${esc(x.nome)}</b>${x.obs?`<span>${esc(x.obs)}</span>`:''}</div>
+        <div class="prodq"><input type="number" class="psaldo" step="0.001" value="${x.saldo}"><span class="pu">${esc(x.unidade||'')}</span><button class="pdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div></div>`;
+    });
+  });
+  return h;
+}
+function wireProd(){
+  const bq=$('#bqp'); if(bq){ bq.oninput=()=>{ST.buscaP=bq.value; const pos=bq.selectionStart; render(); const n=$('#bqp'); if(n){n.focus();n.setSelectionRange(pos,pos);} }; }
+  $('#btnAddProd')&&($('#btnAddProd').onclick=addProd);
+  $$('#app .srow[data-id]').forEach(el=>{
+    const id=el.dataset.id, inp=el.querySelector('.psaldo');
+    if(inp) inp.onchange=()=>saveProdSaldo(id,+inp.value||0);
+    const del=el.querySelector('.pdel'); if(del) del.onclick=()=>delProd(id, el.querySelector('.t b').textContent);
+  });
+}
+async function saveProdSaldo(id, saldo){
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_prod?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo,updated_at:new Date().toISOString()})});
+    const p=(ST.prod||[]).find(x=>x.id===id); if(p)p.saldo=saldo; toast('Saldo atualizado ✓');
+  }catch(e){ toast('Erro: '+e.message); }
+}
+async function delProd(id, nome){
+  if(!confirm('Remover "'+nome+'" das produções?')) return;
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_prod?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({ativo:false})});
+    ST.prod=(ST.prod||[]).filter(x=>x.id!==id); toast('Removida'); render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+async function addProd(){
+  const nome=prompt('Nome da produção (ex.: Molho de queijo):'); if(!nome||!nome.trim())return;
+  const unidade=(prompt('Unidade (kg, un, g, pç, pacote, pote, balde):','un')||'un').trim();
+  const saldo=+(prompt('Saldo atual:','0')||0);
+  try{
+    const rows=await post('lola_central_prod',[{nome:nome.trim(), nome_norm:norm(nome), categoria:'Outras', unidade, saldo, ativo:true}],'return=representation');
+    if(Array.isArray(rows)&&rows[0]) ST.prod.push(rows[0]);
+    toast('Produção adicionada ✓'); render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
 async function resolverAlerta(id){
   try{ await lolaEnsure();
     await fetch(SB_URL+'/rest/v1/lola_central_alertas?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({resolvido:true})});
@@ -634,6 +694,7 @@ function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classLi
 /* ============ eventos base ============ */
 $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
 $('#tabSal').onclick=()=>{ST.tab='sal';render();};
+$('#tabProd').onclick=()=>{ST.tab='prod';render();};
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
 $('#btnBack').onclick=()=>{ location.href='../'; };
