@@ -85,6 +85,15 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .prodbtn{flex:1;background:var(--okBg);color:var(--okFg);border:0;border-radius:10px;min-height:42px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .pacts .pdel{background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:17px;cursor:pointer;padding:0 15px}
 .pplink{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
+.pcard>.plink{width:100%;margin-top:8px;background:var(--card);border:1px dashed var(--border);border-radius:10px;padding:0 12px;min-height:40px;font:inherit;font-size:12.5px;font-weight:700;color:var(--mut);cursor:pointer;display:flex;align-items:center;gap:7px}
+.pcard>.plink i{font-size:16px;color:var(--lbl)}
+.pcard>.plink.on{border-style:solid;border-color:var(--okFg);color:var(--okFg);background:var(--okBg)}
+.pcard>.plink.on i{color:var(--okFg)}
+.vsearch{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font:inherit;font-size:16px;min-height:46px;margin-bottom:10px}
+.vrow{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:7px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}
+.vrow.on{border-color:var(--okFg);background:var(--okBg);color:var(--okFg)}
+.vrow i{font-size:17px;color:var(--lbl)}
+.vrow.on i{color:var(--okFg)}
 .sitem{margin-bottom:8px}
 .sitem .srow{margin-bottom:0}
 .srow-c{cursor:pointer}
@@ -192,7 +201,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .mrow .mq,.mrow .mc{flex:1;min-width:0;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;min-height:44px;text-align:center;color:var(--ink)}
 .mrow .mdel{background:var(--urgBg);color:var(--urgFg);border:0;border-radius:10px;padding:0 12px;min-height:44px;cursor:pointer;font-size:16px;flex-shrink:0}
 
-#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140%);background:#2A1A17;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:.25s;max-width:88vw;text-align:center}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,140%);background:#2A1A17;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:.25s;max-width:88vw;text-align:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.5)}
 #toast.on{transform:translate(-50%,0)}
 .spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--vinho);border-radius:50%;animation:sp .8s linear infinite;margin:50px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -294,7 +303,7 @@ async function carregar(){
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
-      api('lola_preproducoes?ativo=neq.false&select=id,nome&order=nome').catch(()=>null)
+      api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome&order=nome').catch(()=>null)
     ]);
     ST.alertas=alertas||[];
     ST.prod=prod||[];
@@ -389,11 +398,11 @@ function viewProd(){
       const pp=x.preproducao_id?pl.find(y=>y.id===x.preproducao_id):null;
       const titulo=pp?pp.nome:x.nome;
       const sub=pp && norm(pp.nome)!==norm(x.nome) ? `<span>era: ${esc(x.nome)}</span>` : (x.obs?`<span>${esc(x.obs)}</span>`:'');
-      const opts=`<option value="">— vincular pré-produção —</option>`+pl.map(y=>`<option value="${y.id}"${x.preproducao_id===y.id?' selected':''}>${esc(y.nome)}</option>`).join('');
+      const linkTxt = pp ? `<i class="ph-duotone ph-link"></i> ${esc(pp.nome)}` : `<i class="ph-duotone ph-link-simple"></i> vincular pré-produção`;
       h+=`<div class="pcard" data-id="${x.id}">
         <div class="prow"><div class="t"><b>${esc(titulo)}</b>${sub}</div>
           <div class="prodq"><input type="number" class="psaldo" step="0.001" value="${x.saldo}"><span class="pu">${esc(x.unidade||'')}</span></div></div>
-        <select class="pplink plink" style="margin-top:8px">${opts}</select>
+        <button class="plink${pp?' on':''}">${linkTxt}</button>
         <div class="pacts"><button class="prodbtn"><i class="ph-duotone ph-plus-circle"></i> Produzir mais</button><button class="pdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
       </div>`;
     });
@@ -408,7 +417,7 @@ function wireProd(){
     const id=el.dataset.id, inp=el.querySelector('.psaldo');
     if(inp) inp.onchange=()=>saveProdSaldo(id,+inp.value||0);
     const pb=el.querySelector('.prodbtn'); if(pb) pb.onclick=()=>openProduzir(id);
-    const lk=el.querySelector('.plink'); if(lk) lk.onchange=async()=>{ await vincularReceita(id, lk.value); render(); };
+    const lk=el.querySelector('.plink'); if(lk) lk.onclick=()=>openVincular(id);
     const del=el.querySelector('.pdel'); if(del) del.onclick=()=>delProd(id, el.querySelector('.t b').textContent);
   });
 }
@@ -447,7 +456,30 @@ async function salvarProduzir(){
     p.saldo=novo; toast('Produção registrada ✓ (+'+num(q)+' '+esc(p.unidade||'')+')'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
-async function ensurePPList(){ if(ST.pplist)return ST.pplist; try{ ST.pplist=await api('lola_preproducoes?ativo=neq.false&select=id,nome&order=nome'); }catch(e){ ST.pplist=[]; } return ST.pplist; }
+async function ensurePPList(){ if(ST.pplist)return ST.pplist; try{ ST.pplist=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome&order=nome'); }catch(e){ ST.pplist=[]; } return ST.pplist; }
+async function openVincular(id){
+  const p=(ST.prod||[]).find(x=>x.id===id); if(!p)return;
+  const pl=await ensurePPList();
+  $('#shTitle').textContent='Vincular — '+p.nome;
+  $('.sh-foot').style.display='none';
+  const drawList=(f)=>{
+    const b=norm(f||'');
+    const rows=pl.filter(y=>!b||norm(y.nome).includes(b));
+    let hh='';
+    if(p.preproducao_id) hh+=`<button class="vrow" data-v=""><i class="ph-duotone ph-x-circle"></i> Desvincular</button>`;
+    hh+=rows.map(y=>`<button class="vrow${p.preproducao_id===y.id?' on':''}" data-v="${y.id}"><i class="ph-duotone ${p.preproducao_id===y.id?'ph-check-circle':'ph-circle'}"></i> ${esc(y.nome)}</button>`).join('');
+    if(!rows.length) hh+=`<div class="uinfo" style="margin-top:8px">Nada encontrado para "${esc(f)}".</div>`;
+    $('#vList').innerHTML=hh;
+    $$('#vList .vrow').forEach(el=>el.onclick=async()=>{ await vincularReceita(id, el.dataset.v); closeVincular(); render(); });
+  };
+  $('#shBody').innerHTML=`<div class="note">Escolha a pré-produção/receita deste item.</div>
+    <input type="search" class="vsearch" id="vBusca" placeholder="Buscar pré-produção…" autocomplete="off">
+    <div id="vList"></div>`;
+  openSheet();
+  drawList('');
+  const bi=$('#vBusca'); bi.oninput=()=>drawList(bi.value); setTimeout(()=>bi.focus(),80);
+}
+function closeVincular(){ closeSheet(); $('.sh-foot').style.display=''; }
 async function loadReceitaInto(sel, ppId){
   const box=$(sel); if(!box)return;
   if(!ppId){ box.innerHTML=`<div class="uinfo" style="margin-top:10px">Ainda sem receita vinculada — escolha acima.</div>`; return; }
