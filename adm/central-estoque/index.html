@@ -106,6 +106,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ring.iedit span{flex:1;min-width:0}
 .ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
 .ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.rendrow{display:flex;gap:8px}
+.rendrow input[type=number]{flex:1;min-width:0}
+.rendrow input[type=text]{width:88px;flex-shrink:0}
 .etck{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--sec);font-weight:600;margin-top:4px;cursor:pointer}
 .etck input{width:20px;height:20px;accent-color:var(--vinho)}
 #shBody select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px;font:inherit;font-size:15px;min-height:46px;color:var(--ink)}
@@ -323,7 +326,7 @@ async function carregar(){
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
-      api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_un,porcao_un&order=nome').catch(()=>null),
+      api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome').catch(()=>null),
       api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[])
     ]);
     ST.alertas=alertas||[];
@@ -405,7 +408,12 @@ function wireAlertas(){
   $$('.resolv').forEach(b=>b.onclick=()=>openResolver(b.dataset.id));
 }
 /* ===== PRODUÇÕES (estoque de produções prontas) ===== */
-function prodUn(r){ const s=(ST.saldo||{})[r.id]; return (s&&s.unidade)||r.rendimento_un||r.porcao_un||'un'; }
+function rendInfo(r){ // interpreta o rendimento da receita
+  const rq=+r.rendimento_qtd||0, run=r.rendimento_un||'', pq=+r.porcao_qtd||0;
+  if(pq>0 && rq>0) return {ehPorcao:true, base:rq/pq, un:'porções', porcaoQtd:pq, totalRend:rq, rendUn:run};
+  return {ehPorcao:false, base:rq, un:run||'un', totalRend:rq, rendUn:run};
+}
+function prodUn(r){ const s=(ST.saldo||{})[r.id]; if(s&&s.unidade) return s.unidade; const ri=rendInfo(r); return ri.ehPorcao?'un':(r.rendimento_un||r.porcao_un||'un'); }
 function viewProd(){
   const R=ST.receitas;
   let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
@@ -447,7 +455,9 @@ async function toggleProdIngr(el){
   box.classList.add('on'); box.innerHTML='<div class="uinfo">carregando…</div>';
   try{ const r=await post('rpc/central_receita_itens',{pid:id});
     if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo">Sem ingredientes cadastrados. Use “Adicionar preparo” na aba Receitas.</div><button class="btn sec ipr" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`; box.querySelector('.ipr').onclick=()=>printReceita(id); return; }
-    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('')+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
+    const R=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(R);
+    const rendline = ri.base>0 ? `<div class="ring"><span>Rendimento</span><b>${num(ri.base)} ${esc(ri.un)}${ri.ehPorcao?' ('+num(ri.porcaoQtd)+' '+esc(ri.rendUn)+' cada)':''}</b></div>` : '';
+    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
     box.querySelector('.ipr').onclick=()=>printReceita(id);
     box.querySelector('.iet').onclick=()=>openEtiqueta(id);
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
@@ -482,18 +492,18 @@ async function salvarEstoque(){
 let PROD_CUR=null;
 async function openProduzir(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; PROD_CUR=r;
-  const s=(ST.saldo||{})[id]||{}; const atual=+s.saldo||0; const un=prodUn(r);
+  const s=(ST.saldo||{})[id]||{}; const atual=+s.saldo||0; const un=prodUn(r); const ri=rendInfo(r);
   const hoje=new Date().toISOString().slice(0,10);
   $('#shTitle').textContent='Produzir — '+r.nome;
   $('#shBody').innerHTML=`<div class="note">Se produziu em quantidade diferente da receita, ajuste <b>um</b> ingrediente (ex.: o que o fornecedor mandou) — o resto se converte sozinho. No fim, diga <b>quanto rendeu</b>.</div>
     <div class="mf"><label>Data</label><input type="date" id="prodData" value="${hoje}"></div>
     <div id="prodRec"><div class="uinfo">carregando receita…</div></div>
-    <div class="mf"><label>Quanto rendeu (${esc(un)})</label><input type="number" id="prodQtd" step="0.001" placeholder="0" inputmode="decimal"></div>
+    <div class="mf"><label>${ri.ehPorcao?'Quantas porções rendeu':'Quanto rendeu ('+esc(un)+')'}</label><input type="number" id="prodQtd" step="0.001" placeholder="0" inputmode="decimal"></div>
     <div class="entra on" id="prodNovo">Estoque atual: <b>${num(atual)} ${esc(un)}</b></div>
     <div id="prodHist"></div>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Registrar produção';
   $('#shSave').removeAttribute('disabled'); onSave=salvarProduzir; openSheet();
-  $('#prodQtd').oninput=()=>{ const q=+$('#prodQtd').value||0; $('#prodNovo').innerHTML=`Estoque atual ${num(atual)} + rendeu ${num(q)} = <b>${num(atual+q)} ${esc(un)}</b>`; };
+  $('#prodQtd').oninput=()=>{ $('#prodQtd').dataset.touched='1'; const q=+$('#prodQtd').value||0; $('#prodNovo').innerHTML=`Estoque atual ${num(atual)} + rendeu ${num(q)} = <b>${num(atual+q)} ${esc(un)}</b>`; };
   setTimeout(()=>$('#prodQtd').focus(),60);
   renderProdReceita(id);
   try{ const hs=await api('lola_central_prod_hist?preproducao_id=eq.'+id+'&select=data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=8');
@@ -513,18 +523,29 @@ async function salvarProduzir(){
     toast('Produção registrada ✓ (+'+num(q)+' '+esc(un)+')'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
+function updateRend(ri, f){
+  const el=$('#prodRend'); if(!el)return;
+  if(!(ri.base>0)){ el.innerHTML='Rendimento não cadastrado — some no “Adicionar preparo”.'; return; }
+  const esper=ri.base*f;
+  el.innerHTML=`Rendimento esperado: <b>${num(esper)} ${esc(ri.un)}</b>`+(ri.ehPorcao?` <span style="color:var(--mut)">· receita cheia ≈ ${num(ri.base)} porções (${num(ri.porcaoQtd)} ${esc(ri.rendUn)} cada)</span>`:'');
+  const pq=$('#prodQtd'); if(pq && !pq.dataset.touched) pq.value=+esper.toFixed(3);
+}
 async function renderProdReceita(ppId){
   const box=$('#prodRec'); if(!box)return;
+  const R=(ST.receitas||[]).find(x=>x.id===ppId)||{}; const ri=rendInfo(R);
   box.innerHTML='<div class="uinfo" style="margin-top:6px">carregando receita…</div>';
   try{ const r=await post('rpc/central_receita_itens',{pid:ppId});
-    if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`; $('#prodPrint').onclick=()=>printReceita(ppId); $('#prodEtiq').onclick=()=>openEtiqueta(ppId); return; }
+    const rendBox=`<div class="entra on" id="prodRend" style="margin-top:8px"></div>`;
+    if(!Array.isArray(r)||!r.length){ box.innerHTML=rendBox+`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`; updateRend(ri,1); $('#prodPrint').onclick=()=>printReceita(ppId); $('#prodEtiq').onclick=()=>openEtiqueta(ppId); return; }
     box.innerHTML=`<div class="lbl">Ingredientes <span id="prodFactor" style="text-transform:none;letter-spacing:0;color:var(--mut);font-weight:600">— receita cheia</span></div>
       <div class="usos on" id="prodIngr">${r.map(x=>`<div class="ring iedit"><span>${esc(x.nome)}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${x.qtd||0}" value="${x.qtd||0}"><b>${esc(x.unidade||'')}</b></div>`).join('')}</div>
       <div class="uinfo" style="margin-top:6px">Ajuste um ingrediente que o resto se converte na mesma proporção.</div>
+      ${rendBox}
       <div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
     $$('#prodIngr .riq').forEach(inp=>inp.oninput=()=>{ const orig=+inp.dataset.orig||0, val=+inp.value; if(!(orig>0))return; const f=val/orig; if(!(isFinite(f)&&f>0))return;
       $$('#prodIngr .riq').forEach(o=>{ if(o!==inp){ const oo=+o.dataset.orig||0; o.value=+(oo*f).toFixed(3); } });
-      $('#prodFactor').textContent=`— ${num(f)}× da receita`; });
+      $('#prodFactor').textContent=`— ${num(f)}× da receita`; updateRend(ri,f); });
+    updateRend(ri,1);
     $('#prodPrint').onclick=()=>printReceita(ppId);
     $('#prodEtiq').onclick=()=>openEtiqueta(ppId);
   }catch(e){ box.innerHTML='<div class="uinfo" style="margin-top:6px">Erro ao carregar a receita.</div>'; }
@@ -535,6 +556,7 @@ async function printReceita(ppId){
   if(box){ box.querySelectorAll('.ring.iedit').forEach(row=>{ ings.push({nome:row.querySelector('span').textContent, qtd:row.querySelector('.riq').value, un:row.querySelector('b').textContent}); }); }
   else { try{ const rr=await post('rpc/central_receita_itens',{pid:ppId}); ings=(rr||[]).map(x=>({nome:x.nome, qtd:num(x.qtd), un:x.unidade||''})); }catch(e){} }
   try{ const pp=await api('lola_preproducoes?id=eq.'+ppId+'&select=nome,modo_preparo'); if(pp&&pp[0]){ nome=pp[0].nome||nome; modo=pp[0].modo_preparo||''; } }catch(e){}
+  const ri=rendInfo(r); const rendTxt = ri.base>0 ? `Rendimento: ${num(ri.base)} ${esc(ri.un)}${ri.ehPorcao?` (porção de ${num(ri.porcaoQtd)} ${esc(ri.rendUn)})`:''}` : '';
   const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
   const rows=ings.map(i=>`<tr><td>${esc(i.nome)}</td><td class="q">${esc(String(i.qtd))} ${esc(i.un)}</td></tr>`).join('');
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(nome)}</title>
@@ -546,7 +568,7 @@ async function printReceita(ppId){
     h2{color:#A82A2A;font-size:14px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px}
     .modo{white-space:pre-wrap;font-size:15.5px;line-height:1.65}
     @media print{body{padding:6px}}</style></head>
-    <body><h1>${esc(nome)}</h1><div class="d">Produção da Central · impresso ${fmtData(new Date().toISOString().slice(0,10))}</div>
+    <body><h1>${esc(nome)}</h1><div class="d">Produção da Central · impresso ${fmtData(new Date().toISOString().slice(0,10))}${rendTxt?' · '+rendTxt:''}</div>
     <table><tr><th>Ingrediente</th><th class="q" style="text-align:right">Quantidade</th></tr>${rows||'<tr><td colspan=2>Sem ingredientes cadastrados.</td></tr>'}</table>
     ${modo?`<h2>Modo de preparo</h2><div class="modo">${esc(modo)}</div>`:''}
     </body></html>`);
@@ -631,6 +653,8 @@ function openNovaReceita(){
   $('#shBody').innerHTML=`<div class="note">Isso cria uma <b>nova receita</b> da Central — fica salva pra todos verem (aqui e no portal). Preencha o preparo e os ingredientes.</div>
     <div class="mf"><label>Nome da produção</label><input type="text" id="nrNome" placeholder="ex.: Molho de queijo"></div>
     <div class="mf"><label>Unidade do estoque</label><input type="text" id="nrUn" placeholder="kg, un, balde, pote…" value="kg"></div>
+    <div class="mf"><label>Rendimento da receita cheia</label><div class="rendrow"><input type="number" id="nrRend" step="0.001" placeholder="quanto rende" inputmode="decimal"><input type="text" id="nrRendUn" placeholder="un/g/kg" value="g"></div></div>
+    <div class="mf"><label>Tamanho da porção <span style="color:var(--mut);font-weight:400">(opcional — pra contar em porções)</span></label><input type="number" id="nrPorcao" step="0.001" placeholder="ex.: 45 (g por unidade)" inputmode="decimal"></div>
     <div class="mf"><label>Modo de preparo</label><textarea id="nrPrep" rows="3" placeholder="Escreva como se faz…"></textarea></div>
     <div class="lbl">Ingredientes</div>
     <div id="nrIngr">${novaIngrRow()}${novaIngrRow()}</div>
@@ -643,14 +667,15 @@ function openNovaReceita(){
 async function salvarNovaReceita(){
   const nome=($('#nrNome').value||'').trim(); if(!nome){ toast('Dê um nome à produção.'); return; }
   const un=($('#nrUn').value||'').trim()||'un', modo=($('#nrPrep').value||'').trim();
+  const rend=+$('#nrRend').value||0, rendUn=($('#nrRendUn').value||'').trim()||un, porcao=+$('#nrPorcao').value||0;
   const ings=[]; $$('#nrIngr .nrow').forEach(el=>{ const n=(el.querySelector('.nrn').value||'').trim(); if(!n)return;
     const q=+el.querySelector('.nrq').value||0, u=(el.querySelector('.nru').value||'').trim()||un; ings.push({nome_manual:n, unidade:u, qtd_bruta:q, qtd_liquida:q}); });
   $('#shSave').setAttribute('disabled','');
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
-    const rows=await post('lola_preproducoes',[{nome, categoria:'central', e_preparo:true, ativo:true, rendimento_un:un, porcao_un:un, modo_preparo:modo||null, editado_por:quem, editado_em:new Date().toISOString()}],'return=representation');
+    const rows=await post('lola_preproducoes',[{nome, categoria:'central', e_preparo:true, ativo:true, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un, modo_preparo:modo||null, editado_por:quem, editado_em:new Date().toISOString()}],'return=representation');
     const novo=(Array.isArray(rows)&&rows[0])?rows[0]:null; if(!novo) throw new Error('sem retorno do banco');
     if(ings.length) await post('lola_preproducoes_itens', ings.map(i=>({preproducao_id:novo.id, ...i})),'return=minimal');
-    ST.receitas=ST.receitas||[]; ST.receitas.push({id:novo.id, nome, rendimento_un:un, porcao_un:un}); ST.receitas.sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+    ST.receitas=ST.receitas||[]; ST.receitas.push({id:novo.id, nome, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un}); ST.receitas.sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
     toast('Receita criada ✓'); closeSheet(); ST.tab='prod'; render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
@@ -1096,7 +1121,7 @@ $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
 $('#tabSal').onclick=()=>{ST.tab='sal';render();};
 $('#tabProd').onclick=()=>{ST.tab='prod';render();};
 $('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
-  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_un,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
+  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
 $('#btnBack').onclick=()=>{ location.href='../'; };
