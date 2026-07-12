@@ -106,6 +106,11 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ring.iedit span{flex:1;min-width:0}
 .ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
 .ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.imwarn{background:var(--urgBg);border:1px solid #E9A8A2;border-radius:12px;padding:10px 12px;margin:8px 0 4px}
+.imwarn .imwt{font-size:12px;font-weight:700;color:var(--urgFg);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.imwarn .imwuse{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:6px;font:inherit;font-size:13px;font-weight:600;color:var(--vinho);cursor:pointer}
+.imwarn .imwuse:last-child{margin-bottom:0}
+.imwarn .imwuse:active{background:var(--cremeDark)}
 .sitem .srow{position:relative}
 .sitem .iedt{flex-shrink:0;background:none;border:1px solid var(--border);border-radius:9px;color:var(--vinho);font-size:15px;cursor:pointer;padding:0 10px;min-height:34px;align-self:center}
 .sitem .iedt:active{background:var(--cremeDark)}
@@ -291,6 +296,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
   <div class="im-head"><h3>Novo insumo</h3><button class="x" id="imX"><i class="ph-duotone ph-x"></i></button></div>
   <div class="im-body">
     <label class="iml">Nome do insumo</label><input id="imNome" placeholder="ex.: Ervilha torta">
+    <div id="imWarn"></div>
     <label class="iml">Categoria</label><select id="imCat"></select>
     <label class="iml">Unidade do estoque</label>
     <div class="unrow" id="imUn"></div>
@@ -1132,7 +1138,34 @@ function wireItens(){
   });
 }
 /* ===== criar insumo na hora ===== */
-let CRIAR_IT=null, IM_UN='kg', IM_DEST=new Set();
+let CRIAR_IT=null, IM_UN='kg', IM_DEST=new Set(), IM_CONFIRM=false;
+function similarInsumos(nome){
+  const n=norm(nome); if(!n) return [];
+  const tk=s=>new Set(norm(s).split(' ').filter(w=>w.length>2));
+  const A=tk(nome), a0=[...A][0]; const out=[];
+  (ST.insumos||[]).forEach(x=>{ if(x.ativo===false) return; const xn=norm(x.nome); if(xn===n) return;
+    let sc=0; if(xn.includes(n)||n.includes(xn)) sc=0.85;
+    const B=tk(x.nome); if(A.size&&B.size){ let inter=0; A.forEach(w=>{ if(B.has(w))inter++; }); const uni=new Set([...A,...B]).size; sc=Math.max(sc, inter/uni);
+      const b0=[...B][0]; if(a0&&a0===b0) sc=Math.max(sc,0.55); }
+    if(sc>=0.5) out.push({nome:x.nome,id:x.id,cat:x.categoria,sc}); });
+  out.sort((a,b)=>b.sc-a.sc); return out.slice(0,5);
+}
+function renderImWarn(){
+  const box=$('#imWarn'); if(!box) return 0;
+  const sims=similarInsumos(($('#imNome').value||'').trim());
+  if(!sims.length){ box.innerHTML=''; return 0; }
+  box.innerHTML=`<div class="imwarn"><div class="imwt"><i class="ph-duotone ph-warning-circle"></i> Já tem parecido cadastrado — confira antes de criar:</div>${sims.map(s=>`<button class="imwuse" data-id="${s.id}">usar «${esc(s.nome)}»${s.cat?' · '+esc(s.cat):''}</button>`).join('')}</div>`;
+  $$('#imWarn .imwuse').forEach(b=>b.onclick=()=>usarInsumoExistente(b.dataset.id));
+  return sims.length;
+}
+function usarInsumoExistente(id){
+  const existente=ST.byId[id]; if(!existente) return;
+  const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
+  if(el){ const sel=el.querySelector('.selins');
+    if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions(); sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`; }
+    it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); }
+  closeIns(); toast(`Usando "${existente.nome}".`);
+}
 function toggleHort(){ $('#imHort').style.display = ($('#imCat').value==='Hortifruti')?'block':'none'; }
 function closeIns(){ $('#insBg').classList.remove('on'); $('#insModal').classList.remove('on'); }
 function openCriarInsumo(it){
@@ -1148,7 +1181,10 @@ function openCriarInsumo(it){
   const cu = it.qtd ? it.vtotal/it.qtd : (it.vunit||0);
   $('#imCusto').value = cu ? (Math.round(cu*100)/100) : ''; $('#imPeso').value=''; $('#imFC').value='';
   $('#imCat').onchange=toggleHort; toggleHort();
-  $('#imSave').removeAttribute('disabled');
+  $('#imSave').removeAttribute('disabled'); $('#imSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar e usar';
+  IM_CONFIRM=false;
+  $('#imNome').oninput=()=>{ IM_CONFIRM=false; $('#imSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar e usar'; renderImWarn(); };
+  renderImWarn();
   $('#insBg').classList.add('on'); $('#insModal').classList.add('on');
   setTimeout(()=>$('#imNome').focus(),60);
 }
@@ -1166,6 +1202,9 @@ async function salvarInsumo(){
     closeIns(); toast(`"${existente.nome}" já existe — usei o cadastro que já tinha.`);
     return;
   }
+  // aviso de PARECIDOS: bloqueia uma vez pra conferir
+  const sims=similarInsumos(nome);
+  if(sims.length && !IM_CONFIRM){ IM_CONFIRM=true; renderImWarn(); $('#imSave').innerHTML='<i class="ph-duotone ph-warning-circle"></i> Criar assim mesmo'; toast('Tem insumo parecido — confira ou confirme.'); return; }
   const cat=$('#imCat').value, un=IM_UN, custo=+$('#imCusto').value||0;
   $('#imSave').setAttribute('disabled','');
   try{
