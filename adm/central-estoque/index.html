@@ -147,7 +147,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .citem .ct{flex:1;min-width:0}
 .citem .ct b{display:block;font-size:13.5px;font-weight:700}
 .citem .ct span{display:block;font-size:11.5px;color:var(--mut)}
-.citem .ccont{width:80px;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
+.citem .ccont{width:92px;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
 .citem .cu{font-size:12px;color:var(--mut);font-weight:700;min-width:22px}
 .ritem{margin-bottom:8px}
 .ritem .srow{margin-bottom:0}
@@ -708,7 +708,7 @@ async function salvarNovaReceita(){
 let CONT_TIPO=null, CONT_ITEMS=[];
 function openContagem(tipo){
   CONT_TIPO=tipo; let items=[];
-  if(tipo==='producao'){ items=(ST.receitas||[]).map(r=>{ const s=(ST.saldo||{})[r.id]||{}; return {ref_id:r.id, nome:r.nome, unidade:(s.unidade)||r.rendimento_un||r.porcao_un||'un', sistema:+s.saldo||0}; }); }
+  if(tipo==='producao'){ items=(ST.receitas||[]).map(r=>{ const s=(ST.saldo||{})[r.id]||{}; const ri=rendInfo(r); const un=(s.unidade)||(ri.ehPorcao?'porções':convUn(r.rendimento_un||r.porcao_un||'un')); return {ref_id:r.id, nome:r.nome, unidade:un, sistema:+s.saldo||0}; }); }
   else { const sal={}; ST.movs.forEach(m=>{ if(!m.insumo_id)return; sal[m.insumo_id]=(sal[m.insumo_id]||0)+(+m.qtd||0); });
     items=Object.keys(sal).filter(id=>Math.abs(sal[id])>1e-9).map(id=>{const i=ST.byId[id]||{}; return {ref_id:id, nome:i.nome||'?', unidade:i.unidade_custo||'', sistema:sal[id]};});
     items.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')); }
@@ -720,7 +720,7 @@ function openContagem(tipo){
     <div class="lbl">Itens (${items.length})</div>`;
   if(!items.length) h+=`<div class="empty">Nenhum item pra contar.</div>`;
   items.forEach((it,ix)=>{ h+=`<div class="citem"><div class="ct"><b>${esc(it.nome)}</b><span>sistema: ${num(it.sistema)} ${esc(it.unidade||'')}</span></div>
-    <input type="number" class="ccont" data-ix="${ix}" step="0.001" placeholder="contado" inputmode="decimal"><span class="cu">${esc(it.unidade||'')}</span></div>`; });
+    <input type="number" class="ccont" data-ix="${ix}" step="0.001" placeholder="qtd" inputmode="decimal"><span class="cu">${esc(it.unidade||'')}</span></div>`; });
   $('#shBody').innerHTML=h;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar contagem';
   $('#shSave').removeAttribute('disabled'); onSave=salvarContagem; openSheet();
