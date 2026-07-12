@@ -411,12 +411,20 @@ function wireAlertas(){
   $$('.resolv').forEach(b=>b.onclick=()=>openResolver(b.dataset.id));
 }
 /* ===== PRODUÇÕES (estoque de produções prontas) ===== */
-function rendInfo(r){ // interpreta o rendimento da receita
+// converte g→kg e ml→L (só exibição; o banco fica em g/ml)
+function conv(q, u){ q=+q||0; const uu=(u||'').toLowerCase().trim();
+  if(uu==='g'||uu==='grama'||uu==='gramas') return {q:q/1000, u:'kg'};
+  if(uu==='mg') return {q:q/1e6, u:'kg'};
+  if(uu==='ml'||uu==='mililitro'||uu==='mililitros') return {q:q/1000, u:'L'};
+  if(uu==='l'||uu==='litro'||uu==='litros') return {q:q, u:'L'};
+  return {q:q, u:u||''}; }
+function convUn(u){ return conv(1,u).u; }
+function rendInfo(r){ // interpreta o rendimento da receita (já em kg/L)
   const rq=+r.rendimento_qtd||0, run=r.rendimento_un||'', pq=+r.porcao_qtd||0;
-  if(pq>0 && rq>0) return {ehPorcao:true, base:rq/pq, un:'porções', porcaoQtd:pq, totalRend:rq, rendUn:run};
-  return {ehPorcao:false, base:rq, un:run||'un', totalRend:rq, rendUn:run};
+  if(pq>0 && rq>0){ const ps=conv(pq,run); return {ehPorcao:true, base:rq/pq, un:'porções', porcaoQtd:ps.q, totalRend:rq, rendUn:ps.u}; }
+  const c=conv(rq,run); return {ehPorcao:false, base:c.q, un:c.u||'un', totalRend:c.q, rendUn:c.u};
 }
-function prodUn(r){ const s=(ST.saldo||{})[r.id]; if(s&&s.unidade) return s.unidade; const ri=rendInfo(r); return ri.ehPorcao?'un':(r.rendimento_un||r.porcao_un||'un'); }
+function prodUn(r){ const s=(ST.saldo||{})[r.id]; if(s&&s.unidade) return s.unidade; const ri=rendInfo(r); return ri.ehPorcao?'un':convUn(r.rendimento_un||r.porcao_un||'un'); }
 function viewProd(){
   const R=ST.receitas;
   let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
@@ -460,7 +468,7 @@ async function toggleProdIngr(el){
     if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo">Sem ingredientes cadastrados. Use “Adicionar preparo” na aba Receitas.</div><button class="btn sec ipr" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`; box.querySelector('.ipr').onclick=()=>printReceita(id); return; }
     const R=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(R);
     const rendline = ri.base>0 ? `<div class="ring"><span>Rendimento</span><b>${num(ri.base)} ${esc(ri.un)}${ri.ehPorcao?' ('+num(ri.porcaoQtd)+' '+esc(ri.rendUn)+' cada)':''}</b></div>` : '';
-    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
+    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
     box.querySelector('.ipr').onclick=()=>printReceita(id);
     box.querySelector('.iet').onclick=()=>openEtiqueta(id);
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
@@ -541,7 +549,7 @@ async function renderProdReceita(ppId){
     const rendBox=`<div class="entra on" id="prodRend" style="margin-top:8px"></div>`;
     if(!Array.isArray(r)||!r.length){ box.innerHTML=rendBox+`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`; updateRend(ri,1); $('#prodPrint').onclick=()=>printReceita(ppId); $('#prodEtiq').onclick=()=>openEtiqueta(ppId); return; }
     box.innerHTML=`<div class="lbl">Ingredientes <span id="prodFactor" style="text-transform:none;letter-spacing:0;color:var(--mut);font-weight:600">— receita cheia</span></div>
-      <div class="usos on" id="prodIngr">${r.map(x=>`<div class="ring iedit"><span>${esc(x.nome)}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${x.qtd||0}" value="${x.qtd||0}"><b>${esc(x.unidade||'')}</b></div>`).join('')}</div>
+      <div class="usos on" id="prodIngr">${r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring iedit"><span>${esc(x.nome)}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${c.q}" value="${c.q}"><b>${esc(c.u)}</b></div>`;}).join('')}</div>
       <div class="uinfo" style="margin-top:6px">Ajuste um ingrediente que o resto se converte na mesma proporção.</div>
       ${rendBox}
       <div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
@@ -555,11 +563,13 @@ async function renderProdReceita(ppId){
 }
 async function printReceita(ppId){
   const r=(ST.receitas||[]).find(x=>x.id===ppId)||{}; let nome=r.nome||'Receita', modo='';
-  let ings=[]; const box=document.getElementById('prodIngr');
-  if(box){ box.querySelectorAll('.ring.iedit').forEach(row=>{ ings.push({nome:row.querySelector('span').textContent, qtd:row.querySelector('.riq').value, un:row.querySelector('b').textContent}); }); }
-  else { try{ const rr=await post('rpc/central_receita_itens',{pid:ppId}); ings=(rr||[]).map(x=>({nome:x.nome, qtd:num(x.qtd), un:x.unidade||''})); }catch(e){} }
+  let ings=[]; let fator=1; const box=document.getElementById('prodIngr');
+  if(box){ box.querySelectorAll('.ring.iedit').forEach(row=>{ const inp=row.querySelector('.riq'); const orig=+inp.dataset.orig||0, val=+inp.value||0; if(fator===1 && orig>0) fator=val/orig; ings.push({nome:row.querySelector('span').textContent, qtd:num(val), un:row.querySelector('b').textContent}); }); }
+  else { try{ const rr=await post('rpc/central_receita_itens',{pid:ppId}); ings=(rr||[]).map(x=>{const c=conv(x.qtd,x.unidade);return {nome:x.nome, qtd:num(c.q), un:c.u};}); }catch(e){} }
+  if(!(isFinite(fator)&&fator>0)) fator=1;
   try{ const pp=await api('lola_preproducoes?id=eq.'+ppId+'&select=nome,modo_preparo'); if(pp&&pp[0]){ nome=pp[0].nome||nome; modo=pp[0].modo_preparo||''; } }catch(e){}
-  const ri=rendInfo(r); const rendTxt = ri.base>0 ? `Rendimento: ${num(ri.base)} ${esc(ri.un)}${ri.ehPorcao?` (porção de ${num(ri.porcaoQtd)} ${esc(ri.rendUn)})`:''}` : '';
+  const ri=rendInfo(r); const esper=ri.base*fator;
+  const rendTxt = ri.base>0 ? `Rendimento esperado: ${num(esper)} ${esc(ri.un)}${ri.ehPorcao?` (porção de ${num(ri.porcaoQtd)} ${esc(ri.rendUn)})`:''}${fator!==1?` · ${num(fator)}× da receita`:''}` : '';
   const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
   const rows=ings.map(i=>`<tr><td>${esc(i.nome)}</td><td class="q">${esc(String(i.qtd))} ${esc(i.un)}</td></tr>`).join('');
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(nome)}</title>
@@ -746,7 +756,7 @@ async function toggleReceita(el){
   box.classList.add('on'); box.innerHTML='<div class="uinfo">carregando…</div>';
   try{ const r=await post('rpc/central_receita_itens',{pid:id});
     if(!Array.isArray(r)||!r.length){ box.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; return; }
-    box.innerHTML=r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('');
+    box.innerHTML=r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
 }
 let RES_AL=null;
