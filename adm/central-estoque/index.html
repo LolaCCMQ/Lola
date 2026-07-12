@@ -106,6 +106,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ring.iedit span{flex:1;min-width:0}
 .ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
 .ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.etck{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--sec);font-weight:600;margin-top:4px;cursor:pointer}
+.etck input{width:20px;height:20px;accent-color:var(--vinho)}
+#shBody select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px;font:inherit;font-size:15px;min-height:46px;color:var(--ink)}
 .vsearch{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font:inherit;font-size:16px;min-height:46px;margin-bottom:10px}
 .vrow{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:7px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}
 .vrow.on{border-color:var(--okFg);background:var(--okBg);color:var(--okFg)}
@@ -321,7 +324,7 @@ async function carregar(){
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
       api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_un,porcao_un&order=nome').catch(()=>null),
-      api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por').catch(()=>[])
+      api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[])
     ]);
     ST.alertas=alertas||[];
     ST.prod=prod||[];
@@ -444,8 +447,9 @@ async function toggleProdIngr(el){
   box.classList.add('on'); box.innerHTML='<div class="uinfo">carregando…</div>';
   try{ const r=await post('rpc/central_receita_itens',{pid:id});
     if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo">Sem ingredientes cadastrados. Use “Adicionar preparo” na aba Receitas.</div><button class="btn sec ipr" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`; box.querySelector('.ipr').onclick=()=>printReceita(id); return; }
-    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('')+`<button class="btn sec ipr" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`;
+    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>`<div class="ring"><span>${esc(x.nome)}</span><b>${num(x.qtd)} ${esc(x.unidade||'')}</b></div>`).join('')+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
     box.querySelector('.ipr').onclick=()=>printReceita(id);
+    box.querySelector('.iet').onclick=()=>openEtiqueta(id);
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
 }
 /* ---- atualizar estoque (com data) ---- */
@@ -513,15 +517,16 @@ async function renderProdReceita(ppId){
   const box=$('#prodRec'); if(!box)return;
   box.innerHTML='<div class="uinfo" style="margin-top:6px">carregando receita…</div>';
   try{ const r=await post('rpc/central_receita_itens',{pid:ppId});
-    if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><button class="btn sec" id="prodPrint" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`; $('#prodPrint').onclick=()=>printReceita(ppId); return; }
+    if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`; $('#prodPrint').onclick=()=>printReceita(ppId); $('#prodEtiq').onclick=()=>openEtiqueta(ppId); return; }
     box.innerHTML=`<div class="lbl">Ingredientes <span id="prodFactor" style="text-transform:none;letter-spacing:0;color:var(--mut);font-weight:600">— receita cheia</span></div>
       <div class="usos on" id="prodIngr">${r.map(x=>`<div class="ring iedit"><span>${esc(x.nome)}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${x.qtd||0}" value="${x.qtd||0}"><b>${esc(x.unidade||'')}</b></div>`).join('')}</div>
       <div class="uinfo" style="margin-top:6px">Ajuste um ingrediente que o resto se converte na mesma proporção.</div>
-      <button class="btn sec" id="prodPrint" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`;
+      <div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
     $$('#prodIngr .riq').forEach(inp=>inp.oninput=()=>{ const orig=+inp.dataset.orig||0, val=+inp.value; if(!(orig>0))return; const f=val/orig; if(!(isFinite(f)&&f>0))return;
       $$('#prodIngr .riq').forEach(o=>{ if(o!==inp){ const oo=+o.dataset.orig||0; o.value=+(oo*f).toFixed(3); } });
       $('#prodFactor').textContent=`— ${num(f)}× da receita`; });
     $('#prodPrint').onclick=()=>printReceita(ppId);
+    $('#prodEtiq').onclick=()=>openEtiqueta(ppId);
   }catch(e){ box.innerHTML='<div class="uinfo" style="margin-top:6px">Erro ao carregar a receita.</div>'; }
 }
 async function printReceita(ppId){
@@ -546,6 +551,77 @@ async function printReceita(ppId){
     ${modo?`<h2>Modo de preparo</h2><div class="modo">${esc(modo)}</div>`:''}
     </body></html>`);
   w.document.close(); setTimeout(()=>{ try{w.focus();w.print();}catch(e){} }, 350);
+}
+/* ---- etiquetas de porção ---- */
+const CONSERV_PADRAO='Freezer -18°C: 1 mês · Refrigerado 0 a -6°C: 24h · Após aberto, consumir em 24h.';
+let ETIQ_CUR=null;
+function openEtiqueta(id){
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r;
+  const s=(ST.saldo||{})[id]||{}; const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'';
+  const hoje=new Date().toISOString().slice(0,10); const dias=s.validade_dias!=null?s.validade_dias:2;
+  $('#shTitle').textContent='Etiquetas — '+r.nome;
+  $('#shBody').innerHTML=`<div class="note">Etiquetas pra colar nas porções. Preencha e imprima — sai uma folha com várias iguais.</div>
+    <div class="mf"><label>Data de produção</label><input type="date" id="etData" value="${hoje}"></div>
+    <div class="mf"><label>Responsável</label><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div>
+    <div class="mf"><label>Validade (dias após produção)</label><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric"></div>
+    <div class="mf"><label>Conservação</label><textarea id="etCons" rows="2">${esc(CONSERV_PADRAO)}</textarea></div>
+    <div class="mf"><label>Tamanho da etiqueta</label><select id="etTam">
+      <option value="60x40">Rolo 60 × 40 mm (térmica)</option>
+      <option value="50x30">Rolo 50 × 30 mm (térmica)</option>
+      <option value="100x50">Rolo 100 × 50 mm (térmica)</option>
+      <option value="58">Bobina 58 mm (largura)</option>
+      <option value="a4" selected>Folha A4 (várias por página)</option>
+    </select></div>
+    <div class="mf"><label>Quantas etiquetas</label><input type="number" id="etQtd" step="1" value="12" inputmode="numeric"></div>
+    <label class="etck"><input type="checkbox" id="etIng" checked> incluir ingredientes na etiqueta</label>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
+  $('#shSave').removeAttribute('disabled'); onSave=printEtiquetas; openSheet();
+}
+async function printEtiquetas(){
+  const r=ETIQ_CUR; if(!r)return;
+  const dataP=$('#etData').value||new Date().toISOString().slice(0,10);
+  const resp=($('#etResp').value||'').trim();
+  const dias=parseInt($('#etDias').value||'0',10)||0;
+  const cons=($('#etCons').value||'').trim();
+  const tam=$('#etTam').value; const n=Math.max(1,Math.min(200,parseInt($('#etQtd').value||'1',10)||1));
+  const incIng=$('#etIng').checked;
+  const val=new Date(dataP+'T00:00:00'); val.setDate(val.getDate()+dias); const dataV=val.toISOString().slice(0,10);
+  let ings='';
+  if(incIng){ try{ const rr=await post('rpc/central_receita_itens',{pid:r.id}); ings=(rr||[]).map(x=>x.nome).join(', '); }catch(e){} }
+  // grava a validade escolhida pra lembrar
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, validade_dias:dias, atualizado_por:quem}],'resolution=merge-duplicates,return=minimal');
+    ST.saldo=ST.saldo||{}; ST.saldo[r.id]=Object.assign({}, ST.saldo[r.id]||{preproducao_id:r.id}, {validade_dias:dias});
+  }catch(e){}
+  const sizes={'60x40':{w:'60mm',h:'40mm',page:'60mm 40mm'},'50x30':{w:'50mm',h:'30mm',page:'50mm 30mm'},'100x50':{w:'100mm',h:'50mm',page:'100mm 50mm'},'58':{w:'54mm',h:'auto',page:'58mm auto'},'a4':{w:'90mm',h:'52mm',page:'A4'}};
+  const sz=sizes[tam]||sizes.a4; const roll = tam!=='a4';
+  const label=`<div class="lab">
+      <div class="ln">${esc(r.nome)}</div>
+      <div class="lr"><span>Produção</span><b>${fmtData(dataP)}</b></div>
+      <div class="lr"><span>Validade</span><b>${fmtData(dataV)}${dias?` (${dias}d)`:''}</b></div>
+      ${resp?`<div class="lr"><span>Resp.</span><b>${esc(resp)}</b></div>`:''}
+      ${incIng&&ings?`<div class="li"><span>Ingredientes:</span> ${esc(ings)}</div>`:''}
+      ${cons?`<div class="lc">${esc(cons)}</div>`:''}
+      <div class="lf">Lola · Cozinha Central</div>
+    </div>`;
+  const many=Array.from({length:n}).map(()=>label).join('');
+  const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas — ${esc(r.nome)}</title><style>
+    @page{size:${sz.page};margin:${roll?'2mm':'8mm'}}
+    *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:${roll?'0':'0'}}
+    .sheet{display:${roll?'block':'flex'};flex-wrap:wrap;gap:6mm;padding:${roll?'0':'6mm'}}
+    .lab{width:${sz.w};${sz.h!=='auto'?`height:${sz.h};`:''}border:1px solid #000;border-radius:6px;padding:2.5mm 3mm;overflow:hidden;${roll?'page-break-after:always;':''}display:flex;flex-direction:column;gap:0.6mm}
+    .ln{font-weight:bold;font-size:${roll?'11pt':'12pt'};line-height:1.05;border-bottom:1.5px solid #000;padding-bottom:1mm;margin-bottom:1mm;text-transform:uppercase}
+    .lr{display:flex;justify-content:space-between;font-size:${roll?'8pt':'9pt'};line-height:1.25}
+    .lr span{color:#444}.lr b{font-weight:bold}
+    .li{font-size:${roll?'6.5pt':'7.5pt'};line-height:1.2;margin-top:0.8mm;color:#222}
+    .li span{font-weight:bold}
+    .lc{font-size:${roll?'6.5pt':'7.5pt'};line-height:1.2;margin-top:0.8mm;border-top:1px dotted #999;padding-top:0.8mm;color:#333}
+    .lf{font-size:${roll?'6pt':'7pt'};color:#666;margin-top:auto;padding-top:0.6mm;text-align:right}
+    @media print{.lab{break-inside:avoid}}
+    </style></head><body><div class="sheet">${many}</div></body></html>`);
+  w.document.close(); toast('Etiquetas geradas ✓'); closeSheet();
+  setTimeout(()=>{ try{w.focus();w.print();}catch(e){} }, 400);
 }
 /* ---- adicionar nova produção = nova receita ---- */
 function novaIngrRow(){ return `<div class="nrow"><input type="text" class="nrn" placeholder="ingrediente"><input type="number" class="nrq" step="0.001" placeholder="qtd" inputmode="decimal"><input type="text" class="nru" placeholder="un"><button class="nrx" title="remover"><i class="ph-duotone ph-x"></i></button></div>`; }
