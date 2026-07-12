@@ -106,6 +106,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ring.iedit span{flex:1;min-width:0}
 .ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
 .ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.sitem .srow{position:relative}
+.sitem .iedt{flex-shrink:0;background:none;border:1px solid var(--border);border-radius:9px;color:var(--vinho);font-size:15px;cursor:pointer;padding:0 10px;min-height:34px;align-self:center}
+.sitem .iedt:active{background:var(--cremeDark)}
 .ecard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
 .ecard.done{opacity:.55}
 .ecard .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
@@ -977,7 +980,8 @@ function viewSaldo(){
     const usado=ST.usados&&ST.usados.has(id);
     const sub=i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):'';
     h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<span class="norec"><i class="ph-duotone ph-warning-circle"></i> não está em nenhuma receita</span>'}</div>
-      <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div></div>
+      <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div>
+      <button class="iedt" title="editar insumo"><i class="ph-duotone ph-pencil-simple"></i></button></div>
       <div class="usos"></div></div>`;
   });
   return h;
@@ -986,7 +990,34 @@ function wireSaldo(){
   const bq=$('#bq'); if(bq){ bq.oninput=()=>{ST.busca=bq.value; const p=bq.selectionStart; render(); const n=$('#bq'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $('#chSaldo')&&($('#chSaldo').onclick=()=>{ST.soComSaldo=!ST.soComSaldo;render();});
   $('#btnContIns')&&($('#btnContIns').onclick=()=>openContagem('insumo'));
-  $$('#app .sitem').forEach(el=>{ const c=el.querySelector('.srow-c'); if(c) c.onclick=()=>toggleUsos(el); });
+  $$('#app .sitem').forEach(el=>{ const c=el.querySelector('.srow-c'); if(c) c.onclick=()=>toggleUsos(el);
+    const ed=el.querySelector('.iedt'); if(ed) ed.onclick=(e)=>{ e.stopPropagation(); openEditInsumo(el.dataset.ins); }; });
+}
+let EDIT_INS=null;
+function openEditInsumo(id){
+  const i=ST.byId[id]; if(!i)return; EDIT_INS=id;
+  $('#shTitle').textContent='Editar insumo';
+  $('#shBody').innerHTML=`<div class="note">Renomeie ou ajuste o insumo. A mudança vale em todo o sistema (fichas, estoque, sugestões).</div>
+    <div class="mf"><label>Nome</label><input type="text" id="ediNome" value="${esc(i.nome||'')}"></div>
+    <div class="mf"><label>Categoria</label><input type="text" id="ediCat" value="${esc(i.categoria||'')}" list="ediCatList"><datalist id="ediCatList">${[...new Set((ST.insumos||[]).map(x=>x.categoria).filter(Boolean))].map(c=>`<option value="${esc(c)}"></option>`).join('')}</datalist></div>
+    <div class="mf"><label>Unidade de custo</label><input type="text" id="ediUn" value="${esc(i.unidade_custo||'')}" placeholder="kg, un, L…"></div>
+    <div class="mf"><label>Custo por unidade (R$)</label><input type="number" id="ediCusto" step="0.0001" value="${i.custo_por_unidade!=null?i.custo_por_unidade:''}"></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEditInsumo; openSheet(); setTimeout(()=>$('#ediNome').focus(),60);
+}
+async function salvarEditInsumo(){
+  const id=EDIT_INS; if(!id)return; const i=ST.byId[id]||{};
+  const nome=($('#ediNome').value||'').trim(); if(!nome){ toast('O nome não pode ficar vazio.'); return; }
+  const cat=($('#ediCat').value||'').trim()||null, un=($('#ediUn').value||'').trim()||null;
+  const custoRaw=$('#ediCusto').value; const custo=custoRaw===''?i.custo_por_unidade:(+custoRaw||0);
+  const dup=(ST.insumos||[]).find(x=>x.id!==id && norm(x.nome)===norm(nome));
+  if(dup && !confirm('Já existe um insumo "'+dup.nome+'". Renomear mesmo assim?')) return;
+  $('#shSave').setAttribute('disabled','');
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, updated_at:new Date().toISOString()})});
+    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo;
+    buildInsumoOptions(); toast('Insumo atualizado ✓'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
 async function toggleUsos(el){
   const box=el.querySelector('.usos'), id=el.dataset.ins;
