@@ -106,6 +106,13 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ring.iedit span{flex:1;min-width:0}
 .ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
 .ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.ecard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
+.ecard.done{opacity:.55}
+.ecard .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.ecard .fh b{font-size:14px;font-weight:700}
+.ecard .frow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:2px 0}
+.ecard .frow span{color:var(--mut)}
+.ecard .pacts{margin-top:10px}
 .fcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;border-left:4px solid var(--border)}
 .fcard.ok{border-left-color:var(--okFg)}
 .fcard.pos{border-left-color:#2C5AA0}
@@ -263,6 +270,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
     <button id="tabRec"><i class="ph-duotone ph-notebook"></i> Receitas</button>
     <button id="tabFech"><i class="ph-duotone ph-calculator"></i> Fechar mês</button>
+    <button id="tabEnv"><i class="ph-duotone ph-paper-plane-tilt"></i> Pro CCMQ <span class="cnt" id="cntEnv" style="display:none">0</span></button>
     <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
   </div>
 
@@ -355,6 +363,7 @@ async function carregar(){
     ST.movs=movs||[];
     buildInsumoOptions();
     render();
+    carregarEnvios();
   }catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
 }
 
@@ -398,12 +407,14 @@ function render(){
   $('#tabProd').classList.toggle('on',ST.tab==='prod');
   $('#tabRec').classList.toggle('on',ST.tab==='rec');
   $('#tabFech').classList.toggle('on',ST.tab==='fech');
+  $('#tabEnv').classList.toggle('on',ST.tab==='env');
   $('#tabAl').classList.toggle('on',ST.tab==='al');
+  const ne=(ST.envios&&ST.envios!=='loading')?ST.envios.filter(x=>!x.atendido).length:0; const ce=$('#cntEnv'); if(ne){ce.style.display='';ce.textContent=ne;}else ce.style.display='none';
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, sal:viewSaldo, prod:viewProd, rec:viewReceitas, fech:viewFechar, al:viewAlertas};
-  const W={ent:wireEntrada, sal:wireSaldo, prod:wireProd, rec:wireReceitas, fech:wireFechar, al:wireAlertas};
+  const V={ent:viewEntrada, sal:viewSaldo, prod:viewProd, rec:viewReceitas, fech:viewFechar, env:viewEnvio, al:viewAlertas};
+  const W={ent:wireEntrada, sal:wireSaldo, prod:wireProd, rec:wireReceitas, fech:wireFechar, env:wireEnvio, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -813,6 +824,74 @@ function wireFechar(){
   const m=$('#fechMes'); if(m) m.onchange=()=>{ST.fechMes=m.value; carregarFechamento();};
   $$('#app .tabs .chip[data-u]').forEach(b=>b.onclick=()=>{ST.fechUni=b.dataset.u; carregarFechamento();});
 }
+/* ===== PRO CCMQ (ingredientes p/ prato especial) ===== */
+async function carregarEnvios(){
+  ST.envios='loading'; if(ST.tab==='env') render();
+  try{ ST.envios=await api('lola_central_envio_ccmq?ativo=neq.false&select=id,descricao,quantidade,unidade,prato,observacao,data,responsavel,atendido&order=atendido,data.desc,criado_em.desc'); }
+  catch(e){ ST.envios=[]; }
+  const ne=(ST.envios&&ST.envios!=='loading')?ST.envios.filter(x=>!x.atendido).length:0; const ce=$('#cntEnv'); if(ce){ if(ne){ce.style.display='';ce.textContent=ne;}else ce.style.display='none'; }
+  if(ST.tab==='env') render();
+}
+function viewEnvio(){
+  let h=`<div class="note">Ingredientes que precisam ir pro <b>Lola CCMQ</b> pra um prato especial. Marque aqui e a cozinha separa. (Mesma lista aparece no Pedidos à Central.)</div>`;
+  h+=`<button class="btn" id="btnNovoEnvio" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Marcar ingrediente pro CCMQ</button>`;
+  const d=ST.envios;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-paper-plane-tilt"></i>Nada marcado ainda.</div>`; return h; }
+  const abertos=d.filter(x=>!x.atendido), feitos=d.filter(x=>x.atendido);
+  const card=(x)=>`<div class="ecard ${x.atendido?'done':''}" data-id="${x.id}">
+     <div class="fh"><b>${esc(x.descricao)}</b>${x.quantidade?`<span class="stpill ok">${num(x.quantidade)} ${esc(x.unidade||'')}</span>`:''}</div>
+     ${x.prato?`<div class="frow"><span>Prato</span><b>${esc(x.prato)}</b></div>`:''}
+     <div class="frow"><span>Quando</span><b>${fmtData(String(x.data).slice(0,10))}${x.responsavel?' · '+esc(x.responsavel):''}</b></div>
+     ${x.observacao?`<div class="frow"><span>Obs</span><b>${esc(x.observacao)}</b></div>`:''}
+     <div class="pacts"><button class="prodbtn eatt">${x.atendido?'<i class="ph-duotone ph-arrow-counter-clockwise"></i> reabrir':'<i class="ph-duotone ph-check"></i> marcar enviado'}</button><button class="pdel edel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
+    </div>`;
+  if(abertos.length){ h+=`<div class="lbl">A enviar (${abertos.length})</div>`+abertos.map(card).join(''); }
+  if(feitos.length){ h+=`<div class="lbl">Já enviados (${feitos.length})</div>`+feitos.map(card).join(''); }
+  return h;
+}
+function wireEnvio(){
+  $('#btnNovoEnvio')&&($('#btnNovoEnvio').onclick=()=>openEnvio());
+  $$('#app .ecard').forEach(el=>{ const id=el.dataset.id;
+    el.querySelector('.eatt').onclick=()=>toggleEnvio(id);
+    el.querySelector('.edel').onclick=()=>delEnvio(id, el.querySelector('.fh b').textContent);
+  });
+}
+function openEnvio(){
+  const _s=lolaSession()||{}; const quem=_s.nome||_s.email||''; const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Ingrediente pro CCMQ';
+  $('#shBody').innerHTML=`<div class="note">Sinalize que esse item vai pro Lola CCMQ pra um prato especial.</div>
+    <div class="mf"><label>Ingrediente / item</label><input type="text" id="envDesc" list="envList" placeholder="ex.: Pera argentina" autocomplete="off"><datalist id="envList">${(ST.insumos||[]).slice(0,500).map(i=>`<option value="${esc(i.nome)}"></option>`).join('')}</datalist></div>
+    <div class="mf"><label>Quantidade</label><div class="rendrow"><input type="number" id="envQtd" step="0.001" inputmode="decimal" placeholder="quanto"><input type="text" id="envUn" placeholder="kg/un/L" value="kg"></div></div>
+    <div class="mf"><label>Prato especial <span style="color:var(--mut);font-weight:400">(opcional)</span></label><input type="text" id="envPrato" placeholder="ex.: Salada de pera do menu"></div>
+    <div class="mf"><label>Data</label><input type="date" id="envData" value="${hoje}"></div>
+    <div class="mf"><label>Responsável</label><input type="text" id="envResp" value="${esc(quem)}"></div>
+    <div class="mf"><label>Observação</label><textarea id="envObs" rows="2" placeholder="detalhes…"></textarea></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEnvio; openSheet(); setTimeout(()=>$('#envDesc').focus(),60);
+}
+async function salvarEnvio(){
+  const desc=($('#envDesc').value||'').trim(); if(!desc){ toast('Diga qual ingrediente.'); return; }
+  const qtd=+$('#envQtd').value||null, un=($('#envUn').value||'').trim()||null, prato=($('#envPrato').value||'').trim()||null;
+  const data=$('#envData').value||new Date().toISOString().slice(0,10), resp=($('#envResp').value||'').trim()||null, obs=($('#envObs').value||'').trim()||null;
+  const ins=(ST.insumos||[]).find(i=>norm(i.nome)===norm(desc));
+  $('#shSave').setAttribute('disabled','');
+  try{ await post('lola_central_envio_ccmq',[{descricao:desc, insumo_id:ins?ins.id:null, quantidade:qtd, unidade:un, prato, observacao:obs, data, responsavel:resp, origem:'estoque-central'}],'return=minimal');
+    toast('Marcado pro CCMQ ✓'); closeSheet(); await carregarEnvios();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function toggleEnvio(id){
+  const x=(ST.envios||[]).find(y=>y.id===id); if(!x)return;
+  try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_central_envio_ccmq?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({atendido:!x.atendido})});
+    x.atendido=!x.atendido; toast(x.atendido?'Marcado como enviado ✓':'Reaberto'); render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+async function delEnvio(id, nome){
+  if(!confirm('Remover "'+nome+'" da lista pro CCMQ?')) return;
+  try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_central_envio_ccmq?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({ativo:false})});
+    ST.envios=(ST.envios||[]).filter(y=>y.id!==id); toast('Removido'); render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
 let RES_AL=null;
 function openResolver(id){
   const a=(ST.alertas||[]).find(x=>x.id===id); if(!a)return; RES_AL=a;
@@ -1194,6 +1273,7 @@ $('#tabProd').onclick=()=>{ST.tab='prod';render();};
 $('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
   if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
 $('#tabFech').onclick=()=>{ST.tab='fech'; if(!ST.fechMes){ST.fechMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarFechamento();};
+$('#tabEnv').onclick=()=>{ST.tab='env'; render(); if(!ST.envios||ST.envios==='loading') carregarEnvios();};
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
 $('#btnBack').onclick=()=>{ location.href='../'; };
