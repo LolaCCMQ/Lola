@@ -106,6 +106,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ring.iedit span{flex:1;min-width:0}
 .ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
 .ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.stpill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.stpill.ok{background:var(--okBg);color:var(--okFg)}
+.stpill.pend{background:var(--pendBg,#FBF0DD);color:var(--pendFg,#9A6B1E)}
 .rendrow{display:flex;gap:8px}
 .rendrow input[type=number]{flex:1;min-width:0}
 .rendrow input[type=text]{width:88px;flex-shrink:0}
@@ -777,26 +780,30 @@ async function resSalvar(destino){
 }
 
 function viewEntrada(){
-  const pend=ST.notas.filter(n=>!ST.imp.has(n.chave));
-  const feitas=ST.notas.filter(n=>ST.imp.has(n.chave));
-  const base=ST.verImport?feitas:pend;
-  const meses=[...new Set(base.map(mesDe).filter(Boolean))].sort().reverse();
+  const filtro=ST.entFiltro||'pend';
+  const meses=[...new Set(ST.notas.map(mesDe).filter(Boolean))].sort().reverse(); // TODAS as notas
   if(ST.comp!=='all' && !meses.includes(ST.comp)) ST.comp='all';
-  const lista=(ST.comp==='all')?base:base.filter(n=>mesDe(n)===ST.comp);
-  let h=`<div class="note">Cada nota da Central vira <b>entrada de estoque</b>. Confira o insumo de cada item (o sistema já sugere) e confirme — o saldo sobe sozinho.</div>`;
+  const noMes=n=>ST.comp==='all'||mesDe(n)===ST.comp;
+  const doMes=ST.notas.filter(noMes);
+  const nPend=doMes.filter(n=>!ST.imp.has(n.chave)).length, nFeitas=doMes.filter(n=>ST.imp.has(n.chave)).length;
+  let base=doMes.filter(n=> filtro==='pend'?!ST.imp.has(n.chave):filtro==='feitas'?ST.imp.has(n.chave):true);
+  base=base.slice().sort((a,b)=>String(b.data_emissao||'').localeCompare(String(a.data_emissao||'')));
+  let h=`<div class="note">Cada nota da Central vira <b>entrada de estoque</b>. Confira o insumo de cada item (o sistema já sugere) e confirme — o saldo sobe sozinho. A etiqueta mostra as que <b>já foram inseridas</b>.</div>`;
   h+=`<button class="btn sec" id="btnManual" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Lançar entrada manual (sem nota)</button>`;
   h+=`<div class="monthsel"><span>Competência</span>
-      <select id="selComp"><option value="all">Todas as competências (${base.length})</option>
-      ${meses.map(m=>`<option value="${m}"${ST.comp===m?' selected':''}>${compLabel(m)} (${base.filter(n=>mesDe(n)===m).length})</option>`).join('')}</select></div>`;
-  h+=`<div class="lbl">${ST.verImport?'Notas já lançadas':'Notas a lançar'}${ST.comp!=='all'?' · '+compLabel(ST.comp):''} <span class="spacer"></span>
-      <button class="chip ${ST.verImport?'on':''}" id="chImp">${ST.verImport?'ver pendentes':'ver lançadas'}</button></div>`;
-  if(!lista.length){ const emc=ST.comp!=='all'?` em ${compLabel(ST.comp)}`:''; h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>${ST.verImport?('Nenhuma nota lançada'+emc+'.'):('Tudo lançado! Nenhuma nota pendente'+emc+'.')}</div>`; return h; }
-  lista.forEach(n=>{
-    const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0);
-    h+=`<div class="ncard ${ST.verImport?'done':''}" data-ch="${esc(n.chave)}">
-      <span class="ic"><i class="ph-duotone ph-${ST.verImport?'check-circle':'receipt'}"></i></span>
+      <select id="selComp"><option value="all">Todas as competências (${ST.notas.length})</option>
+      ${meses.map(m=>`<option value="${m}"${ST.comp===m?' selected':''}>${compLabel(m)} (${ST.notas.filter(n=>mesDe(n)===m).length})</option>`).join('')}</select></div>`;
+  h+=`<div class="tabs" style="margin-bottom:12px">
+      <button class="chip ${filtro==='pend'?'on':''}" data-f="pend">A lançar (${nPend})</button>
+      <button class="chip ${filtro==='feitas'?'on':''}" data-f="feitas">Inseridas (${nFeitas})</button>
+      <button class="chip ${filtro==='todas'?'on':''}" data-f="todas">Todas (${doMes.length})</button></div>`;
+  if(!base.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>Nenhuma nota ${filtro==='pend'?'a lançar':filtro==='feitas'?'inserida':''}${ST.comp!=='all'?' em '+compLabel(ST.comp):''}.</div>`; return h; }
+  base.forEach(n=>{
+    const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0); const done=ST.imp.has(n.chave);
+    h+=`<div class="ncard ${done?'done':''}" data-ch="${esc(n.chave)}">
+      <span class="ic"><i class="ph-duotone ph-${done?'check-circle':'receipt'}"></i></span>
       <div class="t"><b>${esc(n.emitente||'Fornecedor')}</b><span>${fmtData(n.data_emissao)} · ${its.length} ${its.length===1?'item':'itens'}</span></div>
-      <div class="r"><div class="v">${brl(tot)}</div><div class="n">${ST.verImport?'lançada':'toque p/ lançar'}</div></div>
+      <div class="r"><div class="v">${brl(tot)}</div><div class="n"><span class="stpill ${done?'ok':'pend'}">${done?'inserida':'a lançar'}</span></div></div>
     </div>`;
   });
   return h;
@@ -804,7 +811,7 @@ function viewEntrada(){
 function wireEntrada(){
   $('#btnManual')&&($('#btnManual').onclick=abrirManual);
   $('#selComp')&&($('#selComp').onchange=e=>{ST.comp=e.target.value;render();});
-  $('#chImp')&&($('#chImp').onclick=()=>{ST.verImport=!ST.verImport;render();});
+  $$('#app .tabs .chip[data-f]').forEach(b=>b.onclick=()=>{ST.entFiltro=b.dataset.f;render();});
   $$('.ncard').forEach(c=>c.onclick=()=>abrirNota(c.dataset.ch));
 }
 
