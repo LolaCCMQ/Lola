@@ -106,6 +106,16 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ring.iedit span{flex:1;min-width:0}
 .ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
 .ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.fcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;border-left:4px solid var(--border)}
+.fcard.ok{border-left-color:var(--okFg)}
+.fcard.pos{border-left-color:#2C5AA0}
+.fcard.neg{border-left-color:var(--urgFg)}
+.fcard .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.fcard .fh b{font-size:14px;font-weight:700}
+.fcard .frow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:3px 0}
+.fcard .frow span{color:var(--mut)}
+.fcard .frow.furo{border-top:1px solid var(--fio);margin-top:3px;padding-top:6px}
+.fcard .frow.furo b{color:var(--ink)}
 .stpill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 8px;border-radius:999px;white-space:nowrap}
 .stpill.ok{background:var(--okBg);color:var(--okFg)}
 .stpill.pend{background:var(--pendBg,#FBF0DD);color:var(--pendFg,#9A6B1E)}
@@ -252,6 +262,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button id="tabSal"><i class="ph-duotone ph-stack"></i> Insumos</button>
     <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
     <button id="tabRec"><i class="ph-duotone ph-notebook"></i> Receitas</button>
+    <button id="tabFech"><i class="ph-duotone ph-calculator"></i> Fechar mês</button>
     <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
   </div>
 
@@ -386,12 +397,13 @@ function render(){
   $('#tabSal').classList.toggle('on',ST.tab==='sal');
   $('#tabProd').classList.toggle('on',ST.tab==='prod');
   $('#tabRec').classList.toggle('on',ST.tab==='rec');
+  $('#tabFech').classList.toggle('on',ST.tab==='fech');
   $('#tabAl').classList.toggle('on',ST.tab==='al');
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, sal:viewSaldo, prod:viewProd, rec:viewReceitas, al:viewAlertas};
-  const W={ent:wireEntrada, sal:wireSaldo, prod:wireProd, rec:wireReceitas, al:wireAlertas};
+  const V={ent:viewEntrada, sal:viewSaldo, prod:viewProd, rec:viewReceitas, fech:viewFechar, al:viewAlertas};
+  const W={ent:wireEntrada, sal:wireSaldo, prod:wireProd, rec:wireReceitas, fech:wireFechar, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -758,6 +770,48 @@ async function toggleReceita(el){
     if(!Array.isArray(r)||!r.length){ box.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; return; }
     box.innerHTML=r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+/* ===== FECHAR MÊS (mandado x produzido → furos) ===== */
+async function carregarFechamento(){
+  ST.fechData='loading'; if(ST.tab==='fech') render();
+  try{ ST.fechData=await post('rpc/central_fechamento',{mes:ST.fechMes, uni:ST.fechUni||'todas'}); }
+  catch(e){ ST.fechData=[]; }
+  if(ST.tab==='fech') render();
+}
+function viewFechar(){
+  const uni=ST.fechUni||'todas';
+  let h=`<div class="note">O que a Central <b>mandou</b> no mês (vem dos Pedidos à Central) comparado com o que foi <b>produzido</b> (histórico do Produzir). O <b>furo</b> aponta onde não bate — ele preenche conforme o Arthur registra as produções.</div>`;
+  h+=`<div class="mf"><label>Mês</label><input type="month" id="fechMes" value="${esc(ST.fechMes||'')}"></div>`;
+  h+=`<div class="tabs" style="margin-bottom:12px">
+     <button class="chip ${uni==='todas'?'on':''}" data-u="todas">Todas</button>
+     <button class="chip ${uni==='ccmq'?'on':''}" data-u="ccmq">CCMQ</button>
+     <button class="chip ${uni==='mac'?'on':''}" data-u="mac">MAC</button></div>`;
+  const d=ST.fechData;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-calculator"></i>Sem pedidos nesse mês/unidade.</div>`; return h; }
+  const totMand=d.reduce((s,x)=>s+(+x.valor||0),0);
+  let totFuroV=0, comProd=0;
+  const cards=d.map(x=>{
+    const mand=+x.qtd_mandado||0, prod=+x.produzido||0, valor=+x.valor||0;
+    const preco=mand>0?valor/mand:0, temProd=prod>0;
+    const cm=conv(mand,x.unidade), cp=conv(prod,x.unidade);
+    const furoQ=prod-mand, cf=conv(furoQ,x.unidade), furoV=furoQ*preco, furoPct=prod>0?furoQ/prod*100:0;
+    if(temProd){ totFuroV+=furoV; comProd++; }
+    const cls=!temProd?'':(Math.abs(furoQ)<1e-6?'ok':furoQ<0?'neg':'pos');
+    return `<div class="fcard ${cls}">
+      <div class="fh"><b>${esc(x.nome)}</b>${!temProd?'<span class="stpill pend">sem produção</span>':(furoQ<0?'<span class="stpill pend">mandou&nbsp;+</span>':'<span class="stpill ok">ok</span>')}</div>
+      <div class="frow"><span>Mandado</span><b>${num(cm.q)} ${esc(cm.u)} · ${brl(valor)}</b></div>
+      <div class="frow"><span>Produzido</span><b>${temProd?num(cp.q)+' '+esc(cp.u):'—'}</b></div>
+      ${temProd?`<div class="frow furo"><span>Furo</span><b>${cf.q>0?'+':''}${num(cf.q)} ${esc(cf.u)} · ${brl(furoV)} · ${num(furoPct)}%</b></div>`:''}
+    </div>`;
+  }).join('');
+  h+=`<div class="tot"><div class="k">Mandado no mês${uni!=='todas'?' · '+uni.toUpperCase():''}</div><div class="big">${brl(totMand)}</div><div class="s">${d.length} produções · ${comProd} com produção lançada</div></div>`;
+  h+=cards;
+  return h;
+}
+function wireFechar(){
+  const m=$('#fechMes'); if(m) m.onchange=()=>{ST.fechMes=m.value; carregarFechamento();};
+  $$('#app .tabs .chip[data-u]').forEach(b=>b.onclick=()=>{ST.fechUni=b.dataset.u; carregarFechamento();});
 }
 let RES_AL=null;
 function openResolver(id){
@@ -1139,6 +1193,7 @@ $('#tabSal').onclick=()=>{ST.tab='sal';render();};
 $('#tabProd').onclick=()=>{ST.tab='prod';render();};
 $('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
   if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
+$('#tabFech').onclick=()=>{ST.tab='fech'; if(!ST.fechMes){ST.fechMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarFechamento();};
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
 $('#btnBack').onclick=()=>{ location.href='../'; };
