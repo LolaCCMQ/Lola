@@ -298,6 +298,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button id="tabEnt" class="on"><i class="ph-duotone ph-file-arrow-down"></i> Notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
     <button id="tabPed"><i class="ph-duotone ph-shopping-cart"></i> Pedidos <span class="cnt" id="cntPed" style="display:none">0</span></button>
     <button id="tabSal"><i class="ph-duotone ph-stack"></i> Insumos</button>
+    <button id="tabCmp"><i class="ph-duotone ph-shopping-bag-open"></i> Compras</button>
     <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
     <button id="tabPz"><i class="ph-duotone ph-package"></i> Produzidos</button>
     <button id="tabRec"><i class="ph-duotone ph-notebook"></i> Receitas</button>
@@ -438,6 +439,7 @@ function render(){
   $('#tabEnt').classList.toggle('on',ST.tab==='ent');
   $('#tabSal').classList.toggle('on',ST.tab==='sal');
   $('#tabPed').classList.toggle('on',ST.tab==='ped');
+  $('#tabCmp').classList.toggle('on',ST.tab==='cmp');
   $('#tabProd').classList.toggle('on',ST.tab==='prod');
   $('#tabPz').classList.toggle('on',ST.tab==='pz');
   $('#tabRec').classList.toggle('on',ST.tab==='rec');
@@ -448,8 +450,8 @@ function render(){
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, prod:viewProd, pz:viewProduzidos, rec:viewReceitas, fech:viewFechar, env:viewEnvio, al:viewAlertas};
-  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, prod:wireProd, pz:wireProduzidos, rec:wireReceitas, fech:wireFechar, env:wireEnvio, al:wireAlertas};
+  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, rec:viewReceitas, fech:viewFechar, env:viewEnvio, al:viewAlertas};
+  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, rec:wireReceitas, fech:wireFechar, env:wireEnvio, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -936,6 +938,34 @@ function wireFechar(){
   const m=$('#fechMes'); if(m) m.onchange=()=>{ST.fechMes=m.value; carregarFechamento();};
   $$('#app .tabs .chip[data-u]').forEach(b=>b.onclick=()=>{ST.fechUni=b.dataset.u; carregarFechamento();});
 }
+/* ===== COMPRAS por insumo por competência ===== */
+async function carregarCompras(){
+  ST.comprasData='loading'; if(ST.tab==='cmp') render();
+  try{ ST.comprasData=await post('rpc/central_compras_insumo',{mes:ST.comprasMes}); }
+  catch(e){ ST.comprasData=[]; }
+  if(ST.tab==='cmp') render();
+}
+function viewCompras(){
+  let h=`<div class="note">Quanto de cada insumo foi <b>comprado</b> na competência (das notas já lançadas na Central). Ajuda a planejar as próximas compras.</div>`;
+  h+=`<div class="mf"><label>Mês</label><input type="month" id="cmpMes" value="${esc(ST.comprasMes||'')}"></div>`;
+  const d=ST.comprasData;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-bag-open"></i>Nada comprado lançado nesse mês.<br>Lance as notas na aba Notas.</div>`; return h; }
+  const tot=d.reduce((s,x)=>s+(+x.custo||0),0);
+  h+=`<div class="tot"><div class="k">Comprado no mês</div><div class="big">${brl(tot)}</div><div class="s">${d.length} insumos</div></div>`;
+  h+=`<div class="toolbar"><input type="search" id="bqc" placeholder="Buscar insumo…" value="${esc(ST.buscaC||'')}"></div>`;
+  let list=d.slice(); if(ST.buscaC){const b=norm(ST.buscaC); list=list.filter(x=>norm(x.nome).includes(b));}
+  let cat='';
+  h+=list.map(x=>{ const c=conv(x.qtd,x.unidade); let head='';
+    if(x.categoria!==cat){ cat=x.categoria; head=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
+    return head+`<div class="srow"><div class="t"><b>${esc(x.nome)}</b><span>${x.notas?x.notas+' nota'+(x.notas>1?'s':''):''}</span></div><div class="r"><div class="q">${num(c.q)} ${esc(c.u)}</div><div class="v">${brl(x.custo)}</div></div></div>`;
+  }).join('');
+  return h;
+}
+function wireCompras(){
+  const m=$('#cmpMes'); if(m) m.onchange=()=>{ST.comprasMes=m.value; carregarCompras();};
+  const bq=$('#bqc'); if(bq){ bq.oninput=()=>{ST.buscaC=bq.value; const p=bq.selectionStart; render(); const n=$('#bqc'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+}
 /* ===== PRO CCMQ (ingredientes p/ prato especial) ===== */
 async function carregarEnvios(){
   ST.envios='loading'; if(ST.tab==='env') render();
@@ -1115,6 +1145,7 @@ function viewEntrada(){
   const doMes=ST.notas.filter(noMes);
   const nPend=doMes.filter(n=>!ST.imp.has(n.chave)).length, nFeitas=doMes.filter(n=>ST.imp.has(n.chave)).length;
   let base=doMes.filter(n=> filtro==='pend'?!ST.imp.has(n.chave):filtro==='feitas'?ST.imp.has(n.chave):true);
+  if(ST.buscaN){ const b=norm(ST.buscaN); base=base.filter(n=>norm(n.emitente||'').includes(b)); }
   base=base.slice().sort((a,b)=>String(b.data_emissao||'').localeCompare(String(a.data_emissao||'')));
   let h=`<div class="note">Cada nota da Central vira <b>entrada de estoque</b>. Confira o insumo de cada item (o sistema já sugere) e confirme — o saldo sobe sozinho. A etiqueta mostra as que <b>já foram inseridas</b>.</div>`;
   h+=`<button class="btn sec" id="btnManual" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Lançar entrada manual (sem nota)</button>`;
@@ -1125,7 +1156,8 @@ function viewEntrada(){
       <button class="chip ${filtro==='pend'?'on':''}" data-f="pend">A lançar (${nPend})</button>
       <button class="chip ${filtro==='feitas'?'on':''}" data-f="feitas">Inseridas (${nFeitas})</button>
       <button class="chip ${filtro==='todas'?'on':''}" data-f="todas">Todas (${doMes.length})</button></div>`;
-  if(!base.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>Nenhuma nota ${filtro==='pend'?'a lançar':filtro==='feitas'?'inserida':''}${ST.comp!=='all'?' em '+compLabel(ST.comp):''}.</div>`; return h; }
+  h+=`<div class="toolbar"><input type="search" id="bqn" placeholder="Buscar fornecedor…" value="${esc(ST.buscaN||'')}"></div>`;
+  if(!base.length){ h+=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>Nenhuma nota${ST.buscaN?' de "'+esc(ST.buscaN)+'"':''}${ST.comp!=='all'?' em '+compLabel(ST.comp):''}.</div>`; return h; }
   base.forEach(n=>{
     const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0); const done=ST.imp.has(n.chave);
     h+=`<div class="ncard ${done?'done':''}" data-ch="${esc(n.chave)}">
@@ -1140,6 +1172,7 @@ function wireEntrada(){
   $('#btnManual')&&($('#btnManual').onclick=abrirManual);
   $('#selComp')&&($('#selComp').onchange=e=>{ST.comp=e.target.value;render();});
   $$('#app .tabs .chip[data-f]').forEach(b=>b.onclick=()=>{ST.entFiltro=b.dataset.f;render();});
+  const bq=$('#bqn'); if(bq){ bq.oninput=()=>{ST.buscaN=bq.value; const p=bq.selectionStart; render(); const n=$('#bqn'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $$('.ncard').forEach(c=>c.onclick=()=>abrirNota(c.dataset.ch));
 }
 
@@ -1521,6 +1554,7 @@ $('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
   if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
 $('#tabPed').onclick=()=>{ST.tab='ped'; render(); if(!ST.pedidos||ST.pedidos==='loading') carregarPedidos();};
 $('#tabPz').onclick=()=>{ST.tab='pz'; render(); if(!ST.prodHist||ST.prodHist==='loading') carregarProduzidos();};
+$('#tabCmp').onclick=()=>{ST.tab='cmp'; if(!ST.comprasMes){ST.comprasMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarCompras();};
 $('#tabFech').onclick=()=>{ST.tab='fech'; if(!ST.fechMes){ST.fechMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarFechamento();};
 $('#tabEnv').onclick=()=>{ST.tab='env'; render(); if(!ST.envios||ST.envios==='loading') carregarEnvios();};
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
