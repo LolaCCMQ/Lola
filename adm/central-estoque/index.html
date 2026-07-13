@@ -1313,7 +1313,7 @@ function openVincularReceita(id){
   $('#vrBusca').oninput=()=>drawVr($('#vrBusca').value); drawVr(''); setTimeout(()=>$('#vrBusca').focus(),80);
 }
 let EDIT_INS=null, EDIT_CAT=null, EDIT_EUN=null;
-const INS_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Material de Limpeza'];
+const INS_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Material de Limpeza','Materiais de Expediente'];
 function openEditInsumo(id){
   const i=ST.byId[id]; if(!i)return; EDIT_INS=id; EDIT_CAT=i.categoria||''; EDIT_EUN=i.unidade_custo||'kg';
   const cats=[...new Set([...INS_CATS, ...(EDIT_CAT?[EDIT_CAT]:[])])];
@@ -1505,7 +1505,7 @@ function closeIns(){ $('#insBg').classList.remove('on'); $('#insModal').classLis
 function openCriarInsumo(it){
   CRIAR_IT=it;
   $('#imNome').value = (it.desc||'').replace(/\s*[\d.,]+\s*(g|kg|ml|l|un|dz)\b.*$/i,'').trim() || (it.desc||'');
-  $('#imCat').innerHTML=[...FOOD_CATS,'Material de Limpeza'].map(c=>`<option>${c}</option>`).join('');
+  $('#imCat').innerHTML=[...FOOD_CATS,'Material de Limpeza','Materiais de Expediente'].map(c=>`<option>${c}</option>`).join('');
   IM_UN='kg';
   $('#imUn').innerHTML=['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u==='kg'?'on':''}">${u}</button>`).join('');
   $$('#imUn button').forEach(b=>b.onclick=()=>{ IM_UN=b.dataset.u; $$('#imUn button').forEach(x=>x.classList.toggle('on',x===b)); });
