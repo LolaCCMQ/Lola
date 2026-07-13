@@ -633,7 +633,12 @@ function viewProduzidos(){
     const evts=x.evts.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
     return `<div class="pzc" data-id="${x.id}">
       <div class="prow pztog"><div class="t"><b>${esc(x.nome)}</b><span>última ${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'} · total ${num(x.total)} ${esc(un)}</span></div><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div>
-      <div class="usos pzev">${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${esc(un)}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}</div>
+      <div class="usos pzbox">
+        <div class="lbl" style="margin:0 0 4px">Receita usada</div>
+        <div class="pzrec"><div class="uinfo">carregando…</div></div>
+        <div class="lbl" style="margin:10px 0 4px">Produções (${x.n})</div>
+        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${esc(un)}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
+      </div>
       <div class="pacts"><button class="prodbtn pzet"><i class="ph-duotone ph-tag"></i> Etiquetas</button><button class="btn sec pzrend"><i class="ph-duotone ph-scales"></i> Rendimento</button></div>
     </div>`;
   }).join('');
@@ -642,7 +647,11 @@ function viewProduzidos(){
 function wireProduzidos(){
   const bq=$('#bqz'); if(bq){ bq.oninput=()=>{ST.buscaZ=bq.value; const p=bq.selectionStart; render(); const n=$('#bqz'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $$('#app .pzc').forEach(el=>{ const id=el.dataset.id;
-    const tg=el.querySelector('.pztog'); if(tg) tg.onclick=()=>{ const b=el.querySelector('.pzev'); b.classList.toggle('on'); };
+    const tg=el.querySelector('.pztog'); if(tg) tg.onclick=async()=>{ const b=el.querySelector('.pzbox'); b.classList.toggle('on');
+      const rec=el.querySelector('.pzrec'); if(b.classList.contains('on') && rec && !rec.dataset.loaded){ rec.dataset.loaded='1';
+        try{ const rr=await post('rpc/central_receita_itens',{pid:id}); rec.innerHTML=(Array.isArray(rr)&&rr.length)?rr.map(z=>{const c=conv(z.qtd,z.unidade);return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join(''):'<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; }
+        catch(e){ rec.innerHTML='<div class="uinfo">Erro ao carregar a receita.</div>'; rec.dataset.loaded=''; }
+      } };
     el.querySelector('.pzet').onclick=()=>openEtiqueta(id);
     el.querySelector('.pzrend').onclick=()=>openEditRend(id);
     el.querySelectorAll('.pzevrow').forEach(row=>{ const eid=row.dataset.eid;
