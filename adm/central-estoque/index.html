@@ -231,6 +231,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .im-body{padding:10px 16px 4px;overflow-y:auto}
 .iml{display:block;font-size:11px;color:var(--mut);font-weight:700;margin:11px 0 4px}
 .im-body input,.im-body select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
+.catbtns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.catbtns button{flex:1 1 auto;background:var(--card);border:1px solid var(--border);border-radius:10px;min-height:42px;padding:0 12px;font:inherit;font-weight:700;font-size:12.5px;color:var(--sec);cursor:pointer}
+.catbtns button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
 .unrow{display:flex;gap:6px}
 .unrow button{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;min-height:44px;font:inherit;font-weight:700;font-size:13px;color:var(--sec);cursor:pointer}
 .unrow button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
@@ -1285,22 +1288,29 @@ function wireSaldo(){
   $$('#app .sitem').forEach(el=>{ const c=el.querySelector('.srow-c'); if(c) c.onclick=()=>toggleUsos(el);
     const ed=el.querySelector('.iedt'); if(ed) ed.onclick=(e)=>{ e.stopPropagation(); openEditInsumo(el.dataset.ins); }; });
 }
-let EDIT_INS=null;
+let EDIT_INS=null, EDIT_CAT=null, EDIT_EUN=null;
+const INS_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Material de Limpeza'];
 function openEditInsumo(id){
-  const i=ST.byId[id]; if(!i)return; EDIT_INS=id;
+  const i=ST.byId[id]; if(!i)return; EDIT_INS=id; EDIT_CAT=i.categoria||''; EDIT_EUN=i.unidade_custo||'kg';
+  const cats=[...new Set([...INS_CATS, ...(EDIT_CAT?[EDIT_CAT]:[])])];
   $('#shTitle').textContent='Editar insumo';
   $('#shBody').innerHTML=`<div class="note">Renomeie ou ajuste o insumo. A mudança vale em todo o sistema (fichas, estoque, sugestões).</div>
     <div class="mf"><label>Nome</label><input type="text" id="ediNome" value="${esc(i.nome||'')}"></div>
-    <div class="mf"><label>Categoria</label><input type="text" id="ediCat" value="${esc(i.categoria||'')}" list="ediCatList"><datalist id="ediCatList">${[...new Set((ST.insumos||[]).map(x=>x.categoria).filter(Boolean))].map(c=>`<option value="${esc(c)}"></option>`).join('')}</datalist></div>
-    <div class="mf"><label>Unidade de custo</label><input type="text" id="ediUn" value="${esc(i.unidade_custo||'')}" placeholder="kg, un, L…"></div>
+    <label class="iml">Categoria</label>
+    <div id="ediCatBtns" class="catbtns">${cats.map(c=>`<button data-c="${esc(c)}" class="${c===EDIT_CAT?'on':''}">${esc(c)}</button>`).join('')}</div>
+    <label class="iml">Unidade de custo</label>
+    <div id="ediUnBtns" class="unrow" style="margin-bottom:12px">${['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u===EDIT_EUN?'on':''}">${u}</button>`).join('')}</div>
     <div class="mf"><label>Custo por unidade (R$)</label><input type="number" id="ediCusto" step="0.0001" value="${i.custo_por_unidade!=null?i.custo_por_unidade:''}"></div>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
-  $('#shSave').removeAttribute('disabled'); onSave=salvarEditInsumo; openSheet(); setTimeout(()=>$('#ediNome').focus(),60);
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEditInsumo; openSheet();
+  $$('#ediCatBtns button').forEach(b=>b.onclick=()=>{ EDIT_CAT=b.dataset.c; $$('#ediCatBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
+  $$('#ediUnBtns button').forEach(b=>b.onclick=()=>{ EDIT_EUN=b.dataset.u; $$('#ediUnBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
+  setTimeout(()=>$('#ediNome').focus(),60);
 }
 async function salvarEditInsumo(){
   const id=EDIT_INS; if(!id)return; const i=ST.byId[id]||{};
   const nome=($('#ediNome').value||'').trim(); if(!nome){ toast('O nome não pode ficar vazio.'); return; }
-  const cat=($('#ediCat').value||'').trim()||null, un=($('#ediUn').value||'').trim()||null;
+  const cat=EDIT_CAT||null, un=EDIT_EUN||null;
   const custoRaw=$('#ediCusto').value; const custo=custoRaw===''?i.custo_por_unidade:(+custoRaw||0);
   const dup=(ST.insumos||[]).find(x=>x.id!==id && norm(x.nome)===norm(nome));
   if(dup && !confirm('Já existe um insumo "'+dup.nome+'". Renomear mesmo assim?')) return;
@@ -1457,7 +1467,7 @@ function closeIns(){ $('#insBg').classList.remove('on'); $('#insModal').classLis
 function openCriarInsumo(it){
   CRIAR_IT=it;
   $('#imNome').value = (it.desc||'').replace(/\s*[\d.,]+\s*(g|kg|ml|l|un|dz)\b.*$/i,'').trim() || (it.desc||'');
-  $('#imCat').innerHTML=[...FOOD_CATS].map(c=>`<option>${c}</option>`).join('');
+  $('#imCat').innerHTML=[...FOOD_CATS,'Material de Limpeza'].map(c=>`<option>${c}</option>`).join('');
   IM_UN='kg';
   $('#imUn').innerHTML=['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u==='kg'?'on':''}">${u}</button>`).join('');
   $$('#imUn button').forEach(b=>b.onclick=()=>{ IM_UN=b.dataset.u; $$('#imUn button').forEach(x=>x.classList.toggle('on',x===b)); });
