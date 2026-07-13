@@ -79,6 +79,13 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .pcard,.pzc{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
 .pzc .t b{display:block;font-size:14px;font-weight:700}
 .pzc .t span{display:block;font-size:11.5px;color:var(--mut);margin-top:2px}
+.pzc .prow.pztog{cursor:pointer;align-items:center}
+.pzev{margin-top:2px}
+.pzevrow{align-items:center;gap:8px}
+.pzevrow span{flex:1;min-width:0}
+.pzevrow b{white-space:nowrap}
+.pzevrow .pzedit,.pzevrow .pzdel{background:none;border:0;font-size:15px;cursor:pointer;padding:2px 4px}
+.pzevrow .pzedit{color:var(--vinho)}.pzevrow .pzdel{color:var(--lbl)}
 .pcard .prow{display:flex;align-items:center;gap:12px}
 .pcard .prow .t{flex:1;min-width:0}
 .pcard .prow .t b{display:block;font-size:13.5px;font-weight:700}
@@ -606,7 +613,7 @@ function updateRend(ri, f){
 let EDIT_REND=null;
 async function carregarProduzidos(){
   ST.prodHist='loading'; if(ST.tab==='pz') render();
-  try{ ST.prodHist=await api('lola_central_prod_hist?select=preproducao_id,data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=400'); }
+  try{ ST.prodHist=await api('lola_central_prod_hist?ativo=neq.false&select=id,preproducao_id,data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=400'); }
   catch(e){ ST.prodHist=[]; }
   if(ST.tab==='pz') render();
 }
@@ -616,15 +623,17 @@ function viewProduzidos(){
   const d=ST.prodHist;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
   const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
-  const g={}; d.forEach(x=>{ if(!x.preproducao_id)return; const k=x.preproducao_id; (g[k]=g[k]||{id:k,nome:nomeDe(k),n:0,total:0,ultima:null}); g[k].n++; g[k].total+=(+x.qtd_produzida||0); if(!g[k].ultima||String(x.data)>String(g[k].ultima)){g[k].ultima=x.data;} });
+  const g={}; d.forEach(x=>{ if(!x.preproducao_id)return; const k=x.preproducao_id; (g[k]=g[k]||{id:k,nome:nomeDe(k),n:0,total:0,ultima:null,evts:[]}); g[k].n++; g[k].total+=(+x.qtd_produzida||0); g[k].evts.push(x); if(!g[k].ultima||String(x.data)>String(g[k].ultima)){g[k].ultima=x.data;} });
   let list=Object.values(g);
   if(ST.buscaZ){ const b=norm(ST.buscaZ); list=list.filter(x=>norm(x.nome).includes(b)); }
   list.sort((a,b)=>String(b.ultima||'').localeCompare(String(a.ultima||'')));
   if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-package"></i>Nada produzido ainda. Registre pelo botão Produzir.</div>`; return h; }
   h+=`<div class="lbl">Produzidos (${list.length})</div>`;
   h+=list.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.id)||{}; const un=prodUn(r);
+    const evts=x.evts.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
     return `<div class="pzc" data-id="${x.id}">
-      <div class="prow"><div class="t"><b>${esc(x.nome)}</b><span>última ${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'} · total ${num(x.total)} ${esc(un)}</span></div></div>
+      <div class="prow pztog"><div class="t"><b>${esc(x.nome)}</b><span>última ${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'} · total ${num(x.total)} ${esc(un)}</span></div><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div>
+      <div class="usos pzev">${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${esc(un)}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}</div>
       <div class="pacts"><button class="prodbtn pzet"><i class="ph-duotone ph-tag"></i> Etiquetas</button><button class="btn sec pzrend"><i class="ph-duotone ph-scales"></i> Rendimento</button></div>
     </div>`;
   }).join('');
@@ -633,28 +642,81 @@ function viewProduzidos(){
 function wireProduzidos(){
   const bq=$('#bqz'); if(bq){ bq.oninput=()=>{ST.buscaZ=bq.value; const p=bq.selectionStart; render(); const n=$('#bqz'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $$('#app .pzc').forEach(el=>{ const id=el.dataset.id;
+    const tg=el.querySelector('.pztog'); if(tg) tg.onclick=()=>{ const b=el.querySelector('.pzev'); b.classList.toggle('on'); };
     el.querySelector('.pzet').onclick=()=>openEtiqueta(id);
     el.querySelector('.pzrend').onclick=()=>openEditRend(id);
+    el.querySelectorAll('.pzevrow').forEach(row=>{ const eid=row.dataset.eid;
+      row.querySelector('.pzedit').onclick=()=>editProdEvento(eid, id);
+      row.querySelector('.pzdel').onclick=()=>delProdEvento(eid, id);
+    });
   });
 }
+function evtDe(eid){ return (ST.prodHist||[]).find(x=>x.id===eid); }
+async function delProdEvento(eid, prepId){
+  const e=evtDe(eid); if(!e)return;
+  if(!confirm('Excluir esta produção de '+fmtData(String(e.data).slice(0,10))+' (+'+num(e.qtd_produzida)+')? O estoque baixa essa quantidade.')) return;
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_prod_hist?id=eq.'+eid,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({ativo:false})});
+    const s=(ST.saldo||{})[prepId]; if(s){ const novo=(+s.saldo||0)-(+e.qtd_produzida||0); await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+prepId,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})}); s.saldo=novo; }
+    ST.prodHist=(ST.prodHist||[]).filter(x=>x.id!==eid); toast('Produção excluída ✓'); render();
+  }catch(err){ toast('Erro: '+err.message); }
+}
+let EDIT_EVT=null;
+function editProdEvento(eid, prepId){
+  const e=evtDe(eid); if(!e)return; EDIT_EVT={eid, prepId, old:+e.qtd_produzida||0};
+  const r=(ST.receitas||[]).find(x=>x.id===prepId)||{}; const un=prodUn(r);
+  $('#shTitle').textContent='Editar produção';
+  $('#shBody').innerHTML=`<div class="note">Corrija a data ou a quantidade produzida. O estoque ajusta pela diferença.</div>
+    <div class="mf"><label>Data</label><input type="date" id="evData" value="${esc(String(e.data).slice(0,10))}"></div>
+    <div class="mf"><label>Quanto produziu (${esc(un)})</label><input type="number" id="evQtd" step="0.001" inputmode="decimal" value="${e.qtd_produzida}"></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEditEvento; openSheet(); setTimeout(()=>$('#evQtd').focus(),60);
+}
+async function salvarEditEvento(){
+  const c=EDIT_EVT; if(!c)return; const nova=+$('#evQtd').value||0, data=$('#evData').value||new Date().toISOString().slice(0,10);
+  $('#shSave').setAttribute('disabled','');
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_prod_hist?id=eq.'+c.eid,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({qtd_produzida:nova, data})});
+    const dif=nova-c.old; const s=(ST.saldo||{})[c.prepId]; if(s && dif){ const novo=(+s.saldo||0)+dif; await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+c.prepId,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})}); s.saldo=novo; }
+    const e=evtDe(c.eid); if(e){ e.qtd_produzida=nova; e.data=data; }
+    toast('Produção atualizada ✓'); closeSheet(); render();
+  }catch(err){ toast('Erro: '+err.message); $('#shSave').removeAttribute('disabled'); }
+}
+let ER_UN='kg';
+const ER_G={g:1, kg:1000, mg:0.001}; // gramas por unidade (pra converter)
+function erSwitchUn(nu){
+  if(ER_G[ER_UN] && ER_G[nu]){ const f=ER_G[ER_UN]/ER_G[nu];
+    const r=$('#erRend'), p=$('#erPorc');
+    if(r&&r.value!=='') r.value=+(+r.value*f).toFixed(4);
+    if(p&&p.value!=='') p.value=+(+p.value*f).toFixed(4);
+  }
+  ER_UN=nu; $$('#erUnBtns button').forEach(b=>b.classList.toggle('on',b.dataset.u===nu)); erPortions();
+}
+function erPortions(){ const el=$('#erPor'); if(!el)return; const r=+$('#erRend').value||0, p=+$('#erPorc').value||0;
+  el.innerHTML = (r>0&&p>0) ? `Dá <b>${Math.round(r/p)} porções</b> — é o nº de etiquetas que ele vai sugerir.` : 'Preencha rendimento e tamanho da porção pra ver quantas porções (etiquetas) dá.'; }
 function openEditRend(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; EDIT_REND=id;
-  const ri=rendInfo(r);
+  ER_UN=(r.rendimento_un||'kg').toLowerCase(); if(!ER_G[ER_UN]&&ER_UN!=='un'&&ER_UN!=='l') ER_UN='kg';
   $('#shTitle').textContent='Rendimento — '+r.nome;
-  $('#shBody').innerHTML=`<div class="note">Quanto essa receita rende (a receita cheia). Usado pra calcular as porções esperadas na hora de produzir.</div>
-    <div class="mf"><label>Rendimento da receita cheia</label><div class="rendrow"><input type="number" id="erRend" step="0.001" inputmode="decimal" value="${r.rendimento_qtd!=null?r.rendimento_qtd:''}" placeholder="quanto rende"><input type="text" id="erUn" value="${esc(r.rendimento_un||'')}" placeholder="g/kg/un/L"></div></div>
-    <div class="mf"><label>Tamanho da porção <span style="color:var(--mut);font-weight:400">(opcional — pra contar em porções)</span></label><input type="number" id="erPorc" step="0.001" inputmode="decimal" value="${r.porcao_qtd!=null?r.porcao_qtd:''}" placeholder="ex.: 45 (g por unidade)"></div>
-    ${ri.base>0?`<div class="entra on">Hoje: <b>${num(ri.base)} ${esc(ri.un)}</b>${ri.ehPorcao?` (porção de ${num(ri.porcaoQtd)} ${esc(ri.rendUn)})`:''}</div>`:''}`;
+  $('#shBody').innerHTML=`<div class="note">Quanto essa receita rende e o tamanho da porção. Troque a unidade que ele converte sozinho; a porção define quantas etiquetas imprimir.</div>
+    <label class="iml">Unidade</label>
+    <div id="erUnBtns" class="unrow">${['g','kg','L','un'].map(u=>`<button data-u="${u}" class="${u===ER_UN?'on':''}">${u}</button>`).join('')}</div>
+    <div class="mf"><label>Rendimento da receita cheia</label><input type="number" id="erRend" step="0.0001" inputmode="decimal" value="${r.rendimento_qtd!=null?r.rendimento_qtd:''}" placeholder="quanto rende no total"></div>
+    <div class="mf"><label>Tamanho da porção <span style="color:var(--mut);font-weight:400">(quanto vai em cada etiqueta)</span></label><input type="number" id="erPorc" step="0.0001" inputmode="decimal" value="${r.porcao_qtd!=null?r.porcao_qtd:''}" placeholder="ex.: 2 (por porção)"></div>
+    <div class="entra on" id="erPor"></div>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar rendimento';
-  $('#shSave').removeAttribute('disabled'); onSave=salvarEditRend; openSheet(); setTimeout(()=>$('#erRend').focus(),60);
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEditRend; openSheet();
+  $$('#erUnBtns button').forEach(b=>b.onclick=()=>erSwitchUn(b.dataset.u));
+  $('#erRend').oninput=erPortions; $('#erPorc').oninput=erPortions; erPortions();
+  setTimeout(()=>$('#erRend').focus(),60);
 }
 async function salvarEditRend(){
   const id=EDIT_REND; const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return;
-  const rend=+$('#erRend').value||null, un=($('#erUn').value||'').trim()||null, porc=+$('#erPorc').value||null;
+  const rend=+$('#erRend').value||null, un=ER_UN||null, porc=+$('#erPorc').value||null;
   $('#shSave').setAttribute('disabled','');
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal'; await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_preproducoes?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({rendimento_qtd:rend, rendimento_un:un, porcao_qtd:porc, editado_por:quem, editado_em:new Date().toISOString()})});
-    r.rendimento_qtd=rend; r.rendimento_un=un; r.porcao_qtd=porc;
+    await fetch(SB_URL+'/rest/v1/lola_preproducoes?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({rendimento_qtd:rend, rendimento_un:un, porcao_qtd:porc, porcao_un:un, editado_por:quem, editado_em:new Date().toISOString()})});
+    r.rendimento_qtd=rend; r.rendimento_un=un; r.porcao_qtd=porc; r.porcao_un=un;
     toast('Rendimento atualizado ✓'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
@@ -711,6 +773,7 @@ function openEtiqueta(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r;
   const s=(ST.saldo||{})[id]||{}; const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'';
   const hoje=new Date().toISOString().slice(0,10); const dias=s.validade_dias!=null?s.validade_dias:2;
+  const ri=rendInfo(r); const nSug=(ri.ehPorcao&&ri.base>0)?Math.round(ri.base):12;
   $('#shTitle').textContent='Etiquetas — '+r.nome;
   $('#shBody').innerHTML=`<div class="note">Etiquetas pra colar nas porções. Preencha e imprima — sai uma folha com várias iguais.</div>
     <div class="mf"><label>Data de produção</label><input type="date" id="etData" value="${hoje}"></div>
@@ -724,7 +787,7 @@ function openEtiqueta(id){
       <option value="58">Bobina 58 mm (largura)</option>
       <option value="a4">Folha A4 (várias por página)</option>
     </select></div>
-    <div class="mf"><label>Quantas etiquetas</label><input type="number" id="etQtd" step="1" value="12" inputmode="numeric"></div>
+    <div class="mf"><label>Quantas etiquetas${ri.ehPorcao&&ri.base>0?` <span style="color:var(--mut);font-weight:400">(sugerido ${nSug} = rendimento ÷ porção)</span>`:''}</label><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric"></div>
     <div class="mf"><label>Peso <span style="color:var(--mut);font-weight:400">(opcional — em branco deixa uma linha pra escrever à mão)</span></label><input type="text" id="etPeso" placeholder="ex.: 2,4 kg"></div>
     <label class="etck"><input type="checkbox" id="etIng" checked> incluir ingredientes na etiqueta</label>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
