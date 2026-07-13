@@ -106,6 +106,17 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ring.iedit span{flex:1;min-width:0}
 .ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
 .ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.chist{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;font:inherit;cursor:pointer;text-align:left}
+.chist .t b{display:block;font-size:14px;font-weight:700;color:var(--ink)}
+.chist .t span{display:block;font-size:12px;color:var(--mut)}
+.chist i{color:var(--lbl);font-size:18px}
+.cdet{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 13px;margin-bottom:7px}
+.cdet .t{flex:1;min-width:0}
+.cdet .t b{display:block;font-size:13.5px;font-weight:700}
+.cdet .t span{display:block;font-size:11.5px;color:var(--mut)}
+.cdet .cdif{flex-shrink:0;font-family:Fraunces,serif;font-weight:600;font-size:15px;color:var(--mut)}
+.cdet .cdif.pos{color:#2C5AA0}
+.cdet .cdif.neg{color:var(--urgFg)}
 .imwarn{background:var(--urgBg);border:1px solid #E9A8A2;border-radius:12px;padding:10px 12px;margin:8px 0 4px}
 .imwarn .imwt{font-size:12px;font-weight:700;color:var(--urgFg);margin-bottom:7px;display:flex;align-items:center;gap:6px}
 .imwarn .imwuse{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:6px;font:inherit;font-size:13px;font-weight:600;color:var(--vinho);cursor:pointer}
@@ -461,7 +472,7 @@ function viewProd(){
   const R=ST.receitas;
   let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
   h+=`<button class="btn" id="btnNovaProd" style="margin-bottom:10px"><i class="ph-duotone ph-plus-circle"></i> Adicionar nova produção</button>`;
-  h+=`<div class="btn2"><button class="btn sec" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem geral</button></div>`;
+  h+=`<div class="btn2"><button class="btn sec" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button><button class="btn sec" id="btnHistProd"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
   h+=`<div class="toolbar"><input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}"></div>`;
   if(R==='loading'||!R){ h+=`<div class="spin"></div>`; return h; }
   let list=(R||[]).slice();
@@ -485,6 +496,7 @@ function wireProd(){
   const bq=$('#bqp'); if(bq){ bq.oninput=()=>{ST.buscaP=bq.value; const pos=bq.selectionStart; render(); const n=$('#bqp'); if(n){n.focus();n.setSelectionRange(pos,pos);} }; }
   $('#btnNovaProd')&&($('#btnNovaProd').onclick=openNovaReceita);
   $('#btnContProd')&&($('#btnContProd').onclick=()=>openContagem('producao'));
+  $('#btnHistProd')&&($('#btnHistProd').onclick=()=>openContagensHist('producao'));
   $$('#app .pcard').forEach(el=>{
     const id=el.dataset.id;
     const tg=el.querySelector('.ptog'); if(tg) tg.onclick=()=>toggleProdIngr(el);
@@ -763,6 +775,26 @@ async function salvarContagem(){
     toast('Contagem salva ✓ ('+itens.length+' itens, '+fmtData(data)+')'); closeSheet(); render();
   }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
+async function openContagensHist(tipo){
+  $('#shTitle').textContent='Contagens — '+(tipo==='producao'?'Produções':'Insumos');
+  const f=$('.sh-foot'); if(f) f.style.display='none';
+  $('#shBody').innerHTML='<div class="uinfo">carregando…</div>'; openSheet();
+  try{ const list=await api('lola_central_contagem?tipo=eq.'+tipo+'&select=id,data,criado_por&order=data.desc,criado_em.desc&limit=80');
+    if(!list.length){ $('#shBody').innerHTML='<div class="empty"><i class="ph-duotone ph-clipboard-text"></i>Nenhuma contagem registrada ainda.</div>'; return; }
+    $('#shBody').innerHTML=`<div class="note">Cada contagem fica guardada com a data. Toque pra ver os itens e as diferenças pro sistema.</div>`+list.map(c=>`<button class="chist" data-id="${c.id}"><div class="t"><b>${fmtData(String(c.data).slice(0,10))}</b>${c.criado_por?`<span>${esc(c.criado_por)}</span>`:''}</div><i class="ph-duotone ph-caret-right"></i></button>`).join('');
+    $$('#shBody .chist').forEach(b=>b.onclick=()=>openContagemDet(b.dataset.id, tipo));
+  }catch(e){ $('#shBody').innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+async function openContagemDet(id, tipo){
+  $('#shBody').innerHTML='<div class="uinfo">carregando…</div>';
+  try{ const its=await api('lola_central_contagem_item?contagem_id=eq.'+id+'&select=nome,unidade,qtd_sistema,qtd_contada&order=nome');
+    let h=`<button class="btn sec" id="chVoltar" style="margin-bottom:12px"><i class="ph-duotone ph-arrow-left"></i> Voltar às contagens</button><div class="lbl">Itens contados (${its.length})</div>`;
+    h+=its.map(x=>{ const dif=(+x.qtd_contada||0)-(+x.qtd_sistema||0); const cls=Math.abs(dif)<1e-9?'':(dif<0?'neg':'pos');
+      return `<div class="cdet"><div class="t"><b>${esc(x.nome)}</b><span>sistema ${num(x.qtd_sistema)} · contado ${num(x.qtd_contada)} ${esc(x.unidade||'')}</span></div><div class="cdif ${cls}">${dif>0?'+':''}${num(dif)}</div></div>`; }).join('');
+    $('#shBody').innerHTML=h;
+    $('#chVoltar').onclick=()=>openContagensHist(tipo);
+  }catch(e){ $('#shBody').innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
 /* ===== RECEITAS (pré-produções, mesma base do portal) ===== */
 function viewReceitas(){
   let h=`<div class="note">As <b>pré-produções com as receitas</b> — a MESMA base do portal. O que mudar aqui muda lá (é o mesmo dado). Toque numa pra ver os ingredientes.</div>`;
@@ -976,7 +1008,7 @@ function viewSaldo(){
   if(ST.busca){ const b=norm(ST.busca); ids=ids.filter(id=>norm(ST.byId[id]?.nome).includes(b)); }
   ids.sort((a,b)=>{ const A=ST.byId[a]||{},B=ST.byId[b]||{}; return (A.categoria||'').localeCompare(B.categoria||'')||(A.nome||'').localeCompare(B.nome||''); });
   let h=`<div class="tot"><div class="k">Valor em estoque</div><div class="big">${brl(totalV)}</div><div class="s">${ids.length} ${ids.length===1?'insumo':'insumos'} com movimento</div></div>`;
-  h+=`<button class="btn sec" id="btnContIns" style="margin-bottom:12px"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem dos insumos</button>`;
+  h+=`<div class="btn2"><button class="btn sec" id="btnContIns"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button><button class="btn sec" id="btnHistIns"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
   h+=`<div class="toolbar"><input type="search" id="bq" placeholder="Buscar insumo…" value="${esc(ST.busca)}">
       <button class="chip ${ST.soComSaldo?'on':''}" id="chSaldo">só com saldo</button></div>`;
   if(!ids.length){ h+=`<div class="empty"><i class="ph-duotone ph-stack"></i>Ainda não há movimento de estoque.<br>Lance as notas na aba ao lado.</div>`; return h; }
@@ -996,6 +1028,7 @@ function wireSaldo(){
   const bq=$('#bq'); if(bq){ bq.oninput=()=>{ST.busca=bq.value; const p=bq.selectionStart; render(); const n=$('#bq'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $('#chSaldo')&&($('#chSaldo').onclick=()=>{ST.soComSaldo=!ST.soComSaldo;render();});
   $('#btnContIns')&&($('#btnContIns').onclick=()=>openContagem('insumo'));
+  $('#btnHistIns')&&($('#btnHistIns').onclick=()=>openContagensHist('insumo'));
   $$('#app .sitem').forEach(el=>{ const c=el.querySelector('.srow-c'); if(c) c.onclick=()=>toggleUsos(el);
     const ed=el.querySelector('.iedt'); if(ed) ed.onclick=(e)=>{ e.stopPropagation(); openEditInsumo(el.dataset.ins); }; });
 }
@@ -1334,7 +1367,7 @@ async function salvarManual(){
 }
 
 function openSheet(){ $('#sheetBg').classList.add('on'); $('#sheet').classList.add('on'); }
-function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classList.remove('on'); }
+function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classList.remove('on'); const f=$('.sh-foot'); if(f) f.style.display=''; }
 
 /* ============ eventos base ============ */
 $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
