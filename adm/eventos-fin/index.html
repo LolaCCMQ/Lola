@@ -66,6 +66,16 @@ input[type=text],input[type=number],input[type=date],select,textarea{
   padding:12px;font:inherit;font-size:16px;color:var(--ink);min-height:46px}
 textarea{min-height:70px;resize:vertical;font-size:14px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.itab{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px}
+.itab-h{display:flex;gap:8px;padding:8px 10px;background:var(--cremeDark);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);font-weight:700}
+.itab-r{display:flex;gap:8px;padding:6px 10px;border-top:1px solid var(--fio);align-items:center}
+.itab-r input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;font:inherit;font-size:14px;min-height:38px;color:var(--ink)}
+.itab .c-nome{flex:1;min-width:0}
+.itab .c-qtd{width:56px;flex:none;text-align:right}
+.itab .c-val{width:92px;flex:none;text-align:right}
+.itab-h .c-qtd,.itab-h .c-val{text-align:left}
+.itab .c-x{width:30px;flex:none}
+.itab-x{width:30px;flex:none;background:none;border:0;color:var(--vinho);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .row3{display:grid;grid-template-columns:1.4fr 1fr auto;gap:8px;align-items:end}
 
 .note{background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sec);margin-bottom:18px;overflow-wrap:anywhere}
@@ -199,15 +209,16 @@ function sheet(){
         <div class="fld"><label>Tipo de venda</label><select class="vTipo" data-i="${i}">${tipoOpts(v.tipo)}</select></div>
       </div>
     </div>`).join('');
-  const itensHTML=e.itens.map((it,i)=>`
-    <div class="linha" data-ii="${i}">
-      ${e.itens.length>1?`<button class="del" data-deli="${i}" title="Remover"><i class="ph-duotone ph-x-circle"></i></button>`:''}
-      <div class="fld"><label>Item</label><input type="text" class="iNome" data-i="${i}" value="${esc(it.nome||'')}" placeholder="Ex.: Papas bravas"></div>
-      <div class="row2">
-        <div class="fld"><label>Qtd vendida</label><input type="text" inputmode="decimal" class="iQtd" data-i="${i}" value="${it.qtd!==''&&it.qtd!=null?esc(''+it.qtd):''}" placeholder="0"></div>
-        <div class="fld"><label>Valor total (R$) — opcional</label><input type="text" inputmode="decimal" class="iVal" data-i="${i}" value="${it.valor!==''&&it.valor!=null?esc(''+it.valor):''}" placeholder="0,00"></div>
-      </div>
-    </div>`).join('');
+  const itensHTML=`
+    <div class="itab">
+      <div class="itab-h"><span class="c-nome">Item</span><span class="c-qtd">Qtd</span><span class="c-val">Valor R$ (opc.)</span><span class="c-x"></span></div>
+      ${e.itens.map((it,i)=>`<div class="itab-r" data-ii="${i}">
+        <input type="text" class="iNome c-nome" data-i="${i}" value="${esc(it.nome||'')}" placeholder="Item">
+        <input type="text" inputmode="decimal" class="iQtd c-qtd" data-i="${i}" value="${it.qtd!==''&&it.qtd!=null?esc(''+it.qtd):''}" placeholder="0">
+        <input type="text" inputmode="decimal" class="iVal c-val" data-i="${i}" value="${it.valor!==''&&it.valor!=null?esc(''+it.valor):''}" placeholder="0,00">
+        <button class="itab-x" data-deli="${i}" title="Remover"><i class="ph-duotone ph-x"></i></button>
+      </div>`).join('')}
+    </div>`;
 
   $('#sheet').innerHTML=`
     <div class="grab"></div>
@@ -248,7 +259,7 @@ function coletar(){
   e.obs=$('#fObs').value.trim();
   e.vendas=$$('#vendasBox .linha').map(l=>{const i=l.dataset.vi;
     return {maquininha:l.querySelector('.vMaq').value.trim(), valor:l.querySelector('.vVal').value.trim(), tipo:l.querySelector('.vTipo').value};});
-  e.itens=$$('#itensBox .linha').map(l=>{
+  e.itens=$$('#itensBox .itab-r').map(l=>{
     return {nome:l.querySelector('.iNome').value.trim(), qtd:l.querySelector('.iQtd').value.trim(), valor:l.querySelector('.iVal').value.trim()};});
 }
 function recalc(){ const t=$$('#vendasBox .vVal').reduce((s,i)=>s+num(i.value),0); $('#totVendas').textContent=brl(t); }
