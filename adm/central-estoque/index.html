@@ -705,7 +705,7 @@ async function printReceita(ppId){
   w.document.close(); setTimeout(()=>{ try{w.focus();w.print();}catch(e){} }, 350);
 }
 /* ---- etiquetas de porção ---- */
-const CONSERV_PADRAO='Freezer -18°C: 1 mês · Refrigerado 0 a -6°C: 24h · Após aberto, consumir em 24h.';
+const CONSERV_PADRAO='Refrig. 0 a -6°C: 24h · Freezer -18°C: 1 mês';
 let ETIQ_CUR=null;
 function openEtiqueta(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r;
