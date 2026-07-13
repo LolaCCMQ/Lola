@@ -1312,14 +1312,28 @@ async function salvarEditInsumo(){
   const nome=($('#ediNome').value||'').trim(); if(!nome){ toast('O nome não pode ficar vazio.'); return; }
   const cat=EDIT_CAT||null, un=EDIT_EUN||null;
   const custoRaw=$('#ediCusto').value; const custo=custoRaw===''?i.custo_por_unidade:(+custoRaw||0);
-  const dup=(ST.insumos||[]).find(x=>x.id!==id && norm(x.nome)===norm(nome));
-  if(dup && !confirm('Já existe um insumo "'+dup.nome+'". Renomear mesmo assim?')) return;
+  const dup=(ST.insumos||[]).find(x=>x.id!==id && x.ativo!==false && norm(x.nome)===norm(nome));
+  if(dup){
+    if(confirm('Já existe "'+dup.nome+'".\n\nOK = FUNDIR os dois (junta o estoque e as receitas num só)\nCancelar = manter separado e renomear assim mesmo')){
+      $('#shSave').setAttribute('disabled','');
+      try{ await fundirInsumo(id, dup.id); toast('Fundido com "'+dup.nome+'" ✓'); closeSheet(); await carregar(); }
+      catch(e){ toast('Erro ao fundir: '+e.message); $('#shSave').removeAttribute('disabled'); }
+      return;
+    }
+  }
   $('#shSave').setAttribute('disabled','');
   try{ await lolaEnsure();
     await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, updated_at:new Date().toISOString()})});
     i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo;
     buildInsumoOptions(); toast('Insumo atualizado ✓'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function fundirInsumo(fromId, toId){
+  await lolaEnsure(); const h=lolaHeaders({'Prefer':'return=minimal'}); h['Content-Type']='application/json';
+  for(const t of ['lola_central_estoque_mov','lola_central_estoque_map','lola_preproducoes_itens','lola_central_envio_ccmq','lola_fichas_tecnicas_itens']){
+    try{ await fetch(SB_URL+'/rest/v1/'+t+'?insumo_id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({insumo_id:toId})}); }catch(e){}
+  }
+  await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({ativo:false})});
 }
 async function toggleUsos(el){
   const box=el.querySelector('.usos'), id=el.dataset.ins;
