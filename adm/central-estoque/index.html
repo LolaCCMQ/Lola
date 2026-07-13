@@ -725,7 +725,8 @@ function openEtiqueta(id){
       <option value="a4">Folha A4 (várias por página)</option>
     </select></div>
     <div class="mf"><label>Quantas etiquetas</label><input type="number" id="etQtd" step="1" value="12" inputmode="numeric"></div>
-    <label class="etck"><input type="checkbox" id="etIng" checked> incluir ingredientes na etiqueta</label>`;
+    <label class="etck"><input type="checkbox" id="etIng" checked> incluir ingredientes na etiqueta</label>
+    <label class="etck"><input type="checkbox" id="etGirar"> girar 90° (se sair deitado na impressora)</label>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
   $('#shSave').removeAttribute('disabled'); onSave=printEtiquetas; openSheet();
 }
@@ -736,7 +737,7 @@ async function printEtiquetas(){
   const dias=parseInt($('#etDias').value||'0',10)||0;
   const cons=($('#etCons').value||'').trim();
   const tam=$('#etTam').value; const n=Math.max(1,Math.min(200,parseInt($('#etQtd').value||'1',10)||1));
-  const incIng=$('#etIng').checked;
+  const incIng=$('#etIng').checked; const girar=$('#etGirar').checked;
   const val=new Date(dataP+'T00:00:00'); val.setDate(val.getDate()+dias); const dataV=val.toISOString().slice(0,10);
   let ings='';
   if(incIng){ try{ const rr=await post('rpc/central_receita_itens',{pid:r.id}); ings=(rr||[]).map(x=>x.nome).join(', '); }catch(e){} }
@@ -747,7 +748,7 @@ async function printEtiquetas(){
   }catch(e){}
   const sizes={'60x40':{w:'60mm',h:'40mm',page:'60mm 40mm'},'50x30':{w:'50mm',h:'30mm',page:'50mm 30mm'},'100x50':{w:'100mm',h:'50mm',page:'100mm 50mm'},'58':{w:'54mm',h:'auto',page:'58mm auto'},'a4':{w:'90mm',h:'52mm',page:'A4'}};
   const sz=sizes[tam]||sizes.a4; const roll = tam!=='a4';
-  const label=`<div class="lab">
+  const label=`<div class="lab${girar&&roll?' girar':''}"><div class="rin">
       <div class="ln">${esc(r.nome)}</div>
       <div class="lr"><span>Produção</span><b>${fmtData(dataP)}</b></div>
       <div class="lr"><span>Validade</span><b>${fmtData(dataV)}${dias?` (${dias}d)`:''}</b></div>
@@ -755,14 +756,16 @@ async function printEtiquetas(){
       ${incIng&&ings?`<div class="li"><b>Ingr.:</b> ${esc(ings)}</div>`:''}
       ${cons?`<div class="lc">${esc(cons)}</div>`:''}
       ${roll?'':'<div class="lf">Lola · Cozinha Central</div>'}
-    </div>`;
+    </div></div>`;
   const many=Array.from({length:n}).map(()=>label).join('');
   const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas — ${esc(r.nome)}</title><style>
     @page{size:${sz.page};margin:0}
     *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#000;margin:0}
     .sheet{display:${roll?'block':'flex'};flex-wrap:wrap;gap:${roll?'0':'6mm'};padding:${roll?'0':'6mm'}}
-    .lab{width:${sz.w};${sz.h!=='auto'?`height:${sz.h};`:''}${roll?'':'border:1px solid #000;border-radius:6px;'}padding:${roll?'2mm 3mm':'2.5mm 3mm'};overflow:hidden;${roll?'page-break-after:always;':''}display:flex;flex-direction:column;gap:0.4mm}
+    .lab{width:${sz.w};${sz.h!=='auto'?`height:${sz.h};`:''}${roll?'':'border:1px solid #000;border-radius:6px;'}overflow:hidden;position:relative;${roll?'page-break-after:always;':''}}
+    .rin{width:100%;height:100%;box-sizing:border-box;padding:${roll?'2mm 3mm':'2.5mm 3mm'};display:flex;flex-direction:column;gap:0.4mm}
+    .lab.girar .rin{position:absolute;top:50%;left:50%;width:${sz.h};height:${sz.w};margin:calc(${sz.w} / -2) 0 0 calc(${sz.h} / -2);transform:rotate(90deg)}
     .ln{font-weight:bold;font-size:${roll?'13pt':'12pt'};line-height:1.05;border-bottom:1.4px solid #000;padding-bottom:1mm;margin-bottom:1mm;text-transform:uppercase}
     .lr{display:flex;justify-content:space-between;font-size:${roll?'10.5pt':'9pt'};line-height:1.3}
     .lr span{color:#333}.lr b{font-weight:bold}
