@@ -76,7 +76,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .prodq .psaldo{width:76px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
 .prodq .pu{font-size:12px;color:var(--mut);font-weight:700;min-width:24px}
 .prodq .pdel{background:none;border:0;color:var(--lbl);font-size:17px;cursor:pointer;padding:2px}
-.pcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
+.pcard,.pzc{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
+.pzc .t b{display:block;font-size:14px;font-weight:700}
+.pzc .t span{display:block;font-size:11.5px;color:var(--mut);margin-top:2px}
 .pcard .prow{display:flex;align-items:center;gap:12px}
 .pcard .prow .t{flex:1;min-width:0}
 .pcard .prow .t b{display:block;font-size:13.5px;font-weight:700}
@@ -297,6 +299,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button id="tabPed"><i class="ph-duotone ph-shopping-cart"></i> Pedidos <span class="cnt" id="cntPed" style="display:none">0</span></button>
     <button id="tabSal"><i class="ph-duotone ph-stack"></i> Insumos</button>
     <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
+    <button id="tabPz"><i class="ph-duotone ph-package"></i> Produzidos</button>
     <button id="tabRec"><i class="ph-duotone ph-notebook"></i> Receitas</button>
     <button id="tabFech"><i class="ph-duotone ph-calculator"></i> Fechar mês</button>
     <button id="tabEnv"><i class="ph-duotone ph-paper-plane-tilt"></i> Pro CCMQ <span class="cnt" id="cntEnv" style="display:none">0</span></button>
@@ -436,6 +439,7 @@ function render(){
   $('#tabSal').classList.toggle('on',ST.tab==='sal');
   $('#tabPed').classList.toggle('on',ST.tab==='ped');
   $('#tabProd').classList.toggle('on',ST.tab==='prod');
+  $('#tabPz').classList.toggle('on',ST.tab==='pz');
   $('#tabRec').classList.toggle('on',ST.tab==='rec');
   $('#tabFech').classList.toggle('on',ST.tab==='fech');
   $('#tabEnv').classList.toggle('on',ST.tab==='env');
@@ -444,8 +448,8 @@ function render(){
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, prod:viewProd, rec:viewReceitas, fech:viewFechar, env:viewEnvio, al:viewAlertas};
-  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, prod:wireProd, rec:wireReceitas, fech:wireFechar, env:wireEnvio, al:wireAlertas};
+  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, prod:viewProd, pz:viewProduzidos, rec:viewReceitas, fech:viewFechar, env:viewEnvio, al:viewAlertas};
+  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, prod:wireProd, pz:wireProduzidos, rec:wireReceitas, fech:wireFechar, env:wireEnvio, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -596,6 +600,62 @@ function updateRend(ri, f){
   el.innerHTML=`Rendimento esperado: <b>${num(esper)} ${esc(ri.un)}</b>`+(ri.ehPorcao?` <span style="color:var(--mut)">· receita cheia ≈ ${num(ri.base)} porções (${num(ri.porcaoQtd)} ${esc(ri.rendUn)} cada)</span>`:'');
   const pq=$('#prodQtd'); if(pq && !pq.dataset.touched) pq.value=+esper.toFixed(3);
 }
+/* ===== ITENS PRODUZIDOS (histórico; etiquetar / editar rendimento) ===== */
+let EDIT_REND=null;
+async function carregarProduzidos(){
+  ST.prodHist='loading'; if(ST.tab==='pz') render();
+  try{ ST.prodHist=await api('lola_central_prod_hist?select=preproducao_id,data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=400'); }
+  catch(e){ ST.prodHist=[]; }
+  if(ST.tab==='pz') render();
+}
+function viewProduzidos(){
+  let h=`<div class="note">Tudo que já foi <b>produzido</b> na Central. Toque num item pra <b>imprimir etiquetas</b> ou <b>corrigir o rendimento</b> da receita.</div>`;
+  h+=`<div class="toolbar"><input type="search" id="bqz" placeholder="Buscar produção…" value="${esc(ST.buscaZ||'')}"></div>`;
+  const d=ST.prodHist;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
+  const g={}; d.forEach(x=>{ if(!x.preproducao_id)return; const k=x.preproducao_id; (g[k]=g[k]||{id:k,nome:nomeDe(k),n:0,total:0,ultima:null}); g[k].n++; g[k].total+=(+x.qtd_produzida||0); if(!g[k].ultima||String(x.data)>String(g[k].ultima)){g[k].ultima=x.data;} });
+  let list=Object.values(g);
+  if(ST.buscaZ){ const b=norm(ST.buscaZ); list=list.filter(x=>norm(x.nome).includes(b)); }
+  list.sort((a,b)=>String(b.ultima||'').localeCompare(String(a.ultima||'')));
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-package"></i>Nada produzido ainda. Registre pelo botão Produzir.</div>`; return h; }
+  h+=`<div class="lbl">Produzidos (${list.length})</div>`;
+  h+=list.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.id)||{}; const un=prodUn(r);
+    return `<div class="pzc" data-id="${x.id}">
+      <div class="prow"><div class="t"><b>${esc(x.nome)}</b><span>última ${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'} · total ${num(x.total)} ${esc(un)}</span></div></div>
+      <div class="pacts"><button class="prodbtn pzet"><i class="ph-duotone ph-tag"></i> Etiquetas</button><button class="btn sec pzrend"><i class="ph-duotone ph-scales"></i> Rendimento</button></div>
+    </div>`;
+  }).join('');
+  return h;
+}
+function wireProduzidos(){
+  const bq=$('#bqz'); if(bq){ bq.oninput=()=>{ST.buscaZ=bq.value; const p=bq.selectionStart; render(); const n=$('#bqz'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+  $$('#app .pzc').forEach(el=>{ const id=el.dataset.id;
+    el.querySelector('.pzet').onclick=()=>openEtiqueta(id);
+    el.querySelector('.pzrend').onclick=()=>openEditRend(id);
+  });
+}
+function openEditRend(id){
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; EDIT_REND=id;
+  const ri=rendInfo(r);
+  $('#shTitle').textContent='Rendimento — '+r.nome;
+  $('#shBody').innerHTML=`<div class="note">Quanto essa receita rende (a receita cheia). Usado pra calcular as porções esperadas na hora de produzir.</div>
+    <div class="mf"><label>Rendimento da receita cheia</label><div class="rendrow"><input type="number" id="erRend" step="0.001" inputmode="decimal" value="${r.rendimento_qtd!=null?r.rendimento_qtd:''}" placeholder="quanto rende"><input type="text" id="erUn" value="${esc(r.rendimento_un||'')}" placeholder="g/kg/un/L"></div></div>
+    <div class="mf"><label>Tamanho da porção <span style="color:var(--mut);font-weight:400">(opcional — pra contar em porções)</span></label><input type="number" id="erPorc" step="0.001" inputmode="decimal" value="${r.porcao_qtd!=null?r.porcao_qtd:''}" placeholder="ex.: 45 (g por unidade)"></div>
+    ${ri.base>0?`<div class="entra on">Hoje: <b>${num(ri.base)} ${esc(ri.un)}</b>${ri.ehPorcao?` (porção de ${num(ri.porcaoQtd)} ${esc(ri.rendUn)})`:''}</div>`:''}`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar rendimento';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEditRend; openSheet(); setTimeout(()=>$('#erRend').focus(),60);
+}
+async function salvarEditRend(){
+  const id=EDIT_REND; const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return;
+  const rend=+$('#erRend').value||null, un=($('#erUn').value||'').trim()||null, porc=+$('#erPorc').value||null;
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal'; await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_preproducoes?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({rendimento_qtd:rend, rendimento_un:un, porcao_qtd:porc, editado_por:quem, editado_em:new Date().toISOString()})});
+    r.rendimento_qtd=rend; r.rendimento_un=un; r.porcao_qtd=porc;
+    toast('Rendimento atualizado ✓'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
 async function renderProdReceita(ppId){
   const box=$('#prodRec'); if(!box)return;
   const R=(ST.receitas||[]).find(x=>x.id===ppId)||{}; const ri=rendInfo(R);
@@ -656,11 +716,11 @@ function openEtiqueta(id){
     <div class="mf"><label>Validade (dias após produção)</label><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric"></div>
     <div class="mf"><label>Conservação</label><textarea id="etCons" rows="2">${esc(CONSERV_PADRAO)}</textarea></div>
     <div class="mf"><label>Tamanho da etiqueta</label><select id="etTam">
-      <option value="60x40">Rolo 60 × 40 mm (térmica)</option>
+      <option value="60x40" selected>Rolo 60 × 40 mm (térmica)</option>
       <option value="50x30">Rolo 50 × 30 mm (térmica)</option>
       <option value="100x50">Rolo 100 × 50 mm (térmica)</option>
       <option value="58">Bobina 58 mm (largura)</option>
-      <option value="a4" selected>Folha A4 (várias por página)</option>
+      <option value="a4">Folha A4 (várias por página)</option>
     </select></div>
     <div class="mf"><label>Quantas etiquetas</label><input type="number" id="etQtd" step="1" value="12" inputmode="numeric"></div>
     <label class="etck"><input type="checkbox" id="etIng" checked> incluir ingredientes na etiqueta</label>`;
@@ -690,24 +750,24 @@ async function printEtiquetas(){
       <div class="lr"><span>Produção</span><b>${fmtData(dataP)}</b></div>
       <div class="lr"><span>Validade</span><b>${fmtData(dataV)}${dias?` (${dias}d)`:''}</b></div>
       ${resp?`<div class="lr"><span>Resp.</span><b>${esc(resp)}</b></div>`:''}
-      ${incIng&&ings?`<div class="li"><span>Ingredientes:</span> ${esc(ings)}</div>`:''}
+      ${incIng&&ings?`<div class="li"><b>Ingr.:</b> ${esc(ings)}</div>`:''}
       ${cons?`<div class="lc">${esc(cons)}</div>`:''}
-      <div class="lf">Lola · Cozinha Central</div>
+      ${roll?'':'<div class="lf">Lola · Cozinha Central</div>'}
     </div>`;
   const many=Array.from({length:n}).map(()=>label).join('');
   const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas — ${esc(r.nome)}</title><style>
-    @page{size:${sz.page};margin:${roll?'2mm':'8mm'}}
-    *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:${roll?'0':'0'}}
-    .sheet{display:${roll?'block':'flex'};flex-wrap:wrap;gap:6mm;padding:${roll?'0':'6mm'}}
-    .lab{width:${sz.w};${sz.h!=='auto'?`height:${sz.h};`:''}border:1px solid #000;border-radius:6px;padding:2.5mm 3mm;overflow:hidden;${roll?'page-break-after:always;':''}display:flex;flex-direction:column;gap:0.6mm}
-    .ln{font-weight:bold;font-size:${roll?'11pt':'12pt'};line-height:1.05;border-bottom:1.5px solid #000;padding-bottom:1mm;margin-bottom:1mm;text-transform:uppercase}
-    .lr{display:flex;justify-content:space-between;font-size:${roll?'8pt':'9pt'};line-height:1.25}
-    .lr span{color:#444}.lr b{font-weight:bold}
-    .li{font-size:${roll?'6.5pt':'7.5pt'};line-height:1.2;margin-top:0.8mm;color:#222}
-    .li span{font-weight:bold}
-    .lc{font-size:${roll?'6.5pt':'7.5pt'};line-height:1.2;margin-top:0.8mm;border-top:1px dotted #999;padding-top:0.8mm;color:#333}
-    .lf{font-size:${roll?'6pt':'7pt'};color:#666;margin-top:auto;padding-top:0.6mm;text-align:right}
+    @page{size:${sz.page};margin:0}
+    *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#000;margin:0}
+    .sheet{display:${roll?'block':'flex'};flex-wrap:wrap;gap:${roll?'0':'6mm'};padding:${roll?'0':'6mm'}}
+    .lab{width:${sz.w};${sz.h!=='auto'?`height:${sz.h};`:''}${roll?'':'border:1px solid #000;border-radius:6px;'}padding:${roll?'2mm 3mm':'2.5mm 3mm'};overflow:hidden;${roll?'page-break-after:always;':''}display:flex;flex-direction:column;gap:0.4mm}
+    .ln{font-weight:bold;font-size:${roll?'13pt':'12pt'};line-height:1.05;border-bottom:1.4px solid #000;padding-bottom:1mm;margin-bottom:1mm;text-transform:uppercase}
+    .lr{display:flex;justify-content:space-between;font-size:${roll?'10.5pt':'9pt'};line-height:1.3}
+    .lr span{color:#333}.lr b{font-weight:bold}
+    .li{font-size:${roll?'8.5pt':'7.5pt'};line-height:1.2;margin-top:0.6mm;color:#111;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .li b{font-weight:bold}
+    .lc{font-size:${roll?'8pt':'7.5pt'};line-height:1.2;margin-top:0.6mm;border-top:1px dotted #999;padding-top:0.6mm;color:#222}
+    .lf{font-size:7pt;color:#666;margin-top:auto;padding-top:0.6mm;text-align:right}
     @media print{.lab{break-inside:avoid}}
     </style></head><body><div class="sheet">${many}</div></body></html>`);
   w.document.close(); toast('Etiquetas geradas ✓'); closeSheet();
@@ -1460,6 +1520,7 @@ $('#tabProd').onclick=()=>{ST.tab='prod';render();};
 $('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
   if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&categoria=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
 $('#tabPed').onclick=()=>{ST.tab='ped'; render(); if(!ST.pedidos||ST.pedidos==='loading') carregarPedidos();};
+$('#tabPz').onclick=()=>{ST.tab='pz'; render(); if(!ST.prodHist||ST.prodHist==='loading') carregarProduzidos();};
 $('#tabFech').onclick=()=>{ST.tab='fech'; if(!ST.fechMes){ST.fechMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarFechamento();};
 $('#tabEnv').onclick=()=>{ST.tab='env'; render(); if(!ST.envios||ST.envios==='loading') carregarEnvios();};
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
