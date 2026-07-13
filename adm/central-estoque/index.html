@@ -183,7 +183,8 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ugrp{font-size:12px;color:var(--sec);line-height:1.5;margin:3px 0;overflow-wrap:anywhere}
 .ugrp b{color:var(--ink);font-weight:700}
 .uinfo{font-size:12px;color:var(--mut)}
-.norec{display:inline-flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;font-weight:700;color:var(--urgFg);background:var(--urgBg);border-radius:8px;padding:3px 9px}
+.norec{display:inline-flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;font-weight:700;color:var(--urgFg);background:var(--urgBg);border:0;border-radius:8px;padding:5px 10px;cursor:pointer;font-family:inherit}
+.norec:active{background:#F5D3CD}
 .norec i{font-size:13px}
 .btn2{display:flex;gap:8px;margin-bottom:12px}
 .btn2 .btn{margin-bottom:0}
@@ -1273,7 +1274,7 @@ function viewSaldo(){
     if(i.categoria!==cat){ cat=i.categoria; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
     const usado=ST.usados&&ST.usados.has(id);
     const sub=i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):'';
-    h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<span class="norec"><i class="ph-duotone ph-warning-circle"></i> não está em nenhuma receita</span>'}</div>
+    h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<button class="norec vincrec"><i class="ph-duotone ph-warning-circle"></i> não está em receita · toque pra vincular</button>'}</div>
       <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div>
       <button class="iedt" title="editar insumo"><i class="ph-duotone ph-pencil-simple"></i></button></div>
       <div class="usos"></div></div>`;
@@ -1286,7 +1287,30 @@ function wireSaldo(){
   $('#btnContIns')&&($('#btnContIns').onclick=()=>openContagem('insumo'));
   $('#btnHistIns')&&($('#btnHistIns').onclick=()=>openContagensHist('insumo'));
   $$('#app .sitem').forEach(el=>{ const c=el.querySelector('.srow-c'); if(c) c.onclick=()=>toggleUsos(el);
-    const ed=el.querySelector('.iedt'); if(ed) ed.onclick=(e)=>{ e.stopPropagation(); openEditInsumo(el.dataset.ins); }; });
+    const ed=el.querySelector('.iedt'); if(ed) ed.onclick=(e)=>{ e.stopPropagation(); openEditInsumo(el.dataset.ins); };
+    const vr=el.querySelector('.vincrec'); if(vr) vr.onclick=(e)=>{ e.stopPropagation(); openVincularReceita(el.dataset.ins); }; });
+}
+function openVincularReceita(id){
+  const it=ST.byId[id]; if(!it)return;
+  $('#shTitle').textContent='Vincular — '+it.nome;
+  const foot=$('.sh-foot'); if(foot) foot.style.display='none';
+  $('#shBody').innerHTML=`<div class="note">Esse insumo de estoque <b>não está em receita nenhuma</b>. Escolha o insumo <b>que as receitas já usam</b> pra <b>fundir</b> — o estoque passa a valer nele e o duplicado some.</div>
+    <input type="search" class="vsearch" id="vrBusca" placeholder="Buscar insumo da receita…" autocomplete="off"><div id="vrList"></div>`;
+  openSheet();
+  const drawVr=(fil)=>{ const b=norm(fil||''); const nn=norm(it.nome);
+    const A=new Set(nn.split(' ').filter(w=>w.length>2));
+    let list=(ST.insumos||[]).filter(x=>x.id!==id && x.ativo!==false && ST.usados && ST.usados.has(x.id));
+    list.forEach(x=>{ const xn=norm(x.nome); let sc=0; if(xn.includes(nn)||nn.includes(xn))sc=0.9; const B=new Set(xn.split(' ').filter(w=>w.length>2)); let inter=0; A.forEach(w=>{if(B.has(w))inter++;}); if(A.size&&B.size)sc=Math.max(sc,inter/(new Set([...A,...B]).size)); x._sc=sc; });
+    if(b) list=list.filter(x=>norm(x.nome).includes(b));
+    list.sort((a,c)=>(c._sc||0)-(a._sc||0)||(a.nome||'').localeCompare(c.nome||''));
+    list=list.slice(0,40);
+    $('#vrList').innerHTML=list.length?list.map(x=>`<button class="vrow" data-id="${x.id}"><i class="ph-duotone ph-arrows-merge"></i> ${esc(x.nome)}${x.categoria?`<span style="color:var(--mut);font-weight:400"> · ${esc(x.categoria)}</span>`:''}</button>`).join(''):'<div class="uinfo" style="margin-top:8px">Nada encontrado nas receitas.</div>';
+    $$('#vrList .vrow').forEach(el=>el.onclick=async()=>{ const tgt=ST.byId[el.dataset.id]; if(!tgt)return;
+      if(!confirm('Fundir "'+it.nome+'" em "'+tgt.nome+'"?\nO estoque passa pra ele e o duplicado é desativado.')) return;
+      try{ await fundirInsumo(id, tgt.id); toast('Fundido em "'+tgt.nome+'" ✓'); closeSheet(); await carregar(); }catch(e){ toast('Erro: '+e.message); }
+    });
+  };
+  $('#vrBusca').oninput=()=>drawVr($('#vrBusca').value); drawVr(''); setTimeout(()=>$('#vrBusca').focus(),80);
 }
 let EDIT_INS=null, EDIT_CAT=null, EDIT_EUN=null;
 const INS_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Material de Limpeza'];
