@@ -132,8 +132,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .imwarn .imwuse:last-child{margin-bottom:0}
 .imwarn .imwuse:active{background:var(--cremeDark)}
 .sitem .srow{position:relative}
-.sitem.evt{border:1px solid #E9B7CC;border-left:4px solid #B23A6B;background:#FBEFF4;border-radius:14px;padding:2px 10px;margin-bottom:8px}
-.evtag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;letter-spacing:.03em;color:#B23A6B;background:#F6DCE8;border-radius:999px;padding:2px 8px;margin-left:8px;vertical-align:middle}
+.evtag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.03em;color:#B23A6B;background:#F6DCE8;border-radius:999px;padding:2px 8px;white-space:nowrap;margin-bottom:3px}
 .sitem .iedt{flex-shrink:0;background:none;border:1px solid var(--border);border-radius:9px;color:var(--vinho);font-size:15px;cursor:pointer;padding:0 10px;min-height:34px;align-self:center}
 .sitem .iedt:active{background:var(--cremeDark)}
 .ecard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
@@ -235,7 +234,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .iml{display:block;font-size:11px;color:var(--mut);font-weight:700;margin:11px 0 4px}
 .im-body input,.im-body select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
 .catbtns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-.catbtns button{flex:1 1 auto;background:var(--card);border:1px solid var(--border);border-radius:10px;min-height:42px;padding:0 12px;font:inherit;font-weight:700;font-size:12.5px;color:var(--sec);cursor:pointer}
+.catbtns button{flex:0 1 auto;background:var(--card);border:1px solid var(--border);border-radius:10px;min-height:42px;padding:0 14px;font:inherit;font-weight:700;font-size:12.5px;color:var(--sec);cursor:pointer}
 .catbtns button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
 .unrow{display:flex;gap:6px}
 .unrow button{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;min-height:44px;font:inherit;font-weight:700;font-size:13px;color:var(--sec);cursor:pointer}
@@ -1276,8 +1275,8 @@ function viewSaldo(){
     if(i.categoria!==cat){ cat=i.categoria; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
     const usado=ST.usados&&ST.usados.has(id);
     const sub=i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):'';
-    h+=`<div class="sitem${i.evento?' evt':''}" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b>${i.evento?'<span class="evtag"><i class="ph-duotone ph-confetti"></i> Evento</span>':''}<span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<button class="norec vincrec"><i class="ph-duotone ph-warning-circle"></i> não está em receita · toque pra vincular</button>'}</div>
-      <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div>
+    h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<button class="norec vincrec"><i class="ph-duotone ph-warning-circle"></i> não está em receita · toque pra vincular</button>'}</div>
+      <div class="r">${i.evento?'<span class="evtag">Evento</span>':''}<div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div>
       <button class="iedt" title="editar insumo"><i class="ph-duotone ph-pencil-simple"></i></button></div>
       <div class="usos"></div></div>`;
   });
