@@ -654,7 +654,14 @@ function wireProduzidos(){
   $$('#app .pzc').forEach(el=>{ const id=el.dataset.id;
     const tg=el.querySelector('.pztog'); if(tg) tg.onclick=async()=>{ const b=el.querySelector('.pzbox'); b.classList.toggle('on');
       const rec=el.querySelector('.pzrec'); if(b.classList.contains('on') && rec && !rec.dataset.loaded){ rec.dataset.loaded='1';
-        try{ const rr=await post('rpc/central_receita_itens',{pid:id}); rec.innerHTML=(Array.isArray(rr)&&rr.length)?rr.map(z=>{const c=conv(z.qtd,z.unidade);return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join(''):'<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; }
+        const r=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(r);
+        const total=(ST.prodHist||[]).filter(h=>h.preproducao_id===id).reduce((s,h)=>s+(+h.qtd_produzida||0),0);
+        let fator=1; if(ri.base>0 && total>0) fator=total/ri.base;
+        try{ const rr=await post('rpc/central_receita_itens',{pid:id});
+          if(Array.isArray(rr)&&rr.length){
+            const cab = (fator!==1) ? `<div class="uinfo" style="margin-bottom:5px">Ingredientes p/ <b>${num(total)} ${esc(prodUn(r))}</b> produzidos (${num(fator)}× a receita):</div>` : '';
+            rec.innerHTML=cab+rr.map(z=>{const c=conv((+z.qtd||0)*fator, z.unidade);return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
+          } else rec.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; }
         catch(e){ rec.innerHTML='<div class="uinfo">Erro ao carregar a receita.</div>'; rec.dataset.loaded=''; }
       } };
     el.querySelector('.pzet').onclick=()=>openEtiqueta(id);
