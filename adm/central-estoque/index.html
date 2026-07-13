@@ -132,6 +132,8 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .imwarn .imwuse:last-child{margin-bottom:0}
 .imwarn .imwuse:active{background:var(--cremeDark)}
 .sitem .srow{position:relative}
+.sitem.evt{border:1px solid #E9B7CC;border-left:4px solid #B23A6B;background:#FBEFF4;border-radius:14px;padding:2px 10px;margin-bottom:8px}
+.evtag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;letter-spacing:.03em;color:#B23A6B;background:#F6DCE8;border-radius:999px;padding:2px 8px;margin-left:8px;vertical-align:middle}
 .sitem .iedt{flex-shrink:0;background:none;border:1px solid var(--border);border-radius:9px;color:var(--vinho);font-size:15px;cursor:pointer;padding:0 10px;min-height:34px;align-self:center}
 .sitem .iedt:active{background:var(--cremeDark)}
 .ecard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
@@ -387,7 +389,7 @@ async function carregar(){
     const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
-      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade&order=categoria,nome'),
+      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
@@ -1274,7 +1276,7 @@ function viewSaldo(){
     if(i.categoria!==cat){ cat=i.categoria; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
     const usado=ST.usados&&ST.usados.has(id);
     const sub=i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):'';
-    h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<button class="norec vincrec"><i class="ph-duotone ph-warning-circle"></i> não está em receita · toque pra vincular</button>'}</div>
+    h+=`<div class="sitem${i.evento?' evt':''}" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b>${i.evento?'<span class="evtag"><i class="ph-duotone ph-confetti"></i> Evento</span>':''}<span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<button class="norec vincrec"><i class="ph-duotone ph-warning-circle"></i> não está em receita · toque pra vincular</button>'}</div>
       <div class="r"><div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div>
       <button class="iedt" title="editar insumo"><i class="ph-duotone ph-pencil-simple"></i></button></div>
       <div class="usos"></div></div>`;
@@ -1312,10 +1314,10 @@ function openVincularReceita(id){
   };
   $('#vrBusca').oninput=()=>drawVr($('#vrBusca').value); drawVr(''); setTimeout(()=>$('#vrBusca').focus(),80);
 }
-let EDIT_INS=null, EDIT_CAT=null, EDIT_EUN=null;
+let EDIT_INS=null, EDIT_CAT=null, EDIT_EUN=null, EDIT_EVENTO=false;
 const INS_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Material de Limpeza','Materiais de Expediente'];
 function openEditInsumo(id){
-  const i=ST.byId[id]; if(!i)return; EDIT_INS=id; EDIT_CAT=i.categoria||''; EDIT_EUN=i.unidade_custo||'kg';
+  const i=ST.byId[id]; if(!i)return; EDIT_INS=id; EDIT_CAT=i.categoria||''; EDIT_EUN=i.unidade_custo||'kg'; EDIT_EVENTO=!!i.evento;
   const cats=[...new Set([...INS_CATS, ...(EDIT_CAT?[EDIT_CAT]:[])])];
   $('#shTitle').textContent='Editar insumo';
   $('#shBody').innerHTML=`<div class="note">Renomeie ou ajuste o insumo. A mudança vale em todo o sistema (fichas, estoque, sugestões).</div>
@@ -1324,9 +1326,11 @@ function openEditInsumo(id){
     <div id="ediCatBtns" class="catbtns">${cats.map(c=>`<button data-c="${esc(c)}" class="${c===EDIT_CAT?'on':''}">${esc(c)}</button>`).join('')}</div>
     <label class="iml">Unidade de custo</label>
     <div id="ediUnBtns" class="unrow" style="margin-bottom:12px">${['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u===EDIT_EUN?'on':''}">${u}</button>`).join('')}</div>
-    <div class="mf"><label>Custo por unidade (R$)</label><input type="number" id="ediCusto" step="0.0001" value="${i.custo_por_unidade!=null?i.custo_por_unidade:''}"></div>`;
+    <div class="mf"><label>Custo por unidade (R$)</label><input type="number" id="ediCusto" step="0.0001" value="${i.custo_por_unidade!=null?i.custo_por_unidade:''}"></div>
+    <label class="etck"><input type="checkbox" id="ediEvento" ${EDIT_EVENTO?'checked':''}> comprado pra <b style="color:#B23A6B">evento</b> — destacar na lista (não deixar parado)</label>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
   $('#shSave').removeAttribute('disabled'); onSave=salvarEditInsumo; openSheet();
+  $('#ediEvento').onchange=e=>{ EDIT_EVENTO=e.target.checked; };
   $$('#ediCatBtns button').forEach(b=>b.onclick=()=>{ EDIT_CAT=b.dataset.c; $$('#ediCatBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
   $$('#ediUnBtns button').forEach(b=>b.onclick=()=>{ EDIT_EUN=b.dataset.u; $$('#ediUnBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
   setTimeout(()=>$('#ediNome').focus(),60);
@@ -1347,8 +1351,8 @@ async function salvarEditInsumo(){
   }
   $('#shSave').setAttribute('disabled','');
   try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, updated_at:new Date().toISOString()})});
-    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo;
+    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, evento:EDIT_EVENTO, updated_at:new Date().toISOString()})});
+    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo; i.evento=EDIT_EVENTO;
     buildInsumoOptions(); toast('Insumo atualizado ✓'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
