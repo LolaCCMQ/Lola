@@ -1066,7 +1066,7 @@ async function carregarEnvios(){
 }
 function viewEnvio(){
   let h=`<div class="note">Ingredientes que precisam ir pro <b>Lola CCMQ</b> pra um prato especial. Marque aqui e a cozinha separa. (Mesma lista aparece no Pedidos à Central.)</div>`;
-  h+=`<button class="btn" id="btnNovoEnvio" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Marcar ingrediente pro CCMQ</button>`;
+  h+=`<button class="btn" id="btnNovoEnvio" style="margin-bottom:12px"><i class="ph-duotone ph-paper-plane-tilt"></i> Enviar para CCMQ</button>`;
   const d=ST.envios;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
   if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-paper-plane-tilt"></i>Nada marcado ainda.</div>`; return h; }
@@ -1091,7 +1091,7 @@ function wireEnvio(){
 }
 function openEnvio(){
   const _s=lolaSession()||{}; const quem=_s.nome||_s.email||''; const hoje=new Date().toISOString().slice(0,10);
-  $('#shTitle').textContent='Ingrediente pro CCMQ';
+  $('#shTitle').textContent='Enviar para CCMQ';
   $('#shBody').innerHTML=`<div class="note">Sinalize que esse item vai pro Lola CCMQ pra um prato especial.</div>
     <div class="mf"><label>Ingrediente / item</label><input type="text" id="envDesc" list="envList" placeholder="ex.: Pera argentina" autocomplete="off"><datalist id="envList">${(ST.insumos||[]).slice(0,500).map(i=>`<option value="${esc(i.nome)}"></option>`).join('')}</datalist></div>
     <div class="mf"><label>Quantidade</label><div class="rendrow"><input type="number" id="envQtd" step="0.001" inputmode="decimal" placeholder="quanto"><input type="text" id="envUn" placeholder="kg/un/L" value="kg"></div></div>
