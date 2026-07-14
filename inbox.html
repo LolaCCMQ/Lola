@@ -118,6 +118,15 @@
   .autoflag{background:var(--brand-tint);color:var(--brand);font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:5px}
   .msg-del{border:0;background:transparent;cursor:pointer;font-size:11px;padding:0;margin-right:6px;opacity:.55}
   .msg-del:hover{opacity:1}
+  .msg{position:relative}
+  .reactbadge{display:inline-block;margin-top:4px;background:#fff;border:1px solid #e6d9cf;border-radius:12px;padding:1px 7px;font-size:13px;line-height:1.4;box-shadow:0 1px 2px rgba(0,0,0,.10)}
+  .msg-react{border:0;background:transparent;cursor:pointer;font-size:12px;padding:0;margin-right:6px;opacity:.5;line-height:1}
+  .msg-react:hover{opacity:1}
+  .msg-react .pl{font-size:9px;vertical-align:super;color:var(--brand);font-weight:700}
+  .reactpop{position:fixed;z-index:9999;display:none;gap:2px;align-items:center;background:#fff;border:1px solid #e6d9cf;border-radius:22px;padding:5px 8px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+  .reactpop button{border:0;background:transparent;cursor:pointer;font-size:20px;line-height:1;padding:3px 4px;border-radius:50%;transition:transform .08s}
+  .reactpop button:hover{background:#f2e7de;transform:scale(1.15)}
+  .reactpop .rm{font-size:13px;color:#a08d82}
 
   .composer{flex-shrink:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 22px 16px;position:relative}
   .comp-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
@@ -736,7 +745,7 @@ async function loadMessages(id){
   msgsByConvo[id]=(data||[]).map(r=>{
     const isIn=r.direcao==='in'; const kind= isIn?'in':(r.autor_tipo==='bot'?'bot':'out');
     const file=(r.tipo&&r.tipo!=='text'&&r.midia_url)?{tipo:r.tipo,nome:(r.conteudo||''),url:r.midia_url}:null;
-    return { id:r.id, kind, who:kind==='bot'?'Robô Lola':(r.atendente_nome||currentAgent), texto:r.conteudo||'', hora:fmtTime(r.created_at), file };
+    return { id:r.id, kind, who:kind==='bot'?'Robô Lola':(r.atendente_nome||currentAgent), texto:r.conteudo||'', hora:fmtTime(r.created_at), file, wamid:r.wa_message_id||null, reacaoCliente:r.reacao_cliente||'', reacaoEu:r.reacao_atendente||'' };
   });
   if(activeId===id) renderThread(id);
 }
@@ -751,12 +760,48 @@ function renderThread(id){
     if(msg.kind==='bot') who='<div class="who">'+esc(msg.who||'Robô Lola')+'<span class="autoflag">AUTO</span></div>';
     const body=msg.file?fileHtml(msg.file):'<div class="tx">'+esc(msg.texto)+'</div>';
     const del=((msg.kind==='out'||msg.kind==='bot')&&msg.id)?'<button class="msg-del" title="Excluir mensagem" onclick="delMsg(\''+msg.id+'\')">🗑️</button>':'';
-    d.innerHTML=who+body+'<div class="hr">'+del+esc(msg.hora)+'</div>';
+    // reação: nas bolhas do cliente (in) mostra a NOSSA reação; nas nossas (out/bot) mostra a do CLIENTE
+    const remo=(msg.kind==='in')?(msg.reacaoEu||''):(msg.reacaoCliente||'');
+    const badge=remo?'<span class="reactbadge">'+esc(remo)+'</span>':'';
+    // botão de reagir só nas mensagens do cliente (in) que têm id do WhatsApp/Instagram
+    const react=(msg.kind==='in'&&msg.wamid)?'<button class="msg-react" title="Reagir" onclick="openReact(event,\''+msg.id+'\',\''+esc(msg.wamid)+'\')">🙂<span class="pl">＋</span></button>':'';
+    d.innerHTML=who+body+badge+'<div class="hr">'+react+del+esc(msg.hora)+'</div>';
     m.appendChild(d);
   });
   m.scrollTop=m.scrollHeight;
 }
 async function delMsg(id){ if(!confirm('Excluir esta mensagem? Ela some do atendimento (não apaga no WhatsApp do cliente).'))return; const { error }=await sb.from('wa_mensagens').delete().eq('id',id); if(error){ toast('Não excluiu: '+error.message); return; } if(activeId) await loadMessages(activeId); loadConversas(); toast('Mensagem excluída ✓'); }
+// ===== Reações de emoji (WhatsApp/Instagram) =====
+var reactCtx=null;
+var REACT_EMOJIS=['❤️','👍','😂','😮','😢','😡'];
+function openReact(ev,msgId,wamid){
+  ev.stopPropagation();
+  reactCtx={msgId:msgId,wamid:wamid};
+  var pop=document.getElementById('reactPop');
+  if(!pop){ pop=document.createElement('div'); pop.id='reactPop'; pop.className='reactpop'; document.body.appendChild(pop); }
+  pop.innerHTML=REACT_EMOJIS.map(function(e){return '<button onclick="reagir(\''+e+'\')">'+e+'</button>';}).join('')+'<button class="rm" title="Remover reação" onclick="reagir(\'\')">✕</button>';
+  pop.style.display='flex';
+  var r=ev.currentTarget.getBoundingClientRect();
+  var pw=pop.offsetWidth||250;
+  var left=r.left; if(left+pw>window.innerWidth-8) left=window.innerWidth-pw-8;
+  pop.style.left=Math.max(8,left)+'px';
+  pop.style.top=Math.max(8,r.top-48)+'px';
+}
+function closeReact(){ var p=document.getElementById('reactPop'); if(p) p.style.display='none'; reactCtx=null; }
+document.addEventListener('click',function(e){ var p=document.getElementById('reactPop'); if(p&&p.style.display!=='none'&&!p.contains(e.target)&&!(e.target.closest&&e.target.closest('.msg-react'))) closeReact(); });
+async function reagir(emoji){
+  if(!reactCtx||!activeId){ closeReact(); return; }
+  var msgId=reactCtx.msgId, wamid=reactCtx.wamid; closeReact();
+  var list=msgsByConvo[activeId]||[]; var mm=list.find(function(x){return x.id===msgId;});
+  var atual=mm?(mm.reacaoEu||''):''; var novo=(atual===emoji)?'':emoji;
+  try{
+    var r=await fetch(SB_URL+'/functions/v1/wa-send',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},body:JSON.stringify({acao:'reagir',conversa_id:activeId,alvo_wamid:wamid,emoji:novo,atendente_id:ME.id,atendente_nome:currentAgent})});
+    var j=await r.json().catch(function(){return {};});
+    if(!j.ok){ toast((j&&(j.erro||j.error))||'Não deu pra reagir'); return; }
+    if(mm) mm.reacaoEu=novo; renderThread(activeId);
+    toast(novo?('Reagiu '+novo+' ✓'):'Reação removida');
+  }catch(e){ toast('Erro ao reagir'); }
+}
 function fileHtml(f){
   const url=(f.url||'').toString(), t=(f.tipo||'').toLowerCase(), nome=esc(f.nome||'');
   const http=/^https?:\/\//i.test(url);
