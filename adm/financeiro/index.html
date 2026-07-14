@@ -292,7 +292,10 @@ section.view{display:none} section.view.on{display:block}
       </div>
       <div class="catsearch" id="relSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="relSearch" placeholder="Buscar categoria…" autocomplete="off"></div>
       <div id="relBody"></div>
-      <button class="btn o" id="relPrint" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir / PDF</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn o" id="relPrint" style="flex:1;min-width:180px"><i class="ph-duotone ph-list-checks"></i> PDF — totais por conta</button>
+        <button class="btn o" id="relPrintDet" style="flex:1;min-width:180px"><i class="ph-duotone ph-list-bullets"></i> PDF — gastos destrinchados</button>
+      </div>
     </section>
 
     <!-- NOTAS -->
@@ -2216,6 +2219,35 @@ function printRelatorio(){
     <table><tr style="font-weight:700"><td>Conta</td><td style="text-align:right">Qtde</td><td style="text-align:right">Total</td></tr>${rows}</table></body></html>`);
   w.document.close(); setTimeout(()=>w.print(),300);
 }
+/* PDF detalhado — cada conta com os lançamentos destrinchados */
+function printRelatorioDetalhado(){
+  const {comp,byCat}=relData();
+  let rows=''; let grandR=0,grandD=0;
+  GRUPOS.forEach(g=>{
+    const cats=ST.plano.filter(p=>p.group_id===g.id).map(c=>({c,items:(byCat[c.id]||[])})).filter(r=>r.items.length);
+    if(!cats.length)return;
+    const gtot=cats.reduce((s,r)=>s+r.items.reduce((a,l)=>a+ +l.amount,0),0);
+    rows+=`<tr style="font-weight:700;background:#FBE9E4;border-top:2px solid #A82A2A"><td colspan="2">${g.label}</td><td style="text-align:right">${brl(gtot)}</td></tr>`;
+    cats.sort((a,b)=>Math.abs(b.items.reduce((s,l)=>s+ +l.amount,0))-Math.abs(a.items.reduce((s,l)=>s+ +l.amount,0)));
+    cats.forEach(r=>{ const tot=r.items.reduce((a,l)=>a+ +l.amount,0); if(tot>0)grandR+=tot;else grandD+=tot;
+      rows+=`<tr style="font-weight:700"><td colspan="2" style="padding-left:14px">${esc(r.c.label)} <span style="color:#8A7A72;font-weight:400">(${r.items.length})</span></td><td style="text-align:right">${brl(tot)}</td></tr>`;
+      r.items.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(l=>{
+        rows+=`<tr><td style="padding-left:26px;color:#5A463E;white-space:nowrap">${fmtDate(l.date)}</td><td style="color:#5A463E">${esc(l.memo||'—')}${l.note?' · <i>'+esc(l.note)+'</i>':''}</td><td style="text-align:right;white-space:nowrap">${brl(+l.amount)}</td></tr>`;
+      });
+    });
+  });
+  if(byCat['__none']){ const its=byCat['__none']; const tot=its.reduce((a,l)=>a+ +l.amount,0);
+    rows+=`<tr style="font-weight:700;color:#B5302E;border-top:2px solid #A82A2A"><td colspan="2">SEM CATEGORIA (${its.length})</td><td style="text-align:right">${brl(tot)}</td></tr>`;
+    its.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(l=>{ rows+=`<tr><td style="padding-left:26px;color:#5A463E;white-space:nowrap">${fmtDate(l.date)}</td><td style="color:#5A463E">${esc(l.memo||'—')}</td><td style="text-align:right;white-space:nowrap">${brl(+l.amount)}</td></tr>`; });
+  }
+  const w=window.open('','_print');
+  w.document.write(`<html><head><title>Relatório detalhado ${U(ST.unit).nome} ${comp==='todas'?'Todas':compLabel(comp)}</title>
+    <style>body{font-family:Georgia,serif;padding:26px;color:#2A1A17}h1{color:#A82A2A;font-size:21px;margin:0 0 4px}h2{font-size:13px;color:#8A7A72;font-weight:normal;margin:0 0 16px}table{width:100%;border-collapse:collapse}td{padding:4px 8px;border-bottom:1px solid #f0e6df;font-size:12px;vertical-align:top}</style></head>
+    <body><h1>Lola · Relatório detalhado por plano de contas — ${U(ST.unit).nome}</h1><h2>${comp==='todas'?'Todas as competências':'Competência '+compLabel(comp)} · ${ST.relSoConc?'somente conciliados (fechamento)':'todos os lançamentos (prévia)'} · gerado em ${new Date().toLocaleDateString('pt-BR')}</h2>
+    <table><tr style="font-weight:700"><td>Data</td><td>Lançamento / Conta</td><td style="text-align:right">Valor</td></tr>${rows}
+    <tr style="font-weight:800;border-top:2px solid #A82A2A"><td colspan="2">RESULTADO (Receitas ${brl(grandR)} · Despesas ${brl(grandD)})</td><td style="text-align:right">${brl(grandR+grandD)}</td></tr></table></body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),300);
+}
 
 /* Conferência de um DIA (bater com o extrato): lista cada lançamento com status */
 function printConferenciaDia(date){
@@ -2299,6 +2331,7 @@ $('#relComp').onchange=e=>{ST.relComp=e.target.value;renderRelatorio();};
 $$('#relConcTog .chip').forEach(c=>c.onclick=()=>{$$('#relConcTog .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.relSoConc=c.dataset.rc==='1';renderRelatorio();});
 $('#relSearch').oninput=e=>{ST.relSearch=e.target.value;renderRelatorio();};
 $('#relPrint').onclick=printRelatorio;
+$('#relPrintDet')&&($('#relPrintDet').onclick=printRelatorioDetalhado);
 $('#catFilter').onchange=e=>{ST.catF=e.target.value;ST.sel.clear();renderLanc();updateSelBar();};
 $$('#statusFilters .chip').forEach(c=>c.onclick=()=>{$$('#statusFilters .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.statusF=c.dataset.f;ST.sel.clear();renderLanc();updateSelBar();});
 $$('#lancMode button').forEach(b=>b.onclick=()=>{$$('#lancMode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');ST.lancMode=b.dataset.m; ST.sel.clear(); renderLanc(); updateSelBar();});
