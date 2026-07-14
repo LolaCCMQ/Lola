@@ -841,6 +841,7 @@
         
         <button class="nav-item" data-mod="avaliacoes" data-menu="avaliacoes" onclick="switchModule('avaliacoes')"><span class="ni"><i class="ph-duotone ph-star"></i></span><span class="nl">Avaliações</span></button>
         <button class="nav-item" data-mod="escala" data-menu="doc_escala" onclick="switchModule('escala')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Escala</span></button>
+        <button class="nav-item" data-mod="especiais" data-menu-free="especiais" onclick="window.open('https://lolabar.com.br/especiais-admin','_blank','noopener')" title="Adicionar itens nos Especiais do Dia (abre em nova aba)"><span class="ni"><i class="ph-duotone ph-sparkle"></i></span><span class="nl">Especiais do Dia</span></button>
         <button class="nav-item" data-mod="administrativo" onclick="window.open('/adm/','_blank','noopener')" title="Área administrativa (login próprio)"><span class="ni"><i class="ph-duotone ph-lock-key"></i></span><span class="nl">Administrativo</span></button>
 
 
@@ -1037,7 +1038,7 @@ var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
  {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]},
  {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['lolamac','📈 Lola MAC']]},
- {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_producao','🍴 Produção do dia'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
+ {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
  {label:'Documentos',items:[['doc_vouchers','🎁 Vouchers'],['doc_reservas','🎉 Reservas e Eventos'],['doc_admissional','📄 Ficha Admissional'],['doc_alergenicos','⚠️ Alergênicos'],['doc_vinhos','🍷 Carta de Vinhos']]}
 ];
@@ -1078,13 +1079,13 @@ var HOME_APPS=[
     {m:'comprascartao', label:'Compras no Cartão', icon:'credit-card', col:'#2C7A4B', bg:'#E6F3EA'},
     {m:'est_pedidos', label:'Pedidos à Central', icon:'shopping-cart', col:'#A8632C', bg:'#F7EBE2'},
     {m:'man_painel', label:'Manutenções', icon:'wrench', col:'#2C5AA0', bg:'#E6EEF8'},
-    {m:'inbox', label:'Atendimento', icon:'chat-circle-dots', col:'#6B4FA8', bg:'#F0EAF7'}
+    {m:'inbox', label:'Atendimento', icon:'chat-circle-dots', col:'#6B4FA8', bg:'#F0EAF7'},
+    {m:'especiais', label:'Especiais do Dia', icon:'sparkle', col:'#7C1A1C', bg:'#F7E7E7'}
   ]},
   {g:'Estoque & Cozinha', items:[
     {m:'est_insumos', label:'Estoque', icon:'package', col:'#B8862B', bg:'#F7F0DD'},
     {m:'est_insumos', label:'Insumos', icon:'jar', col:'#9A6B1E', bg:'#FBF0DD'},
     {m:'est_fichas', label:'Fichas Técnicas', icon:'book-open', col:'#9A3B6B', bg:'#F6E7EF'},
-    {m:'est_producao', label:'Produção do dia', icon:'fork-knife', col:'#C0392B', bg:'#FBE4E0'},
     {m:'loucas', label:'Inventário', icon:'package', col:'#2C7A6B', bg:'#E2F0EC'},
     {m:'hortifruti', label:'Hortifrúti', icon:'carrot', col:'#5A7D2C', bg:'#EEF2E2'}
   ]},
@@ -1100,7 +1101,9 @@ var HOME_APPS=[
 ];
 var FAVS=[];
 var APP_BY_MENU={}; HOME_APPS.forEach(function(g){g.items.forEach(function(a){ if(!APP_BY_MENU[a.m]) APP_BY_MENU[a.m]=a; });});
-function homeOpen(menuKey){ var nav=document.querySelector('[data-menu="'+menuKey+'"]'); if(nav){ nav.click(); } }
+/* data-menu-free = item sempre visível (não passa por permissões) */
+function navFor(menuKey){ return document.querySelector('[data-menu="'+menuKey+'"],[data-menu-free="'+menuKey+'"]'); }
+function homeOpen(menuKey){ var nav=navFor(menuKey); if(nav){ nav.click(); } }
 window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.lola==='voltar-menu'){ switchModule('home'); } }catch(_){} });
 function appCardHTML(a){
   var fav=FAVS.indexOf(a.m)>=0;
@@ -1117,7 +1120,7 @@ function renderHomeApps(){
   var favCards='';
   FAVS.forEach(function(mk){
     var a=APP_BY_MENU[mk]; if(!a) return;
-    var nav=document.querySelector('[data-menu="'+mk+'"]');
+    var nav=navFor(mk);
     if(!nav || nav.style.display==='none') return;
     favCards+=appCardHTML(a);
   });
@@ -1125,7 +1128,7 @@ function renderHomeApps(){
   HOME_APPS.forEach(function(grp){
     var cards='';
     grp.items.forEach(function(a){
-      var nav=document.querySelector('[data-menu="'+a.m+'"]');
+      var nav=navFor(a.m);
       if(!nav || nav.style.display==='none') return;
       cards+=appCardHTML(a);
     });
