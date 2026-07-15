@@ -42,6 +42,19 @@ header{background:transparent;padding:12px 15px;position:static;z-index:30;color
 .dropfield[open]>summary::after{content:'▴'}
 .quick textarea,.quick input[type=text]{width:100%;font-family:inherit;font-size:.9rem;padding:9px 11px;border:1.5px solid var(--border);border-radius:10px;background:var(--cream);color:var(--ink)}
 .quick textarea{min-height:48px;resize:vertical}
+/* ===== MENÇÕES @ na ata ===== */
+.mwrap{position:relative}
+.mmenu{position:absolute;left:0;right:0;top:100%;margin-top:4px;z-index:90;background:#fff;border:1.5px solid var(--vinho-muted);border-radius:11px;box-shadow:0 8px 24px rgba(168,39,42,.16);max-height:196px;overflow-y:auto;display:none}
+.mmenu.show{display:block}
+.mitem{padding:10px 12px;font-size:.88rem;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.mitem+.mitem{border-top:1px solid var(--border)}
+.mitem.sel,.mitem:hover{background:var(--vinho-pale);color:var(--vinho-deep);font-weight:600}
+.mentionhelp{font-size:.72rem;color:var(--muted);margin-top:5px;line-height:1.4}
+.mentionhelp b{color:var(--vinho-deep)}
+.taskhint{display:none;margin-top:8px;background:#f4faf4;border:1px solid #cfe6cf;color:#2d6a4f;border-radius:10px;padding:9px 12px;font-size:.79rem;line-height:1.6}
+.taskhint.show{display:block}
+.taskhint b{color:#1f7a4d}
+.conteudo .men,.men{color:var(--vinho-deep);background:var(--vinho-pale);border-radius:5px;padding:0 4px;font-weight:600}
 .quick input[type=date]{font-family:inherit;font-size:.9rem;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--cream);color:var(--ink)}
 .quick .btn{min-height:0;padding:9px 16px;font-size:.9rem}
 .quickhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
@@ -340,7 +353,9 @@ header{position:static}
 <div id="qUniWrap"><div class="lab">Unidade</div><div class="pick" id="qUni"></div></div>
 <div id="qCatWrap"><div class="lab">Categoria</div><div class="pick" id="qCat"></div></div>
 <div class="lab">Descrição</div>
-<textarea id="qDesc" placeholder="Detalhes do registro (opcional)"></textarea>
+<div class="mwrap"><textarea id="qDesc" placeholder="Detalhes do registro (opcional)"></textarea><div class="mmenu" id="qDescMenu"></div></div>
+<div class="mentionhelp">💡 Escreva <b>@nome</b> numa linha da ata: ao salvar, vira uma <b>tarefa ligada</b> a este registro. Vários nomes na mesma linha = uma tarefa com vários responsáveis.</div>
+<div class="taskhint" id="qDescHint"></div>
 <details class="dropfield" id="qRespDrop"><summary class="lab">Responsáveis <span id="qRespCount" style="font-weight:600;text-transform:none;color:var(--vinho)"></span></summary><div class="pick" id="qResp" style="margin-top:6px"></div></details>
 <div class="lab">Prazo (opcional)</div><input type="date" id="qPrazo">
 <div class="lab">O que é?</div>
@@ -365,7 +380,9 @@ header{position:static}
 <div class="fld"><label>O que é</label><div class="seg" id="mTipoSeg"><span class="segbtn" data-v="aviso" onclick="setMTipo(false)">📢 Só aviso</span><span class="segbtn" data-v="tarefa" onclick="setMTipo(true)">✅ Tarefa</span></div></div>
 <div class="fld"><label>Unidade</label><div class="pick" id="mUni"></div></div>
 <div class="fld"><label>Categoria</label><div class="pick" id="mCat"></div></div>
-<div class="fld"><label>Descrição</label><textarea id="mDesc"></textarea></div>
+<div class="fld"><label>Descrição</label><div class="mwrap"><textarea id="mDesc"></textarea><div class="mmenu" id="mDescMenu"></div></div>
+<div class="mentionhelp">💡 <b>@nome</b> numa linha nova cria uma tarefa ligada ao salvar. Menções que já viraram tarefa não são recriadas.</div>
+<div class="taskhint" id="mDescHint"></div></div>
 <div class="fld"><label>Responsáveis</label><div class="pick" id="mResp"></div></div>
 <div class="fld"><label>Prazo</label><input type="date" id="mPrazo"></div>
 <div class="fld"><label>Data</label><input type="date" id="mData"></div>
@@ -401,6 +418,143 @@ function uniCls(u){u=(u||'');return u.indexOf('CCMQ')>=0?'u-ccmq':u.indexOf('MAC
 var REG=[], ATAS=[], EDIT=null, FUNI='', VIEW='lista';
 var _q={uni:[],cat:[],resp:[],tarefa:false,parent:null,vincular:false,chain:[]};
 var _m={uni:[],cat:[],resp:[],tarefa:false,rel:[]};
+var _mBase=null; // registro original aberto no modal (baseline p/ não recriar tarefas)
+
+/* ============================================================
+   MENÇÕES @  —  ata → tarefas ligadas
+   ============================================================ */
+function _rxEsc(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+// nomes maiores primeiro, senão "Intelecta" comeria "Bruna Intelecta"
+function _teamSorted(){return TEAM.slice().sort(function(a,b){return b.length-a.length;});}
+// (^|caractere que não é letra/número/@) antes do @ → não pega e-mail (fulano@bruno.com)
+// sem lookbehind, que quebra em iOS antigo
+function _rxNome(n,flags){return new RegExp('(^|[^A-Za-zÀ-ÿ0-9_@.])@'+_rxEsc(n).replace(/\s+/g,'\\s+')+'(?![A-Za-zÀ-ÿ0-9_])',flags||'i');}
+
+// Uma linha → {nomes:[...], titulo:'texto sem as menções'}
+function mentionsOfLine(line){
+  var found=[], rest=' '+String(line);
+  _teamSorted().forEach(function(n){
+    if(_rxNome(n).test(rest)){
+      if(found.indexOf(n)<0)found.push(n);
+      rest=rest.replace(_rxNome(n,'ig'),'$1 ');
+    }
+  });
+  var titulo=rest.replace(/\s+/g,' ').replace(/\(\s+/g,'(').replace(/\s+\)/g,')').replace(/\s+([,.;:!?])/g,'$1')
+             .trim().replace(/^[-–—•*·:,.]+\s*/,'').trim();
+  var L=' '+String(line);
+  found.sort(function(a,b){return L.search(_rxNome(a))-L.search(_rxNome(b));});
+  return {nomes:found,titulo:titulo};
+}
+// Texto inteiro → lista de tarefas a criar (uma por linha com menção)
+function parseTarefasDaAta(txt){
+  var out=[];
+  String(txt||'').split(/\r?\n/).forEach(function(line){
+    if(line.indexOf('@')<0)return;
+    var m=mentionsOfLine(line);
+    if(!m.nomes.length)return;
+    out.push({responsaveis:m.nomes,titulo:m.titulo});
+  });
+  return out;
+}
+function _chaveTarefa(titulo,resps){
+  return norm(titulo)+'|'+resps.slice().map(norm).sort().join(',');
+}
+// Na edição: só o que é menção NOVA (não estava na ata antiga e não virou tarefa ligada ainda)
+function tarefasNovasNaEdicao(ex,txt){
+  var ja={};
+  parseTarefasDaAta((ex&&ex.conteudo)||'').forEach(function(t){ja[_chaveTarefa(t.titulo,t.responsaveis)]=1;});
+  arr(ex&&ex.relacionados).forEach(function(rid){
+    var r=REG.find(function(x){return x.id==rid;});
+    if(r&&r.eh_tarefa)ja[_chaveTarefa(r.titulo||'',arr(r.responsaveis))]=1;
+  });
+  return parseTarefasDaAta(txt).filter(function(t){return !ja[_chaveTarefa(t.titulo,t.responsaveis)];});
+}
+// Destaque visual das menções nos cards
+function highlightMentions(txtEscapado){
+  var out=' '+String(txtEscapado);
+  _teamSorted().forEach(function(n){
+    out=out.replace(_rxNome(n,'ig'),function(mm,p1){return p1+'<span class="men">'+mm.slice(p1.length)+'</span>';});
+  });
+  return out.slice(1);
+}
+// --- prévia "vai criar N tarefas" ---
+function renderTaskHint(taId,hintId){
+  var ta=document.getElementById(taId),h=document.getElementById(hintId);
+  if(!ta||!h)return;
+  var ts=(taId==='mDesc')?tarefasNovasNaEdicao(_mBase,ta.value):parseTarefasDaAta(ta.value);
+  if(!ts.length){h.classList.remove('show');h.innerHTML='';return;}
+  h.classList.add('show');
+  h.innerHTML='<b>✅ '+ts.length+' tarefa'+(ts.length>1?'s serão criadas':' será criada')+' ao salvar:</b><br>'
+    +ts.map(function(t){return '• '+esc(t.titulo||'(sem título — usará o título do registro)')+' → <b>'+esc(t.responsaveis.join(', '))+'</b>';}).join('<br>');
+}
+// --- autocomplete ---
+var _ac={ta:null,menu:null,items:[],sel:0,start:-1};
+function acClose(){if(_ac.menu){_ac.menu.classList.remove('show');_ac.menu.innerHTML='';}_ac.ta=null;_ac.items=[];_ac.start=-1;}
+function acRender(){
+  if(!_ac.menu)return;
+  _ac.menu.innerHTML=_ac.items.map(function(n,i){return '<div class="mitem'+(i===_ac.sel?' sel':'')+'" data-i="'+i+'">👤 '+esc(n)+'</div>';}).join('');
+  _ac.menu.classList.add('show');
+  Array.prototype.forEach.call(_ac.menu.querySelectorAll('.mitem'),function(el){
+    el.onmousedown=function(ev){ev.preventDefault();acPick(parseInt(el.getAttribute('data-i'),10));};
+  });
+}
+function acPick(i){
+  var n=_ac.items[i]; if(n==null||!_ac.ta)return;
+  var ta=_ac.ta,v=ta.value,cur=ta.selectionStart,st=_ac.start;
+  ta.value=v.slice(0,st)+'@'+n+' '+v.slice(cur);
+  var pos=st+n.length+2;
+  acClose();
+  ta.focus(); ta.setSelectionRange(pos,pos);
+  ta.dispatchEvent(new Event('input'));
+}
+function acUpdate(ta,menu){
+  var cur=ta.selectionStart,before=ta.value.slice(0,cur);
+  var m=/(^|[^A-Za-zÀ-ÿ0-9_@.])@([A-Za-zÀ-ÿ]*(?:[ ][A-Za-zÀ-ÿ]*)?)$/.exec(before);
+  if(!m){acClose();return;}
+  var tok=norm(m[2]);
+  var cands=TEAM.filter(function(n){return norm(n).indexOf(tok)===0;});
+  if(!cands.length){acClose();return;}
+  _ac.ta=ta;_ac.menu=menu;_ac.items=cands.slice(0,8);_ac.sel=0;_ac.start=m.index+m[0].indexOf('@');
+  acRender();
+}
+function bindMentions(taId,menuId,hintId){
+  var ta=document.getElementById(taId),menu=document.getElementById(menuId);
+  if(!ta||!menu||ta.__bound)return; ta.__bound=true;
+  ta.addEventListener('input',function(){acUpdate(ta,menu);renderTaskHint(taId,hintId);});
+  ta.addEventListener('click',function(){acUpdate(ta,menu);});
+  ta.addEventListener('keyup',function(e){if(['ArrowLeft','ArrowRight','Home','End'].indexOf(e.key)>=0)acUpdate(ta,menu);});
+  ta.addEventListener('blur',function(){setTimeout(acClose,150);});
+  ta.addEventListener('keydown',function(e){
+    if(_ac.ta!==ta||!_ac.items.length)return;
+    if(e.key==='ArrowDown'){e.preventDefault();_ac.sel=(_ac.sel+1)%_ac.items.length;acRender();}
+    else if(e.key==='ArrowUp'){e.preventDefault();_ac.sel=(_ac.sel-1+_ac.items.length)%_ac.items.length;acRender();}
+    else if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();acPick(_ac.sel);}
+    else if(e.key==='Escape'){acClose();}
+  });
+}
+// --- criação das tarefas filhas ---
+async function criarTarefasDaAta(paiId,pai,tarefas,relBase,autor){
+  if(!tarefas||!tarefas.length)return [];
+  var ids=[];
+  for(var i=0;i<tarefas.length;i++){
+    var t=tarefas[i];
+    var p={titulo:t.titulo||pai.titulo||'Tarefa',criado_por:autor||null,tipo:'Tarefa',eh_tarefa:true,
+      unidades:arr(pai.unidades).slice(),categorias:arr(pai.categorias).slice(),pessoas:[],
+      responsaveis:t.responsaveis.slice(),conteudo:null,prazo:null,tags:[],oks:{},concluido:false,
+      relacionados:[paiId],ata_id:paiId,data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
+    try{
+      var r=await sb.from('lola_assuntos').insert(p).select('id').single();
+      if(r.error)throw r.error;
+      ids.push(r.data.id);
+    }catch(e){ toast('Erro ao criar tarefa de '+t.responsaveis.join(', ')); }
+  }
+  if(ids.length){
+    var rel=arr(relBase).slice();
+    ids.forEach(function(id){if(rel.indexOf(id)<0)rel.push(id);});
+    try{ await sb.from('lola_assuntos').update({relacionados:rel,updated_at:new Date().toISOString()}).eq('id',paiId); }catch(e){}
+  }
+  return ids;
+}
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function norm(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
@@ -480,7 +634,7 @@ var uni=arr(f.unidades).map(function(u){return '<span class="chip uni '+uniCls(u
 var cat=arr(f.categorias).map(function(c){return '<span class="chip cat" style="color:'+catColor(c)+'" onclick="setF(\'fcat\',\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</span>';}).join('');
 var tags=arr(f.tags).filter(function(t){return t!=='roteiro'&&t!=='socias';}).map(function(t){return '<span class="chip tag">#'+esc(t)+'</span>';}).join('');
 var rel=arr(f.relacionados).map(function(id){var r=REG.find(function(x){return x.id==id;});return r?('<a onclick="focar('+r.id+')">'+esc(r.titulo)+'</a>'):'';}).filter(Boolean).join(' · ');
-var cont=f.conteudo?('<div class="conteudo" id="c'+f.id+'">'+esc(f.conteudo)+'</div><span class="vermais" onclick="var e=document.getElementById(\'c'+f.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
+var cont=f.conteudo?('<div class="conteudo" id="c'+f.id+'">'+highlightMentions(esc(f.conteudo))+'</div><span class="vermais" onclick="var e=document.getElementById(\'c'+f.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
 var bcol=f.eh_tarefa?'#1f7a4d':'#9A6B1E', blab=f.eh_tarefa?'<i class="ph-duotone ph-check-square"></i> Tarefa':'<i class="ph-duotone ph-megaphone"></i> Aviso';
 if(arr(f.tags).indexOf('roteiro')>=0){bcol='#0F766E';blab='<i class="ph-duotone ph-book-open-text"></i> Manual';}
 var rotH='';
@@ -515,7 +669,7 @@ box.innerHTML=order.map(function(k){return '<div class="grouphdr">'+esc(k)+'<spa
 function ataCardHTML(a){
 var n=REG.filter(function(f){return String(f.ata_id||'')===String(a.id);}).length;
 var d=a.date?fmtDate(a.date):(a.created_at?fmtDate(String(a.created_at).slice(0,10)):'');
-var cont=a.conteudo?('<div class="conteudo" id="ata'+a.id+'">'+esc(a.conteudo)+'</div><span class="vermais" onclick="var e=document.getElementById(\'ata'+a.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
+var cont=a.conteudo?('<div class="conteudo" id="ata'+a.id+'">'+highlightMentions(esc(a.conteudo))+'</div><span class="vermais" onclick="var e=document.getElementById(\'ata'+a.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
 return '<div class="card ata-card">'
 +'<div class="cardtop"><span class="badge" style="background:#6B4FA822;color:#6B4FA8"><i class="ph-duotone ph-notebook"></i> Ata</span><span class="dt">'+esc(d)+'</span></div>'
 +'<h3>'+esc(a.title||'(sem título)')+'</h3>'
@@ -535,7 +689,7 @@ var pills=arr(f.unidades).map(function(u){return '<span class="chip uni '+uniCls
  +arr(f.categorias).map(function(c){return '<span class="chip cat" style="color:'+catColor(c)+'">'+esc(c)+'</span>';}).join('');
 var resp=arr(f.responsaveis), oks=oksOf(f), n=resp.filter(function(r){return oks[r];}).length;
 var okline=resp.length?('<div class="kok">OK dos responsáveis (<b>'+n+'</b>/'+resp.length+')</div>'):'';
-var desc=f.conteudo?('<div class="kdesc">'+esc(f.conteudo)+'</div>'):'';
+var desc=f.conteudo?('<div class="kdesc">'+highlightMentions(esc(f.conteudo))+'</div>'):'';
 var tag=f.concluido?'<span class="ktag" style="color:#1f7a4d;background:#E6F3EA"><i class="ph-duotone ph-check-circle"></i> Feito · '+fmtDate(f.data)+'</span>'
  :'<span class="ktag" style="color:#9A6B1E;background:#FBF0DD"><i class="ph-duotone ph-check-square"></i> Tarefa · '+fmtDate(f.data)+'</span>';
 var btns=f.concluido
@@ -980,6 +1134,13 @@ try{
 var i=await sb.from('lola_assuntos').insert(p).select('id').single();if(i.error)throw i.error;
 var novo=i.data.id;
 logAtv('criou',{id:novo,titulo:titulo,eh_tarefa:ehT},_q.resp.length?('para '+_q.resp.join(', ')):null);
+// @menções na ata viram tarefas ligadas a este registro
+var _tsAta=parseTarefasDaAta(p.conteudo||'');
+if(_tsAta.length){
+  var _idsAta=await criarTarefasDaAta(novo,p,_tsAta,liga,meuNome()||null);
+  _idsAta.forEach(function(tid,k){ try{ logAtv('criou',{id:tid,titulo:_tsAta[k].titulo||titulo,eh_tarefa:true},'para '+_tsAta[k].responsaveis.join(', ')); }catch(_){} });
+  if(_idsAta.length) toast('✓ '+_idsAta.length+' tarefa'+(_idsAta.length>1?'s criadas':' criada')+' da ata');
+}
 for(var li=0;li<liga.length;li++){
 var pf=REG.find(function(x){return x.id==liga[li];});
 var rel=pf?arr(pf.relacionados).slice():[];
@@ -1067,7 +1228,7 @@ var html='<div class="fp-head"><div><div class="chips" style="margin-bottom:7px"
 +'<div class="fp-body">'
 +((uni||cat)?'<div class="fp-sec"><div class="chips">'+uni+cat+'</div></div>':'')
 +'<div class="fp-sec"><h4>Quem abriu pra quem</h4><div class="fp-meta">'+quem+'</div><div class="fp-meta" style="color:var(--muted);margin-top:3px">Criado em '+fmtDate(f.data)+'</div></div>'
-+(f.conteudo?('<div class="fp-sec"><h4>Descrição</h4><div class="fp-meta" style="white-space:pre-wrap">'+esc(f.conteudo)+'</div></div>'):'')
++(f.conteudo?('<div class="fp-sec"><h4>Descrição</h4><div class="fp-meta" style="white-space:pre-wrap">'+highlightMentions(esc(f.conteudo))+'</div></div>'):'')
 +(f.eh_tarefa?('<div class="fp-sec">'+okhtml+'</div>'):'')
 +'<div class="fp-sec"><h4>Observações</h4>'+obshtml+'<textarea id="fpObs" placeholder="Escrever uma observação…" style="width:100%;margin-top:8px;min-height:54px;font-family:inherit;font-size:.88rem;padding:9px 11px;border:1.5px solid var(--border);border-radius:10px;background:var(--cream);color:var(--ink)"></textarea><button class="btn btn-ghost btn-sm" style="margin-top:7px" onclick="addObs('+f.id+')"><i class="ph-duotone ph-chat-text"></i> Adicionar observação</button></div>'
 +'<div class="fp-sec"><h4>Desdobrar</h4><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="fecharFicha();desdobrarTarefa('+f.id+')"><i class="ph-duotone ph-arrows-split"></i> Nova tarefa ligada</button><button class="btn btn-ghost btn-sm" onclick="var t=document.getElementById(\'fpObs\');if(t)t.focus()"><i class="ph-duotone ph-chat-text"></i> Observação</button></div></div>'
@@ -1097,10 +1258,11 @@ box.innerHTML=_m.rel.map(function(rid){var r=REG.find(function(x){return x.id==r
 function unlinkRel(rid){_m.rel=_m.rel.filter(function(x){return x!=rid;});renderMRel();}
 function editar(id){
 var f=REG.find(function(x){return x.id==id;});if(!f)return;
-EDIT=f.id;_m={uni:arr(f.unidades).slice(),cat:arr(f.categorias).slice(),resp:arr(f.responsaveis).slice(),tarefa:!!f.eh_tarefa,rel:arr(f.relacionados).slice()};
+EDIT=f.id;_mBase=f;_m={uni:arr(f.unidades).slice(),cat:arr(f.categorias).slice(),resp:arr(f.responsaveis).slice(),tarefa:!!f.eh_tarefa,rel:arr(f.relacionados).slice()};
 document.getElementById('mTit').textContent='Editar registro';
 document.getElementById('mNome').value=f.titulo||'';
 document.getElementById('mDesc').value=f.conteudo||'';
+bindMentions('mDesc','mDescMenu','mDescHint');renderTaskHint('mDesc','mDescHint');
 document.getElementById('mData').value=(f.data||'').slice(0,10);
 document.getElementById('mPrazo').value=(f.prazo||'').slice(0,10);
 document.getElementById('mTags').value=arr(f.tags).join(' ');
@@ -1123,7 +1285,14 @@ conteudo:document.getElementById('mDesc').value.trim()||null,tags:parseTags(docu
 pessoas:arr(ex.pessoas),relacionados:_m.rel.slice(),oks:oks,concluido:done,concluido_em:done?(ex.concluido_em||new Date().toISOString()):null,
 updated_at:new Date().toISOString()};
 try{
+var _tsNovas=tarefasNovasNaEdicao(ex,p.conteudo||'');
 var u=await sb.from('lola_assuntos').update(p).eq('id',EDIT);if(u.error)throw u.error;
+// só menções NOVAS viram tarefa — reeditar a ata não duplica
+if(_tsNovas.length){
+  var _idsEd=await criarTarefasDaAta(EDIT,p,_tsNovas,_m.rel,meuNome()||null);
+  _idsEd.forEach(function(tid,k){ try{ logAtv('criou',{id:tid,titulo:_tsNovas[k].titulo||titulo,eh_tarefa:true},'para '+_tsNovas[k].responsaveis.join(', ')); }catch(_){} });
+  if(_idsEd.length) toast('✓ '+_idsEd.length+' tarefa'+(_idsEd.length>1?'s criadas':' criada')+' da ata');
+}
 var _oldR=arr(ex.responsaveis),_addR=newResp.filter(function(r){return _oldR.indexOf(r)<0;}),_remR=_oldR.filter(function(r){return newResp.indexOf(r)<0;});
 if(_addR.length||_remR.length){logAtv('reatribuiu',{id:EDIT,titulo:titulo,eh_tarefa:_m.tarefa},(_remR.length?('saiu: '+_remR.join(', ')):'')+(_remR.length&&_addR.length?' · ':'')+(_addR.length?('entrou: '+_addR.join(', ')):''));}
 else{logAtv('editou',{id:EDIT,titulo:titulo,eh_tarefa:_m.tarefa});}
@@ -1147,7 +1316,7 @@ catch(e){toast('Erro ao excluir');}
 document.getElementById('ov').addEventListener('click',function(e){if(e.target===this)fechar();});
 
 setTimeout(function(){try{var n=meuNome();if(n)localStorage.setItem('reg_quem_sou',n);}catch(e){}},1200);
-initQuick(); carregarBlocoCounts(); load().then(function(){try{applyUrlFilters();}catch(e){} try{initViewFav();}catch(e){} try{updateMovBadge();}catch(e){}});
+initQuick(); bindMentions('qDesc','qDescMenu','qDescHint'); carregarBlocoCounts(); load().then(function(){try{applyUrlFilters();}catch(e){} try{initViewFav();}catch(e){} try{updateMovBadge();}catch(e){}});
 </script>
 </body>
 </html>
