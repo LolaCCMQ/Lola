@@ -315,6 +315,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button id="tabCmp"><i class="ph-duotone ph-shopping-bag-open"></i> Compras</button>
     <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
     <button id="tabPz"><i class="ph-duotone ph-package"></i> Produzidos</button>
+    <button id="tabPerd"><i class="ph-duotone ph-trash"></i> Perdas</button>
     <button id="tabRec"><i class="ph-duotone ph-notebook"></i> Receitas</button>
     <button id="tabFech"><i class="ph-duotone ph-calculator"></i> Fechar mês</button>
     <button id="tabEnv"><i class="ph-duotone ph-paper-plane-tilt"></i> Pro CCMQ <span class="cnt" id="cntEnv" style="display:none">0</span></button>
@@ -387,7 +388,7 @@ async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders
 
 async function carregar(){
   try{
-    const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo] = await Promise.all([
+    const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo, perdas] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
       api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento&order=categoria,nome'),
@@ -397,8 +398,10 @@ async function carregar(){
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
       api('lola_preproducoes?ativo=neq.false&or=(categoria.eq.central,destinos.cs.{central})&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome').catch(()=>null),
-      api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[])
+      api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[]),
+      api('lola_central_perdas?ativo=neq.false&select=*&order=data.desc,criado_em.desc&limit=500').catch(()=>[])
     ]);
+    ST.perdas=perdas||[];
     ST.alertas=alertas||[];
     ST.prod=prod||[];
     if(receitas) ST.receitas=receitas;
@@ -456,6 +459,7 @@ function render(){
   $('#tabCmp').classList.toggle('on',ST.tab==='cmp');
   $('#tabProd').classList.toggle('on',ST.tab==='prod');
   $('#tabPz').classList.toggle('on',ST.tab==='pz');
+  $('#tabPerd').classList.toggle('on',ST.tab==='perd');
   $('#tabRec').classList.toggle('on',ST.tab==='rec');
   $('#tabFech').classList.toggle('on',ST.tab==='fech');
   $('#tabEnv').classList.toggle('on',ST.tab==='env');
@@ -464,8 +468,8 @@ function render(){
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, rec:viewReceitas, fech:viewFechar, env:viewEnvio, al:viewAlertas};
-  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, rec:wireReceitas, fech:wireFechar, env:wireEnvio, al:wireAlertas};
+  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitas, fech:viewFechar, env:viewEnvio, al:viewAlertas};
+  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitas, fech:wireFechar, env:wireEnvio, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -483,6 +487,139 @@ function viewAlertas(){
 function wireAlertas(){
   $('#chResolv')&&($('#chResolv').onclick=()=>{ST.verResolv=!ST.verResolv;render();});
   $$('.resolv').forEach(b=>b.onclick=()=>openResolver(b.dataset.id));
+}
+
+/* ===== PERDAS E DESCARTES ===== */
+const PERDA_MOTIVOS=[{v:'vencimento',l:'Vencimento'},{v:'estrago',l:'Estrago'},{v:'quebra',l:'Quebra'},{v:'sobra',l:'Sobra de produção'}];
+const PERDA_MOT_L={vencimento:'Vencimento',estrago:'Estrago',quebra:'Quebra',sobra:'Sobra de produção'};
+function perdaReceitas(){ return (ST.receitas&&ST.receitas!=='loading')?ST.receitas:[]; }
+function viewPerdas(){
+  const list=(ST.perdas||[]).slice();
+  let h=`<div class="note">Registro de <b>perdas e descartes</b> da Central. Ao salvar, o item já <b>sai do saldo</b>: insumo vira movimento negativo e produção baixa do estoque.</div>`;
+  h+=`<div class="lbl">Perdas registradas (${list.length}) <span class="spacer"></span>
+      <button class="chip on" id="btnNovaPerda"><i class="ph-duotone ph-plus"></i> registrar perda</button></div>`;
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-trash"></i>Nenhuma perda registrada ainda.</div>`; return h; }
+  const ini=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+  const rec=list.filter(p=>String(p.data).slice(0,10)>=ini);
+  const t30=rec.reduce((s,p)=>s+(+p.custo_estimado||0),0);
+  h+=`<div class="srow"><div class="t"><b>Últimos 30 dias</b><span>${rec.length} registro${rec.length===1?'':'s'} · custo estimado (só insumos)</span></div><b>${brl(t30)}</b></div>`;
+  let dia='';
+  list.forEach(p=>{
+    const d=String(p.data).slice(0,10);
+    if(d!==dia){ dia=d; h+=`<div class="lbl">${fmtData(d)}</div>`; }
+    const det=[num(p.qtd)+' '+esc(p.unidade||''), esc(PERDA_MOT_L[p.motivo]||p.motivo), p.tipo==='insumo'?'insumo':'produção'];
+    if(p.criado_por) det.push(esc(p.criado_por));
+    if(p.observacoes) det.push(esc(p.observacoes));
+    h+=`<div class="srow"><div class="t"><b>${esc(p.item_nome)}</b><span>${det.join(' · ')}</span></div>
+      <b>${p.custo_estimado!=null?brl(p.custo_estimado):'—'}</b>
+      <button class="chip delperda" data-id="${p.id}" title="apagar e devolver ao saldo"><i class="ph-duotone ph-trash"></i></button></div>`;
+  });
+  return h;
+}
+function wirePerdas(){
+  $('#btnNovaPerda')&&($('#btnNovaPerda').onclick=()=>openPerda());
+  $$('.delperda').forEach(b=>b.onclick=()=>apagarPerda(b.dataset.id));
+}
+let PERDA_CUR=null;
+function openPerda(){
+  PERDA_CUR={tipo:'insumo', ref:'', motivo:'vencimento'};
+  $('#shTitle').textContent='Registrar perda';
+  renderPerdaBody();
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Registrar perda';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarPerda; openSheet();
+}
+function perdaItemOpts(){
+  if(PERDA_CUR.tipo==='insumo') return '<option value="">— escolha o insumo —</option>'+OPTS_ALL;
+  return '<option value="">— escolha a produção —</option>'+perdaReceitas().map(r=>`<option value="${r.id}">${esc(r.nome)}</option>`).join('');
+}
+function renderPerdaBody(){
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shBody').innerHTML=`<div class="note">O que foi perdido ou descartado? O saldo cai sozinho ao salvar.</div>
+    <div class="mf"><label>Tipo</label><div class="unrow" id="pdTipo">
+      <button class="chip ${PERDA_CUR.tipo==='insumo'?'on':''}" data-t="insumo">Insumo</button>
+      <button class="chip ${PERDA_CUR.tipo==='producao'?'on':''}" data-t="producao">Produção</button>
+    </div></div>
+    <div class="mf"><label>Item</label><select id="pdItem">${perdaItemOpts()}</select></div>
+    <div class="mf"><label>Quantidade</label><input type="number" id="pdQtd" step="0.001" inputmode="decimal" placeholder="0"></div>
+    <div class="mf"><label>Unidade</label><input type="text" id="pdUn" placeholder="kg"></div>
+    <div class="mf"><label>Motivo</label><div class="unrow" id="pdMot">
+      ${PERDA_MOTIVOS.map(m=>`<button class="chip ${PERDA_CUR.motivo===m.v?'on':''}" data-m="${m.v}">${m.l}</button>`).join('')}
+    </div></div>
+    <div class="mf"><label>Data</label><input type="date" id="pdData" value="${hoje}"></div>
+    <div class="mf"><label>Observação (opcional)</label><input type="text" id="pdObs" placeholder="ex.: caiu no chão"></div>
+    <div id="pdInfo" class="imnote" style="display:none"></div>`;
+  $$('#pdTipo .chip').forEach(b=>b.onclick=()=>{ PERDA_CUR.tipo=b.dataset.t; PERDA_CUR.ref=''; renderPerdaBody(); });
+  $$('#pdMot .chip').forEach(b=>b.onclick=()=>{ PERDA_CUR.motivo=b.dataset.m; $$('#pdMot .chip').forEach(x=>x.classList.toggle('on',x.dataset.m===PERDA_CUR.motivo)); });
+  const sel=$('#pdItem'); if(PERDA_CUR.ref) sel.value=PERDA_CUR.ref;
+  sel.onchange=()=>{ PERDA_CUR.ref=sel.value; perdaSync(); };
+  perdaSync();
+}
+function perdaSaldoInsumo(id){ let q=0; (ST.movs||[]).forEach(m=>{ if(m.insumo_id===id) q+=(+m.qtd||0); }); return q; }
+function perdaSync(){
+  const id=PERDA_CUR.ref, inf=$('#pdInfo'); if(!inf) return;
+  if(!id){ inf.style.display='none'; return; }
+  if(PERDA_CUR.tipo==='insumo'){
+    const i=ST.byId[id]||{}; $('#pdUn').value=i.unidade_custo||'';
+    inf.style.display=''; inf.innerHTML=`Saldo atual: <b>${num(perdaSaldoInsumo(id))} ${esc(i.unidade_custo||'')}</b> · custo ${brl(i.custo_por_unidade)}/${esc(i.unidade_custo||'un')}`;
+  }else{
+    const r=perdaReceitas().find(x=>x.id===id); const s=(ST.saldo||{})[id]||{};
+    const un=r?prodUn(r):(s.unidade||'un'); $('#pdUn').value=un||'';
+    inf.style.display=''; inf.innerHTML=`Saldo atual: <b>${num(s.saldo||0)} ${esc(un)}</b>`;
+  }
+}
+async function salvarPerda(){
+  const id=PERDA_CUR.ref, qtd=+$('#pdQtd').value||0, un=($('#pdUn').value||'').trim(),
+        data=$('#pdData').value||new Date().toISOString().slice(0,10), obs=($('#pdObs').value||'').trim();
+  if(!id){ toast('Escolha o item.'); return; }
+  if(!(qtd>0)){ toast('Informe a quantidade perdida.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const motLb=PERDA_MOT_L[PERDA_CUR.motivo]||'';
+    let row;
+    if(PERDA_CUR.tipo==='insumo'){
+      const i=ST.byId[id]||{}; const cu=+i.custo_por_unidade||0;
+      const custo=cu?+(cu*qtd).toFixed(2):null;
+      const mv=await post('lola_central_estoque_mov',[{insumo_id:id, tipo:'perda', qtd:-qtd, unidade:un||i.unidade_custo||'',
+        custo_unit:cu||null, custo_total:custo!=null?-custo:null, origem_tipo:'perda', origem_ref:'perda:'+data,
+        data, obs:motLb+(obs?' · '+obs:''), criado_por:quem}],'return=representation');
+      const movId=(mv&&mv[0]&&mv[0].id)||null;
+      row={data, tipo:'insumo', insumo_id:id, item_nome:i.nome||'?', qtd, unidade:un||i.unidade_custo||'',
+        motivo:PERDA_CUR.motivo, custo_estimado:custo, observacoes:obs||null, mov_id:movId, criado_por:quem};
+      ST.movs.push({insumo_id:id, qtd:-qtd, custo_total:custo!=null?-custo:0});
+    }else{
+      const r=perdaReceitas().find(x=>x.id===id)||{}; const s=(ST.saldo||{})[id]||{};
+      const novo=(+s.saldo||0)-qtd; const uf=un||s.unidade||'un';
+      await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:id, saldo:novo, unidade:uf,
+        saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+      ST.saldo=ST.saldo||{}; ST.saldo[id]={preproducao_id:id, saldo:novo, unidade:uf, saldo_data:data, atualizado_por:quem};
+      row={data, tipo:'producao', preproducao_id:id, item_nome:r.nome||'?', qtd, unidade:uf,
+        motivo:PERDA_CUR.motivo, custo_estimado:null, observacoes:obs||null, criado_por:quem};
+    }
+    const ins=await post('lola_central_perdas',[row],'return=representation');
+    ST.perdas=[(ins&&ins[0])?ins[0]:row, ...(ST.perdas||[])];
+    toast('Perda registrada ✓'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function apagarPerda(id){
+  const p=(ST.perdas||[]).find(x=>x.id===id); if(!p) return;
+  if(!confirm('Apagar a perda de "'+p.item_nome+'"? A quantidade volta pro saldo.')) return;
+  try{
+    await lolaEnsure(); const h=lolaHeaders({'Prefer':'return=minimal'}); h['Content-Type']='application/json';
+    if(p.tipo==='insumo'){
+      if(p.mov_id) await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?id=eq.'+p.mov_id,{method:'DELETE',headers:lolaHeaders({'Prefer':'return=minimal'})});
+      let rm=false;
+      ST.movs=(ST.movs||[]).filter(m=>{ if(!rm && m.insumo_id===p.insumo_id && Math.abs((+m.qtd||0)+(+p.qtd||0))<1e-9){ rm=true; return false; } return true; });
+    }else{
+      const s=(ST.saldo||{})[p.preproducao_id];
+      if(s){ const novo=(+s.saldo||0)+(+p.qtd||0);
+        await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+p.preproducao_id,{method:'PATCH',headers:h,body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})});
+        s.saldo=novo; }
+    }
+    await fetch(SB_URL+'/rest/v1/lola_central_perdas?id=eq.'+id,{method:'PATCH',headers:h,body:JSON.stringify({ativo:false})});
+    ST.perdas=(ST.perdas||[]).filter(x=>x.id!==id);
+    toast('Perda apagada ✓'); render();
+  }catch(e){ toast('Erro: '+e.message); }
 }
 /* ===== PRODUÇÕES (estoque de produções prontas) ===== */
 // converte g→kg e ml→L (só exibição; o banco fica em g/ml)
@@ -1693,6 +1830,8 @@ $('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
   if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&or=(categoria.eq.central,destinos.cs.{central})&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
 $('#tabPed').onclick=()=>{ST.tab='ped'; render(); if(!ST.pedidos||ST.pedidos==='loading') carregarPedidos();};
 $('#tabPz').onclick=()=>{ST.tab='pz'; render(); if(!ST.prodHist||ST.prodHist==='loading') carregarProduzidos();};
+$('#tabPerd').onclick=async()=>{ ST.tab='perd'; render();
+  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&or=(categoria.eq.central,destinos.cs.{central})&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='perd') render(); } };
 $('#tabCmp').onclick=()=>{ST.tab='cmp'; if(!ST.comprasMes){ST.comprasMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarCompras();};
 $('#tabFech').onclick=()=>{ST.tab='fech'; if(!ST.fechMes){ST.fechMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarFechamento();};
 $('#tabEnv').onclick=()=>{ST.tab='env'; render(); if(!ST.envios||ST.envios==='loading') carregarEnvios();};
