@@ -144,6 +144,25 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .ecard .frow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:2px 0}
 .ecard .frow span{color:var(--mut)}
 .ecard .pacts{margin-top:10px}
+/* ===== ENVIOS PRO CCMQ — lista compacta, quantidade em destaque ===== */
+.env-tbl{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden;margin-bottom:10px}
+.env-row{display:grid;grid-template-columns:minmax(0,1fr) 96px auto;align-items:center;gap:10px;padding:10px 13px;border-top:1px solid var(--fio)}
+.env-row:first-child{border-top:0}
+.env-row.done{opacity:.55}
+.env-nome{font-size:14px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.env-meta{font-size:11px;color:var(--mut);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.env-qtd{text-align:right;white-space:nowrap}
+.env-qtd-v{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--vinho);line-height:1.05}
+.env-qtd-u{font-size:11px;font-weight:700;color:var(--sec);text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+.env-qtd-none{font-size:11px;color:var(--lbl)}
+.env-acts{display:flex;gap:6px;align-items:center}
+.env-acts .prodbtn{min-height:34px;padding:0 11px;font-size:12px}
+.env-acts .pdel{min-height:34px;padding:0 10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:15px;cursor:pointer}
+@media(max-width:560px){
+  .env-row{grid-template-columns:minmax(0,1fr) auto;row-gap:8px}
+  .env-acts{grid-column:1/-1;justify-content:stretch}
+  .env-acts .prodbtn{flex:1}
+}
 .fcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;border-left:4px solid var(--border)}
 .fcard.ok{border-left-color:var(--okFg)}
 .fcard.pos{border-left-color:#2C5AA0}
@@ -1208,22 +1227,29 @@ function viewEnvio(){
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
   if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-paper-plane-tilt"></i>Nada marcado ainda.</div>`; return h; }
   const abertos=d.filter(x=>!x.atendido), feitos=d.filter(x=>x.atendido);
-  const card=(x)=>`<div class="ecard ${x.atendido?'done':''}" data-id="${x.id}">
-     <div class="fh"><b>${esc(x.descricao)}</b>${x.quantidade?`<span class="stpill ok">${num(x.quantidade)} ${esc(x.unidade||'')}</span>`:''}</div>
-     ${x.prato?`<div class="frow"><span>Prato</span><b>${esc(x.prato)}</b></div>`:''}
-     <div class="frow"><span>Quando</span><b>${fmtData(String(x.data).slice(0,10))}${x.responsavel?' · '+esc(x.responsavel):''}</b></div>
-     ${x.observacao?`<div class="frow"><span>Obs</span><b>${esc(x.observacao)}</b></div>`:''}
-     <div class="pacts"><button class="prodbtn eatt">${x.atendido?'<i class="ph-duotone ph-arrow-counter-clockwise"></i> reabrir':'<i class="ph-duotone ph-check"></i> marcar enviado'}</button><button class="pdel edel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
+  const linha=(x)=>{
+    const meta=[fmtData(String(x.data).slice(0,10))];
+    if(x.responsavel) meta.push(esc(x.responsavel));
+    if(x.prato) meta.push('prato: '+esc(x.prato));
+    if(x.observacao) meta.push(esc(x.observacao));
+    return `<div class="env-row ${x.atendido?'done':''}" data-id="${x.id}">
+     <div><div class="env-nome">${esc(x.descricao)}</div><div class="env-meta">${meta.join(' · ')}</div></div>
+     <div class="env-qtd">${x.quantidade
+        ? `<div class="env-qtd-v">${num(x.quantidade)}</div><div class="env-qtd-u">${esc(x.unidade||'')}</div>`
+        : `<span class="env-qtd-none">sem qtd</span>`}</div>
+     <div class="env-acts"><button class="prodbtn eatt">${x.atendido?'<i class="ph-duotone ph-arrow-counter-clockwise"></i> reabrir':'<i class="ph-duotone ph-check"></i> enviado'}</button><button class="pdel edel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
     </div>`;
-  if(abertos.length){ h+=`<div class="lbl">A enviar (${abertos.length})</div>`+abertos.map(card).join(''); }
-  if(feitos.length){ h+=`<div class="lbl">Já enviados (${feitos.length})</div>`+feitos.map(card).join(''); }
+  };
+  const tabela=(lst)=>`<div class="env-tbl">`+lst.map(linha).join('')+`</div>`;
+  if(abertos.length){ h+=`<div class="lbl">A enviar (${abertos.length})</div>`+tabela(abertos); }
+  if(feitos.length){ h+=`<div class="lbl">Já enviados (${feitos.length})</div>`+tabela(feitos); }
   return h;
 }
 function wireEnvio(){
   $('#btnNovoEnvio')&&($('#btnNovoEnvio').onclick=()=>openEnvio());
-  $$('#app .ecard').forEach(el=>{ const id=el.dataset.id;
+  $$('#app .env-row').forEach(el=>{ const id=el.dataset.id;
     el.querySelector('.eatt').onclick=()=>toggleEnvio(id);
-    el.querySelector('.edel').onclick=()=>delEnvio(id, el.querySelector('.fh b').textContent);
+    el.querySelector('.edel').onclick=()=>delEnvio(id, el.querySelector('.env-nome').textContent);
   });
 }
 function openEnvio(){
