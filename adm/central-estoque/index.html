@@ -649,6 +649,20 @@ function conv(q, u){ q=+q||0; const uu=(u||'').toLowerCase().trim();
   if(uu==='l'||uu==='litro'||uu==='litros') return {q:q, u:'L'};
   return {q:q, u:u||''}; }
 function convUn(u){ return conv(1,u).u; }
+/* Mostra na unidade em que o insumo é COMPRADO/custeado.
+   A receita guarda leite como 36000 "g", mas o leite é vendido e custeado por LITRO —
+   e é assim que o custo é calculado. Então a tela precisa dizer 36 L, não 36 kg.
+   (água/leite: 1 g ≈ 1 ml, que é a mesma aproximação que o cálculo do custo já faz) */
+function convCusto(q, unReceita, unCusto){
+  const c=conv(q, unReceita);                  // normaliza pra kg / L
+  const uc=(unCusto||'').toLowerCase().trim();
+  if(!uc) return c;
+  const ehVol = uc==='l'||uc==='litro'||uc==='litros'||uc==='ml';
+  const ehMassa = uc==='kg'||uc==='g'||uc==='mg';
+  if(ehVol && c.u==='kg') return {q:c.q, u:'L'};   // receita em massa, custo por volume → mostra L
+  if(ehMassa && c.u==='L') return {q:c.q, u:'kg'}; // o contrário
+  return c;
+}
 function rendInfo(r){ // interpreta o rendimento da receita (já em kg/L)
   const rq=+r.rendimento_qtd||0, run=r.rendimento_un||'', pq=+r.porcao_qtd||0;
   if(pq>0 && rq>0){ const ps=conv(pq,run); return {ehPorcao:true, base:rq/pq, un:'porções', porcaoQtd:ps.q, totalRend:rq, rendUn:ps.u}; }
@@ -699,7 +713,7 @@ async function toggleProdIngr(el){
     if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo">Sem ingredientes cadastrados. Use “Adicionar preparo” na aba Receitas.</div><button class="btn sec ipr" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`; box.querySelector('.ipr').onclick=()=>printReceita(id); return; }
     const R=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(R);
     const rendline = ri.base>0 ? `<div class="ring"><span>Rendimento</span><b>${num(ri.base)} ${esc(ri.un)}${ri.ehPorcao?' ('+num(ri.porcaoQtd)+' '+esc(ri.rendUn)+' cada)':''}</b></div>` : '';
-    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
+    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
     box.querySelector('.ipr').onclick=()=>printReceita(id);
     box.querySelector('.iet').onclick=()=>openEtiqueta(id);
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
@@ -818,7 +832,7 @@ function wireProduzidos(){
         try{ const rr=await post('rpc/central_receita_itens',{pid:id});
           if(Array.isArray(rr)&&rr.length){
             const cab = (fator!==1) ? `<div class="uinfo" style="margin-bottom:5px">Ingredientes p/ <b>${num(total)} ${esc(prodUn(r))}</b> produzidos (${num(fator)}× a receita):</div>` : '';
-            rec.innerHTML=cab+rr.map(z=>{const c=conv((+z.qtd||0)*fator, z.unidade);return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
+            rec.innerHTML=cab+rr.map(z=>{const c=convCusto((+z.qtd||0)*fator, z.unidade, z.unidade_custo);return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
           } else rec.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; }
         catch(e){ rec.innerHTML='<div class="uinfo">Erro ao carregar a receita.</div>'; rec.dataset.loaded=''; }
       } };
@@ -907,7 +921,7 @@ async function renderProdReceita(ppId){
     const rendBox=`<div class="entra on" id="prodRend" style="margin-top:8px"></div>`;
     if(!Array.isArray(r)||!r.length){ box.innerHTML=rendBox+`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`; updateRend(ri,1); $('#prodPrint').onclick=()=>printReceita(ppId); $('#prodEtiq').onclick=()=>openEtiqueta(ppId); return; }
     box.innerHTML=`<div class="lbl">Ingredientes <span id="prodFactor" style="text-transform:none;letter-spacing:0;color:var(--mut);font-weight:600">— receita cheia</span></div>
-      <div class="usos on" id="prodIngr">${r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring iedit"><span>${esc(x.nome)}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${c.q}" value="${c.q}"><b>${esc(c.u)}</b></div>`;}).join('')}</div>
+      <div class="usos on" id="prodIngr">${r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);return `<div class="ring iedit"><span>${esc(x.nome)}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${c.q}" value="${c.q}"><b>${esc(c.u)}</b></div>`;}).join('')}</div>
       <div class="uinfo" style="margin-top:6px">Ajuste um ingrediente que o resto se converte na mesma proporção.</div>
       ${rendBox}
       <div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
@@ -923,7 +937,7 @@ async function printReceita(ppId){
   const r=(ST.receitas||[]).find(x=>x.id===ppId)||{}; let nome=r.nome||'Receita', modo='';
   let ings=[]; let fator=1; const box=document.getElementById('prodIngr');
   if(box){ box.querySelectorAll('.ring.iedit').forEach(row=>{ const inp=row.querySelector('.riq'); const orig=+inp.dataset.orig||0, val=+inp.value||0; if(fator===1 && orig>0) fator=val/orig; ings.push({nome:row.querySelector('span').textContent, qtd:num(val), un:row.querySelector('b').textContent}); }); }
-  else { try{ const rr=await post('rpc/central_receita_itens',{pid:ppId}); ings=(rr||[]).map(x=>{const c=conv(x.qtd,x.unidade);return {nome:x.nome, qtd:num(c.q), un:c.u};}); }catch(e){} }
+  else { try{ const rr=await post('rpc/central_receita_itens',{pid:ppId}); ings=(rr||[]).map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);return {nome:x.nome, qtd:num(c.q), un:c.u};}); }catch(e){} }
   if(!(isFinite(fator)&&fator>0)) fator=1;
   try{ const pp=await api('lola_preproducoes?id=eq.'+ppId+'&select=nome,modo_preparo'); if(pp&&pp[0]){ nome=pp[0].nome||nome; modo=pp[0].modo_preparo||''; } }catch(e){}
   const ri=rendInfo(r); const esper=ri.base*fator;
