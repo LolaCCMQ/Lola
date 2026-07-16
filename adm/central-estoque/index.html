@@ -713,9 +713,12 @@ async function toggleProdIngr(el){
     if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo">Sem ingredientes cadastrados. Use “Adicionar preparo” na aba Receitas.</div><button class="btn sec ipr" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`; box.querySelector('.ipr').onclick=()=>printReceita(id); return; }
     const R=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(R);
     const rendline = ri.base>0 ? `<div class="ring"><span>Rendimento</span><b>${num(ri.base)} ${esc(ri.un)}${ri.ehPorcao?' ('+num(ri.porcaoQtd)+' '+esc(ri.rendUn)+' cada)':''}</b></div>` : '';
-    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
+    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);
+      const nm=x.insumo_id?`<span class="ifl" data-ins="${x.insumo_id}" style="cursor:pointer;border-bottom:1px dashed var(--vinho);color:var(--vinho);font-weight:600" title="Ver a ficha deste insumo">${esc(x.nome)}</span>`:esc(x.nome);
+      return `<div class="ring"><span>${nm}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
     box.querySelector('.ipr').onclick=()=>printReceita(id);
     box.querySelector('.iet').onclick=()=>openEtiqueta(id);
+    box.querySelectorAll('.ifl').forEach(el=>el.onclick=(ev)=>{ev.stopPropagation();abrirFichaInsumo(el.dataset.ins,el.textContent);});
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
 }
 /* ---- atualizar estoque (com data) ---- */
@@ -921,7 +924,9 @@ async function renderProdReceita(ppId){
     const rendBox=`<div class="entra on" id="prodRend" style="margin-top:8px"></div>`;
     if(!Array.isArray(r)||!r.length){ box.innerHTML=rendBox+`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`; updateRend(ri,1); $('#prodPrint').onclick=()=>printReceita(ppId); $('#prodEtiq').onclick=()=>openEtiqueta(ppId); return; }
     box.innerHTML=`<div class="lbl">Ingredientes <span id="prodFactor" style="text-transform:none;letter-spacing:0;color:var(--mut);font-weight:600">— receita cheia</span></div>
-      <div class="usos on" id="prodIngr">${r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);return `<div class="ring iedit"><span>${esc(x.nome)}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${c.q}" value="${c.q}"><b>${esc(c.u)}</b></div>`;}).join('')}</div>
+      <div class="usos on" id="prodIngr">${r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);
+        const nm=x.insumo_id?`<span class="ifl" data-ins="${x.insumo_id}" style="cursor:pointer;border-bottom:1px dashed var(--vinho);color:var(--vinho);font-weight:600" title="Ver a ficha deste insumo">${esc(x.nome)}</span>`:esc(x.nome);
+        return `<div class="ring iedit"><span>${nm}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${c.q}" value="${c.q}"><b>${esc(c.u)}</b></div>`;}).join('')}</div>
       <div class="uinfo" style="margin-top:6px">Ajuste um ingrediente que o resto se converte na mesma proporção.</div>
       ${rendBox}
       <div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
@@ -929,6 +934,7 @@ async function renderProdReceita(ppId){
       $$('#prodIngr .riq').forEach(o=>{ if(o!==inp){ const oo=+o.dataset.orig||0; o.value=+(oo*f).toFixed(3); } });
       $('#prodFactor').textContent=`— ${num(f)}× da receita`; updateRend(ri,f); });
     updateRend(ri,1);
+    $$('#prodIngr .ifl').forEach(el=>el.onclick=(ev)=>{ev.stopPropagation();abrirFichaInsumo(el.dataset.ins,el.textContent);});
     $('#prodPrint').onclick=()=>printReceita(ppId);
     $('#prodEtiq').onclick=()=>openEtiqueta(ppId);
   }catch(e){ box.innerHTML='<div class="uinfo" style="margin-top:6px">Erro ao carregar a receita.</div>'; }
@@ -1463,7 +1469,7 @@ function viewSaldo(){
     if(i.categoria!==cat){ cat=i.categoria; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
     const usado=ST.usados&&ST.usados.has(id);
     const sub=i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):'';
-    h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b>${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<button class="norec vincrec"><i class="ph-duotone ph-warning-circle"></i> não está em receita · toque pra vincular</button>'}</div>
+    h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b class="ifl" data-ins="${id}" style="cursor:pointer;border-bottom:1px dashed var(--vinho);color:var(--vinho)" title="Ver a ficha: preço, de qual nota veio, fornecedor">${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<button class="norec vincrec"><i class="ph-duotone ph-warning-circle"></i> não está em receita · toque pra vincular</button>'}</div>
       <div class="r">${i.evento?'<span class="evtag"><i class="ph-duotone ph-confetti"></i> Evento</span>':''}<div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div>
       <button class="iedt" title="editar insumo"><i class="ph-duotone ph-pencil-simple"></i></button></div>
       <div class="usos"></div></div>`;
@@ -1478,7 +1484,8 @@ function wireSaldo(){
   $('#btnHistIns')&&($('#btnHistIns').onclick=()=>openContagensHist('insumo'));
   $$('#app .sitem').forEach(el=>{ const c=el.querySelector('.srow-c'); if(c) c.onclick=()=>toggleUsos(el);
     const ed=el.querySelector('.iedt'); if(ed) ed.onclick=(e)=>{ e.stopPropagation(); openEditInsumo(el.dataset.ins); };
-    const vr=el.querySelector('.vincrec'); if(vr) vr.onclick=(e)=>{ e.stopPropagation(); openVincularReceita(el.dataset.ins); }; });
+    const vr=el.querySelector('.vincrec'); if(vr) vr.onclick=(e)=>{ e.stopPropagation(); openVincularReceita(el.dataset.ins); };
+    const fl=el.querySelector('.ifl'); if(fl) fl.onclick=(e)=>{ e.stopPropagation(); abrirFichaInsumo(el.dataset.ins, fl.textContent); }; });
 }
 function openVincularReceita(id){
   const it=ST.byId[id]; if(!it)return;
@@ -1551,6 +1558,107 @@ async function fundirInsumo(fromId, toId){
   }
   await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({ativo:false})});
 }
+/* ══════════════════════════════════════════════════════════
+   FICHA DO INSUMO — a mesma do app do Estoque.
+   Clicar em qualquer insumo (lista, receita, produção) abre
+   preço, de qual nota veio, fornecedor, FC, saldo e usos.
+   Usa a função insumo_ficha(uuid) do banco. — 16/07
+   ══════════════════════════════════════════════════════════ */
+function _ifData(d){ if(!d)return'—'; const p=String(d).slice(0,10).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):d; }
+function _ifN(v,c){ return (+v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?3:c}); }
+function _ifR(v){ return (v==null||isNaN(v))?'—':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+const _IF_UN={kg:'por quilo',g:'por grama',L:'por litro',l:'por litro',ml:'por ml',un:'por unidade',cx:'por caixa',pct:'por pacote',molho:'por molho'};
+function _ifUnExt(u){const s=String(u==null?'':u).trim();return _IF_UN[s]||_IF_UN[s.toLowerCase()]||('por '+(s||'unidade'));}
+
+async function abrirFichaInsumo(insumoId, nomeFallback){
+  if(!insumoId) return;
+  const bg=document.createElement('div');
+  bg.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
+  const mo=document.createElement('div');
+  mo.style.cssText='background:var(--creme);border-radius:16px;max-width:680px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.2)';
+  mo.addEventListener('click',e=>e.stopPropagation());
+  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
+  mo.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card)">'
+    +'<div style="flex:1;min-width:0"><div id="ifTit" style="font-family:Fraunces,serif;font-size:18px;font-weight:600;color:var(--vinho);line-height:1.1">'+esc(nomeFallback||'Insumo')+'</div></div>'
+    +'<button id="ifX" style="width:30px;height:30px;border-radius:9px;background:var(--cremeDark);border:1px solid var(--border);color:var(--vinho);font-size:15px;cursor:pointer">✕</button></div>'
+    +'<div id="ifBody" style="padding:14px 16px 18px"><div class="uinfo">buscando…</div></div>';
+  bg.appendChild(mo); document.body.appendChild(bg);
+  mo.querySelector('#ifX').onclick=()=>bg.remove();
+  try{
+    const r=await post('rpc/insumo_ficha',{iid:insumoId});
+    const d=Array.isArray(r)?r[0]:r;
+    if(!d||!d.cadastro){ mo.querySelector('#ifBody').innerHTML='<div class="uinfo">Não encontrei os dados deste insumo.</div>'; return; }
+    mo.querySelector('#ifTit').textContent=d.cadastro.nome||nomeFallback||'Insumo';
+    mo.querySelector('#ifBody').innerHTML=_ifHtml(d);
+  }catch(e){ mo.querySelector('#ifBody').innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+
+function _ifHtml(d){
+  const c=d.cadastro||{}, uc=c.unidade_custo||'kg', compra=d.ultima_compra, fc=d.fc, saldo=d.saldo||{};
+  const cad=+c.custo_por_unidade||0, ult=compra?(+compra.preco_unit||0):0;
+  const dif=(cad>0&&ult>0)?((ult-cad)/cad*100):0, alerta=compra&&Math.abs(dif)>=1;
+  let h='';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+  h+= '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px">'
+    +   '<div style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--lbl);text-transform:uppercase">Custo cadastrado</div>'
+    +   '<div style="font-family:Fraunces,serif;font-size:22px;font-weight:600;color:var(--vinho);line-height:1.1;margin-top:2px">'+_ifR(cad)+'</div>'
+    +   '<div style="font-size:11px;font-weight:700;color:var(--sec);text-transform:uppercase;letter-spacing:.5px">'+esc(_ifUnExt(uc))+'</div>'
+    +   '<div style="font-size:10px;color:var(--lbl);margin-top:4px">'+(c.preco_atualizado_em?('atualizado '+_ifData(c.preco_atualizado_em)+(c.preco_atualizado_por?(' por '+esc(c.preco_atualizado_por)):'')):'sem atualização registrada')+'</div></div>';
+  h+= compra
+    ? ('<div style="background:'+(alerta?'#FBF0DD':'var(--card)')+';border:1px solid '+(alerta?'#F1DFB8':'var(--border)')+';border-radius:12px;padding:11px 13px">'
+      + '<div style="font-size:9px;font-weight:800;letter-spacing:1px;color:'+(alerta?'#9A6B1E':'var(--lbl)')+';text-transform:uppercase">Última compra</div>'
+      + '<div style="font-family:Fraunces,serif;font-size:22px;font-weight:600;color:'+(alerta?'#9A6B1E':'var(--vinho)')+';line-height:1.1;margin-top:2px">'+_ifR(ult)+'</div>'
+      + '<div style="font-size:11px;font-weight:700;color:'+(alerta?'#9A6B1E':'var(--sec)')+';text-transform:uppercase;letter-spacing:.5px">por '+esc(compra.unidade||uc)+' · '+_ifData(compra.data)+'</div>'
+      + (alerta?('<div style="font-size:10px;color:#9A6B1E;margin-top:4px;font-weight:700">⚠ '+(dif>0?'+':'')+_ifN(dif,1)+'% em relação ao cadastro</div>'):'')+'</div>')
+    : '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px"><div style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--lbl);text-transform:uppercase">Última compra</div><div style="font-size:12px;color:var(--lbl);margin-top:6px">Nenhuma entrada por nota.</div></div>';
+  h+='</div>';
+
+  if(compra){
+    h+='<div class="lbl" style="margin:0 0 6px">De onde veio esse preço</div>';
+    h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px">';
+    h+= '<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:700">'+esc(compra.fornecedor||'(entrada manual — sem nota)')+'</div>'
+      + '<div style="font-size:11px;color:var(--mut)">'+(compra.nota_numero?('Nota '+esc(compra.nota_numero)+' · '):'')+_ifData(compra.data)+(compra.lancado_por?(' · lançada por '+esc(compra.lancado_por)):'')+'</div></div>';
+    h+= '<div style="border-top:1px solid var(--fio);padding-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+      +  '<div><div style="font-size:9px;color:var(--lbl);text-transform:uppercase">Qtd</div><div style="font-size:13px;font-weight:700">'+_ifN(compra.qtd)+' '+esc(compra.unidade||'')+'</div></div>'
+      +  '<div><div style="font-size:9px;color:var(--lbl);text-transform:uppercase">Preço unit.</div><div style="font-size:13px;font-weight:700">'+_ifR(compra.preco_unit)+'</div></div>'
+      +  '<div><div style="font-size:9px;color:var(--lbl);text-transform:uppercase">Total</div><div style="font-size:13px;font-weight:700">'+_ifR(compra.total)+'</div></div></div>';
+    if(compra.descricao_na_nota) h+='<div style="border-top:1px solid var(--fio);padding-top:8px;margin-top:8px"><div style="font-size:9px;color:var(--lbl);text-transform:uppercase">Como veio escrito na nota</div><div style="font-size:12px;color:var(--sec);font-style:italic">"'+esc(compra.descricao_na_nota)+'"</div></div>';
+    h+='</div>';
+  }
+
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+  h+= '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px"><div style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--lbl);text-transform:uppercase">Saldo em estoque</div><div style="font-size:16px;font-weight:700;margin-top:2px">'+_ifN(saldo.qtd)+' '+esc(uc)+'</div><div style="font-size:11px;color:var(--mut)">'+_ifR(saldo.valor)+'</div></div>';
+  h+= '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px"><div style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--lbl);text-transform:uppercase">Peso / fator</div><div style="font-size:16px;font-weight:700;margin-top:2px">'+((fc&&fc.fc)?('FC '+_ifN(fc.fc,2)):(c.peso_un_g?(_ifN(c.peso_un_g,0)+' g/un'):'—'))+'</div><div style="font-size:11px;color:var(--mut)">'+((fc&&fc.peso_medio_g)?('1 un ≈ '+_ifN(fc.peso_medio_g,0)+' g'):(c.peso_un_g?'peso da embalagem':'sem fator cadastrado'))+'</div></div>';
+  h+='</div>';
+
+  const usos=d.usado_em||[];
+  h+='<div class="lbl" style="margin:0 0 6px">Onde é usado ('+usos.length+')</div>';
+  if(!usos.length) h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:11px;color:var(--lbl);margin-bottom:14px">Não entra em nenhuma receita.</div>';
+  else{
+    h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">';
+    usos.forEach((u,i)=>{ h+='<div style="display:flex;align-items:center;gap:8px;padding:9px 13px'+(i?';border-top:1px solid var(--fio)':'')+'">'
+      +'<span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:50px;background:'+(u.tipo==='preparo'?'#7A4FA3':'#C0392B')+';color:#fff;flex-shrink:0">'+(u.tipo==='preparo'?'PREPARO':'PRATO')+'</span>'
+      +'<div style="flex:1;min-width:0;font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(u.nome)+'</div>'
+      +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700">'+_ifN(u.qtd)+' '+esc(u.unidade||'')+'</div><div style="font-size:10px;color:var(--mut)">'+_ifR(u.custo)+'</div></div></div>'; });
+    h+='</div>';
+  }
+
+  const hist=d.historico_preco||[];
+  h+='<div class="lbl" style="margin:0 0 6px">Histórico de preço</div>';
+  if(!hist.length) h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;font-size:11px;color:var(--lbl);line-height:1.5">Nenhuma alteração registrada ainda.<br>A partir de agora, toda mudança grava <b>de onde veio</b>.</div>';
+  else{
+    const ORI={nota:'da nota',planilha:'da planilha do mês',manual:'na mão',correcao:'correção de cadastro'};
+    h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">';
+    hist.forEach((x,i)=>{ const de=+x.de||0,pa=+x.para||0,sobe=pa>de,v=de>0?((pa-de)/de*100):0;
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:9px 13px'+(i?';border-top:1px solid var(--fio)':'')+'">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+_ifR(de)+' → '+_ifR(pa)+'</div>'
+      +'<div style="font-size:10px;color:var(--mut)">'+_ifData(x.quando)+(x.quem?(' · '+esc(x.quem)):'')+(x.origem?(' · <b>'+esc(ORI[x.origem]||x.origem)+'</b>'):'')+'</div></div>'
+      +(de>0?('<span style="font-size:11px;font-weight:800;color:'+(sobe?'#B5302E':'#2C7A4B')+';flex-shrink:0">'+(sobe?'▲':'▼')+' '+_ifN(Math.abs(v),0)+'%</span>'):'')+'</div>'; });
+    h+='</div>';
+  }
+  return h;
+}
+
 async function toggleUsos(el){
   const box=el.querySelector('.usos'), id=el.dataset.ins;
   if(box.classList.contains('on')){ box.classList.remove('on'); box.innerHTML=''; return; }
