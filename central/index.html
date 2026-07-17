@@ -991,20 +991,28 @@ function erSwitchUn(nu){
     if(r&&r.value!=='') r.value=+(+r.value*f).toFixed(4);
     if(p&&p.value!=='') p.value=+(+p.value*f).toFixed(4);
   }
-  ER_UN=nu; $$('#erUnBtns button').forEach(b=>b.classList.toggle('on',b.dataset.u===nu)); erPortions();
+  ER_UN=nu; $$('#erUnBtns button').forEach(b=>b.classList.toggle('on',b.dataset.u===nu));
+  const s1=$('#erUnRo'), s2=$('#erUnRo2'); if(s1)s1.textContent=nu; if(s2)s2.textContent=nu;
+  erPortions();
 }
-function erPortions(){ const el=$('#erPor'); if(!el)return; const r=+$('#erRend').value||0, p=+$('#erPorc').value||0;
-  el.innerHTML = (r>0&&p>0) ? `Dá <b>${Math.round(r/p)} porções</b> — é o nº de etiquetas que ele vai sugerir.` : 'Preencha rendimento e tamanho da porção pra ver quantas porções (etiquetas) dá.'; }
+/* 17/07: "mais simples e mais didático" — feedback em português de cozinha e aviso quando a conta não fecha */
+function erPortions(){ const el=$('#erPor'); if(!el)return; const r=+$('#erRend').value||0, p=+$('#erPorc').value||0, u=ER_UN;
+  if(!(r>0)){ el.innerHTML='Comece pelo <b>passo 1</b>: quanto a receita inteira rende, do jeito que sai da panela.'; return; }
+  if(!(p>0)){ el.innerHTML=`Total anotado: <b>${num(r)} ${esc(u)}</b>. Agora o <b>passo 2</b>: quanto leva cada porção — é isso que define as etiquetas.`; return; }
+  if(p>r){ el.innerHTML=`<b style="color:#B5302E">⚠️ Confere esses números:</b> o total da receita (<b>${num(r)} ${esc(u)}</b>) está <b>menor</b> que uma porção só (<b>${num(p)} ${esc(u)}</b>). O passo 1 é a receita <b>inteira</b>, não uma porção. Faltou um zero? A unidade é ${esc(u)} mesmo?`; return; }
+  const n=r/p;
+  el.innerHTML=`<b style="color:var(--okFg)">✓ Dá ${n>=10?Math.round(n):(+n.toFixed(1)).toLocaleString('pt-BR')} porções de ${num(p)} ${esc(u)}</b> — é o nº de etiquetas que ele vai sugerir.`; }
 function openEditRend(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; EDIT_REND=id;
   ER_UN=(r.rendimento_un||'kg').toLowerCase(); if(!ER_G[ER_UN]&&ER_UN!=='un'&&ER_UN!=='l') ER_UN='kg';
   $('#shTitle').textContent='Rendimento — '+r.nome;
-  $('#shBody').innerHTML=`<div class="note">Quanto essa receita rende e o tamanho da porção. Troque a unidade que ele converte sozinho; a porção define quantas etiquetas imprimir.</div>
-    <label class="iml">Unidade</label>
-    <div id="erUnBtns" class="unrow">${['g','kg','L','un'].map(u=>`<button data-u="${u}" class="${u===ER_UN?'on':''}">${u}</button>`).join('')}</div>
-    <div class="mf"><label>Rendimento da receita cheia</label><input type="number" id="erRend" step="0.0001" inputmode="decimal" value="${r.rendimento_qtd!=null?r.rendimento_qtd:''}" placeholder="quanto rende no total"></div>
-    <div class="mf"><label>Tamanho da porção <span style="color:var(--mut);font-weight:400">(quanto vai em cada etiqueta)</span></label><input type="number" id="erPorc" step="0.0001" inputmode="decimal" value="${r.porcao_qtd!=null?r.porcao_qtd:''}" placeholder="ex.: 2 (por porção)"></div>
-    <div class="entra on" id="erPor"></div>`;
+  $('#shBody').innerHTML=`<div class="note">Preencha pela receita <b>inteira</b>, do jeito que ela sai da panela.<br>Ex.: rende <b>1,89 kg</b> no total · cada porção leva <b>40 g</b> → <b>47 porções</b>.</div>
+    <div class="mf"><label>1 · A receita cheia rende quanto, no total?</label>
+      <div class="rendrow"><input type="number" id="erRend" step="0.0001" inputmode="decimal" value="${r.rendimento_qtd!=null?r.rendimento_qtd:''}" placeholder="ex.: 1890"><span class="chip" id="erUnRo" style="pointer-events:none;min-width:52px;justify-content:center">${ER_UN}</span></div>
+      <div id="erUnBtns" class="tabs chips" style="margin-top:6px">${['g','kg','L','un'].map(u=>`<button class="chip ${u===ER_UN?'on':''}" data-u="${u}">${u}</button>`).join('')}</div></div>
+    <div class="mf"><label>2 · Cada porção (etiqueta) leva quanto?</label>
+      <div class="rendrow"><input type="number" id="erPorc" step="0.0001" inputmode="decimal" value="${r.porcao_qtd!=null?r.porcao_qtd:''}" placeholder="ex.: 40"><span class="chip" id="erUnRo2" style="pointer-events:none;min-width:52px;justify-content:center">${ER_UN}</span></div></div>
+    <div class="envsel" id="erPor" style="margin-top:2px"></div>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar rendimento';
   $('#shSave').removeAttribute('disabled'); onSave=salvarEditRend; openSheet();
   $$('#erUnBtns button').forEach(b=>b.onclick=()=>erSwitchUn(b.dataset.u));
