@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Cozinha Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#A82A2A; --vinhoH:#7E1E1F; --azul:#2C5AA0;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --r-btn:13px; --r-card:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px 64px}
+
+header{padding:34px 0 22px;border-bottom:1px solid var(--fio);margin-bottom:32px}
+.marca{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.marca .n{font-family:Fraunces,serif;font-weight:600;font-size:22px;color:var(--vinho);line-height:1}
+.marca .selo{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#fff;
+  background:var(--azul);border-radius:50px;padding:3px 11px;white-space:nowrap}
+header h1{font-family:Fraunces,serif;font-weight:600;font-size:26px;color:var(--vinho);line-height:1.1}
+header .sub{font-size:12px;font-weight:600;color:var(--mut);margin-top:5px;letter-spacing:.02em}
+.quem{font-size:12.5px;color:var(--mut);margin-top:4px}
+.quem b{color:var(--sec)}
+
+.lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin:0 0 14px}
+
+a.app{display:flex;align-items:center;gap:15px;background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-card);padding:18px 16px;margin-bottom:12px;text-decoration:none;color:inherit}
+a.app:active{background:var(--cremeDark)}
+a.app .ico{font-size:30px;color:var(--vinho);flex-shrink:0;display:flex}
+a.app .t{flex:1;min-width:0}
+a.app .t b{display:block;font-size:15px;font-weight:700}
+a.app .t span{display:block;font-size:12.5px;color:var(--mut);margin-top:2px}
+a.app .go{color:var(--lbl);font-size:20px;display:flex}
+
+.foot{margin-top:36px;font-size:12px;color:var(--mut);text-align:center}
+.foot a{color:var(--vinho);text-decoration:none;font-weight:600}
+.sair{display:block;margin:22px auto 0;background:none;border:0;color:var(--mut);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="marca">
+      <span class="n">Lola</span>
+      <span class="selo">Cozinha Central</span>
+    </div>
+    <h1>Cozinha Central</h1>
+    <div class="sub">Notas, insumos, produções e pedidos</div>
+    <div class="quem" id="quem"></div>
+  </header>
+
+  <div class="lbl">Aplicativos</div>
+
+  <a class="app" href="estoque/">
+    <span class="ico"><i class="ph-duotone ph-stack"></i></span>
+    <span class="t">
+      <b>Estoque da Central</b>
+      <span>Notas, insumos, compras, produções, perdas, fichas técnicas e envios ao CCMQ</span>
+    </span>
+    <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
+  </a>
+
+  <!-- Painel escondido, como estava no /adm ("retomar quando quiser", decisão anterior
+       da Bianca). Mudar de endereço NÃO é hora de reabrir o que ela fechou.
+       Pra ligar: tirar o display:none e descomentar a linha lá embaixo. -->
+  <a class="app" href="painel/" id="cardPainel" style="display:none !important">
+    <span class="ico"><i class="ph-duotone ph-gauge"></i></span>
+    <span class="t">
+      <b>Painel da Central</b>
+      <span>CMV do mês, produção e o placar do teste de 60 dias</span>
+    </span>
+    <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
+  </a>
+
+  <button class="sair" id="btnSair">Sair da conta</button>
+
+  <div class="foot">
+    <a href="https://equipelola.net/">‹ Voltar ao portal do Lola</a>
+  </div>
+</div>
+
+<!-- O auth.js segue morando no /adm e é o MESMO login dos dois lados. Caminho absoluto
+     pra não depender de quantas pastas acima este arquivo está. -->
+<script src="/adm/auth.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+(async()=>{
+  /* Mesmos papéis que o card "Estoque da Central" exigia no hub do /adm — mudar de
+     endereço não pode afrouxar quem entra. */
+  const sess=await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Cozinha Central'});
+  $('#quem').innerHTML=`Você é <b>${sess.nome||sess.email}</b> · ${PAPEL_NOME[sess.papel]||sess.papel}`;
+  // Painel escondido por enquanto: if(['admin','financeiro','gerente'].includes(sess.papel)) $('#cardPainel').style.display='flex';
+})();
+$('#btnSair').onclick=()=>{ lolaLogout(); location.reload(); };
+</script>
+</body>
+</html>
