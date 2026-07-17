@@ -1938,16 +1938,16 @@ async function modalPrep(item){
     destBtnsWrap.appendChild(b);
   });
 
-  // Checkbox pré-preparo
+  /* 17/07: o Pré-preparo virou etiqueta na linha do "Onde é utilizado" (a Bianca:
+     "podia ter uma etiqueta de pré-preparo do lado do CCMQ MAC Central e Eventos").
+     A Categoria de custo saiu da tela — o valor gravado continua intacto. */
   let _isPre=!!(item?.e_preparo);
-  const preChkWrap=document.createElement('label');
-  preChkWrap.style.cssText='display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:700;padding:10px 14px;background:var(--rt);border-radius:10px;border:1.5px solid var(--rb);margin-top:0';
-  const chkInp=document.createElement('input');chkInp.type='checkbox';chkInp.checked=_isPre;
-  chkInp.style.cssText='width:18px;height:18px;accent-color:var(--v);cursor:pointer;flex-shrink:0';
-  chkInp.addEventListener('change',e=>_isPre=e.target.checked);
-  const chkLbl=document.createElement('div');
-  chkLbl.innerHTML='<strong>🔄 Pré-preparo</strong><div style="font-size:11px;font-weight:400;color:var(--ts)">Ingrediente usado dentro de outras produções</div>';
-  preChkWrap.appendChild(chkInp);preChkWrap.appendChild(chkLbl);
+  const preBtn=document.createElement('button'); preBtn.type='button';
+  preBtn.title='Ingrediente usado dentro de outras produções';
+  const paintPre=()=>{ preBtn.style.cssText='padding:7px 16px;border-radius:50px;font-size:12.5px;font-weight:800;cursor:pointer;border:1.5px solid #7A4FA3;background:'+(_isPre?'#7A4FA3':'#fff')+';color:'+(_isPre?'#fff':'#7A4FA3'); preBtn.textContent=(_isPre?'✓ ':'')+'Pré-preparo'; };
+  preBtn.onclick=()=>{ _isPre=!_isPre; paintPre(); };
+  paintPre();
+  destBtnsWrap.appendChild(preBtn);
 
   mkModal((ed?'Editar':'Nova')+' pré-produção',[
     div('fg3',[
@@ -1955,9 +1955,7 @@ async function modalPrep(item){
       fgrp('Categoria',fsel('',['central','mac','ccmq'],f.categoria,v=>f.categoria=v)),
       fgrp('✍️ Editado por',nomeEdit),
     ]),
-    fgrp('🏷️ Categoria de custo (relatório de compras por categoria)',fsel('',[{v:'',l:'— sem categoria —'}].concat(COST_CATS.map(x=>({v:x,l:costCatLabel(x)}))),f.cat_custo,v=>f.cat_custo=v)),
     fgrp('🏷️ Onde é utilizado',destBtnsWrap),
-    preChkWrap,
     div('fg2',[
       fgrp('Rendimento total',el('div',null,[(rendInp=finp('',f.rendimento_qtd,v=>{f.rendimento_qtd=v;f._rendManual=true;calcTotais();},'number')),el('button','btn bg bsm','= soma dos ingredientes',{type:'button',style:'margin-top:6px;display:block',onclick:()=>{f._rendManual=false;f.rendimento_qtd=Math.round(sumInRendUn()*1000)/1000;rendInp.value=f.rendimento_qtd;calcTotais();}})])),
       fgrp('Unidade',fsel('',['g','ml','kg','L','un','porção'],f.rendimento_un,v=>{f.rendimento_un=v;calcTotais();})),
@@ -2406,6 +2404,9 @@ function drawREC(w){
     nome.appendChild(span('ft-nome-t',x.nome));
     const tb=span('ft-sel',ehPP?'PP':'FICHA'); tb.style.background=ehPP?'#7A4FA3':'#A82A2A';
     tb.title=ehPP?'Pré-produção':'Ficha técnica'; nome.appendChild(tb);
+    /* 17/07: clicar na receita abre o EDITAR (quem só vê, abre a visualização) */
+    nome.style.cursor='pointer'; nome.title='Abrir no editor';
+    nome.addEventListener('click',()=>{ if(podeMexerAqui()){ ehPP?modalPrep(x):modalFicha(x); } else { ehPP?verFichaPrep(x):verFichaFT(x); } });
     _destinosDeVenda(x).forEach(d=>{ const s=span('ft-sel',DEST_LBL[d]||d); s.style.background=DEST_COR[d]||'#888'; s.title='Vendida para '+(DEST_LBL[d]||d); nome.appendChild(s); });
     if(x.revisar){ const rv=span('ft-rev'); rv.innerHTML='<i class="ph-duotone ph-warning"></i> revisar'; rv.title=x.revisar_motivo||''; rv.addEventListener('click',()=>modalRevisarFicha(ehPP?'pp':'ft',x)); nome.appendChild(rv); }
     if(!ehPP&&x.produto_pronto){ const pr=span('ft-pronto'); pr.innerHTML='<i class="ph-duotone ph-package"></i> produto pronto'; pr.title='Comprado feito — limite de CMV 50%'; nome.appendChild(pr); }
