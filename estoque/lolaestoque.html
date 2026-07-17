@@ -2399,17 +2399,21 @@ function drawREC(w){
     const cmv=(!ehPP&&!semPreco)?(x.custo_por_porcao/x.preco_venda*100):null;
     const row=div('ft-row'+((cmv!=null&&cmv>lim)?' alerta':''));
     const nome=div('ft-nome');
+    nome.appendChild(span('ft-nome-t',x.nome));
     const tb=span('ft-sel',ehPP?'PP':'FICHA'); tb.style.background=ehPP?'#7A4FA3':'#A82A2A';
     tb.title=ehPP?'Pré-produção':'Ficha técnica'; nome.appendChild(tb);
-    nome.appendChild(span('ft-nome-t',x.nome));
     _destinosDeVenda(x).forEach(d=>{ const s=span('ft-sel',DEST_LBL[d]||d); s.style.background=DEST_COR[d]||'#888'; s.title='Vendida para '+(DEST_LBL[d]||d); nome.appendChild(s); });
     if(x.revisar){ const rv=span('ft-rev'); rv.innerHTML='<i class="ph-duotone ph-warning"></i> revisar'; rv.title=x.revisar_motivo||''; rv.addEventListener('click',()=>modalRevisarFicha(ehPP?'pp':'ft',x)); nome.appendChild(rv); }
     if(!ehPP&&x.produto_pronto){ const pr=span('ft-pronto'); pr.innerHTML='<i class="ph-duotone ph-package"></i> produto pronto'; pr.title='Comprado feito — limite de CMV 50%'; nome.appendChild(pr); }
     row.appendChild(nome);
     const mob=div('ft-mob');
-    mob.appendChild(div('ft-num',[ehPP?(R(x.custo_por_unidade)+' /'+unBase):R(x.custo_por_porcao)]));
+    const subEl=t=>el('div',null,t,{style:'font-size:9.5px;font-weight:700;color:#B79A8E;text-transform:uppercase;letter-spacing:.08em;line-height:1.3'});
+    const custoCell=div('ft-num',[ehPP?R(x.custo_por_unidade):R(x.custo_por_porcao)]);
+    custoCell.appendChild(subEl(ehPP?('por '+unBase):'por porção'));
+    mob.appendChild(custoCell);
     const pv=div('ft-num pv ft-pv'+(semPreco?' vazio':''));
-    pv.textContent=semPreco?(ehPP?'—':'sem preço'):(ehPP?(R(x.valor_venda_central)+' /'+unBase):R(x.preco_venda));
+    pv.textContent=semPreco?(ehPP?'—':'sem preço'):(ehPP?R(x.valor_venda_central):R(x.preco_venda));
+    if(!semPreco) pv.appendChild(subEl(ehPP?('por '+unBase):'por porção'));
     mob.appendChild(pv);
     const cc=div('ft-cmvcel'); if(ehPP){ cc.textContent='—'; cc.style.cssText='text-align:right;color:#B79A8E;font-size:12px'; } else cc.appendChild(mkCMVCompacto(x.preco_venda,x.custo_por_porcao,lim));
     mob.appendChild(cc);
