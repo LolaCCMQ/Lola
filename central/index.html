@@ -19,7 +19,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{overflow-x:hidden}
 body{background:var(--creme);color:var(--ink);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
-.wrap{max-width:760px;margin:0 auto;padding:0 16px 96px}
+.wrap{padding:0 16px 96px}
 header{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:14px}
 header .back{background:none;border:0;color:var(--vinho);font-size:22px;display:flex;align-items:center;cursor:pointer;padding:4px}
 header h1{font-family:Fraunces,serif;font-weight:600;font-size:19px;color:var(--vinho);line-height:1.15}
@@ -76,10 +76,22 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .prodq .psaldo{width:76px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
 .prodq .pu{font-size:12px;color:var(--mut);font-weight:700;min-width:24px}
 .prodq .pdel{background:none;border:0;color:var(--lbl);font-size:17px;cursor:pointer;padding:2px}
-.pcard,.pzc{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
-.pzc .t b{display:block;font-size:14px;font-weight:700}
-.pzc .t span{display:block;font-size:11.5px;color:var(--mut);margin-top:2px}
-.pzc .prow.pztog{cursor:pointer;align-items:center}
+.pcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
+.pzlist{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden;margin-bottom:8px}
+.pzrow{border-bottom:1px solid var(--fio)}
+.pzrow:last-child{border-bottom:0}
+.pzline{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.pzline:active{background:var(--cremeDark)}
+.pzline .t{flex:1;min-width:0}
+.pzline .t b{display:block;font-size:14px;font-weight:700}
+.pzline .t span{display:block;font-size:11.5px;color:var(--mut);margin-top:1px}
+.pzline .qty{text-align:right;flex-shrink:0}
+.pzline .qty b{display:block;font-family:Fraunces,serif;font-weight:600;font-size:15px;color:var(--vinho);white-space:nowrap}
+.pzline .qty span{display:block;font-size:10.5px;color:var(--mut)}
+.pzbi{width:36px;height:36px;flex-shrink:0;border:0;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-size:17px}
+.pzbi.pzet{background:var(--okBg);color:var(--okFg)}
+.pzbi.pzrend{background:var(--pendBg);color:var(--pendFg)}
+.pzrow .usos.on{margin:0 14px 12px}
 .pzev{margin-top:2px}
 .pzevrow{align-items:center;gap:8px}
 .pzevrow span{flex:1;min-width:0}
@@ -831,25 +843,30 @@ function viewProduzidos(){
   list.sort((a,b)=>String(b.ultima||'').localeCompare(String(a.ultima||'')));
   if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-package"></i>Nada produzido ainda. Registre pelo botão Produzir.</div>`; return h; }
   h+=`<div class="lbl">Produzidos (${list.length})</div>`;
-  h+=list.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.id)||{}; const un=prodUn(r);
+  h+=`<div class="pzlist">`+list.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.id)||{}; const un=prodUn(r);
     const evts=x.evts.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
-    return `<div class="pzc" data-id="${x.id}">
-      <div class="prow pztog"><div class="t"><b>${esc(x.nome)}</b><span>última ${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'} · total ${num(x.total)} ${esc(un)}</span></div><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div>
+    const fem=/^(un|por|pç|fatia)/i.test(un);
+    return `<div class="pzrow" data-id="${x.id}">
+      <div class="pzline pztog">
+        <div class="t"><b>${esc(x.nome)}</b><span>${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'}</span></div>
+        <div class="qty"><b>${num(x.total)} ${esc(un)}</b><span>${fem?'produzidas':'produzidos'}</span></div>
+        <button class="pzbi pzet" title="Etiquetas" aria-label="Etiquetas"><i class="ph-duotone ph-tag"></i></button>
+        <button class="pzbi pzrend" title="Rendimento" aria-label="Rendimento"><i class="ph-duotone ph-scales"></i></button>
+      </div>
       <div class="usos pzbox">
         <div class="lbl" style="margin:0 0 4px">Receita usada</div>
         <div class="pzrec"><div class="uinfo">carregando…</div></div>
         <div class="lbl" style="margin:10px 0 4px">Produções (${x.n})</div>
         ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${esc(un)}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
       </div>
-      <div class="pacts"><button class="prodbtn pzet"><i class="ph-duotone ph-tag"></i> Etiquetas</button><button class="btn sec pzrend"><i class="ph-duotone ph-scales"></i> Rendimento</button></div>
     </div>`;
-  }).join('');
+  }).join('')+`</div>`;
   return h;
 }
 function wireProduzidos(){
   const bq=$('#bqz'); if(bq){ bq.oninput=()=>{ST.buscaZ=bq.value; const p=bq.selectionStart; render(); const n=$('#bqz'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
-  $$('#app .pzc').forEach(el=>{ const id=el.dataset.id;
-    const tg=el.querySelector('.pztog'); if(tg) tg.onclick=async()=>{ const b=el.querySelector('.pzbox'); b.classList.toggle('on');
+  $$('#app .pzrow').forEach(el=>{ const id=el.dataset.id;
+    const tg=el.querySelector('.pztog'); if(tg) tg.onclick=async(ev)=>{ if(ev.target.closest('.pzbi'))return; const b=el.querySelector('.pzbox'); b.classList.toggle('on');
       const rec=el.querySelector('.pzrec'); if(b.classList.contains('on') && rec && !rec.dataset.loaded){ rec.dataset.loaded='1';
         const r=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(r);
         const total=(ST.prodHist||[]).filter(h=>h.preproducao_id===id).reduce((s,h)=>s+(+h.qtd_produzida||0),0);
