@@ -92,6 +92,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .pzbi.pzet{background:var(--okBg);color:var(--okFg)}
 .pzbi.pzrend{background:var(--pendBg);color:var(--pendFg)}
 .pzrow .usos.on{margin:0 14px 12px}
+iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!important;min-height:0!important;border-radius:0!important;z-index:600}
 .pzev{margin-top:2px}
 .pzevrow{align-items:center;gap:8px}
 .pzevrow span{flex:1;min-width:0}
@@ -1193,10 +1194,20 @@ function _telaDoEstoque(page){
   const s=lolaSession()||{};
   const quem=encodeURIComponent(s.nome||s.email||'');
   const src=_EST_URL+'?embed=1&unidade=central&page='+page+'&u='+quem;
-  return '<iframe src="'+src+'" title="'+page+'" '
+  return '<iframe src="'+src+'" title="'+page+'" class="estframe" scrolling="no" '
        + 'style="width:100%;height:calc(100vh - 132px);min-height:520px;border:0;'
        + 'border-radius:14px;background:#FBF7F1;display:block"></iframe>';
 }
+/* 17/07: o iframe se ajusta à altura do conteúdo (uma rolagem só) e, com modal aberto
+   lá dentro, toma a tela inteira — o editor de pré-produção vira página, não janelinha. */
+let _estFullScroll=0;
+window.addEventListener('message',e=>{ const d=e.data||{}; const f=document.querySelector('iframe.estframe'); if(!f) return;
+  if(d.type==='lola-embed-h' && !f.classList.contains('estfull')){ f.style.height=Math.max(520,+d.h||0)+'px'; }
+  if(d.type==='lola-embed-modal'){
+    if(d.on){ _estFullScroll=window.scrollY; f.classList.add('estfull'); document.body.style.overflow='hidden'; }
+    else { f.classList.remove('estfull'); document.body.style.overflow=''; window.scrollTo(0,_estFullScroll); }
+  }
+});
 function viewFt(){ return _telaDoEstoque('fichas'); }
 function wireFt(){}
 function viewReceitasNova(){ return _telaDoEstoque('preproducoes'); }
