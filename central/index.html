@@ -93,6 +93,21 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .pzbi.pzrend{background:var(--pendBg);color:var(--pendFg)}
 .pzrow .usos.on{margin:0 14px 12px}
 iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!important;min-height:0!important;border-radius:0!important;z-index:600}
+/* aba Início */
+.ini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.ini-card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:14px;text-align:center;cursor:pointer}
+.ini-card:active{background:var(--cremeDark)}
+.ini-card .k{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--lbl)}
+.ini-card .n{font-family:Fraunces,serif;font-weight:600;font-size:34px;line-height:1.15}
+.ini-card .s{font-size:11.5px;font-weight:600;color:var(--mut)}
+.ini-list{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px}
+.ini-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--fio);font-size:13px;cursor:pointer}
+.ini-row:last-child{border-bottom:0}
+.ini-row:active{background:var(--cremeDark)}
+.ini-row .t{flex:1;min-width:0;font-weight:700}
+.ini-row .t small{display:block;font-weight:600;font-size:11.5px;color:var(--mut);margin-top:1px}
+.ini-row b{font-family:Fraunces,serif;font-weight:600;color:var(--vinho);white-space:nowrap}
+.ini-vazio{padding:16px;text-align:center;font-size:12px;color:var(--lbl)}
 .pzev{margin-top:2px}
 .pzevrow{align-items:center;gap:8px}
 .pzevrow span{flex:1;min-width:0}
@@ -355,7 +370,8 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
   </header>
 
   <div class="tabs">
-    <button id="tabEnt" class="on"><i class="ph-duotone ph-file-arrow-down"></i> Notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
+    <button id="tabIni" class="on"><i class="ph-duotone ph-house"></i> Início</button>
+    <button id="tabEnt"><i class="ph-duotone ph-file-arrow-down"></i> Notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
     <button id="tabPed"><i class="ph-duotone ph-shopping-cart"></i> Pedidos <span class="cnt" id="cntPed" style="display:none">0</span></button>
     <button id="tabSal"><i class="ph-duotone ph-stack"></i> Insumos</button>
     <button id="tabCmp"><i class="ph-duotone ph-shopping-bag-open"></i> Compras</button>
@@ -424,7 +440,7 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 <script src="/adm/auth.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], fc:{}, alertas:[], tab:'ent',
+const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], fc:{}, alertas:[], tab:'ini',
   busca:'', soComSaldo:false, verImport:false, comp:'all', nota:null, itens:[]};
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800);}
 function brl(v){return (v==null||isNaN(v))?'—':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
@@ -468,7 +484,7 @@ async function carregar(){
     ST.movs=movs||[];
     buildInsumoOptions();
     render();
-    carregarEnvios(); carregarPedidos();
+    carregarEnvios(); carregarPedidos(); carregarProduzidos();
   }catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
 }
 
@@ -507,6 +523,8 @@ function computeFator(it){
 
 /* ============ RENDER ============ */
 function render(){
+  $('#tabIni').classList.toggle('on',ST.tab==='ini');
+  const _bb=$('#btnBack'); if(_bb) _bb.style.display = (ST.tab==='ini') ? 'none' : '';
   $('#tabEnt').classList.toggle('on',ST.tab==='ent');
   $('#tabSal').classList.toggle('on',ST.tab==='sal');
   $('#tabPed').classList.toggle('on',ST.tab==='ped');
@@ -522,8 +540,8 @@ function render(){
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, env:viewEnvio, al:viewAlertas};
-  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, env:wireEnvio, al:wireAlertas};
+  const V={ini:viewInicio, ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, env:viewEnvio, al:viewAlertas};
+  const W={ini:wireInicio, ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, env:wireEnvio, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -827,10 +845,10 @@ function updateRend(ri, f){
 /* ===== ITENS PRODUZIDOS (histórico; etiquetar / editar rendimento) ===== */
 let EDIT_REND=null;
 async function carregarProduzidos(){
-  ST.prodHist='loading'; if(ST.tab==='pz') render();
+  ST.prodHist='loading'; if(ST.tab==='pz'||ST.tab==='ini') render();
   try{ ST.prodHist=await api('lola_central_prod_hist?ativo=neq.false&select=id,preproducao_id,data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=400'); }
   catch(e){ ST.prodHist=[]; }
-  if(ST.tab==='pz') render();
+  if(ST.tab==='pz'||ST.tab==='ini') render();
 }
 function viewProduzidos(){
   let h=`<div class="note">Tudo que já foi <b>produzido</b> na Central. Toque num item pra <b>imprimir etiquetas</b> ou <b>corrigir o rendimento</b> da receita.</div>`;
@@ -1381,11 +1399,11 @@ async function delEnvio(id, nome){
 }
 /* ===== PEDIDOS À CENTRAL (o Arthur aceita/pronto por aqui) ===== */
 async function carregarPedidos(){
-  ST.pedidos='loading'; if(ST.tab==='ped') render();
+  ST.pedidos='loading'; if(ST.tab==='ped'||ST.tab==='ini') render();
   try{ ST.pedidos=await api('lola_pedidos?select=id,numero_pedido,unidade,status,central_status,central_aceito_por,data_pedido,responsavel,valor_total,observacoes,lola_pedidos_itens(nome_item,quantidade,unidade,subtotal)&order=data_pedido.desc,numero_pedido.desc&limit=80'); }
   catch(e){ ST.pedidos=[]; }
   atualizaBadgePed();
-  if(ST.tab==='ped') render();
+  if(ST.tab==='ped'||ST.tab==='ini') render();
 }
 function atualizaBadgePed(){ const d=ST.pedidos; const nn=(d&&d!=='loading')?d.filter(p=>p.status==='solicitado' && (!p.central_status||p.central_status==='novo')).length:0; const cp=$('#cntPed'); if(cp){ if(nn){cp.style.display='';cp.textContent=nn;}else cp.style.display='none'; } }
 function pedUniTag(u){ return u==='ccmq'?'<span class="utag ccmq">CCMQ</span>':u==='mac'?'<span class="utag mac">MAC</span>':''; }
@@ -1480,6 +1498,47 @@ async function resSalvar(destino){
       toast('Justificado e enviado pro CCMQ ✓'); await carregar();
     }
   }catch(e){ toast('Erro: '+e.message); $('#resCentral').removeAttribute('disabled'); $('#resCcmq').removeAttribute('disabled'); }
+}
+
+/* ===== INÍCIO (17/07: "a central deveria ter sua propria pagina inicial com informações importantes") ===== */
+function viewInicio(){
+  const hoje=new Date().toISOString().slice(0,10);
+  const peds=(ST.pedidos&&ST.pedidos!=='loading')?ST.pedidos.filter(p=>p.status==='solicitado'):null;
+  const nCcmq=peds?peds.filter(p=>p.unidade==='ccmq').length:0, nMac=peds?peds.filter(p=>p.unidade==='mac').length:0;
+  const al=(ST.alertas||[]).filter(x=>!x.resolvido);
+  const ph=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(x=>String(x.data).slice(0,10)===hoje):null;
+  const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
+  let h='';
+  h+=`<div class="ini-grid">
+    <div class="ini-card" data-go="ped"><div class="k">Pedidos pendentes</div><div class="n" style="color:var(--pendFg)">${peds?peds.length:'…'}</div><div class="s">${peds?(peds.length?[nCcmq?nCcmq+' CCMQ':'',nMac?nMac+' MAC':''].filter(Boolean).join(' · ')||'aguardando':'nenhum a fazer'):'carregando'}</div></div>
+    <div class="ini-card" data-go="al"><div class="k">Alertas abertos</div><div class="n" style="color:${al.length?'var(--urgFg)':'var(--okFg)'}">${al.length}</div><div class="s">${al.length?'toque pra resolver':'tudo resolvido'}</div></div>
+    <div class="ini-card" data-go="pz"><div class="k">Produzido hoje</div><div class="n" style="color:var(--okFg)">${ph?ph.length:'…'}</div><div class="s">${ph?(ph.length===1?'produção registrada':'produções registradas'):'carregando'}</div></div>
+  </div>`;
+  h+=`<div class="lbl" style="margin-top:0">Pedidos pendentes</div><div class="ini-list">`;
+  if(!peds) h+=`<div class="ini-vazio">carregando…</div>`;
+  else if(!peds.length) h+=`<div class="ini-vazio">Nenhum pedido esperando. 🎉</div>`;
+  else h+=peds.slice(0,4).map(p=>`<div class="ini-row ini-ped" data-id="${p.id}"><div class="t">#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}<small>${fmtData(String(p.data_pedido).slice(0,10))}${p.responsavel?' · '+esc((p.responsavel||'').trim()):''} · ${(p.lola_pedidos_itens||[]).length} itens</small></div><b>${brl(p.valor_total)}</b></div>`).join('')
+        +(peds.length>4?`<div class="ini-row" data-go="ped"><div class="t" style="color:var(--mut)">ver todos os ${peds.length} pedidos</div><i class="ph-duotone ph-caret-right" style="color:var(--lbl)"></i></div>`:'');
+  h+=`</div>`;
+  h+=`<div class="lbl">Produzido hoje</div><div class="ini-list">`;
+  if(!ph) h+=`<div class="ini-vazio">carregando…</div>`;
+  else if(!ph.length) h+=`<div class="ini-vazio">Nada registrado ainda hoje — registre pelo botão Produzir.</div>`;
+  else h+=ph.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.preproducao_id)||{}; return `<div class="ini-row" data-go="pz"><div class="t">${esc(nomeDe(x.preproducao_id))}<small>${x.criado_por?esc(x.criado_por):''}</small></div><b>+${num(x.qtd_produzida)} ${esc(prodUn(r))}</b></div>`; }).join('');
+  h+=`</div>`;
+  if(al.length){
+    h+=`<div class="lbl">Precisa de atenção</div><div class="ini-list">`;
+    h+=al.slice(0,4).map(a=>`<div class="ini-row" data-go="al"><span style="width:8px;height:8px;border-radius:99px;background:var(--urgFg);flex-shrink:0"></span><div class="t" style="font-weight:600">${esc(a.desc_item||'Alerta')}<small>${a.criado_por?esc(a.criado_por)+' · ':''}${fmtData(String(a.criado_em||'').slice(0,10))}</small></div><i class="ph-duotone ph-caret-right" style="color:var(--lbl)"></i></div>`).join('');
+    h+=`</div>`;
+  }
+  return h;
+}
+function _iniGo(t){ ST.tab=t; render();
+  if(t==='ped' && (!ST.pedidos||ST.pedidos==='loading')) carregarPedidos();
+  if(t==='pz' && (!ST.prodHist||ST.prodHist==='loading')) carregarProduzidos();
+}
+function wireInicio(){
+  $$('#app [data-go]').forEach(el=>el.onclick=()=>_iniGo(el.dataset.go));
+  $$('#app .ini-ped').forEach(el=>el.onclick=()=>{ const id=el.dataset.id; _iniGo('ped'); setTimeout(()=>{ try{ openPedido(id); }catch(_){} },60); });
 }
 
 function viewEntrada(){
@@ -2061,7 +2120,8 @@ $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carr
 /* Este app É o /central (a Bianca tirou o hub: "pode abrir direto, não precisa
    essa página inicial"). Então "voltar" vai pro portal, não pra um hub que não
    existe mais. Era '../' quando ele morava em /adm/central-estoque. */
-$('#btnBack').onclick=()=>{ location.href='https://equipelola.net/'; };
+$('#btnBack').onclick=()=>{ ST.tab='ini'; render(); }; /* 17/07: voltar leva pro Início da Central, não mais pro portal */
+const _tabIniBtn=document.getElementById('tabIni'); if(_tabIniBtn) _tabIniBtn.onclick=()=>{ ST.tab='ini'; render(); };
 let onSave=salvarEntrada;
 $('#shX').onclick=closeSheet; $('#sheetBg').onclick=closeSheet; $('#shSave').onclick=()=>onSave();
 $('#imX').onclick=closeIns; $('#insBg').onclick=closeIns; $('#imSave').onclick=salvarInsumo;
