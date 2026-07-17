@@ -7138,7 +7138,9 @@ buildShell();
   st.textContent='.topbar,.sidebar,.mob-overlay{display:none!important}.app-body{min-height:100vh!important}.main{width:100%!important;max-width:980px!important;margin:0 auto!important}'
     /* 17/07: editor grande em embed vira página inteira (a Bianca: "a tela deveria entrar inteira e nao com esse fundo estranho escuro") */
     +'body.embed .ov:has(.mol),body.embed .ov:has(.moxl){background:#FBF7F1!important;backdrop-filter:none!important}'
-    +'body.embed .ov .mo.mol,body.embed .ov .mo.moxl{width:100%!important;max-width:100%!important;height:100%!important;max-height:100%!important;border-radius:0!important;border:0!important;box-shadow:none!important}';
+    +'body.embed .ov .mo.mol,body.embed .ov .mo.moxl{width:100%!important;max-width:100%!important;height:100%!important;max-height:100%!important;border-radius:0!important;border:0!important;box-shadow:none!important}'
+    /* regra real: mesmo em tela cheia, o CONTEÚDO respeita 980px centralizado */
+    +'body.embed .ov .mo.mol .mh,body.embed .ov .mo.moxl .mh,body.embed .ov .mo.mol .mb,body.embed .ov .mo.moxl .mb{max-width:980px;margin-left:auto!important;margin-right:auto!important;width:100%}';
   document.head.appendChild(st);
   document.body.classList.add('embed');
   /* avisa o pai (Central) da altura do conteúdo (mata a rolagem dupla) e de modal aberto (pai expande o iframe) */
