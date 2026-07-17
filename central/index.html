@@ -913,7 +913,7 @@ function viewProduzidos(){
     return `<div class="pzrow" data-id="${x.id}">
       <div class="pzline pztog">
         <div class="t"><b>${esc(x.nome)}</b><span>${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'}</span></div>
-        <div class="qty"><b>${num(x.total)} ${esc(un)}</b><span>${porc||(fem?'produzidas':'produzidos')}</span></div>
+        <div class="qty"><b>${num(x.total)} ${porc?'porções':esc(un)}</b><span>${porc?('de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)+' cada'):(fem?'produzidas':'produzidos')}</span></div>
         <button class="pzbi pzet" title="Etiquetas" aria-label="Etiquetas"><i class="ph-duotone ph-tag"></i></button>
         <button class="pzbi pzrend" title="Rendimento" aria-label="Rendimento"><i class="ph-duotone ph-scales"></i></button>
       </div>
@@ -921,7 +921,7 @@ function viewProduzidos(){
         <div class="lbl" style="margin:0 0 4px">Receita usada</div>
         <div class="pzrec"><div class="uinfo">carregando…</div></div>
         <div class="lbl" style="margin:10px 0 4px">Produções (${x.n})</div>
-        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${esc(un)}${porc?' <small style="font-weight:600;color:var(--mut)">('+porc+')</small>':''}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
+        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${porc?('porções <small style="font-weight:600;color:var(--mut)">de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)+'</small>'):esc(un)}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
       </div>
     </div>`;
   }).join('')+`</div>`;
@@ -937,7 +937,9 @@ function wireProduzidos(){
         let fator=1; if(ri.base>0 && total>0) fator=total/ri.base;
         try{ const rr=await post('rpc/central_receita_itens',{pid:id});
           if(Array.isArray(rr)&&rr.length){
-            const cab = (fator!==1) ? `<div class="uinfo" style="margin-bottom:5px">Ingredientes p/ <b>${num(total)} ${esc(prodUn(r))}</b> produzidos (${num(fator)}× a receita):</div>` : '';
+            /* 17/07: sem o "(40× a receita)" — a Bianca: "não é muito relevante". E porção é a unidade. */
+            const _temPorc=+r.porcao_qtd>0&&r.porcao_un;
+            const cab = `<div class="uinfo" style="margin-bottom:5px">Ingredientes p/ <b>${num(total)} ${_temPorc?'porções':esc(prodUn(r))}</b> ${_temPorc||/^(un|por)/i.test(prodUn(r))?'produzidas':'produzidos'}:</div>`;
             rec.innerHTML=cab+rr.map(z=>{const c=convCusto((+z.qtd||0)*fator, z.unidade, z.unidade_custo);return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
           } else rec.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; }
         catch(e){ rec.innerHTML='<div class="uinfo">Erro ao carregar a receita.</div>'; rec.dataset.loaded=''; }
