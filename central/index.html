@@ -45,6 +45,9 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .toolbar input[type=search]{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:11px 12px;font:inherit;font-size:14px;min-height:44px}
 .chip{background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:0 14px;min-height:44px;font:inherit;font-weight:700;font-size:12.5px;color:var(--sec);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
 .chip.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+/* 17/07: "esses botoes estao gigantes - deixar mais minimalista - em uma linha" — filtros viram pílulas compactas */
+.tabs.chips{gap:6px;overflow-x:auto;flex-wrap:nowrap}
+.tabs.chips button{flex:0 0 auto;min-height:34px;padding:0 14px;font-size:12px;border-radius:999px}
 
 /* cartão de nota */
 .ncard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px}
@@ -1353,7 +1356,7 @@ function viewEnvio(){
   const d=ST.envios;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
   const fd=ST.envDestFiltro||'todos';
-  h+=`<div class="tabs" style="margin-bottom:12px">
+  h+=`<div class="tabs chips" style="margin-bottom:12px">
     <button class="chip ${fd==='todos'?'on':''}" data-ed="todos">Todos</button>
     <button class="chip ${fd==='ccmq'?'on':''}" data-ed="ccmq">CCMQ</button>
     <button class="chip ${fd==='mac'?'on':''}" data-ed="mac">MAC</button>
@@ -1518,11 +1521,11 @@ function pedPill(cs){ cs=cs||'novo'; return cs==='pronto'?'<span class="stpill o
 function viewPedidos(){
   const uni=ST.pedUni||'todas', filtro=ST.pedFiltro||'abertos';
   let h=`<div class="note">Pedidos que o <b>CCMQ</b> e o <b>MAC</b> fazem pra Central. Aceite e marque quando estiver <b>pronto pra enviar</b>. (Eles continuam criando os pedidos do lado deles.)</div>`;
-  h+=`<div class="tabs" style="margin-bottom:8px">
+  h+=`<div class="tabs chips" style="margin-bottom:8px">
      <button class="chip ${uni==='todas'?'on':''}" data-pu="todas">Todas</button>
      <button class="chip ${uni==='ccmq'?'on':''}" data-pu="ccmq">CCMQ</button>
      <button class="chip ${uni==='mac'?'on':''}" data-pu="mac">MAC</button></div>`;
-  h+=`<div class="tabs" style="margin-bottom:12px">
+  h+=`<div class="tabs chips" style="margin-bottom:12px">
      <button class="chip ${filtro==='abertos'?'on':''}" data-pf="abertos">A fazer</button>
      <button class="chip ${filtro==='todos'?'on':''}" data-pf="todos">Todos</button></div>`;
   const d=ST.pedidos;
@@ -1663,7 +1666,7 @@ function viewEntrada(){
   h+=`<div class="monthsel"><span>Competência</span>
       <select id="selComp"><option value="all">Todas as competências (${ST.notas.length})</option>
       ${meses.map(m=>`<option value="${m}"${ST.comp===m?' selected':''}>${compLabel(m)} (${ST.notas.filter(n=>mesDe(n)===m).length})</option>`).join('')}</select></div>`;
-  h+=`<div class="tabs" style="margin-bottom:12px">
+  h+=`<div class="tabs chips" style="margin-bottom:12px">
       <button class="chip ${filtro==='pend'?'on':''}" data-f="pend">A lançar (${nPend})</button>
       <button class="chip ${filtro==='feitas'?'on':''}" data-f="feitas">Inseridas (${nFeitas})</button>
       <button class="chip ${filtro==='todas'?'on':''}" data-f="todas">Todas (${doMes.length})</button></div>`;
