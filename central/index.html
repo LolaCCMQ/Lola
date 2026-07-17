@@ -657,13 +657,11 @@ function renderPerdaBody(){
       <button class="chip ${PERDA_CUR.tipo==='producao'?'on':''}" data-t="producao">Produção</button>
     </div></div>
     <div class="mf"><label>Item</label><select id="pdItem">${perdaItemOpts()}</select></div>
-    <div class="mf"><label>Quantidade</label><input type="number" id="pdQtd" step="0.001" inputmode="decimal" placeholder="0"></div>
-    <div class="mf"><label>Unidade</label><input type="text" id="pdUn" placeholder="kg"></div>
-    <div class="mf"><label>Motivo</label><div class="unrow" id="pdMot">
+    <div class="mf"><label>Quantidade</label><div class="rendrow"><input type="number" id="pdQtd" step="0.001" inputmode="decimal" placeholder="0"><input type="text" id="pdUn" placeholder="kg" style="max-width:90px"></div></div>
+    <div class="mf"><label>Motivo</label><div class="tabs chips" id="pdMot" style="margin:0">
       ${PERDA_MOTIVOS.map(m=>`<button class="chip ${PERDA_CUR.motivo===m.v?'on':''}" data-m="${m.v}">${m.l}</button>`).join('')}
     </div></div>
-    <div class="mf"><label>Data</label><input type="date" id="pdData" value="${hoje}"></div>
-    <div class="mf"><label>Observação (opcional)</label><input type="text" id="pdObs" placeholder="ex.: caiu no chão"></div>
+    <div class="mf"><label>Data e observação</label><div class="rendrow"><input type="date" id="pdData" value="${hoje}" style="max-width:160px"><input type="text" id="pdObs" placeholder="opcional — ex.: caiu no chão"></div></div>
     <div id="pdInfo" class="imnote" style="display:none"></div>`;
   $$('#pdTipo .chip').forEach(b=>b.onclick=()=>{ PERDA_CUR.tipo=b.dataset.t; PERDA_CUR.ref=''; renderPerdaBody(); });
   $$('#pdMot .chip').forEach(b=>b.onclick=()=>{ PERDA_CUR.motivo=b.dataset.m; $$('#pdMot .chip').forEach(x=>x.classList.toggle('on',x.dataset.m===PERDA_CUR.motivo)); });
@@ -910,10 +908,12 @@ function viewProduzidos(){
   h+=`<div class="pzlist">`+list.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.id)||{}; const un=prodUn(r);
     const evts=x.evts.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
     const fem=/^(un|por|pç|fatia)/i.test(un);
+    /* 17/07: "o que mais importa é o rendimento — 20 unidades ou 20 porções de 40 g?" */
+    const porc=(+r.porcao_qtd>0&&r.porcao_un)?('porções de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)):null;
     return `<div class="pzrow" data-id="${x.id}">
       <div class="pzline pztog">
         <div class="t"><b>${esc(x.nome)}</b><span>${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'}</span></div>
-        <div class="qty"><b>${num(x.total)} ${esc(un)}</b><span>${fem?'produzidas':'produzidos'}</span></div>
+        <div class="qty"><b>${num(x.total)} ${esc(un)}</b><span>${porc||(fem?'produzidas':'produzidos')}</span></div>
         <button class="pzbi pzet" title="Etiquetas" aria-label="Etiquetas"><i class="ph-duotone ph-tag"></i></button>
         <button class="pzbi pzrend" title="Rendimento" aria-label="Rendimento"><i class="ph-duotone ph-scales"></i></button>
       </div>
@@ -921,7 +921,7 @@ function viewProduzidos(){
         <div class="lbl" style="margin:0 0 4px">Receita usada</div>
         <div class="pzrec"><div class="uinfo">carregando…</div></div>
         <div class="lbl" style="margin:10px 0 4px">Produções (${x.n})</div>
-        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${esc(un)}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
+        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${esc(un)}${porc?' <small style="font-weight:600;color:var(--mut)">('+porc+')</small>':''}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
       </div>
     </div>`;
   }).join('')+`</div>`;
@@ -1264,7 +1264,10 @@ function _telaDoEstoque(page){
 /* 17/07: o iframe se ajusta à altura do conteúdo (uma rolagem só) e, com modal aberto
    lá dentro, toma a tela inteira — o editor de pré-produção vira página, não janelinha. */
 let _estFullScroll=0;
-window.addEventListener('message',e=>{ const d=e.data||{}; const f=document.querySelector('iframe.estframe'); if(!f) return;
+window.addEventListener('message',e=>{ const d=e.data||{};
+  /* 17/07: o voltar de DENTRO das telas embutidas ia pra "Cozinha CCMQ" do Estoque — agora traz pro Início da Central */
+  if(d.lola==='voltar-menu'){ ST.tab='ini'; render(); return; }
+  const f=document.querySelector('iframe.estframe'); if(!f) return;
   if(d.type==='lola-embed-h' && !f.classList.contains('estfull')){ f.style.height=Math.max(520,+d.h||0)+'px'; }
   if(d.type==='lola-embed-modal'){
     if(d.on){ _estFullScroll=window.scrollY; f.classList.add('estfull'); document.body.style.overflow='hidden'; }
