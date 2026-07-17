@@ -2715,38 +2715,13 @@ async function modalFicha(item){
   const descEd=el('input','fi',null,{type:'text',id:'ft-descricao-edicao',placeholder:ed?'Ex: ajustei gramatura do croissant de 80g para 110g':'Nova ficha'});
   // Seletor de destinos
   const destSelectorFT=mkDestinosSelector(item?.destinos||[],'ft');
-  // Toggle pré-preparo (entra no Pedido à Central)
-  const prePreparoToggle=(()=>{
-    const wrap=div('fl_ aic');
-    wrap.style.cssText='margin-top:4px;padding:12px 14px;background:#fff;border:1.5px solid var(--rb);border-radius:13px;gap:12px;cursor:pointer;user-select:none';
-    const txt=div(null);txt.style.cssText='flex:1';
-    txt.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--tx)">Pré-preparo</div><div style="font-size:11px;color:#8A7A72">Entra no Pedido à Central em todas as unidades</div>';
-    const sw=document.createElement('div');const knob=document.createElement('div');sw.appendChild(knob);
-    function paint(){sw.style.cssText='width:46px;height:26px;border-radius:50px;position:relative;flex-shrink:0;transition:background .15s;background:'+(f.e_preparo?'var(--v)':'#D9CEC4');knob.style.cssText='width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;transition:left .15s;left:'+(f.e_preparo?'23px':'3px');}
-    paint();
-    wrap.addEventListener('click',()=>{f.e_preparo=!f.e_preparo;paint();});
-    wrap.appendChild(txt);wrap.appendChild(sw);
-    return wrap;
-  })();
-  /* Toggle PRODUTO PRONTO — decide o limite de CMV desta ficha (50% em vez de 30%).
-     Regra da Bianca: 50% só vale pra comprado feito, sem nenhuma manipulação. */
-  const produtoProntoToggle=(()=>{
-    const wrap=div('fl_ aic');
-    wrap.style.cssText='margin-top:4px;padding:12px 14px;background:#fff;border:1.5px solid var(--rb);border-radius:13px;gap:12px;cursor:pointer;user-select:none';
-    const txt=div(null);txt.style.cssText='flex:1';
-    const sw=document.createElement('div');const knob=document.createElement('div');sw.appendChild(knob);
-    function paint(){
-      txt.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--tx)">Produto pronto</div>'
-        +'<div style="font-size:11px;color:#8A7A72">Comprado feito, sem manipulação (ex.: torta fatiada). '
-        +'Limite de CMV: <b>'+(f.produto_pronto?'50%':'30%')+'</b></div>';
-      sw.style.cssText='width:46px;height:26px;border-radius:50px;position:relative;flex-shrink:0;transition:background .15s;background:'+(f.produto_pronto?'var(--v)':'#D9CEC4');
-      knob.style.cssText='width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;transition:left .15s;left:'+(f.produto_pronto?'23px':'3px');
-    }
-    paint();
-    wrap.addEventListener('click',()=>{f.produto_pronto=!f.produto_pronto;paint();calcTotais();});
-    wrap.appendChild(txt);wrap.appendChild(sw);
-    return wrap;
-  })();
+  /* 17/07: "utilizar menos linhas e menos espaços" — os dois interruptores gigantes
+     viraram etiquetas na linha do "Onde é servido" (igual ao editor de PP). */
+  const _mkFlagPill=(get,set,label,cor,title,extra)=>{ const b=document.createElement('button'); b.type='button'; b.title=title;
+    const paint=()=>{ b.style.cssText='padding:7px 16px;border-radius:50px;font-size:12.5px;font-weight:800;cursor:pointer;border:1.5px solid '+cor+';background:'+(get()?cor:'#fff')+';color:'+(get()?'#fff':cor); b.textContent=(get()?'✓ ':'')+label; };
+    b.onclick=()=>{ set(!get()); paint(); if(extra)extra(); }; paint(); return b; };
+  destSelectorFT.appendChild(_mkFlagPill(()=>f.e_preparo,v=>f.e_preparo=v,'Pré-preparo','#7A4FA3','Entra no Pedido à Central em todas as unidades'));
+  destSelectorFT.appendChild(_mkFlagPill(()=>f.produto_pronto,v=>f.produto_pronto=v,'Produto pronto','#9A6B1E','Comprado feito, sem manipulação (ex.: torta fatiada) — limite de CMV vira 50%',()=>calcTotais()));
 
   let fotos=[]; if(ed && item?.id){ try{ const _fr=await db('lola_fichas_fotos','GET',null,'?ficha_id=eq.'+item.id+'&order=created_at.asc'); fotos=(_fr||[]).map(function(x){return x.foto;}); }catch(e){} }
   const fotosWidget=buildFotosWidget(fotos);
@@ -2767,12 +2742,10 @@ async function modalFicha(item){
       fgrp('\u00A0',btn('btn bg bsm','↧ Usar preço sugerido',()=>{if(_precoSug>0){f.preco_venda=_precoSug.toFixed(2);if(precoInp)precoInp.value=f.preco_venda;calcTotais();}})),
     ]),
     div('fg2',[
-      fgrp('🏷️ Onde é servido',destSelectorFT),
-    fgrp('Rendimento (qtd)',finp('',f.rendimento_qtd,v=>f.rendimento_qtd=v,'number')),
+      fgrp('Rendimento (qtd)',finp('',f.rendimento_qtd,v=>f.rendimento_qtd=v,'number')),
       fgrp('Unidade rendimento',fsel('',['porção','un','kg','L','pessoa'],f.rendimento_un,v=>f.rendimento_un=v)),
     ]),
-    prePreparoToggle,
-    produtoProntoToggle,
+    fgrp('🏷️ Onde é servido',destSelectorFT),
     fgrp('📷 Fotos do prato',fotosWidget),
     el('hr','dv'),
     div('fl_ jb aic mb3',[
