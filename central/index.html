@@ -773,9 +773,12 @@ function prodUn(r){ const s=(ST.saldo||{})[r.id]; if(s&&s.unidade) return s.unid
 function viewProd(){
   const R=ST.receitas;
   let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
-  h+=`<button class="btn" id="btnNovaProd" style="margin-bottom:10px"><i class="ph-duotone ph-plus-circle"></i> Adicionar nova produção</button>`;
-  h+=`<div class="btn2"><button class="btn sec" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button><button class="btn sec" id="btnHistProd"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
-  h+=`<div class="toolbar"><input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}"></div>`;
+  /* 17/07: "colocar esses quatro botoes em uma unica linha" */
+  h+=`<div class="toolbar" style="flex-wrap:wrap">
+    <button class="btn" id="btnNovaProd" style="flex:0 0 auto;width:auto;padding:0 16px"><i class="ph-duotone ph-plus-circle"></i> Nova produção</button>
+    <button class="chip" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button>
+    <button class="chip" id="btnHistProd"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
+    <input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}" style="flex:1;min-width:160px"></div>`;
   if(R==='loading'||!R){ h+=`<div class="spin"></div>`; return h; }
   let list=(R||[]).slice();
   if(ST.buscaP){ const b=norm(ST.buscaP); list=list.filter(x=>norm(x.nome).includes(b)); }
