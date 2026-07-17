@@ -83,7 +83,7 @@ function _gateCSS(){
   const st=document.createElement('style'); st.id='lolaGateCSS';
   st.textContent=`
   #lolaGate{position:fixed;inset:0;background:#FBF7F1;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;
-    font-family:'Hanken Grotesk',system-ui,sans-serif;color:#2A1A17}
+    font-family:'Manrope',system-ui,sans-serif;color:#2A1A17}
   #lolaGate .gb{width:100%;max-width:350px;text-align:center}
   #lolaGate .mk{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:30px;color:#A82A2A;margin-bottom:5px}
   #lolaGate .sb{font-size:13px;color:#8A7A72;margin-bottom:26px}
