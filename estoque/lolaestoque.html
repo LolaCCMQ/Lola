@@ -725,7 +725,7 @@ async function pgDash(c){
       db('lola_contagens','GET',null,'?order=data_contagem.desc&limit=3'),
       db('lola_fichas_tecnicas','GET',null,'?select=id,nome&ativo=eq.true&revisar=eq.true'+_cozIn),
       db('lola_preproducoes','GET',null,'?select=id,nome&ativo=eq.true&revisar=eq.true'+_cozIn),
-      db('lola_central_envio_ccmq','GET',null,'?select=id,descricao,quantidade,unidade,prato,data,responsavel&ativo=neq.false&atendido=eq.false&order=data.desc'),
+      db('lola_central_envio_ccmq','GET',null,'?select=id,descricao,quantidade,unidade,prato,data,responsavel&ativo=neq.false&atendido=eq.false&destino=eq.ccmq&order=data.desc'),
     ]);
     c.innerHTML='';
     let fichasEl=null, contagensEl=null;
@@ -4885,7 +4885,7 @@ const INS_TO_COST={'carnes':'Carnes e Pescados','Carnes e Pescados':'Carnes e Pe
 ══════════════════════════════════ */
 async function updEnviosBadge(){
   try{
-    const r=await db('lola_central_envio_ccmq','GET',null,'?select=id&ativo=neq.false&atendido=eq.false');
+    const r=await db('lola_central_envio_ccmq','GET',null,'?select=id&ativo=neq.false&atendido=eq.false&destino=eq.ccmq');
     const b=$('#enviosBadge'); if(!b)return;
     if(r.length){b.style.display='';b.textContent=r.length;}else b.style.display='none';
   }catch(e){}
@@ -4951,7 +4951,7 @@ async function _envPedirPeso(e,ci){
 async function pgEnvios(c){
   c.appendChild(ld());
   try{
-    const envios=await db('lola_central_envio_ccmq','GET',null,'?select=*&ativo=neq.false&order=atendido.asc,data.desc,criado_em.desc');
+    const envios=await db('lola_central_envio_ccmq','GET',null,'?select=*&ativo=neq.false&destino=eq.ccmq&order=atendido.asc,data.desc,criado_em.desc');
     const insIds=[...new Set(envios.filter(e=>e.insumo_id).map(e=>e.insumo_id))];
     let custoMap={};
     if(insIds.length){
