@@ -40,6 +40,11 @@ a.app .t span.lock{display:inline-flex;width:auto;align-items:center;gap:5px;
   padding:4px 11px 4px 9px;margin-top:9px;box-shadow:0 1px 2px rgba(154,107,30,.08)}
 a.app .t span.lock i{font-size:13px;line-height:1}
 
+/* atalho pra Central — ela saiu do /adm em 17/07, mas quem é das duas não pode ficar perdido */
+.pra-central{display:flex;align-items:center;gap:10px;background:#EAF1F7;border:1px solid #CFDFEE;
+  border-radius:12px;padding:12px 14px;margin-top:26px;text-decoration:none;color:#2C5AA0;
+  font-size:12.5px;line-height:1.4}
+.pra-central b{font-weight:800}
 .foot{margin-top:36px;font-size:12px;color:var(--mut);text-align:center}
 .foot a{color:var(--vinho);text-decoration:none;font-weight:600}
 .sair{display:block;margin:22px auto 0;background:none;border:0;color:var(--mut);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:underline}
@@ -89,24 +94,10 @@ a.app .t span.lock i{font-size:13px;line-height:1}
     <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
   </a>
 
-  <!-- Painel da Central escondido por enquanto (retomar quando quiser) -->
-  <a class="app" href="central/" id="cardCentral" style="display:none !important">
-    <span class="ico"><i class="ph-duotone ph-gauge"></i></span>
-    <span class="t">
-      <b>Painel da Central</b>
-      <span>CMV da semana, produção e o placar do teste de 60 dias</span>
-    </span>
-    <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
-  </a>
-
-  <a class="app" href="central-estoque/" id="cardCentEst" style="display:none">
-    <span class="ico"><i class="ph-duotone ph-stack"></i></span>
-    <span class="t">
-      <b>Estoque da Central</b>
-      <span>Entrada das notas, saldo dos insumos e controle de perdas</span>
-    </span>
-    <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
-  </a>
+  <!-- A Cozinha Central (Estoque + Painel) SAIU daqui em 17/07 — pedido da Bianca:
+       "centralizar tudo da central em /central, tirar do adm, que ficaria só com
+       coisas pras sócias". Os dois cards viraram o atalho azul lá embaixo.
+       O Painel continua escondido, como já estava aqui. -->
 
   <a class="app" href="financeiro/" id="cardFin" style="display:none">
     <span class="ico"><i class="ph-duotone ph-chart-line-up"></i></span>
@@ -116,6 +107,14 @@ a.app .t span.lock i{font-size:13px;line-height:1}
       <span class="lock"><i class="ph-duotone ph-lock-key"></i> acesso restrito</span>
     </span>
     <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
+  </a>
+
+  <!-- Quem é das duas (Bianca, Charles) usava este hub como porta de entrada da
+       Central. Sem este atalho eles ficariam procurando o app que "sumiu". -->
+  <a class="pra-central" href="https://equipelola.net/central/" id="cardCentral" style="display:none">
+    <i class="ph-duotone ph-cooking-pot" style="font-size:19px;flex-shrink:0"></i>
+    <span>A <b>Cozinha Central</b> agora fica em <b>equipelola.net/central</b></span>
+    <span style="margin-left:auto;flex-shrink:0"><i class="ph-bold ph-arrow-right"></i></span>
   </a>
 
   <button class="sair" id="btnSair">Sair da conta</button>
@@ -133,8 +132,9 @@ const $=s=>document.querySelector(s);
   $('#quem').innerHTML=`Você é <b>${sess.nome||sess.email}</b> · ${PAPEL_NOME[sess.papel]||sess.papel}`;
   if(sess.papel==='admin'||sess.papel==='financeiro') $('#cardFin').style.display='flex';
   if(sess.papel==='admin'||sess.papel==='gerente') $('#cardEvf').style.display='flex';
-  // Painel da Central escondido por enquanto: if(['admin','financeiro','gerente'].includes(sess.papel)) $('#cardCentral').style.display='flex';
-  if(['admin','financeiro','gerente','operacional'].includes(sess.papel)) $('#cardCentEst').style.display='flex';
+  /* Atalho pra Central: MESMOS papéis que o card "Estoque da Central" exigia aqui —
+     mudar de endereço não pode afrouxar nem apertar quem entra. */
+  if(['admin','financeiro','gerente','operacional'].includes(sess.papel)) $('#cardCentral').style.display='flex';
 })();
 $('#btnSair').onclick=()=>{ lolaLogout(); location.reload(); };
 </script>
