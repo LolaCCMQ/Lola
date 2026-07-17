@@ -163,16 +163,6 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
   .env-acts{grid-column:1/-1;justify-content:stretch}
   .env-acts .prodbtn{flex:1}
 }
-.fcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;border-left:4px solid var(--border)}
-.fcard.ok{border-left-color:var(--okFg)}
-.fcard.pos{border-left-color:#2C5AA0}
-.fcard.neg{border-left-color:var(--urgFg)}
-.fcard .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-.fcard .fh b{font-size:14px;font-weight:700}
-.fcard .frow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:3px 0}
-.fcard .frow span{color:var(--mut)}
-.fcard .frow.furo{border-top:1px solid var(--fio);margin-top:3px;padding-top:6px}
-.fcard .frow.furo b{color:var(--ink)}
 .stpill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 8px;border-radius:999px;white-space:nowrap}
 .stpill.ok{background:var(--okBg);color:var(--okFg)}
 .stpill.pend{background:var(--pendBg,#FBF0DD);color:var(--pendFg,#9A6B1E)}
@@ -337,7 +327,6 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button id="tabPerd"><i class="ph-duotone ph-trash"></i> Perdas</button>
     <button id="tabRec"><i class="ph-duotone ph-cooking-pot"></i> Pré-produções</button>
     <button id="tabFt"><i class="ph-duotone ph-book-open"></i> Fichas Técnicas</button>
-    <button id="tabFech"><i class="ph-duotone ph-calculator"></i> Fechar mês</button>
     <button id="tabEnv"><i class="ph-duotone ph-paper-plane-tilt"></i> Pro CCMQ <span class="cnt" id="cntEnv" style="display:none">0</span></button>
     <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
   </div>
@@ -485,15 +474,14 @@ function render(){
   $('#tabPerd').classList.toggle('on',ST.tab==='perd');
   $('#tabRec').classList.toggle('on',ST.tab==='rec');
   $('#tabFt').classList.toggle('on',ST.tab==='ft');
-  $('#tabFech').classList.toggle('on',ST.tab==='fech');
   $('#tabEnv').classList.toggle('on',ST.tab==='env');
   $('#tabAl').classList.toggle('on',ST.tab==='al');
   const ne=(ST.envios&&ST.envios!=='loading')?ST.envios.filter(x=>!x.atendido).length:0; const ce=$('#cntEnv'); if(ne){ce.style.display='';ce.textContent=ne;}else ce.style.display='none';
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, fech:viewFechar, env:viewEnvio, al:viewAlertas};
-  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, fech:wireFechar, env:wireEnvio, al:wireAlertas};
+  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, env:viewEnvio, al:viewAlertas};
+  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, env:wireEnvio, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -1193,48 +1181,10 @@ async function toggleReceita(el){
     box.innerHTML=r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
 }
-/* ===== FECHAR MÊS (mandado x produzido → furos) ===== */
-async function carregarFechamento(){
-  ST.fechData='loading'; if(ST.tab==='fech') render();
-  try{ ST.fechData=await post('rpc/central_fechamento',{mes:ST.fechMes, uni:ST.fechUni||'todas'}); }
-  catch(e){ ST.fechData=[]; }
-  if(ST.tab==='fech') render();
-}
-function viewFechar(){
-  const uni=ST.fechUni||'todas';
-  let h=`<div class="note">O que a Central <b>mandou</b> no mês (vem dos Pedidos à Central) comparado com o que foi <b>produzido</b> (histórico do Produzir). O <b>furo</b> aponta onde não bate — ele preenche conforme o Arthur registra as produções.</div>`;
-  h+=`<div class="mf"><label>Mês</label><input type="month" id="fechMes" value="${esc(ST.fechMes||'')}"></div>`;
-  h+=`<div class="tabs" style="margin-bottom:12px">
-     <button class="chip ${uni==='todas'?'on':''}" data-u="todas">Todas</button>
-     <button class="chip ${uni==='ccmq'?'on':''}" data-u="ccmq">CCMQ</button>
-     <button class="chip ${uni==='mac'?'on':''}" data-u="mac">MAC</button></div>`;
-  const d=ST.fechData;
-  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
-  if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-calculator"></i>Sem pedidos nesse mês/unidade.</div>`; return h; }
-  const totMand=d.reduce((s,x)=>s+(+x.valor||0),0);
-  let totFuroV=0, comProd=0;
-  const cards=d.map(x=>{
-    const mand=+x.qtd_mandado||0, prod=+x.produzido||0, valor=+x.valor||0;
-    const preco=mand>0?valor/mand:0, temProd=prod>0;
-    const cm=conv(mand,x.unidade), cp=conv(prod,x.unidade);
-    const furoQ=prod-mand, cf=conv(furoQ,x.unidade), furoV=furoQ*preco, furoPct=prod>0?furoQ/prod*100:0;
-    if(temProd){ totFuroV+=furoV; comProd++; }
-    const cls=!temProd?'':(Math.abs(furoQ)<1e-6?'ok':furoQ<0?'neg':'pos');
-    return `<div class="fcard ${cls}">
-      <div class="fh"><b>${esc(x.nome)}</b>${!temProd?'<span class="stpill pend">sem produção</span>':(furoQ<0?'<span class="stpill pend">mandou&nbsp;+</span>':'<span class="stpill ok">ok</span>')}</div>
-      <div class="frow"><span>Mandado</span><b>${num(cm.q)} ${esc(cm.u)} · ${brl(valor)}</b></div>
-      <div class="frow"><span>Produzido</span><b>${temProd?num(cp.q)+' '+esc(cp.u):'—'}</b></div>
-      ${temProd?`<div class="frow furo"><span>Furo</span><b>${cf.q>0?'+':''}${num(cf.q)} ${esc(cf.u)} · ${brl(furoV)} · ${num(furoPct)}%</b></div>`:''}
-    </div>`;
-  }).join('');
-  h+=`<div class="tot"><div class="k">Mandado no mês${uni!=='todas'?' · '+uni.toUpperCase():''}</div><div class="big">${brl(totMand)}</div><div class="s">${d.length} produções · ${comProd} com produção lançada</div></div>`;
-  h+=cards;
-  return h;
-}
-function wireFechar(){
-  const m=$('#fechMes'); if(m) m.onchange=()=>{ST.fechMes=m.value; carregarFechamento();};
-  $$('#app .tabs .chip[data-u]').forEach(b=>b.onclick=()=>{ST.fechUni=b.dataset.u; carregarFechamento();});
-}
+/* A aba "Fechar mês" (mandado x produzido → furos) foi TIRADA daqui em 17/07/2026.
+   "isso eu vou fazer no financeiro, não vou fazer aqui pela central não" — Bianca.
+   A RPC `central_fechamento` continua viva no banco; o cálculo não se perdeu.
+   Se um dia voltar, o código está no commit anterior a este. */
 /* ===== COMPRAS por insumo por competência ===== */
 async function carregarCompras(){
   ST.comprasData='loading'; if(ST.tab==='cmp') render();
@@ -2014,7 +1964,6 @@ $('#tabPz').onclick=()=>{ST.tab='pz'; render(); if(!ST.prodHist||ST.prodHist==='
 $('#tabPerd').onclick=async()=>{ ST.tab='perd'; render();
   if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='perd') render(); } };
 $('#tabCmp').onclick=()=>{ST.tab='cmp'; if(!ST.comprasMes){ST.comprasMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarCompras();};
-$('#tabFech').onclick=()=>{ST.tab='fech'; if(!ST.fechMes){ST.fechMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarFechamento();};
 $('#tabEnv').onclick=()=>{ST.tab='env'; render(); if(!ST.envios||ST.envios==='loading') carregarEnvios();};
 $('#tabAl').onclick=()=>{ST.tab='al';render();};
 $('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
