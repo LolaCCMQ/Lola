@@ -677,7 +677,7 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
 }
 
 
-const TITLES={dashboard:'Cozinha',insumos:'Insumos',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos à Central',envios:'Envios da Central',entnotas:'Entrada de Notas'};
+const TITLES={dashboard:'Cozinha',insumos:'Insumos',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos à Central',envios:'Envios da Central',entnotas:'Entrada de Notas'};
 const SUBS={dashboard:'Visão geral das operações',insumos:'Ingredientes e matérias-primas com custo real',conferencia:'Suba a planilha do mês e confira preço por preço antes de aplicar',preproducoes:'Fichas técnicas dos preparos da cozinha',fichas:'Composição e custo dos pratos do cardápio',producao:'O que a Cozinha Central produziu hoje',contagem:'Registro de estoque do CCMQ e Mac',saidas:'Registro de saídas de insumos do estoque',fornecedores:'Cadastro e gestão de fornecedores',pedidos:'Pedidos entre unidades e Cozinha Central',envios:'Ingredientes e produções que a Central mandou pra cá',entnotas:'Puxa as notas do Financeiro e lança no estoque'};
 
 function nav(p){PAGE=p;document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.page===p));renderPage();}
@@ -702,7 +702,7 @@ async function renderPage(){
   main.innerHTML='';
   main.appendChild(brandHead(TITLES[PAGE],SUBS[PAGE]));
   const body=div(null,null,{id:'pb'});main.appendChild(body);
-  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,producao:pgProducao,contagem:pgCont2,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPed,envios:pgEnvios,entnotas:pgEntradaNotas};
+  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgCont2,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPed,envios:pgEnvios,entnotas:pgEntradaNotas};
   if(map[PAGE])await map[PAGE](body);
 }
 
@@ -2308,6 +2308,92 @@ async function pgFichas(c){
     const w=div(null,null,{id:'ft-t'});c.appendChild(w);
     drawFT(w);
   }catch(e){c.innerHTML='<p style="color:red;padding:20px">'+e.message+'</p>';}
+}
+
+/* ═══ RECEITAS UNIFICADAS (17/07) ═══════════════════════════════════════════
+   A Bianca: "quero unificar as fichas técnicas e as pré produções - deixar
+   etiquetas para diferenciar" e "deixar em lista como nas fichas tecnicas -
+   alinhar as colunas". Página única usada pela Central (embed ?page=receitas).
+   Reusa as classes ft-hd/ft-row do drawFT — colunas alinhadas e mobile de graça. */
+var _recTab='todas', _recBusca='';
+async function pgReceitas(c){
+  c.appendChild(ld());
+  try{
+    _ft=await db('lola_fichas_tecnicas','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
+    _pp=await db('lola_preproducoes','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
+    if(!_ins.length)_ins=await db('lola_insumos','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
+    c.innerHTML=''; _recBusca='';
+    const sEl=mkSearch(q=>{_recBusca=q;drawREC($('#rec-t'));},'Buscar receita...');
+    const tEl=mkTabs(['todas','pp','ft'],_recTab,t=>{_recTab=t;drawREC($('#rec-t'));},['Tudo','Pré-produções','Fichas técnicas'],true);
+    const esq=div(null);esq.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+    esq.appendChild(tEl);esq.appendChild(sEl);
+    const bar=div('abar no-print'); bar.appendChild(esq);
+    if(podeMexerAqui()){
+      const bb=div(null);bb.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+      bb.appendChild(btn('btn bp bsm','+ Pré-produção',()=>modalPrep()));
+      bb.appendChild(btn('btn bp bsm','+ Ficha',()=>modalFicha()));
+      bar.appendChild(bb);
+    } else bar.appendChild(mkSoLeitura());
+    c.appendChild(bar);
+    const w=div(null,null,{id:'rec-t'});c.appendChild(w);
+    drawREC(w);
+  }catch(e){c.innerHTML='<p style="color:red;padding:20px">'+e.message+'</p>';}
+}
+function drawREC(w){
+  w.innerHTML='';
+  let rows=[];
+  if(_recTab!=='ft') _pp.filter(_daMinhaCozinha).forEach(p=>rows.push({t:'pp',o:p}));
+  if(_recTab!=='pp') _ft.filter(_daMinhaCozinha).forEach(x=>rows.push({t:'ft',o:x}));
+  if(_recBusca){ const b=_recBusca.toLowerCase(); rows=rows.filter(r=>r.o.nome.toLowerCase().includes(b)); }
+  rows.sort((a,b)=>a.o.nome.localeCompare(b.o.nome,'pt'));
+  if(!rows.length){w.appendChild(em('pp',_recBusca?'Nenhuma receita encontrada':'Nenhuma receita aqui'));return;}
+  const DEST_COR={ccmq:'#C0392B',mac:'#2C7A4B',central:'#2C5AA0',eventos:'#9A6B1E'};
+  const DEST_LBL={ccmq:'CCMQ',mac:'MAC',central:'Central',eventos:'Evento'};
+  const tbl=div('ins-tbl');
+  const hd=div('ft-hd');
+  hd.innerHTML='<div>Receita</div><div style="text-align:right">Custo</div><div style="text-align:right" class="ft-hd-pv">Venda</div><div style="text-align:right">CMV</div><div class="ft-hd-ed">Editado</div><div style="text-align:right">Ações</div>';
+  tbl.appendChild(hd);
+  rows.forEach(r=>{
+    const x=r.o, ehPP=r.t==='pp';
+    const dataEd=x.editado_em?new Date(x.editado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):null;
+    const unBase=x.rendimento_un==='g'?'kg':x.rendimento_un==='ml'?'L':(x.rendimento_un||'un');
+    const lim=ehPP?null:_ftLim(x);
+    const semPreco=ehPP?!(x.valor_venda_central>0):(!x.preco_venda||x.preco_venda<=0);
+    const cmv=(!ehPP&&!semPreco)?(x.custo_por_porcao/x.preco_venda*100):null;
+    const row=div('ft-row'+((cmv!=null&&cmv>lim)?' alerta':''));
+    const nome=div('ft-nome');
+    const tb=span('ft-sel',ehPP?'PP':'FICHA'); tb.style.background=ehPP?'#7A4FA3':'#A82A2A';
+    tb.title=ehPP?'Pré-produção':'Ficha técnica'; nome.appendChild(tb);
+    nome.appendChild(span('ft-nome-t',x.nome));
+    _destinosDeVenda(x).forEach(d=>{ const s=span('ft-sel',DEST_LBL[d]||d); s.style.background=DEST_COR[d]||'#888'; s.title='Vendida para '+(DEST_LBL[d]||d); nome.appendChild(s); });
+    if(x.revisar){ const rv=span('ft-rev'); rv.innerHTML='<i class="ph-duotone ph-warning"></i> revisar'; rv.title=x.revisar_motivo||''; rv.addEventListener('click',()=>modalRevisarFicha(ehPP?'pp':'ft',x)); nome.appendChild(rv); }
+    if(!ehPP&&x.produto_pronto){ const pr=span('ft-pronto'); pr.innerHTML='<i class="ph-duotone ph-package"></i> produto pronto'; pr.title='Comprado feito — limite de CMV 50%'; nome.appendChild(pr); }
+    row.appendChild(nome);
+    const mob=div('ft-mob');
+    mob.appendChild(div('ft-num',[ehPP?(R(x.custo_por_unidade)+' /'+unBase):R(x.custo_por_porcao)]));
+    const pv=div('ft-num pv ft-pv'+(semPreco?' vazio':''));
+    pv.textContent=semPreco?(ehPP?'—':'sem preço'):(ehPP?(R(x.valor_venda_central)+' /'+unBase):R(x.preco_venda));
+    mob.appendChild(pv);
+    const cc=div('ft-cmvcel'); if(ehPP){ cc.textContent='—'; cc.style.cssText='text-align:right;color:#B79A8E;font-size:12px'; } else cc.appendChild(mkCMVCompacto(x.preco_venda,x.custo_por_porcao,lim));
+    mob.appendChild(cc);
+    mob.appendChild(div('ft-ed',[dataEd?((x.editado_por||'—')+' · '+dataEd):'—']));
+    row.appendChild(mob);
+    const acts=div('ft-acts');
+    acts.appendChild(el('button','ins-sb'+(x.revisar?' warn':''),null,{html:'<i class="ph-duotone ph-warning"></i>',title:x.revisar?(x.revisar_motivo||'Revisar'):'Marcar para revisar',onclick:()=>modalRevisarFicha(ehPP?'pp':'ft',x)}));
+    acts.appendChild(el('button','ins-sb',null,{html:'<i class="ph-duotone ph-clipboard-text"></i>',title:'Ver a receita',onclick:()=>ehPP?verFichaPrep(x):verFichaFT(x)}));
+    if(podeMexerAqui()){
+      acts.appendChild(el('button','ins-sb',null,{html:'<i class="ph-duotone ph-pencil-simple"></i>',title:'Editar',onclick:()=>ehPP?modalPrep(x):modalFicha(x)}));
+      acts.appendChild(el('button','ins-sb del',null,{html:'<i class="ph-duotone ph-trash"></i>',title:'Excluir',onclick:async()=>{
+        if(!confirm('Excluir "'+x.nome+'"?'))return;
+        if(ehPP){ await db('lola_preproducoes','PATCH',{ativo:false},'?id=eq.'+x.id); _pp=await db('lola_preproducoes','GET',null,'?select=*&ativo=eq.true&order=nome.asc'); }
+        else { await db('lola_fichas_tecnicas','PATCH',{ativo:false},'?id=eq.'+x.id); _ft=await db('lola_fichas_tecnicas','GET',null,'?select=*&ativo=eq.true&order=nome.asc'); }
+        drawREC($('#rec-t'));
+      }}));
+    }
+    row.appendChild(acts);
+    tbl.appendChild(row);
+  });
+  w.appendChild(tbl);
 }
 
 function mkCMV(preco_venda, custo){
