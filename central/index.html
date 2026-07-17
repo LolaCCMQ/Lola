@@ -207,8 +207,9 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .utag.ccmq{background:#FBE4E0;color:#C0392B}
 .utag.mac{background:#E6F3EA;color:#2C7A4B}
 .utag.eventos{background:#FBF0DD;color:#9A6B1E}
-.envdest{display:flex;gap:6px;margin-bottom:12px}
-.envdest button{flex:1;min-height:42px;border-radius:13px;border:1px solid var(--border);background:var(--card);font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
+.envdest{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.envdest button{flex:0 0 auto;min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--border);background:var(--card);font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
+.envdest .sep{width:1px;height:22px;background:var(--border);margin:0 4px}
 .envdest button.on.ccmq{background:#C0392B;border-color:#C0392B;color:#fff}
 .envdest button.on.mac{background:#2C7A4B;border-color:#2C7A4B;color:#fff}
 .envdest button.on.eventos{background:#9A6B1E;border-color:#9A6B1E;color:#fff}
@@ -519,7 +520,7 @@ async function carregar(){
       api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un,valor_venda_central&order=nome').catch(()=>null),
       api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[]),
       api('lola_central_perdas?ativo=neq.false&select=*&order=data.desc,criado_em.desc&limit=500').catch(()=>[]),
-      api('lola_inv_itens?ativo=neq.false&select=id,nome,categoria,unidade,qtd,medida&order=nome').catch(()=>[])
+      api('lola_inv_itens?ativo=neq.false&select=id,nome,categoria,unidade,qtd,medida,cor,foto_url&order=nome').catch(()=>[])
     ]);
     ST.perdas=perdas||[];
     ST.inv=inv||[];
@@ -1482,6 +1483,11 @@ function wireEnvio(){
   });
 }
 let ENV_SEL=null, ENV_DEST_SEL='ccmq', ENV_GRP='prod';
+function envFoto(url,nome){ const bg=document.createElement('div');
+  bg.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.78);z-index:950;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out';
+  bg.onclick=()=>bg.remove();
+  bg.innerHTML='<figure style="margin:0;text-align:center"><img src="'+url+'" alt="" style="max-width:90vw;max-height:78vh;border-radius:12px;background:#fff"><figcaption style="color:#fff;font-weight:700;margin-top:10px">'+esc(nome||'')+'</figcaption></figure>';
+  document.body.appendChild(bg); }
 function _envItens(grp){
   const itens=[];
   if(grp==='prod'){
@@ -1494,7 +1500,7 @@ function _envItens(grp){
     (ST.insumos||[]).forEach(i=>{ itens.push({tipo:'insumo', id:i.id, nome:i.nome, un:i.unidade_custo||'kg', saldo:null, vu:+i.custo_por_unidade||null}); });
   }
   if(grp==='inv'){
-    (ST.inv||[]).forEach(v=>{ itens.push({tipo:'inventario', invId:v.id, nome:v.nome, un:'un', saldo:(v.qtd!=null?+v.qtd:null), vu:null, loc:v.unidade||''}); });
+    (ST.inv||[]).forEach(v=>{ itens.push({tipo:'inventario', invId:v.id, nome:v.nome, un:'un', saldo:(v.qtd!=null?+v.qtd:null), vu:null, loc:v.unidade||'', cat:v.categoria||'', cor:v.cor||'', foto:v.foto_url||null}); });
   }
   itens.sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
   return itens;
@@ -1511,14 +1517,12 @@ function openEnvio(){
   ENV_SEL=null; ENV_DEST_SEL='ccmq'; ENV_GRP='prod';
   $('#shTitle').textContent='Enviar produtos';
   $('#shBody').innerHTML=`<div class="note">Escolha <b>pra onde vai</b> e <b>o que vai</b>. Insumo sai a custo, produção com o valor de venda central, equipamentos do inventário sem preço.</div>
-    <label class="iml">Destino</label>
-    <div class="envdest">${['ccmq','mac','eventos'].map(d=>`<button data-d="${d}" class="${d} ${d===ENV_DEST_SEL?'on':''}">${ENV_DEST[d]}</button>`).join('')}</div>
-    <label class="iml">O que vai</label>
-    <div class="envdest" id="envGrps">
+    <label class="iml">Pra onde vai · o que vai</label>
+    <div class="envdest">${['ccmq','mac','eventos'].map(d=>`<button data-d="${d}" class="${d} ${d===ENV_DEST_SEL?'on':''}">${ENV_DEST[d]}</button>`).join('')}<span class="sep"></span><span id="envGrps" style="display:contents">
       <button data-g="prod" class="ccmq on">Produções</button>
       <button data-g="ins" class="mac">Insumos</button>
-      <button data-g="inv" class="eventos">Equipamentos</button></div>
-    <div class="mf" style="margin-top:2px"><input type="search" id="envBusca" placeholder="Buscar na lista…" autocomplete="off"></div>
+      <button data-g="inv" class="eventos">Equipamentos</button></span></div>
+    <div class="mf" style="margin-top:2px"><input type="search" id="envBusca" placeholder="Buscar por nome, categoria ou cor…" autocomplete="off"></div>
     <div class="envpick" id="envLista"></div>
     <div class="envsel" id="envSelBox" style="display:none"></div>
     <div class="mf" style="margin-top:10px"><label>Quantidade</label><div class="rendrow"><input type="number" id="envQtd" step="0.001" inputmode="decimal" placeholder="quanto"><input type="text" id="envUn" placeholder="kg/un/L" value=""></div></div>
@@ -1529,13 +1533,16 @@ function openEnvio(){
   let all=_envItens(ENV_GRP);
   const TCOR={producao:['#EFE7F6','#7A4FA3'], produto:['#E2F0EC','#1F7A6B'], inventario:['#E6F1FB','#2C5AA0'], insumo:['#E6F3EA','#2C7A4B']};
   const drawPick=(q)=>{ const b=norm(q||''); let l=all;
-    if(b) l=l.filter(x=>norm(x.nome).includes(b));
+    /* busca por nome, categoria e cor (17/07) */
+    if(b) l=l.filter(x=>norm(x.nome+' '+(x.cat||'')+' '+(x.cor||'')).includes(b));
     l=l.slice(0,50);
     $('#envLista').innerHTML=l.length?l.map(x=>`<button data-i="${all.indexOf(x)}">
       <span class="utag" style="background:${TCOR[x.tipo][0]};color:${TCOR[x.tipo][1]}">${ENV_TIPO_LBL[x.tipo]}</span>
-      <span class="pk-n">${esc(x.nome)}</span>
-      <span class="pk-s">${x.loc?esc(x.loc)+' · ':''}${x.saldo!=null?num(x.saldo)+' '+esc(x.un):''}${x.vu?' · '+brl(x.vu)+'/'+esc(x.un):''}</span></button>`).join('')
+      <span class="pk-n">${esc(x.nome)}${x.cor?' <small style="color:var(--mut);font-weight:600">· '+esc(x.cor)+'</small>':''}</span>
+      <span class="pk-s">${x.cat?esc(x.cat)+' · ':''}${x.loc?esc(x.loc)+' · ':''}${x.saldo!=null?num(x.saldo)+' '+esc(x.un):''}${x.vu?' · '+brl(x.vu)+'/'+esc(x.un):''}</span>
+      ${x.foto?`<span class="envfoto" role="button" title="Ver a foto" data-f="${esc(x.foto)}" data-n="${esc(x.nome)}" style="width:30px;height:30px;border-radius:8px;background:#E6F1FB;color:#2C5AA0;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0"><i class="ph-duotone ph-image"></i></span>`:''}</button>`).join('')
       :'<div class="uinfo" style="padding:10px">Nada encontrado nessa lista.</div>';
+    $$('#envLista .envfoto').forEach(s=>s.onclick=(e)=>{ e.stopPropagation(); envFoto(s.dataset.f, s.dataset.n); });
     $$('#envLista button').forEach(bt=>bt.onclick=()=>{ ENV_SEL=all[+bt.dataset.i];
       $('#envUn').value=ENV_SEL.un; $('#envBusca').value=ENV_SEL.nome;
       const box=$('#envSelBox'); box.style.display='';
