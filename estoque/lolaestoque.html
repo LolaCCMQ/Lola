@@ -28,7 +28,7 @@ body{font-family:'Hanken Grotesk',sans-serif;background:var(--rf);color:var(--tx
 .ni.active{background:var(--rt);color:var(--v);border-left-color:var(--v);font-weight:700;}
 .ni i{font-size:18px;flex-shrink:0;}
 .ni-badge{margin-left:auto;background:var(--v);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
-.main{flex:1;padding:22px 22px;overflow-x:hidden;}
+.main{flex:1;padding:22px 22px;overflow-x:hidden;width:100%;max-width:980px;margin:0 auto;}
 .ph{margin-bottom:18px;}
 .ph h2{font-family:'Fraunces',serif;font-size:23px;font-weight:700;color:var(--v);}
 .ph p{font-size:12px;color:var(--ts);margin-top:2px;}
@@ -7008,7 +7008,7 @@ buildShell();
   var q=new URLSearchParams(location.search);
   if(q.get('embed')!=='1') return;
   var st=document.createElement('style');
-  st.textContent='.topbar,.sidebar,.mob-overlay{display:none!important}.app-body{min-height:100vh!important}.main{width:100%!important;max-width:100%!important}';
+  st.textContent='.topbar,.sidebar,.mob-overlay{display:none!important}.app-body{min-height:100vh!important}.main{width:100%!important;max-width:980px!important;margin:0 auto!important}';
   document.head.appendChild(st);
   document.body.classList.add('embed');
   window.addEventListener('message',function(e){var d=(e&&e.data)||{};if(d.type==='lola-nav'&&d.page&&typeof nav==='function'){nav(d.page);}});
