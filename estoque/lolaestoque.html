@@ -72,20 +72,34 @@ body{font-family:'Manrope',sans-serif;background:var(--rf);color:var(--tx);min-h
 .ins-sech .nm{font-family:'Fraunces',serif;font-size:14px;font-weight:600;}
 .ins-sech .ct{font-size:11px;color:#A08B7F;}
 .ins-tbl{background:#fff;border:1px solid var(--rb);border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(42,26,23,.05);}
-.ins-hd,.ins-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 96px 132px;align-items:center;gap:8px;padding:9px 14px;}
-.ins-hd{background:#FAF4EC;border-bottom:1px solid var(--rb);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#A08B7F;font-weight:700;}
-.ins-row{border-top:1px solid #F3EBE2;}
+/* 17/07: handoff "Tabela enxuta 1a" — dot de categoria, meta sob o nome, preço Fraunces, menu ⋯ */
+.ins-hd,.ins-row{display:grid;grid-template-columns:minmax(0,1fr) 132px 44px;align-items:center;gap:12px;padding:9px 20px;}
+.ins-hd{background:#F1E8DF;border-bottom:1px solid var(--rb);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#B79A8E;font-weight:700;}
+.ins-row{border-top:1px solid #F2EAE0;transition:background .12s ease;padding:13px 20px;}
 .ins-row:first-child{border-top:0;}
-.ins-row:hover{background:#FCF8F2;}
-.ins-rnome{font-size:14px;font-weight:700;color:var(--tx);min-width:0;display:flex;align-items:center;}
-.ins-rnome-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.ins-row:hover{background:#FAF9F5;}
+.ins-row:hover .ins-more{opacity:1;}
+.ins-rnome{min-width:0;display:flex;align-items:center;gap:11px;}
+.ins-dot{width:11px;height:11px;border-radius:4px;flex-shrink:0;}
+.ins-rnw{min-width:0;flex:1;}
+.ins-rnl{display:flex;align-items:center;gap:7px;min-width:0;}
+.ins-rnome-t{font-size:15px;font-weight:800;letter-spacing:-.01em;line-height:1.2;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.ins-rmeta{font-size:12px;font-weight:600;color:#8A7A72;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ins-rmeta.none{color:#B79A8E;}
+.ins-alert{width:20px;height:20px;border:0;border-radius:999px;background:#F6ECD9;color:#9A6B1E;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;padding:0;}
+.ins-more{width:34px;height:34px;border-radius:10px;border:1px solid var(--rb);background:#fff;color:#5A463E;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;opacity:.35;transition:opacity .12s ease;justify-self:end;}
+.ins-more.on{opacity:1;border-color:#F0D9CF;background:#FBEAE7;color:var(--v);}
+.ins-menu{position:absolute;top:46px;right:0;z-index:20;width:184px;background:#fff;border:1px solid var(--rb);border-radius:13px;box-shadow:0 20px 44px rgba(42,26,23,.18);padding:6px;}
+.ins-menu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--tx);padding:9px 10px;border-radius:9px;cursor:pointer;text-align:left;}
+.ins-menu button:hover{background:#FAF9F5;}
+.ins-menu button.del{color:#B5302E;}
 .ins-run{font-size:11px;color:#A08B7F;font-weight:500;}
 .ins-rupd{font-size:11px;color:#7C6A60;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ins-rupd b{color:#5F4E46;font-weight:700;}
 .ins-rupd.none{color:#B79A8E;}
 .ins-rcusto{text-align:right;white-space:nowrap;}
-.ins-rcusto-v{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--v);line-height:1.1;}
-.ins-rcusto-u{font-size:11px;font-weight:700;color:#7C6A60;text-transform:uppercase;letter-spacing:.5px;line-height:1.2;}
+.ins-rcusto-v{font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:#7E1E1F;line-height:1;font-variant-numeric:tabular-nums;}
+.ins-rcusto-u{font-size:10px;font-weight:700;color:#B79A8E;text-transform:uppercase;letter-spacing:.1em;margin-top:4px;line-height:1.2;}
 /* onde é usado — expande na própria linha */
 .ins-rnome{cursor:pointer;}
 .ins-semrec{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;margin-left:7px;background:#FBF0DD;border:1px solid #F1DFB8;color:#9A6B1E;border-radius:50px;padding:1px 8px;font-size:10px;font-weight:700;white-space:nowrap;}
@@ -198,8 +212,9 @@ body{font-family:'Manrope',sans-serif;background:var(--rf);color:var(--tx);min-h
 .ins-sb{width:28px;height:28px;border-radius:8px;background:#F7F1EA;border:1px solid var(--rb);color:var(--v);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .ins-sb.del{background:#FBEAE7;border-color:#F3D3CE;color:#B5302E;}
 @media(max-width:640px){
-  .ins-hd,.ins-row{grid-template-columns:minmax(0,1fr) auto auto;}
+  .ins-hd,.ins-row{grid-template-columns:minmax(0,1fr) auto auto;gap:8px;padding:11px 14px;}
   .ins-hd-upd,.ins-rupd{display:none;}
+  .ins-more{opacity:1;}
   .ins-sb{width:32px;height:32px;font-size:15px;}
 }
 /* CONTAGEM item card (v2) */
@@ -935,52 +950,74 @@ function _uEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;'
 /* unidade de custo por extenso — aparece embaixo do preço */
 const INS_UN_EXT={kg:'por quilo',g:'por grama',L:'por litro',l:'por litro',ml:'por ml',un:'por unidade',cx:'por caixa',pct:'por pacote',molho:'por molho'};
 function insUnExt(u){const s=String(u==null?'':u).trim();return INS_UN_EXT[s]||INS_UN_EXT[s.toLowerCase()]||('por '+(s||'unidade'));}
+/* dot de categoria (handoff): cor s\u00F3lida + halo da mesma fam\u00EDlia */
+function insDotCor(cat){
+  const c=String(cat||'').toLowerCase();
+  if(/hortifruti/.test(c)) return ['#2C7A4B','#E6F3EA'];
+  if(/carne|pescad/.test(c)) return ['#B5302E','#FBEAE7'];
+  if(/aliment|p[a\u00E3]es|p[a\u00E3]o/.test(c)) return ['#C99A33','#FBF1DD'];
+  if(/limpeza|expediente|descart/.test(c)) return ['#7E5BA6','#EFE7F6'];
+  return ['#1F7A6B','#E2F0EC'];
+}
+function fecharInsMenu(){ document.querySelectorAll('.ins-menu').forEach(m=>m.remove()); document.querySelectorAll('.ins-more.on').forEach(b=>b.classList.remove('on')); }
+document.addEventListener('click',e=>{ if(!e.target.closest('.ins-menu')&&!e.target.closest('.ins-more')) fecharInsMenu(); });
 function mkInsTable(itens){
   const tbl=div('ins-tbl');
   const hd=div('ins-hd');
-  hd.innerHTML='<div>Insumo</div><div class="ins-hd-upd">\u00DAltima atualiza\u00E7\u00E3o</div><div style="text-align:right">Custo</div><div style="text-align:right">A\u00E7\u00F5es</div>';
+  hd.innerHTML='<div>Insumo</div><div style="text-align:right">Pre\u00E7o</div><div></div>';
   tbl.appendChild(hd);
   itens.forEach(i=>{
     const unCusto=i.unidade_custo||'kg';
     const row=div('ins-row');
-    // nome \u2014 clic\u00E1vel, abre "onde \u00E9 usado" na pr\u00F3pria linha
     const nome=div('ins-rnome');
-    nome.appendChild(span('ins-rnome-t',i.nome));
-    const car=document.createElement('i'); car.className='ph-duotone ph-caret-right ins-caret'; nome.appendChild(car);
+    const [dc,dh]=insDotCor(i.categoria);
+    const dot=span('ins-dot'); dot.style.background=dc; dot.style.boxShadow='0 0 0 4px '+dh; dot.title=i.categoria||'';
+    nome.appendChild(dot);
+    const nw=div('ins-rnw');
+    const nl=div('ins-rnl');
+    nl.appendChild(span('ins-rnome-t',i.nome));
     if(insForaDeReceita(i)){
-      const sr=span('ins-semrec'); sr.innerHTML='<i class="ph-duotone ph-warning-circle"></i> n\u00E3o est\u00E1 em receita';
-      nome.appendChild(sr);
+      const al=el('button','ins-alert',null,{html:'<i class="ph-duotone ph-warning"></i>',
+        title:'N\u00E3o est\u00E1 em nenhuma receita \u2014 toque para ver onde poderia entrar',
+        onclick:(ev)=>{ev.stopPropagation();ondeEUsado(i);}});
+      al.setAttribute('aria-label','Sem receita');
+      nl.appendChild(al);
     }
-    nome.title='Abrir a ficha completa \u2014 pre\u00E7o, de qual nota veio, fornecedor, saldo, onde \u00E9 usado';
-    nome.addEventListener('click',()=>abrirFichaInsumo(i.id,i.nome));
-    row.appendChild(nome);
-    // \u00FAltima atualiza\u00E7\u00E3o
-    const upd=div('ins-rupd');
+    nw.appendChild(nl);
+    const meta=div('ins-rmeta');
     if(i.preco_atualizado_em){
       const d=new Date(i.preco_atualizado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
-      upd.appendChild(document.createTextNode(d));
-      if(i.preco_atualizado_por){upd.appendChild(document.createTextNode(' \u00B7 '));const b=document.createElement('b');b.textContent=i.preco_atualizado_por;upd.appendChild(b);}
-    }else{
-      upd.classList.add('none');
-      upd.appendChild(document.createTextNode('Sem registro'));
-    }
-    row.appendChild(upd);
-    // custo + unidade por extenso
+      meta.textContent=d+(i.preco_atualizado_por?(' \u00B7 '+i.preco_atualizado_por):'');
+    }else{ meta.classList.add('none'); meta.textContent='Sem registro'; }
+    nw.appendChild(meta);
+    nome.appendChild(nw);
+    nome.title='Abrir a ficha completa \u2014 pre\u00E7o, de qual nota veio, fornecedor, saldo, onde \u00E9 usado';
+    nome.style.cursor='pointer';
+    nome.addEventListener('click',()=>abrirFichaInsumo(i.id,i.nome));
+    row.appendChild(nome);
     const custo=div('ins-rcusto');
     custo.appendChild(div('ins-rcusto-v',[R(i.custo_por_unidade)]));
     custo.appendChild(div('ins-rcusto-u',[insUnExt(unCusto)]));
     row.appendChild(custo);
-    // a\u00E7\u00F5es (Phosphor)
-    const acts=div('ins-racts');
-    acts.appendChild(el('button','ins-sb',null,{html:'<i class="ph-duotone ph-magnifying-glass"></i>',title:'Onde \u00E9 usado',onclick:()=>ondeEUsado(i)}));
-    acts.appendChild(el('button','ins-sb',null,{html:'<i class="ph-duotone ph-chart-line"></i>',title:'Hist\u00F3rico de pre\u00E7o',onclick:()=>verHistoricoPreco(i)}));
-    acts.appendChild(el('button','ins-sb',null,{html:'<i class="ph-duotone ph-pencil-simple"></i>',title:'Editar',onclick:()=>modalIns(i)}));
-    acts.appendChild(el('button','ins-sb del',null,{html:'<i class="ph-duotone ph-trash"></i>',title:'Excluir',onclick:async()=>{
-      if(!confirm('Excluir "'+i.nome+'"?'))return;
-      await db('lola_insumos','PATCH',{ativo:false},'?id=eq.'+i.id);
-      _ins=_ins.filter(x=>x.id!==i.id);
-      window._drawIns&&window._drawIns(document.getElementById('ins-t'));
-    }}));
+    const acts=div('ins-racts'); acts.style.position='relative';
+    const mb=el('button','ins-more',null,{html:'<i class="ph-duotone ph-dots-three-vertical"></i>',title:'A\u00E7\u00F5es'});
+    mb.onclick=(ev)=>{ ev.stopPropagation();
+      const aberto=acts.querySelector('.ins-menu'); fecharInsMenu(); if(aberto) return;
+      mb.classList.add('on');
+      const menu=div('ins-menu');
+      const item=(ic,lb,fn,cls)=>{ const b=el('button',cls||null,null,{html:'<i class="ph-duotone ph-'+ic+'"></i> '+lb}); b.onclick=(e2)=>{e2.stopPropagation();fecharInsMenu();fn();}; menu.appendChild(b); };
+      item('magnifying-glass','Buscar receitas',()=>ondeEUsado(i));
+      item('chart-line','Ver tend\u00EAncia',()=>verHistoricoPreco(i));
+      item('pencil-simple','Editar',()=>modalIns(i));
+      if(podeMexerAqui()) item('trash','Excluir',async()=>{
+        if(!confirm('Excluir "'+i.nome+'"?'))return;
+        await db('lola_insumos','PATCH',{ativo:false},'?id=eq.'+i.id);
+        _ins=_ins.filter(x=>x.id!==i.id);
+        window._drawIns&&window._drawIns(document.getElementById('ins-t'));
+      },'del');
+      acts.appendChild(menu);
+    };
+    acts.appendChild(mb);
     row.appendChild(acts);
     tbl.appendChild(row);
   });
