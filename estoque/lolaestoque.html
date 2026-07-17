@@ -1615,6 +1615,9 @@ function editarDestinosPP(pp, onSave){
 }
 
 function drawPP(w){
+  /* 17/07: chamada da página unificada Receitas (sem #pp-t) → redesenha ela. Era o
+     "Cannot set properties of null" ao salvar uma PP editada a partir do embed. */
+  if(!w){ const rc=document.getElementById('rec-t'); if(rc) return drawREC(rc); return; }
   w.innerHTML='';
   /* Abas agora por COZINHA, não por `categoria`. A categoria tinha 2 furos:
      as 26 de 'todos'/'bebida' não caíam em aba nenhuma (só em Tudo), e a aba
@@ -2129,6 +2132,7 @@ function _ftOrdena(f){
   return f;
 }
 function drawFT(w){
+  if(!w){ const rc=document.getElementById('rec-t'); if(rc) return drawREC(rc); return; }
   w.innerHTML='';
   let f=_ftTab==='todos'?[..._ft]:
     _ftTab==='pre'?_ft.filter(x=>x.categoria==='pre'||x.categoria==='pre-producao'):
