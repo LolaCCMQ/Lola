@@ -1520,6 +1520,19 @@ function _daMinhaCozinha(x){ return !x.cozinha || APP_COZ.indexOf(x.cozinha)>=0;
 /* "Pra onde vende": os destinos tirando a própria cozinha (esse é uso interno, não
    venda). Eventos nunca sai — não é cozinha, é a Central produzindo pra evento. */
 function _destinosDeVenda(x){ return (x.destinos||[]).filter(d=>d!==APP_COZ_ID); }
+/* ⚠️ NÃO USE N(v,0) PRA INTEIRO: `N=(v,d)=>...toFixed(d||2)` — com d=0, `0||2` dá 2, então
+   N(1890,0) devolve "1890,00". Era ESSE o "Rende 1890,00 g" que a Bianca reclamou. O `||`
+   engole o zero. Aqui eu formato sem ele. */
+function _nbr(v,max){ return Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:(max==null?2:max)}); }
+/* Rendimento em linguagem de gente: 1890 g vira 1,89 kg; 2500 ml vira 2,5 L.
+   SÓ MUDA O QUE SE LÊ — o banco continua em g/ml, que é como a receita é escrita e como a
+   conta de custo funciona (ver lola_custo_item). Não usar isto pra calcular nada. */
+function _rendLegivel(qtd,un){
+  const q=parseFloat(qtd)||0;
+  if(un==='g'  && q>=1000) return _nbr(q/1000,2)+' kg';
+  if(un==='ml' && q>=1000) return _nbr(q/1000,2)+' L';
+  return _nbr(q,2)+(un?' '+un:'');
+}
 /* Botão que some sem explicação vira chamado de "quebrou". Este selo ocupa o lugar do
    "+ Nova" e diz o motivo em uma linha.
    NÃO cita nomes de propósito: a permissão mora em portal_users.unidades e a Bianca muda
@@ -1585,7 +1598,7 @@ function drawPP(w){
   f.forEach(p=>{
     const dataEd=p.editado_em?new Date(p.editado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):null;
     const numPorcoes=parseFloat(p.rendimento_qtd)&&parseFloat(p.porcao_qtd)?
-      (parseFloat(p.rendimento_qtd)/parseFloat(p.porcao_qtd)).toFixed(1):'—';
+      _nbr(parseFloat(p.rendimento_qtd)/parseFloat(p.porcao_qtd),1):'—';   /* era .toFixed(1) → "10.0", ponto de inglês. Agora dá "10" e "8,7". */
 
     const card=document.createElement('div');
     card.style.cssText='background:#fff;border:1.5px solid var(--rb);border-radius:14px;padding:12px 14px;margin-bottom:10px';
@@ -1621,11 +1634,34 @@ function drawPP(w){
       const vt=document.createElement('div');vt.style.cssText='font-size:13px;font-weight:700'+(cor?';color:'+cor:'');vt.textContent=val;
       d.appendChild(lt);d.appendChild(vt);return d;
     }
-    const rendStr=N(p.rendimento_qtd,0)+(p.rendimento_un?' '+p.rendimento_un:'')+(numPorcoes!=='—'?' ('+numPorcoes+' por\u00E7\u00F5es)':'');
+    /* "Rende 1890,00 g" → "Rende 1,89 kg". A Bianca reclamou, com razão: ninguém pensa em
+       1890 gramas. Muda só a APRESENTAÇÃO — o dado no banco segue em g/ml, que é como a
+       receita é escrita. Abaixo de 1000 fica como está (170 g é 170 g mesmo). */
+    const rendStr=_rendLegivel(p.rendimento_qtd,p.rendimento_un)+(numPorcoes!=='—'?' ('+numPorcoes+' por\u00E7\u00F5es)':'');
+    /* \u2550\u2550 O R\u00D3TULO QUE MENTIA (consertado 17/07) \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+       A Bianca: "os PP das bebidas ficaram errados \u2014 o que ser\u00E1 que desconfigurou?"
+       NADA desconfigurou. Conferi no backup de antes da cascata: o PP Chocolate valia
+       22,21820000 antes e vale 22,21820000 hoje. Errada estava a PALAVRA.
+
+       `custo_por_unidade` \u00E9 por kg / por L (g\u2192kg, ml\u2192L \u2014 a conta est\u00E1 no editor, umas
+       100 linhas abaixo). A lista chamava isso de "Custo/por\u00E7\u00E3o". No PP Chocolate,
+       R$ 22,22 \u00E9 o custo de UM LITRO; a por\u00E7\u00E3o \u00E9 150 ml e custa R$ 3,33. Erro de 6,7\u00D7.
+
+       Salta nas bebidas porque rendem muito (1,5 L) e servem pouco (150 ml). Nas outras
+       o erro \u00E9 o mesmo, s\u00F3 disfar\u00E7ado (Alho assado: R$ 44,71 era o quilo do alho).
+
+       O editor SEMPRE mostrou os dois certos e separados. S\u00F3 a lista errava.
+       \u26A0\uFE0F `lola_preproducoes` N\u00C3O tem coluna de custo por por\u00E7\u00E3o \u2014 a por\u00E7\u00E3o se CALCULA.
+       N\u00E3o confundir com `lola_fichas_tecnicas`, que TEM `custo_por_porcao` de verdade. */
+    const unBase=p.rendimento_un==='g'?'kg':p.rendimento_un==='ml'?'L':p.rendimento_un;
+    const _nPor=(parseFloat(p.rendimento_qtd)>0&&parseFloat(p.porcao_qtd)>0)
+                ? parseFloat(p.rendimento_qtd)/parseFloat(p.porcao_qtd) : null;
+    const _custoPorcao=_nPor?(parseFloat(p.custo_total)||0)/_nPor:null;
     l2.appendChild(mkInfo('Rende',rendStr));
     l2.appendChild(mkInfo('Custo total',R(p.custo_total)));
-    l2.appendChild(mkInfo('Custo/por\u00E7\u00E3o',R(p.custo_por_unidade),'var(--v)'));
-    if(p.valor_venda_central&&parseFloat(p.valor_venda_central)>0)l2.appendChild(mkInfo('Venda central',R(p.valor_venda_central)));
+    l2.appendChild(mkInfo('Custo/'+(unBase||'un'),R(p.custo_por_unidade),'var(--v)'));
+    if(_custoPorcao) l2.appendChild(mkInfo('Custo/por\u00E7\u00E3o',R(_custoPorcao),'var(--v)'));
+    if(p.valor_venda_central&&parseFloat(p.valor_venda_central)>0)l2.appendChild(mkInfo('Venda central/'+(unBase||'un'),R(p.valor_venda_central)));
     if(dataEd)l2.appendChild(mkInfo('Editado',(p.editado_por||'\u2014')+' \u00B7 '+dataEd));
     card.appendChild(l2);
 
