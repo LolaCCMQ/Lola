@@ -1497,7 +1497,11 @@ function _envItens(grp){
       itens.push({tipo:'produto', id:p.id, nome:p.nome, un:p.unidade||'un', saldo:+p.saldo||0, vu:null}); });
   }
   if(grp==='ins'){
-    (ST.insumos||[]).forEach(i=>{ itens.push({tipo:'insumo', id:i.id, nome:i.nome, un:i.unidade_custo||'kg', saldo:null, vu:+i.custo_por_unidade||null}); });
+    /* 17/07: "a lista de insumos que esta aparecendo é a do Lola, quando deveria ser os insumos da CENTRAL"
+       → só quem tem movimento de estoque na Central (mesma base da aba Insumos), com saldo. */
+    const salIns={}; (ST.movs||[]).forEach(m=>{ if(m.insumo_id) salIns[m.insumo_id]=(salIns[m.insumo_id]||0)+(+m.qtd||0); });
+    Object.keys(salIns).forEach(id=>{ const i=ST.byId[id]; if(!i)return;
+      itens.push({tipo:'insumo', id:i.id, nome:i.nome, un:i.unidade_custo||'kg', saldo:salIns[id], vu:+i.custo_por_unidade||null, cat:i.categoria||''}); });
   }
   if(grp==='inv'){
     (ST.inv||[]).forEach(v=>{ itens.push({tipo:'inventario', invId:v.id, nome:v.nome, un:'un', saldo:(v.qtd!=null?+v.qtd:null), vu:null, loc:v.unidade||'', cat:v.categoria||'', cor:v.cor||'', foto:v.foto_url||null}); });
