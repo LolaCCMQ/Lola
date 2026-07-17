@@ -740,7 +740,7 @@
   @media(min-width:769px){.sidebar.collapsed{width:264px}.sidebar.collapsed .nl,.sidebar.collapsed .na,.sidebar.collapsed .sb-label,.sidebar.collapsed .nav-badge{display:initial}.sidebar.collapsed .nav-item{justify-content:flex-start;padding:8px 14px}}
   .sb-overlay{display:none;position:fixed;inset:0;background:rgba(42,26,23,.22);z-index:940}
   .sb-overlay.show{display:block}
-  .home-wrap{max-width:1020px;margin:0 auto;padding:10px 18px 56px}
+  .home-wrap{max-width:980px;margin:0 auto;padding:10px 18px 56px}
   .home-greeting h1{font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;color:#2A1A17}
   .hv3-grid{display:grid;grid-template-columns:1fr;gap:36px;margin:26px 0 6px}
   @media(min-width:900px){.hv3-grid{grid-template-columns:1.35fr 1fr;gap:58px}}
@@ -1588,7 +1588,7 @@ function rhTabs(active){
 }
 function rhRenderFuncList(){
   var panel=document.getElementById('module-rh'); if(!panel) return;
-  var h='<div style="padding:22px 26px;max-width:1040px">';
+  var h='<div style="padding:22px 26px;max-width:980px;margin:0 auto">';
   h+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:2px">RH</h2>';
   h+='<p style="color:var(--muted);font-size:.84rem">Cadastro da equipe, salários, VT e comissões.</p>';
   h+=rhTabs('func');
@@ -1681,7 +1681,7 @@ async function renderRHComissoes(){
 }
 function rhComLista(){
   var panel=document.getElementById('module-rh');
-  var h='<div style="padding:22px 26px;max-width:1040px">'+rhComCab();
+  var h='<div style="padding:22px 26px;max-width:980px;margin:0 auto">'+rhComCab();
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 12px;flex-wrap:wrap;gap:8px"><div style="font-weight:600">Semanas ('+__rhSemanas.length+')</div><button class="btn btn-primary btn-sm" onclick="rhNovaSemana()">➕ Nova semana</button></div>';
   if(!__rhSemanas.length){ h+='<div class="empty">Nenhuma semana de comissão ainda. Clique em "Nova semana".</div>'; }
   else{
@@ -1724,7 +1724,7 @@ async function rhAbrirSemana(id){
 function rhComDetalhe(){
   var panel=document.getElementById('module-rh'); var s=__rhSemanaObj; if(!s){ renderRHComissoes(); return; }
   var fat=Number(s.faturamento)||0, dias=Number(s.dias)||6;
-  var h='<div style="padding:22px 26px;max-width:1040px">'+rhComCab();
+  var h='<div style="padding:22px 26px;max-width:980px;margin:0 auto">'+rhComCab();
   h+='<div style="display:flex;align-items:center;gap:10px;margin:14px 0 8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="renderRHComissoes()">← Voltar</button><h3 style="margin:0;font-size:1.1rem;color:var(--vinho-deep)">'+_escC(s.label||'Semana')+'</h3><button class="btn btn-ghost btn-sm" style="color:#C0392B;margin-left:auto" onclick="rhDelSemana('+s.id+')">🗑 Excluir semana</button></div>';
   h+='<div class="bar" style="gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px;background:var(--vinho-pale);padding:10px 14px;border-radius:10px">'
     +'<label style="font-size:.82rem;font-weight:600">Faturamento da semana: <input id="rsFatEdit" type="number" value="'+fat+'" onchange="rhSalvarFat()" style="width:150px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;margin-left:4px"></label>'
@@ -1922,7 +1922,7 @@ function cartaoRender(){
   var panel=document.getElementById('module-comprascartao'); if(!panel) return;
   var ed=window.__cartEdit?COMPRAS.find(function(x){return x.id===window.__cartEdit;}):null;
   var hoje=new Date().toISOString().slice(0,10), mesAtual=hoje.slice(0,7);
-  var h=cartaoCab()+'<div class="cart-wrap" style="padding:22px 26px;max-width:1000px">';
+  var h=cartaoCab()+'<div class="cart-wrap" style="padding:22px 26px;max-width:980px;margin:0 auto">';
   // formulário
   h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px;margin:14px 0 16px">';
   h+='<div style="font-weight:700;margin-bottom:10px;color:var(--vinho-deep)">'+(ed?('✏️ Editando compra'):'➕ Nova compra')+'</div>';
