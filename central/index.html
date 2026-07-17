@@ -1829,7 +1829,8 @@ function wireEntrada(){
 function viewSaldo(){
   // saldo por insumo
   const sal={}; ST.movs.forEach(m=>{ if(!m.insumo_id)return; const s=sal[m.insumo_id]||(sal[m.insumo_id]={q:0,v:0}); s.q+=(+m.qtd||0); s.v+=(+m.custo_total||0); });
-  let ids=Object.keys(sal);
+  /* 17/07: mov apontando pra insumo desativado não vira linha "(insumo removido)" — some da lista */
+  let ids=Object.keys(sal).filter(id=>ST.byId[id]);
   const totalV=ids.reduce((s,id)=>s+sal[id].v,0);
   if(ST.soComSaldo) ids=ids.filter(id=>Math.abs(sal[id].q)>1e-9);
   const nEvt=ids.filter(id=>ST.byId[id]?.evento).length;
