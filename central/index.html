@@ -203,6 +203,19 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .utag{font-size:10px;font-weight:800;letter-spacing:.03em;padding:2px 7px;border-radius:6px}
 .utag.ccmq{background:#FBE4E0;color:#C0392B}
 .utag.mac{background:#E6F3EA;color:#2C7A4B}
+.utag.eventos{background:#FBF0DD;color:#9A6B1E}
+.envdest{display:flex;gap:6px;margin-bottom:12px}
+.envdest button{flex:1;min-height:42px;border-radius:13px;border:1px solid var(--border);background:var(--card);font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
+.envdest button.on.ccmq{background:#C0392B;border-color:#C0392B;color:#fff}
+.envdest button.on.mac{background:#2C7A4B;border-color:#2C7A4B;color:#fff}
+.envdest button.on.eventos{background:#9A6B1E;border-color:#9A6B1E;color:#fff}
+.envpick{max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;background:var(--card);margin-top:6px}
+.envpick button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:0;border-bottom:1px solid var(--fio);background:none;font:inherit;font-size:13px;cursor:pointer;text-align:left}
+.envpick button:last-child{border-bottom:0}
+.envpick .pk-n{flex:1;min-width:0;font-weight:700}
+.envpick .pk-s{font-size:11px;color:var(--mut);white-space:nowrap}
+.envsel{background:var(--cremeDark);border-radius:12px;padding:10px 13px;margin-top:8px;font-size:12.5px}
+.envsel b{color:var(--vinho)}
 .rendrow{display:flex;gap:8px}
 .rendrow input[type=number]{flex:1;min-width:0}
 .rendrow input[type=text]{width:88px;flex-shrink:0}
@@ -379,7 +392,7 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
     <button id="tabPz"><i class="ph-duotone ph-package"></i> Produzidos</button>
     <button id="tabPerd"><i class="ph-duotone ph-trash"></i> Perdas</button>
     <button id="tabRec"><i class="ph-duotone ph-book-open"></i> Receitas</button>
-    <button id="tabEnv"><i class="ph-duotone ph-paper-plane-tilt"></i> Pro CCMQ <span class="cnt" id="cntEnv" style="display:none">0</span></button>
+    <button id="tabEnv"><i class="ph-duotone ph-paper-plane-tilt"></i> Enviar <span class="cnt" id="cntEnv" style="display:none">0</span></button>
     <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
   </div>
 
@@ -466,7 +479,7 @@ async function carregar(){
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
-      api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome').catch(()=>null),
+      api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un,valor_venda_central&order=nome').catch(()=>null),
       api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[]),
       api('lola_central_perdas?ativo=neq.false&select=*&order=data.desc,criado_em.desc&limit=500').catch(()=>[])
     ]);
@@ -1323,70 +1336,166 @@ function wireCompras(){
 /* ===== PRO CCMQ (ingredientes p/ prato especial) ===== */
 async function carregarEnvios(){
   ST.envios='loading'; if(ST.tab==='env') render();
-  try{ ST.envios=await api('lola_central_envio_ccmq?ativo=neq.false&select=id,descricao,quantidade,unidade,prato,observacao,data,responsavel,atendido&order=atendido,data.desc,criado_em.desc'); }
+  try{ ST.envios=await api('lola_central_envio_ccmq?ativo=neq.false&select=id,descricao,quantidade,unidade,prato,observacao,data,responsavel,atendido,destino,tipo_item,ref_id,valor_unit,custo_total,baixa_mov_id&order=atendido,data.desc,criado_em.desc'); }
   catch(e){ ST.envios=[]; }
   const ne=(ST.envios&&ST.envios!=='loading')?ST.envios.filter(x=>!x.atendido).length:0; const ce=$('#cntEnv'); if(ce){ if(ne){ce.style.display='';ce.textContent=ne;}else ce.style.display='none'; }
   if(ST.tab==='env') render();
 }
+/* 17/07: "substituir por ENVIAR PRODUTOS - e depois escolher pra onde vão - MAC, CCMQ ou Evento -
+   vale para todos os insumos, produções e inventário - de preferencia com CUSTO" (Bianca).
+   Preço: insumo = custo pago · produção = venda central (margem) · inventário = sem preço.
+   Marcar "enviado" BAIXA o estoque; reabrir devolve. */
+const ENV_DEST={ccmq:'CCMQ', mac:'MAC', eventos:'Evento'};
+function envDestTag(d){ d=d||'ccmq'; return `<span class="utag ${esc(d)}">${ENV_DEST[d]||d}</span>`; }
 function viewEnvio(){
-  let h=`<div class="note">Ingredientes que precisam ir pro <b>Lola CCMQ</b> pra um prato especial. Marque aqui e a cozinha separa. (Mesma lista aparece no Pedidos à Central.)</div>`;
-  h+=`<button class="btn" id="btnNovoEnvio" style="margin-bottom:12px"><i class="ph-duotone ph-paper-plane-tilt"></i> Enviar para CCMQ</button>`;
+  let h=`<div class="note">Tudo que <b>sai da Central</b> pra outra unidade: insumos (a custo), produções (valor de venda central) e itens do inventário. Marcar <b>enviado</b> baixa o estoque. Os do CCMQ continuam aparecendo no Pedidos à Central.</div>`;
+  h+=`<button class="btn" id="btnNovoEnvio" style="margin-bottom:12px"><i class="ph-duotone ph-paper-plane-tilt"></i> Enviar produtos</button>`;
   const d=ST.envios;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
-  if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-paper-plane-tilt"></i>Nada marcado ainda.</div>`; return h; }
-  const abertos=d.filter(x=>!x.atendido), feitos=d.filter(x=>x.atendido);
+  const fd=ST.envDestFiltro||'todos';
+  h+=`<div class="tabs" style="margin-bottom:12px">
+    <button class="chip ${fd==='todos'?'on':''}" data-ed="todos">Todos</button>
+    <button class="chip ${fd==='ccmq'?'on':''}" data-ed="ccmq">CCMQ</button>
+    <button class="chip ${fd==='mac'?'on':''}" data-ed="mac">MAC</button>
+    <button class="chip ${fd==='eventos'?'on':''}" data-ed="eventos">Evento</button></div>`;
+  let lst=d.slice(); if(fd!=='todos') lst=lst.filter(x=>(x.destino||'ccmq')===fd);
+  if(!lst.length){ h+=`<div class="empty"><i class="ph-duotone ph-paper-plane-tilt"></i>Nada marcado ainda.</div>`; return h; }
+  const abertos=lst.filter(x=>!x.atendido), feitos=lst.filter(x=>x.atendido);
   const linha=(x)=>{
     const meta=[fmtData(String(x.data).slice(0,10))];
     if(x.responsavel) meta.push(esc(x.responsavel));
     if(x.prato) meta.push('prato: '+esc(x.prato));
     if(x.observacao) meta.push(esc(x.observacao));
     return `<div class="env-row ${x.atendido?'done':''}" data-id="${x.id}">
-     <div><div class="env-nome">${esc(x.descricao)}</div><div class="env-meta">${meta.join(' · ')}</div></div>
+     <div><div class="env-nome">${envDestTag(x.destino)} ${esc(x.descricao)}</div><div class="env-meta">${meta.join(' · ')}</div></div>
      <div class="env-qtd">${x.quantidade
         ? `<div class="env-qtd-v">${num(x.quantidade)}</div><div class="env-qtd-u">${esc(x.unidade||'')}</div>`
-        : `<span class="env-qtd-none">sem qtd</span>`}</div>
+        : `<span class="env-qtd-none">sem qtd</span>`}
+      ${x.custo_total!=null?`<div class="env-qtd-u" style="color:var(--vinho);font-weight:700">${brl(x.custo_total)}</div>`:''}</div>
      <div class="env-acts"><button class="prodbtn eatt">${x.atendido?'<i class="ph-duotone ph-arrow-counter-clockwise"></i> reabrir':'<i class="ph-duotone ph-check"></i> enviado'}</button><button class="pdel edel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
     </div>`;
   };
-  const tabela=(lst)=>`<div class="env-tbl">`+lst.map(linha).join('')+`</div>`;
+  const tabela=(l)=>`<div class="env-tbl">`+l.map(linha).join('')+`</div>`;
   if(abertos.length){ h+=`<div class="lbl">A enviar (${abertos.length})</div>`+tabela(abertos); }
   if(feitos.length){ h+=`<div class="lbl">Já enviados (${feitos.length})</div>`+tabela(feitos); }
   return h;
 }
 function wireEnvio(){
   $('#btnNovoEnvio')&&($('#btnNovoEnvio').onclick=()=>openEnvio());
+  $$('#app .tabs .chip[data-ed]').forEach(b=>b.onclick=()=>{ST.envDestFiltro=b.dataset.ed;render();});
   $$('#app .env-row').forEach(el=>{ const id=el.dataset.id;
     el.querySelector('.eatt').onclick=()=>toggleEnvio(id);
     el.querySelector('.edel').onclick=()=>delEnvio(id, el.querySelector('.env-nome').textContent);
   });
 }
+let ENV_SEL=null, ENV_DEST_SEL='ccmq';
+function _envItens(){
+  const itens=[];
+  Object.values(ST.saldo||{}).forEach(s=>{ if(!(+s.saldo>0))return; const r=(ST.receitas||[]).find(x=>x.id===s.preproducao_id); if(!r)return;
+    itens.push({tipo:'producao', id:s.preproducao_id, nome:r.nome, un:s.unidade||r.rendimento_un||'un', saldo:+s.saldo, vu:+r.valor_venda_central||null}); });
+  (ST.prod||[]).forEach(p=>{ if(p.preproducao_id)return;
+    itens.push({tipo:'inventario', id:p.id, nome:p.nome, un:p.unidade||'un', saldo:+p.saldo||0, vu:null}); });
+  (ST.insumos||[]).forEach(i=>{ itens.push({tipo:'insumo', id:i.id, nome:i.nome, un:i.unidade_custo||'kg', saldo:null, vu:+i.custo_por_unidade||null}); });
+  return itens;
+}
+const ENV_TIPO_LBL={producao:'Produção', inventario:'Inventário', insumo:'Insumo'};
+function _envValTxt(it,q){
+  if(!it) return '';
+  if(it.tipo==='inventario'||!it.vu) return 'sem preço';
+  const lb=it.tipo==='producao'?'venda central':'custo';
+  return brl(it.vu)+'/'+esc(it.un)+' ('+lb+')'+(q>0?' · total <b>'+brl(it.vu*q)+'</b>':'');
+}
 function openEnvio(){
   const _s=lolaSession()||{}; const quem=_s.nome||_s.email||''; const hoje=new Date().toISOString().slice(0,10);
-  $('#shTitle').textContent='Enviar para CCMQ';
-  $('#shBody').innerHTML=`<div class="note">Sinalize que esse item vai pro Lola CCMQ pra um prato especial.</div>
-    <div class="mf"><label>Ingrediente / item</label><input type="text" id="envDesc" list="envList" placeholder="ex.: Pera argentina" autocomplete="off"><datalist id="envList">${(ST.insumos||[]).slice(0,500).map(i=>`<option value="${esc(i.nome)}"></option>`).join('')}</datalist></div>
-    <div class="mf"><label>Quantidade</label><div class="rendrow"><input type="number" id="envQtd" step="0.001" inputmode="decimal" placeholder="quanto"><input type="text" id="envUn" placeholder="kg/un/L" value="kg"></div></div>
-    <div class="mf"><label>Prato especial <span style="color:var(--mut);font-weight:400">(opcional)</span></label><input type="text" id="envPrato" placeholder="ex.: Salada de pera do menu"></div>
+  ENV_SEL=null; ENV_DEST_SEL='ccmq';
+  $('#shTitle').textContent='Enviar produtos';
+  $('#shBody').innerHTML=`<div class="note">Escolha <b>pra onde vai</b> e <b>o que vai</b>. Insumo sai a custo, produção com o valor de venda central, inventário sem preço.</div>
+    <label class="iml">Destino</label>
+    <div class="envdest">${['ccmq','mac','eventos'].map(d=>`<button data-d="${d}" class="${d} ${d===ENV_DEST_SEL?'on':''}">${ENV_DEST[d]}</button>`).join('')}</div>
+    <div class="mf"><label>O que vai</label><input type="text" id="envBusca" placeholder="Buscar produção, insumo ou item…" autocomplete="off"></div>
+    <div class="envpick" id="envLista"></div>
+    <div class="envsel" id="envSelBox" style="display:none"></div>
+    <div class="mf" style="margin-top:10px"><label>Quantidade</label><div class="rendrow"><input type="number" id="envQtd" step="0.001" inputmode="decimal" placeholder="quanto"><input type="text" id="envUn" placeholder="kg/un/L" value=""></div></div>
+    <div class="mf"><label>Prato / motivo <span style="color:var(--mut);font-weight:400">(opcional)</span></label><input type="text" id="envPrato" placeholder="ex.: Salada de pera do menu"></div>
     <div class="mf"><label>Data</label><input type="date" id="envData" value="${hoje}"></div>
     <div class="mf"><label>Responsável</label><input type="text" id="envResp" value="${esc(quem)}"></div>
     <div class="mf"><label>Observação</label><textarea id="envObs" rows="2" placeholder="detalhes…"></textarea></div>`;
+  const all=_envItens();
+  const drawPick=(q)=>{ const b=norm(q||''); let l=all;
+    if(b) l=l.filter(x=>norm(x.nome).includes(b));
+    else l=l.filter(x=>x.tipo!=='insumo').concat(l.filter(x=>x.tipo==='insumo').slice(0,0));
+    l=l.slice(0,40);
+    $('#envLista').innerHTML=l.length?l.map((x,i)=>`<button data-i="${all.indexOf(x)}">
+      <span class="utag" style="background:${x.tipo==='producao'?'#EFE7F6':x.tipo==='inventario'?'#E6F1FB':'#E6F3EA'};color:${x.tipo==='producao'?'#7A4FA3':x.tipo==='inventario'?'#2C5AA0':'#2C7A4B'}">${ENV_TIPO_LBL[x.tipo]}</span>
+      <span class="pk-n">${esc(x.nome)}</span>
+      <span class="pk-s">${x.saldo!=null?num(x.saldo)+' '+esc(x.un):''}${x.vu?' · '+brl(x.vu)+'/'+esc(x.un):''}</span></button>`).join('')
+      :'<div class="uinfo" style="padding:10px">Nada encontrado. Digite pra buscar também nos insumos.</div>';
+    $$('#envLista button').forEach(bt=>bt.onclick=()=>{ ENV_SEL=all[+bt.dataset.i];
+      $('#envUn').value=ENV_SEL.un; $('#envBusca').value=ENV_SEL.nome;
+      const box=$('#envSelBox'); box.style.display='';
+      const upd=()=>{ const q=+$('#envQtd').value||0;
+        box.innerHTML=`<span class="utag" style="background:#EFE7F6;color:#7A4FA3">${ENV_TIPO_LBL[ENV_SEL.tipo]}</span> <b>${esc(ENV_SEL.nome)}</b>${ENV_SEL.saldo!=null?' · saldo '+num(ENV_SEL.saldo)+' '+esc(ENV_SEL.un):''}<br>${_envValTxt(ENV_SEL,q)}`; };
+      upd(); $('#envQtd').oninput=upd;
+      $('#envLista').innerHTML='';
+    });
+  };
+  $('#envBusca').oninput=()=>{ ENV_SEL=null; $('#envSelBox').style.display='none'; drawPick($('#envBusca').value); };
+  $$('#shBody .envdest button').forEach(b=>b.onclick=()=>{ ENV_DEST_SEL=b.dataset.d; $$('#shBody .envdest button').forEach(x=>x.classList.toggle('on',x===b)); });
+  drawPick('');
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
-  $('#shSave').removeAttribute('disabled'); onSave=salvarEnvio; openSheet(); setTimeout(()=>$('#envDesc').focus(),60);
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEnvio; openSheet(); setTimeout(()=>$('#envBusca').focus(),60);
 }
 async function salvarEnvio(){
-  const desc=($('#envDesc').value||'').trim(); if(!desc){ toast('Diga qual ingrediente.'); return; }
+  const desc=($('#envBusca').value||'').trim(); if(!desc){ toast('Diga o que vai.'); return; }
   const qtd=+$('#envQtd').value||null, un=($('#envUn').value||'').trim()||null, prato=($('#envPrato').value||'').trim()||null;
   const data=$('#envData').value||new Date().toISOString().slice(0,10), resp=($('#envResp').value||'').trim()||null, obs=($('#envObs').value||'').trim()||null;
-  const ins=(ST.insumos||[]).find(i=>norm(i.nome)===norm(desc));
+  const sel=ENV_SEL&&norm(ENV_SEL.nome)===norm(desc)?ENV_SEL:null;
+  const vu=sel?(sel.tipo==='inventario'?null:sel.vu):null;
   $('#shSave').setAttribute('disabled','');
-  try{ await post('lola_central_envio_ccmq',[{descricao:desc, insumo_id:ins?ins.id:null, quantidade:qtd, unidade:un, prato, observacao:obs, data, responsavel:resp, origem:'estoque-central'}],'return=minimal');
-    toast('Marcado pro CCMQ ✓'); closeSheet(); await carregarEnvios();
+  try{ await post('lola_central_envio_ccmq',[{descricao:desc, insumo_id:(sel&&sel.tipo==='insumo')?sel.id:null,
+      destino:ENV_DEST_SEL, tipo_item:sel?sel.tipo:null, ref_id:sel?sel.id:null,
+      valor_unit:vu, custo_total:(vu&&qtd)?+(vu*qtd).toFixed(2):null,
+      quantidade:qtd, unidade:un, prato, observacao:obs, data, responsavel:resp, origem:'estoque-central'}],'return=minimal');
+    toast('Envio marcado ✓'); closeSheet(); await carregarEnvios();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
+/* enviado = baixa o estoque · reabrir = devolve (espelho do fluxo de perdas) */
 async function toggleEnvio(id){
   const x=(ST.envios||[]).find(y=>y.id===id); if(!x)return;
-  try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_central_envio_ccmq?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({atendido:!x.atendido})});
-    x.atendido=!x.atendido; toast(x.atendido?'Marcado como enviado ✓':'Reaberto'); render();
+  const marcar=!x.atendido; const q=+x.quantidade||0;
+  const patchEnvio=(body)=>fetch(SB_URL+'/rest/v1/lola_central_envio_ccmq?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(body)});
+  try{ await lolaEnsure();
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||null;
+    let movId=x.baixa_mov_id||null;
+    if(q>0 && x.tipo_item==='insumo' && x.ref_id){
+      if(marcar){
+        const cu=x.valor_unit!=null?+x.valor_unit:null;
+        const mv=await post('lola_central_estoque_mov',[{insumo_id:x.ref_id, tipo:'envio', qtd:-q, unidade:x.unidade||'',
+          custo_unit:cu, custo_total:cu!=null?-+(cu*q).toFixed(2):null, origem_tipo:'envio', origem_ref:'envio:'+id,
+          data:String(x.data).slice(0,10), obs:'Envio '+(ENV_DEST[x.destino]||x.destino||'CCMQ'), criado_por:quem}],'return=representation');
+        movId=(mv&&mv[0]&&mv[0].id)||null;
+        ST.movs.push({insumo_id:x.ref_id, qtd:-q, custo_total:(x.valor_unit!=null)?-+(x.valor_unit*q).toFixed(2):0, _envio:id});
+      } else if(movId){
+        await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?id=eq.'+movId,{method:'DELETE',headers:lolaHeaders({'Prefer':'return=minimal'})});
+        movId=null;
+        ST.movs=ST.movs.filter(m=>m._envio!==id);
+      }
+    }
+    if(q>0 && x.tipo_item==='producao' && x.ref_id){
+      const s=(ST.saldo||{})[x.ref_id];
+      const novo=((s&&+s.saldo)||0)+(marcar?-q:q);
+      await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+x.ref_id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})});
+      if(s) s.saldo=novo;
+    }
+    if(q>0 && x.tipo_item==='inventario' && x.ref_id){
+      const p=(ST.prod||[]).find(z=>z.id===x.ref_id);
+      const novo=((p&&+p.saldo)||0)+(marcar?-q:q);
+      await fetch(SB_URL+'/rest/v1/lola_central_prod?id=eq.'+x.ref_id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})});
+      if(p) p.saldo=novo;
+    }
+    await patchEnvio({atendido:marcar, baixa_mov_id:movId});
+    x.atendido=marcar; x.baixa_mov_id=movId;
+    toast(marcar?'Enviado ✓ (estoque baixado)':'Reaberto (estoque devolvido)'); render();
   }catch(e){ toast('Erro: '+e.message); }
 }
 async function delEnvio(id, nome){
