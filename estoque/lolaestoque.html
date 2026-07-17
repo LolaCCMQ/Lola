@@ -7008,9 +7008,15 @@ buildShell();
   var q=new URLSearchParams(location.search);
   if(q.get('embed')!=='1') return;
   var st=document.createElement('style');
-  st.textContent='.topbar,.sidebar,.mob-overlay{display:none!important}.app-body{min-height:100vh!important}.main{width:100%!important;max-width:980px!important;margin:0 auto!important}';
+  st.textContent='.topbar,.sidebar,.mob-overlay{display:none!important}.app-body{min-height:100vh!important}.main{width:100%!important;max-width:980px!important;margin:0 auto!important}'
+    /* 17/07: editor grande em embed vira página inteira (a Bianca: "a tela deveria entrar inteira e nao com esse fundo estranho escuro") */
+    +'body.embed .ov:has(.mol),body.embed .ov:has(.moxl){background:#FBF7F1!important;backdrop-filter:none!important}'
+    +'body.embed .ov .mo.mol,body.embed .ov .mo.moxl{width:100%!important;max-width:100%!important;height:100%!important;max-height:100%!important;border-radius:0!important;border:0!important;box-shadow:none!important}';
   document.head.appendChild(st);
   document.body.classList.add('embed');
+  /* avisa o pai (Central) da altura do conteúdo (mata a rolagem dupla) e de modal aberto (pai expande o iframe) */
+  var _embH=0; setInterval(function(){ var h=document.documentElement.scrollHeight; if(Math.abs(h-_embH)>2){ _embH=h; try{ parent.postMessage({type:'lola-embed-h',h:h},'*'); }catch(_){} } },350);
+  var _embOv=false; setInterval(function(){ var on=!!document.querySelector('.ov'); if(on!==_embOv){ _embOv=on; try{ parent.postMessage({type:'lola-embed-modal',on:on},'*'); }catch(_){} } },250);
   window.addEventListener('message',function(e){var d=(e&&e.data)||{};if(d.type==='lola-nav'&&d.page&&typeof nav==='function'){nav(d.page);}});
 })();
 /* Agora sim: primeiro descobre QUEM é (e o que pode), só então desenha. Se renderizasse
