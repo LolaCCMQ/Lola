@@ -1168,7 +1168,10 @@ async function openContagemDet(id, tipo){
    filtra só o que é da Central, mostra o selo azul COZINHA CENTRAL, e o que for
    criado nasce com cozinha='central'. Quem usa nunca sai do app da Central.
    Decisão registrada em retomar/REESTRUTURACAO-cozinhas-separadas.md.          */
-const _EST_URL='https://lolaccmq.github.io/LolaEstoque/lolaestoque.html';
+/* 17/07: o Estoque veio pro equipelola.net. Caminho relativo ao domínio de propósito —
+   é o que faz ele enxergar o login (localStorage é por domínio). Voltar pro
+   lolaccmq.github.io re-abre o buraco do ?u=. */
+const _EST_URL='/estoque/lolaestoque.html';
 function _telaDoEstoque(page){
   const s=lolaSession()||{};
   const quem=encodeURIComponent(s.nome||s.email||'');
