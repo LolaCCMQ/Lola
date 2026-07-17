@@ -247,6 +247,11 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .insmenu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--ink);padding:9px 10px;border-radius:9px;cursor:pointer;text-align:left}
 .insmenu button:active{background:var(--cremeDark)}
 .insmenu button.del{color:#B5302E}
+/* 17/07: status do pedido em botão grande, clicável pra trocar */
+.pedst{border:0;border-radius:999px;padding:9px 18px;font:inherit;font-weight:800;font-size:13px;cursor:pointer;letter-spacing:.02em}
+.pedst.novo{background:var(--pendBg);color:var(--pendFg)}
+.pedst.aceito{background:#E3EDFB;color:#2C5AA0}
+.pedst.pronto{background:var(--okBg);color:var(--okFg)}
 @media(max-width:640px){ .inshd,.insrw{grid-template-columns:minmax(0,1fr) auto 40px;gap:8px;padding:11px 12px} .inshd .h-pr,.insrw .pr{display:none} }
 .rendrow{display:flex;gap:8px}
 .rendrow input[type=number]{flex:1;min-width:0}
@@ -1651,8 +1656,9 @@ function viewPedidos(){
   if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-cart"></i>Nenhum pedido${filtro==='abertos'?' a fazer':''}.</div>`; return h; }
   h+=list.map(p=>{
     const its=p.lola_pedidos_itens||[];
+    const cs=p.central_status||'novo';
     return `<div class="pedc" data-id="${p.id}">
-      <div class="fh"><b>#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}</b>${pedPill(p.central_status)}</div>
+      <div class="fh"><b>#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}</b><span class="pedstw" style="position:relative"><button class="pedst ${cs}" title="Trocar o status">${cs==='pronto'?'pronto ✓':cs}</button></span></div>
       <div class="frow"><span>Pedido</span><b>${fmtData(String(p.data_pedido).slice(0,10))}${p.responsavel?' · '+esc((p.responsavel||'').trim()):''}</b></div>
       <div class="frow"><span>Itens</span><b>${its.length} · ${brl(p.valor_total)}</b></div>
     </div>`;
@@ -1662,7 +1668,19 @@ function viewPedidos(){
 function wirePedidos(){
   $$('#app .tabs .chip[data-pu]').forEach(b=>b.onclick=()=>{ST.pedUni=b.dataset.pu;render();});
   $$('#app .tabs .chip[data-pf]').forEach(b=>b.onclick=()=>{ST.pedFiltro=b.dataset.pf;render();});
-  $$('#app .pedc').forEach(el=>el.onclick=()=>openPedido(el.dataset.id));
+  $$('#app .pedc').forEach(el=>{ const id=el.dataset.id;
+    el.onclick=(e)=>{ if(e.target.closest('.pedstw'))return; openPedido(id); };
+    const st=el.querySelector('.pedst'); if(st) st.onclick=(e)=>{ e.stopPropagation();
+      const w=el.querySelector('.pedstw'); const aberto=w.querySelector('.insmenu'); fecharInsMenu(); if(aberto) return;
+      const menu=document.createElement('div'); menu.className='insmenu'; menu.style.width='160px';
+      [['novo','circle','Novo'],['aceito','check','Aceito'],['pronto','paper-plane-tilt','Pronto pra enviar']].forEach(([v,ic,lb])=>{
+        const b=document.createElement('button'); b.innerHTML='<i class="ph-duotone ph-'+ic+'"></i> '+lb;
+        b.onclick=(e2)=>{ e2.stopPropagation(); fecharInsMenu(); setPedidoStatus(id, v); };
+        menu.appendChild(b);
+      });
+      w.appendChild(menu);
+    };
+  });
 }
 let PED_CUR=null;
 function openPedido(id){
