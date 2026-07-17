@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Estoque da Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#A82A2A; --vinhoH:#7E1E1F;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --okBg:#E6F3EA; --okFg:#2C7A4B; --pendBg:#FBF0DD; --pendFg:#9A6B1E; --urgBg:#FBEAE7; --urgFg:#B5302E;
+  --r-pill:9px; --r-btn:13px; --r-card:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 96px}
+header{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:14px}
+header .back{background:none;border:0;color:var(--vinho);font-size:22px;display:flex;align-items:center;cursor:pointer;padding:4px}
+header h1{font-family:Fraunces,serif;font-weight:600;font-size:19px;color:var(--vinho);line-height:1.15}
+header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em}
+header .spacer{flex:1}
+header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:pointer;padding:4px}
+
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.tabs button{flex:1 1 auto;min-height:42px;white-space:nowrap;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);
+  font:inherit;font-weight:700;font-size:12px;color:var(--sec);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;padding:0 8px}
+.tabs button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+.tabs button i{font-size:18px}
+.tabs button .cnt{font-size:11px;background:var(--urgBg);color:var(--urgFg);border-radius:999px;padding:1px 7px;font-weight:800}
+.tabs button.on .cnt{background:rgba(255,255,255,.24);color:#fff}
+
+.note{background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sec);margin-bottom:16px;overflow-wrap:anywhere}
+.monthsel{display:flex;align-items:center;gap:10px;margin:2px 0 12px}
+.monthsel span{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:700;flex-shrink:0}
+.monthsel select{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:11px 12px;font:inherit;font-size:14px;color:var(--ink);min-height:44px}
+.lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin:20px 0 10px;display:flex;align-items:center;gap:8px}
+.lbl .spacer{flex:1}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:nowrap}
+.toolbar input[type=search]{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:11px 12px;font:inherit;font-size:14px;min-height:44px}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:0 14px;min-height:44px;font:inherit;font-weight:700;font-size:12.5px;color:var(--sec);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.chip.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+
+/* cartão de nota */
+.ncard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.ncard:active{background:var(--cremeDark)}
+.ncard .ic{font-size:26px;color:var(--vinho);flex-shrink:0}
+.ncard .t{flex:1;min-width:0}
+.ncard .t b{display:block;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ncard .t span{display:block;font-size:12px;color:var(--mut);margin-top:2px}
+.ncard .r{text-align:right;flex-shrink:0}
+.ncard .r .v{font-family:Fraunces,serif;font-weight:600;font-size:15px}
+.ncard .r .n{font-size:11px;color:var(--mut);margin-top:2px}
+.ncard.done .ic{color:var(--okFg)}
+
+/* saldo */
+.tot{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;text-align:center}
+.tot .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:700}
+.tot .big{font-family:Fraunces,serif;font-weight:600;font-size:38px;line-height:1;margin:6px 0 2px}
+.tot .s{font-size:12px;color:var(--mut);font-weight:600}
+.catrow{margin:18px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--lbl);font-weight:700;display:flex;justify-content:space-between}
+.srow{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.srow .t{flex:1;min-width:0}
+.srow .t b{display:block;font-size:13.5px;font-weight:700}
+.srow .t span{display:block;font-size:11.5px;color:var(--mut);margin-top:1px}
+.srow .r{text-align:right;flex-shrink:0}
+.srow .r .q{font-family:Fraunces,serif;font-weight:600;font-size:15px}
+.srow .r .v{font-size:11.5px;color:var(--mut);margin-top:1px}
+.srow .resolv{flex-shrink:0;min-height:38px;padding:0 14px;font-size:12px}
+.prodq{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.prodq .psaldo{width:76px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
+.prodq .pu{font-size:12px;color:var(--mut);font-weight:700;min-width:24px}
+.prodq .pdel{background:none;border:0;color:var(--lbl);font-size:17px;cursor:pointer;padding:2px}
+.pcard,.pzc{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
+.pzc .t b{display:block;font-size:14px;font-weight:700}
+.pzc .t span{display:block;font-size:11.5px;color:var(--mut);margin-top:2px}
+.pzc .prow.pztog{cursor:pointer;align-items:center}
+.pzev{margin-top:2px}
+.pzevrow{align-items:center;gap:8px}
+.pzevrow span{flex:1;min-width:0}
+.pzevrow b{white-space:nowrap}
+.pzevrow .pzedit,.pzevrow .pzdel{background:none;border:0;font-size:15px;cursor:pointer;padding:2px 4px}
+.pzevrow .pzedit{color:var(--vinho)}.pzevrow .pzdel{color:var(--lbl)}
+.pcard .prow{display:flex;align-items:center;gap:12px}
+.pcard .prow .t{flex:1;min-width:0}
+.pcard .prow .t b{display:block;font-size:13.5px;font-weight:700}
+.pcard .prow .t span{display:block;font-size:11.5px;color:var(--mut)}
+.pacts{display:flex;gap:6px;margin-top:8px;align-items:stretch}
+.prodbtn{flex:0 0 auto;background:var(--okBg);color:var(--okFg);border:0;border-radius:10px;min-height:38px;padding:0 13px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+.pacts .pdel{background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:16px;cursor:pointer;padding:0 11px}
+.pplink{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
+.pcard .plink{flex:1;min-width:0;background:var(--card);border:1px dashed var(--border);border-radius:10px;padding:0 11px;min-height:38px;font:inherit;font-size:12px;font-weight:700;color:var(--mut);cursor:pointer;display:flex;align-items:center;gap:6px;overflow:hidden}
+.pcard .plink span{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.pcard .plink i{font-size:15px;color:var(--lbl);flex-shrink:0}
+.pcard .plink.on{border-style:solid;border-color:var(--okFg);color:var(--okFg);background:var(--okBg)}
+.pcard .plink.on i{color:var(--okFg)}
+.pcard .prow .t.ptog{cursor:pointer}
+.pstock{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-width:64px;min-height:46px;background:var(--creme);border:1px solid var(--border);border-radius:12px;cursor:pointer;padding:4px 8px}
+.pstock b{font-family:Fraunces,serif;font-weight:600;font-size:17px;color:var(--ink);line-height:1}
+.pstock span{font-size:12px;color:var(--vinho);font-weight:800;text-transform:uppercase;letter-spacing:.03em;margin-top:3px}
+.pstock.on{background:var(--okBg);border-color:var(--okFg)}
+.pstock.on b{color:var(--okFg)}
+.nrow{display:flex;gap:6px;margin-bottom:7px;align-items:center}
+.nrow .nrn{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:42px}
+.nrow .nrq{width:64px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;text-align:right;min-height:42px}
+.nrow .nru{width:52px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:42px}
+.nrow .nrx{flex-shrink:0;background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:15px;cursor:pointer;padding:0 10px;min-height:42px}
+#shBody textarea{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px;font:inherit;font-size:15px;resize:vertical}
+.ring.iedit{align-items:center}
+.ring.iedit span{flex:1;min-width:0}
+.ring.iedit .riq{width:92px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;text-align:right;min-height:34px;color:var(--ink)}
+.ring.iedit b{min-width:32px;text-align:right;color:var(--sec)}
+.chist{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;font:inherit;cursor:pointer;text-align:left}
+.chist .t b{display:block;font-size:14px;font-weight:700;color:var(--ink)}
+.chist .t span{display:block;font-size:12px;color:var(--mut)}
+.chist i{color:var(--lbl);font-size:18px}
+.cdet{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 13px;margin-bottom:7px}
+.cdet .t{flex:1;min-width:0}
+.cdet .t b{display:block;font-size:13.5px;font-weight:700}
+.cdet .t span{display:block;font-size:11.5px;color:var(--mut)}
+.cdet .cdif{flex-shrink:0;font-family:Fraunces,serif;font-weight:600;font-size:15px;color:var(--mut)}
+.cdet .cdif.pos{color:#2C5AA0}
+.cdet .cdif.neg{color:var(--urgFg)}
+.imwarn{background:var(--urgBg);border:1px solid #E9A8A2;border-radius:12px;padding:10px 12px;margin:8px 0 4px}
+.imwarn .imwt{font-size:12px;font-weight:700;color:var(--urgFg);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.imwarn .imwuse{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:6px;font:inherit;font-size:13px;font-weight:600;color:var(--vinho);cursor:pointer}
+.imwarn .imwuse:last-child{margin-bottom:0}
+.imwarn .imwuse:active{background:var(--cremeDark)}
+.sitem .srow{position:relative}
+.evtag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:800;letter-spacing:.02em;color:#B23A6B;background:#F6DCE8;border-radius:999px;padding:4px 11px;white-space:nowrap;margin-bottom:4px}
+.totmini{font-size:12px;color:var(--mut);font-weight:600;margin:2px 0 12px;padding:0 2px}
+.totmini b{color:var(--sec)}
+.sitem .iedt{flex-shrink:0;background:none;border:1px solid var(--border);border-radius:9px;color:var(--vinho);font-size:15px;cursor:pointer;padding:0 10px;min-height:34px;align-self:center}
+.sitem .iedt:active{background:var(--cremeDark)}
+.ecard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px}
+.ecard.done{opacity:.55}
+.ecard .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.ecard .fh b{font-size:14px;font-weight:700}
+.ecard .frow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:2px 0}
+.ecard .frow span{color:var(--mut)}
+.ecard .pacts{margin-top:10px}
+/* ===== ENVIOS PRO CCMQ — lista compacta, quantidade em destaque ===== */
+.env-tbl{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden;margin-bottom:10px}
+.env-row{display:grid;grid-template-columns:minmax(0,1fr) 96px auto;align-items:center;gap:10px;padding:10px 13px;border-top:1px solid var(--fio)}
+.env-row:first-child{border-top:0}
+.env-row.done{opacity:.55}
+.env-nome{font-size:14px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.env-meta{font-size:11px;color:var(--mut);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.env-qtd{text-align:right;white-space:nowrap}
+.env-qtd-v{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--vinho);line-height:1.05}
+.env-qtd-u{font-size:11px;font-weight:700;color:var(--sec);text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+.env-qtd-none{font-size:11px;color:var(--lbl)}
+.env-acts{display:flex;gap:6px;align-items:center}
+.env-acts .prodbtn{min-height:34px;padding:0 11px;font-size:12px}
+.env-acts .pdel{min-height:34px;padding:0 10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:15px;cursor:pointer}
+@media(max-width:560px){
+  .env-row{grid-template-columns:minmax(0,1fr) auto;row-gap:8px}
+  .env-acts{grid-column:1/-1;justify-content:stretch}
+  .env-acts .prodbtn{flex:1}
+}
+.fcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;border-left:4px solid var(--border)}
+.fcard.ok{border-left-color:var(--okFg)}
+.fcard.pos{border-left-color:#2C5AA0}
+.fcard.neg{border-left-color:var(--urgFg)}
+.fcard .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.fcard .fh b{font-size:14px;font-weight:700}
+.fcard .frow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:3px 0}
+.fcard .frow span{color:var(--mut)}
+.fcard .frow.furo{border-top:1px solid var(--fio);margin-top:3px;padding-top:6px}
+.fcard .frow.furo b{color:var(--ink)}
+.stpill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.stpill.ok{background:var(--okBg);color:var(--okFg)}
+.stpill.pend{background:var(--pendBg,#FBF0DD);color:var(--pendFg,#9A6B1E)}
+.stpill.az{background:#E6EEF8;color:#2C5AA0}
+.pedc{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.pedc .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.pedc .fh b{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px}
+.pedc .frow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:2px 0}
+.pedc .frow span{color:var(--mut)}
+.utag{font-size:10px;font-weight:800;letter-spacing:.03em;padding:2px 7px;border-radius:6px}
+.utag.ccmq{background:#FBE4E0;color:#C0392B}
+.utag.mac{background:#E6F3EA;color:#2C7A4B}
+.rendrow{display:flex;gap:8px}
+.rendrow input[type=number]{flex:1;min-width:0}
+.rendrow input[type=text]{width:88px;flex-shrink:0}
+.etck{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--sec);font-weight:600;margin-top:4px;cursor:pointer}
+.etck input{width:20px;height:20px;accent-color:var(--vinho)}
+#shBody select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px;font:inherit;font-size:15px;min-height:46px;color:var(--ink)}
+.vsearch{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font:inherit;font-size:16px;min-height:46px;margin-bottom:10px}
+.vrow{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:7px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}
+.vrow.on{border-color:var(--okFg);background:var(--okBg);color:var(--okFg)}
+.vrow i{font-size:17px;color:var(--lbl)}
+.vrow.on i{color:var(--okFg)}
+.sitem{margin-bottom:8px}
+.sitem .srow{margin-bottom:0}
+.srow-c{cursor:pointer}
+.srow-c .t span i{color:var(--vinho);font-size:12px}
+.usos{display:none}
+.usos.on{display:block;background:var(--cremeDark);border-radius:12px;padding:10px 13px;margin:6px 0 0}
+.ugrp{font-size:12px;color:var(--sec);line-height:1.5;margin:3px 0;overflow-wrap:anywhere}
+.ugrp b{color:var(--ink);font-weight:700}
+.uinfo{font-size:12px;color:var(--mut)}
+.norec{display:inline-flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;font-weight:700;color:var(--urgFg);background:var(--urgBg);border:0;border-radius:8px;padding:5px 10px;cursor:pointer;font-family:inherit}
+.norec:active{background:#F5D3CD}
+.norec i{font-size:13px}
+.btn2{display:flex;gap:8px;margin-bottom:12px}
+.btn2 .btn{margin-bottom:0}
+.citem{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.citem .ct{flex:1;min-width:0}
+.citem .ct b{display:block;font-size:13.5px;font-weight:700}
+.citem .ct span{display:block;font-size:11.5px;color:var(--mut)}
+.citem .ccont{width:92px;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px;text-align:right;min-height:40px;color:var(--ink)}
+.citem .cu{font-size:12px;color:var(--mut);font-weight:700;min-width:22px}
+.ritem{margin-bottom:8px}
+.ritem .srow{margin-bottom:0}
+.ring{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--sec);padding:4px 0;border-bottom:1px solid var(--fio)}
+.ring:last-child{border-bottom:0}
+.ring b{color:var(--ink);font-weight:700;white-space:nowrap}
+
+/* janela centralizada */
+#sheetBg{position:fixed;inset:0;background:rgba(42,26,23,.42);z-index:200;opacity:0;pointer-events:none;transition:.2s}
+#sheetBg.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:50%;top:50%;z-index:201;background:var(--creme);border-radius:18px;overflow:hidden;
+  width:calc(100% - 28px);max-width:640px;max-height:86vh;display:flex;flex-direction:column;
+  transform:translate(-50%,-46%);opacity:0;pointer-events:none;transition:.22s}
+#sheet.on{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
+.sh-head{display:flex;align-items:center;gap:10px;padding:16px 16px 10px;border-bottom:1px solid var(--fio)}
+.sh-head h2{font-family:Fraunces,serif;font-weight:600;font-size:17px;color:var(--vinho);flex:1;line-height:1.15}
+.sh-head .x{background:none;border:0;font-size:24px;color:var(--sec);cursor:pointer;padding:2px}
+.sh-body{padding:14px 16px 6px;overflow-y:auto}
+.sh-foot{padding:12px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--fio);background:var(--creme)}
+.btn{width:100%;min-height:50px;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{background:var(--vinhoH)}
+.btn.sec{background:var(--card);color:var(--sec);border:1px solid var(--border)}
+.btn[disabled]{opacity:.5;pointer-events:none}
+
+/* modal criar insumo */
+#insBg{position:fixed;inset:0;background:rgba(42,26,23,.5);z-index:210;opacity:0;pointer-events:none;transition:.2s}
+#insBg.on{opacity:1;pointer-events:auto}
+#insModal,#resModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);z-index:211;width:calc(100% - 32px);max-width:420px;
+  background:var(--creme);border-radius:18px;opacity:0;pointer-events:none;transition:.2s;max-height:90vh;display:flex;flex-direction:column}
+#insModal.on,#resModal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+#resBg{position:fixed;inset:0;background:rgba(42,26,23,.5);z-index:210;opacity:0;pointer-events:none;transition:.2s}
+#resBg.on{opacity:1;pointer-events:auto}
+.im-body textarea{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;color:var(--ink);resize:vertical}
+.im-head{display:flex;align-items:center;gap:10px;padding:16px 16px 10px;border-bottom:1px solid var(--fio)}
+.im-head h3{flex:1;font-family:Fraunces,serif;font-weight:600;font-size:17px;color:var(--vinho)}
+.im-head .x{background:none;border:0;font-size:22px;color:var(--sec);cursor:pointer}
+.im-body{padding:10px 16px 4px;overflow-y:auto}
+.iml{display:block;font-size:11px;color:var(--mut);font-weight:700;margin:11px 0 4px}
+.im-body input,.im-body select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
+.catbtns{display:flex;flex-wrap:nowrap;gap:5px;margin-bottom:12px}
+.catbtns button{flex:1 1 0;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:10px;min-height:46px;padding:4px 5px;font:inherit;font-weight:700;font-size:11px;line-height:1.12;color:var(--sec);cursor:pointer;white-space:normal;text-align:center}
+.catbtns button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+.unrow{display:flex;gap:6px}
+.unrow button{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;min-height:44px;font:inherit;font-weight:700;font-size:13px;color:var(--sec);cursor:pointer}
+.unrow button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+.imnote{background:var(--cremeDark);border-radius:10px;padding:9px 11px;font-size:11.5px;color:var(--sec);margin:12px 0 2px}
+.im-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--fio)}
+
+.item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px;margin-bottom:10px}
+.item.ign{opacity:.55}
+.item .top{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px}
+.item .top b{font-size:13px;font-weight:700;line-height:1.25}
+.item .top .q{font-size:12px;color:var(--mut);white-space:nowrap;flex-shrink:0;text-align:right}
+.item select{width:100%;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;color:var(--ink);min-height:44px}
+.item .l2{display:flex;gap:8px;margin-top:8px;align-items:center}
+.item .l2 label{font-size:11px;color:var(--mut);font-weight:600}
+.item .l2 input{width:64px;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:13px;text-align:center;min-height:40px}
+.item .l2 .ignbtn{margin-left:auto;background:none;border:1px solid var(--border);border-radius:10px;padding:8px 11px;font:inherit;font-size:12px;font-weight:700;color:var(--sec);cursor:pointer;min-height:40px}
+.item .l2 .ignbtn.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
+.item .auto{font-size:11px;color:var(--okFg);font-weight:700;margin-top:6px;display:none}
+.item .auto.on{display:block}
+.item.alerta{border-color:#EFD9AE;background:#FDF7EC}
+.item .fchint{display:none;font-size:11.5px;color:var(--okFg);font-weight:600;margin-top:7px;line-height:1.35}
+.item .fchint.on{display:block}
+.item .fchint.warn{color:var(--pendFg)}
+.item .entra{display:none;font-size:12px;color:var(--sec);margin-top:7px;background:var(--cremeDark);border-radius:9px;padding:7px 10px}
+.item .entra.on{display:block}
+.item .entra b{color:var(--ink);font-weight:700}
+.item.falta{border-color:#E9A8A2;box-shadow:0 0 0 2px #FBEAE7}
+.falta-banner{background:var(--urgBg);color:var(--urgFg);border:1px solid #E9A8A2;border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.4;margin-bottom:12px}
+.falta-banner b{font-weight:700}
+.movbtn{min-height:40px;font-size:12.5px;margin-bottom:12px}
+.movsel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--cremeDark);border-radius:12px;padding:11px 12px;margin-bottom:12px}
+.movsel span{font-size:12.5px;color:var(--sec);font-weight:600;flex-basis:100%}
+.movsel button{flex:1;background:var(--vinho);color:#fff;border:0;border-radius:10px;min-height:42px;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.movsel button.cancel{background:var(--card);color:var(--sec);border:1px solid var(--border)}
+.item .l2 .unit{font-size:12px;color:var(--mut);font-weight:700}
+.item .l3{display:flex;gap:8px;margin-top:8px}
+.item .l3 button{flex:1;background:none;border:1px solid var(--border);border-radius:10px;padding:9px 6px;font:inherit;font-size:12px;font-weight:700;color:var(--sec);cursor:pointer;min-height:42px;display:flex;align-items:center;justify-content:center;gap:5px}
+.item .l3 .usbtn.on{background:var(--pendBg);color:var(--pendFg);border-color:#EFD9AE}
+.item .l3 .ignbtn.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
+
+/* entrada manual */
+.mf{margin-bottom:10px}
+.mf label{display:block;font-size:11px;color:var(--mut);font-weight:600;margin-bottom:4px}
+.mf input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;min-height:44px;color:var(--ink)}
+.mline{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:10px;margin-bottom:8px}
+.mline .mi{width:100%;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;min-height:44px;color:var(--ink)}
+.mrow{display:flex;gap:8px;margin-top:8px}
+.mrow .mq,.mrow .mc{flex:1;min-width:0;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;min-height:44px;text-align:center;color:var(--ink)}
+.mrow .mdel{background:var(--urgBg);color:var(--urgFg);border:0;border-radius:10px;padding:0 12px;min-height:44px;cursor:pointer;font-size:16px;flex-shrink:0}
+
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,140%);background:#2A1A17;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:.25s;max-width:88vw;text-align:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.5)}
+#toast.on{transform:translate(-50%,0)}
+.spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--vinho);border-radius:50%;animation:sp .8s linear infinite;margin:50px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{text-align:center;color:var(--mut);font-size:13px;padding:38px 10px}
+.empty i{font-size:40px;color:var(--lbl);display:block;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <button class="back" id="btnBack" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
+    <div>
+      <h1>Estoque da Central</h1>
+      <div class="sub">Entrada das notas e saldo dos insumos</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="act" id="btnReload" title="Atualizar"><i class="ph-duotone ph-arrows-clockwise"></i></button>
+  </header>
+
+  <div class="tabs">
+    <button id="tabEnt" class="on"><i class="ph-duotone ph-file-arrow-down"></i> Notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
+    <button id="tabPed"><i class="ph-duotone ph-shopping-cart"></i> Pedidos <span class="cnt" id="cntPed" style="display:none">0</span></button>
+    <button id="tabSal"><i class="ph-duotone ph-stack"></i> Insumos</button>
+    <button id="tabCmp"><i class="ph-duotone ph-shopping-bag-open"></i> Compras</button>
+    <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
+    <button id="tabPz"><i class="ph-duotone ph-package"></i> Produzidos</button>
+    <button id="tabPerd"><i class="ph-duotone ph-trash"></i> Perdas</button>
+    <button id="tabRec"><i class="ph-duotone ph-cooking-pot"></i> Pré-produções</button>
+    <button id="tabFt"><i class="ph-duotone ph-book-open"></i> Fichas Técnicas</button>
+    <button id="tabFech"><i class="ph-duotone ph-calculator"></i> Fechar mês</button>
+    <button id="tabEnv"><i class="ph-duotone ph-paper-plane-tilt"></i> Pro CCMQ <span class="cnt" id="cntEnv" style="display:none">0</span></button>
+    <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
+  </div>
+
+  <div id="app"><div class="spin"></div></div>
+</div>
+
+<div id="sheetBg"></div>
+<div id="sheet">
+  <div class="sh-head"><h2 id="shTitle">Nota</h2><button class="x" id="shX"><i class="ph-duotone ph-x"></i></button></div>
+  <div class="sh-body" id="shBody"></div>
+  <div class="sh-foot"><button class="btn" id="shSave"><i class="ph-duotone ph-check"></i> Dar entrada no estoque</button></div>
+</div>
+<div id="insBg"></div>
+<div id="insModal">
+  <div class="im-head"><h3>Novo insumo</h3><button class="x" id="imX"><i class="ph-duotone ph-x"></i></button></div>
+  <div class="im-body">
+    <label class="iml">Nome do insumo</label><input id="imNome" placeholder="ex.: Ervilha torta">
+    <div id="imWarn"></div>
+    <label class="iml">Categoria</label><select id="imCat"></select>
+    <label class="iml">Unidade do estoque</label>
+    <div class="unrow" id="imUn"></div>
+    <label class="iml">Destino (de qual unidade é)</label>
+    <div class="unrow" id="imDest"></div>
+    <label class="iml">Custo por unidade (R$) — já puxado da nota</label><input id="imCusto" type="number" step="0.01" placeholder="0">
+    <div id="imHort" style="display:none">
+      <div class="imnote">Hortifruti que vem em maço/unidade: preencha pra o app converter e aplicar o FC sozinho nas próximas notas.</div>
+      <label class="iml">Peso médio de 1 maço/unidade (g) — opcional</label><input id="imPeso" type="number" step="1" placeholder="ex.: 122">
+      <label class="iml">Fator de correção FC (bruto ÷ líquido) — opcional</label><input id="imFC" type="number" step="0.01" placeholder="ex.: 2,34">
+    </div>
+  </div>
+  <div class="im-foot"><button class="btn" id="imSave"><i class="ph-duotone ph-check"></i> Criar e usar</button></div>
+</div>
+<div id="resBg"></div>
+<div id="resModal">
+  <div class="im-head"><h3 id="resTitle">Alerta</h3><button class="x" id="resX"><i class="ph-duotone ph-x"></i></button></div>
+  <div class="im-body">
+    <div class="imnote">Por que esse item foi comprado se a gente não usa? (ex.: refeição do funcionário, teste de prato novo)</div>
+    <label class="iml">Justificativa (obrigatória) *</label>
+    <textarea id="resJust" rows="3" placeholder="escreva o motivo…"></textarea>
+    <label class="iml" style="margin-top:14px">O que fazer com o item?</label>
+  </div>
+  <div class="im-foot">
+    <button class="btn" id="resCentral" style="margin-bottom:8px"><i class="ph-duotone ph-stack"></i> Adicionar ao estoque da Central</button>
+    <button class="btn sec" id="resCcmq"><i class="ph-duotone ph-arrow-right"></i> Enviar para o CCMQ (uso)</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<!-- Mudou de /adm/central-estoque/ para /central/estoque/ em 17/07 (o /adm ficou só
+     pras sócias). O auth.js continua morando no /adm — caminho absoluto pra não
+     depender de quantas pastas acima este arquivo está. -->
+<script src="/adm/auth.js"></script>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], fc:{}, alertas:[], tab:'ent',
+  busca:'', soComSaldo:false, verImport:false, comp:'all', nota:null, itens:[]};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800);}
+function brl(v){return (v==null||isNaN(v))?'—':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+function num(v){return (+v||0).toLocaleString('pt-BR',{maximumFractionDigits:3});}
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function norm(t){return (t||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();}
+function fmtData(d){if(!d)return'';const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}
+function mesDe(n){return (n.data_emissao||'').slice(0,7);}
+function compLabel(c){if(!c)return'';const[y,m]=c.split('-');const M=['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];return `${M[+m]||m} ${y}`;}
+
+async function api(path){ await lolaEnsure(); const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:lolaHeaders()}); if(!r.ok)throw new Error(await r.text()); return r.json(); }
+async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders(); h['Content-Type']='application/json'; if(prefer)h['Prefer']=prefer;
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{method:'POST',headers:h,body:JSON.stringify(body)}); if(!r.ok)throw new Error(await r.text());
+  return r.status===204?null:r.json().catch(()=>null); }
+
+async function carregar(){
+  try{
+    const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo, perdas] = await Promise.all([
+      api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
+      api('lola_central_estoque_nota?select=nota_chave'),
+      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento&order=categoria,nome'),
+      api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
+      api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total'),
+      api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
+      api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
+      api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
+      api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome').catch(()=>null),
+      api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[]),
+      api('lola_central_perdas?ativo=neq.false&select=*&order=data.desc,criado_em.desc&limit=500').catch(()=>[])
+    ]);
+    ST.perdas=perdas||[];
+    ST.alertas=alertas||[];
+    ST.prod=prod||[];
+    if(receitas) ST.receitas=receitas;
+    ST.saldo={}; (saldo||[]).forEach(s=>ST.saldo[s.preproducao_id]=s);
+    try{ const uu=await api('rpc/central_insumos_usados'); ST.usados=new Set((uu||[]).map(x=>(x&&typeof x==='object')?Object.values(x)[0]:x)); }catch(e){ ST.usados=new Set(); }
+    ST.notas=notas||[]; ST.imp=new Set((imp||[]).map(r=>r.nota_chave));
+    ST.insumos=insumos||[]; ST.byId={}; ST.insumos.forEach(i=>ST.byId[i.id]=i);
+    ST.map={}; (mapa||[]).forEach(m=>ST.map[m.desc_norm]={insumo_id:m.insumo_id,fator:+m.fator||1,ignorar:m.ignorar});
+    ST.fc={}; (fc||[]).forEach(f=>ST.fc[f.insumo_norm]={peso_medio_g:f.peso_medio_g!=null?+f.peso_medio_g:null, fc:f.fc!=null?+f.fc:null});
+    ST.movs=movs||[];
+    buildInsumoOptions();
+    render();
+    carregarEnvios(); carregarPedidos();
+  }catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
+}
+
+const FOOD_CATS=new Set(['Insumos Alimentos','Hortifruti','Carnes e Pescados','Pães']);
+const isFood=i=>i&&FOOD_CATS.has(i.categoria);
+let OPTS_ALL='';
+function buildInsumoOptions(){
+  let cat='', h='';
+  ST.insumos.filter(isFood).forEach(i=>{ if(i.categoria!==cat){ if(cat)h+='</optgroup>'; cat=i.categoria; h+=`<optgroup label="${esc(cat||'Sem categoria')}">`; }
+    h+=`<option value="${i.id}">${esc(i.nome)}${i.unidade_custo?' ('+esc(i.unidade_custo)+')':''}</option>`; });
+  if(cat)h+='</optgroup>'; OPTS_ALL=h;
+}
+// fator automático: converte a unidade da nota p/ a unidade do insumo e aplica o FC (fator de correção)
+const CONT=new Set(['un','und','unid','unidade','maço','maco','pç','pc','peça','peca','pct','pacote','cx','caixa','mç','mc']);
+function computeFator(it){
+  const ins=ST.byId[it.insumo_id]; if(!ins) return {fator:it.fator||1, hint:''};
+  const iu=(ins.unidade_custo||'').toLowerCase().trim();
+  const nu=(it.un||'').toLowerCase().trim();
+  const rec=ST.fc[norm(ins.nome)]||{}; const F=rec.fc||1; const peso=rec.peso_medio_g||null;
+  const nf=n=>(+n).toLocaleString('pt-BR',{maximumFractionDigits:3});
+  const cont=CONT.has(nu); let fator=null, hint='', warn=false;
+  if(iu==='kg'){
+    if(nu==='kg'){ fator=1/F; hint = F!==1 ? `Fator ${nf(1/F)}: FC ${nf(F)} — cada 1 kg comprado rende ${nf(1/F)} kg limpo` : `Fator 1: entra igual à nota (${nf(it.qtd)} kg), sem correção`; }
+    else if(nu==='g'){ fator=(1/1000)/F; hint=`Fator ${nf(fator)}: ${nf(it.qtd)} g = ${nf(it.qtd/1000)} kg`+(F!==1?` · FC ${nf(F)}`:''); }
+    else if(peso){ fator=(peso/1000)/F; hint=`Fator ${nf(fator)}: 1 ${it.un||'un'} pesa ~${peso} g`+(F!==1?` bruto → ${Math.round(peso/F)} g limpo (FC ${nf(F)})`:'')+` = ${nf(fator)} kg cada`; }
+    else if(cont){ if(it.fator && it.fator!==1){ fator=it.fator; hint=`Fator ${nf(fator)}: 1 ${it.un} = ${nf(fator)} kg (peso que você informou)`; } else { fator=1; warn=true; hint=`Quanto pesa 1 "${it.un}"? Ponha esse peso no fator. Ex.: embalagem de 1,5 kg → ponha 1,5 (aí ${nf(it.qtd)} × 1,5 = ${nf(it.qtd*1.5)} kg).`; } }
+  } else if(iu==='un'||iu==='und'){ if(cont){ fator=1; hint=`Fator 1: ${nf(it.qtd)} unidade(s), entra igual à nota`; } }
+  else if(iu==='l'||iu==='ml'){
+    if(nu==='l'||nu==='lt'){ fator=1; hint=`Fator 1: entra ${nf(it.qtd)} L igual à nota`; }
+    else if(nu==='ml'){ fator=1/1000; hint=`Fator ${nf(1/1000)}: ${nf(it.qtd)} ml = ${nf(it.qtd/1000)} L`; }
+    else if(cont){ if(it.fator && it.fator!==1){ fator=it.fator; hint=`Fator ${nf(fator)}: 1 ${it.un} = ${nf(fator)} L`; } else { fator=1; warn=true; hint=`Quantos litros tem 1 "${it.un}"? Ponha esse valor no fator. Ex.: 1 caixa de 1 L → ponha 1.`; } }
+  } else if(iu==='g'){ if(nu==='g'){fator=1/F;hint=F!==1?`Fator ${nf(1/F)}: FC ${nf(F)}`:`Fator 1: entra igual à nota`;} else if(nu==='kg'){fator=1000/F;hint=`Fator ${nf(1000/F)}: ${nf(it.qtd)} kg = ${nf(it.qtd*1000)} g`;} }
+  if(fator==null){ warn=true; return {fator: it.fator||1, hint:`Nota em "${it.un||'?'}", insumo em ${iu||'?'} — confira se precisa converter o fator.`, warn:true}; }
+  return {fator: Math.round(fator*100000)/100000, hint, warn};
+}
+
+/* ============ RENDER ============ */
+function render(){
+  $('#tabEnt').classList.toggle('on',ST.tab==='ent');
+  $('#tabSal').classList.toggle('on',ST.tab==='sal');
+  $('#tabPed').classList.toggle('on',ST.tab==='ped');
+  $('#tabCmp').classList.toggle('on',ST.tab==='cmp');
+  $('#tabProd').classList.toggle('on',ST.tab==='prod');
+  $('#tabPz').classList.toggle('on',ST.tab==='pz');
+  $('#tabPerd').classList.toggle('on',ST.tab==='perd');
+  $('#tabRec').classList.toggle('on',ST.tab==='rec');
+  $('#tabFt').classList.toggle('on',ST.tab==='ft');
+  $('#tabFech').classList.toggle('on',ST.tab==='fech');
+  $('#tabEnv').classList.toggle('on',ST.tab==='env');
+  $('#tabAl').classList.toggle('on',ST.tab==='al');
+  const ne=(ST.envios&&ST.envios!=='loading')?ST.envios.filter(x=>!x.atendido).length:0; const ce=$('#cntEnv'); if(ne){ce.style.display='';ce.textContent=ne;}else ce.style.display='none';
+  const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
+  const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
+  const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
+  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, fech:viewFechar, env:viewEnvio, al:viewAlertas};
+  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, fech:wireFechar, env:wireEnvio, al:wireAlertas};
+  $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
+  (W[ST.tab]||wireEntrada)();
+}
+function viewAlertas(){
+  const all=ST.alertas||[]; const abertos=all.filter(x=>!x.resolvido), resolvidos=all.filter(x=>x.resolvido);
+  const list=ST.verResolv?resolvidos:abertos;
+  let h=`<div class="note">Itens marcados como <b>"não usamos / por que foi pedido?"</b> ao dar baixa nas notas — sinal de compra que talvez não devesse ter acontecido.</div>`;
+  h+=`<div class="lbl">${ST.verResolv?'Resolvidos':'Não usamos'} (${list.length}) <span class="spacer"></span>
+      <button class="chip ${ST.verResolv?'on':''}" id="chResolv">${ST.verResolv?'ver abertos':'ver resolvidos'}</button></div>`;
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>${ST.verResolv?'Nenhum resolvido ainda.':'Nenhum alerta aberto.'}</div>`; return h; }
+  list.forEach(x=>{ h+=`<div class="srow"><div class="t"><b>${esc(x.desc_item)}</b><span>${esc(x.obs||'')}${x.criado_por?' · '+esc(x.criado_por):''} · ${fmtData((x.criado_em||'').slice(0,10))}${x.justificativa?' · <i>“'+esc(x.justificativa)+'”</i>':''}</span></div>
+    ${x.resolvido?'<span class="chip" style="opacity:.55">resolvido</span>':`<button class="chip resolv" data-id="${x.id}">resolver</button>`}</div>`; });
+  return h;
+}
+function wireAlertas(){
+  $('#chResolv')&&($('#chResolv').onclick=()=>{ST.verResolv=!ST.verResolv;render();});
+  $$('.resolv').forEach(b=>b.onclick=()=>openResolver(b.dataset.id));
+}
+
+/* ===== PERDAS E DESCARTES ===== */
+const PERDA_MOTIVOS=[{v:'vencimento',l:'Vencimento'},{v:'estrago',l:'Estrago'},{v:'quebra',l:'Quebra'},{v:'sobra',l:'Sobra de produção'}];
+const PERDA_MOT_L={vencimento:'Vencimento',estrago:'Estrago',quebra:'Quebra',sobra:'Sobra de produção'};
+function perdaReceitas(){ return (ST.receitas&&ST.receitas!=='loading')?ST.receitas:[]; }
+function viewPerdas(){
+  const list=(ST.perdas||[]).slice();
+  let h=`<div class="note">Registro de <b>perdas e descartes</b> da Central. Ao salvar, o item já <b>sai do saldo</b>: insumo vira movimento negativo e produção baixa do estoque.</div>`;
+  h+=`<div class="lbl">Perdas registradas (${list.length}) <span class="spacer"></span>
+      <button class="chip on" id="btnNovaPerda"><i class="ph-duotone ph-plus"></i> registrar perda</button></div>`;
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-trash"></i>Nenhuma perda registrada ainda.</div>`; return h; }
+  const ini=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+  const rec=list.filter(p=>String(p.data).slice(0,10)>=ini);
+  const t30=rec.reduce((s,p)=>s+(+p.custo_estimado||0),0);
+  h+=`<div class="srow"><div class="t"><b>Últimos 30 dias</b><span>${rec.length} registro${rec.length===1?'':'s'} · custo estimado (só insumos)</span></div><b>${brl(t30)}</b></div>`;
+  let dia='';
+  list.forEach(p=>{
+    const d=String(p.data).slice(0,10);
+    if(d!==dia){ dia=d; h+=`<div class="lbl">${fmtData(d)}</div>`; }
+    const det=[num(p.qtd)+' '+esc(p.unidade||''), esc(PERDA_MOT_L[p.motivo]||p.motivo), p.tipo==='insumo'?'insumo':'produção'];
+    if(p.criado_por) det.push(esc(p.criado_por));
+    if(p.observacoes) det.push(esc(p.observacoes));
+    h+=`<div class="srow"><div class="t"><b>${esc(p.item_nome)}</b><span>${det.join(' · ')}</span></div>
+      <b>${p.custo_estimado!=null?brl(p.custo_estimado):'—'}</b>
+      <button class="chip delperda" data-id="${p.id}" title="apagar e devolver ao saldo"><i class="ph-duotone ph-trash"></i></button></div>`;
+  });
+  return h;
+}
+function wirePerdas(){
+  $('#btnNovaPerda')&&($('#btnNovaPerda').onclick=()=>openPerda());
+  $$('.delperda').forEach(b=>b.onclick=()=>apagarPerda(b.dataset.id));
+}
+let PERDA_CUR=null;
+function openPerda(){
+  PERDA_CUR={tipo:'insumo', ref:'', motivo:'vencimento'};
+  $('#shTitle').textContent='Registrar perda';
+  renderPerdaBody();
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Registrar perda';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarPerda; openSheet();
+}
+function perdaItemOpts(){
+  if(PERDA_CUR.tipo==='insumo') return '<option value="">— escolha o insumo —</option>'+OPTS_ALL;
+  return '<option value="">— escolha a produção —</option>'+perdaReceitas().map(r=>`<option value="${r.id}">${esc(r.nome)}</option>`).join('');
+}
+function renderPerdaBody(){
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shBody').innerHTML=`<div class="note">O que foi perdido ou descartado? O saldo cai sozinho ao salvar.</div>
+    <div class="mf"><label>Tipo</label><div class="unrow" id="pdTipo">
+      <button class="chip ${PERDA_CUR.tipo==='insumo'?'on':''}" data-t="insumo">Insumo</button>
+      <button class="chip ${PERDA_CUR.tipo==='producao'?'on':''}" data-t="producao">Produção</button>
+    </div></div>
+    <div class="mf"><label>Item</label><select id="pdItem">${perdaItemOpts()}</select></div>
+    <div class="mf"><label>Quantidade</label><input type="number" id="pdQtd" step="0.001" inputmode="decimal" placeholder="0"></div>
+    <div class="mf"><label>Unidade</label><input type="text" id="pdUn" placeholder="kg"></div>
+    <div class="mf"><label>Motivo</label><div class="unrow" id="pdMot">
+      ${PERDA_MOTIVOS.map(m=>`<button class="chip ${PERDA_CUR.motivo===m.v?'on':''}" data-m="${m.v}">${m.l}</button>`).join('')}
+    </div></div>
+    <div class="mf"><label>Data</label><input type="date" id="pdData" value="${hoje}"></div>
+    <div class="mf"><label>Observação (opcional)</label><input type="text" id="pdObs" placeholder="ex.: caiu no chão"></div>
+    <div id="pdInfo" class="imnote" style="display:none"></div>`;
+  $$('#pdTipo .chip').forEach(b=>b.onclick=()=>{ PERDA_CUR.tipo=b.dataset.t; PERDA_CUR.ref=''; renderPerdaBody(); });
+  $$('#pdMot .chip').forEach(b=>b.onclick=()=>{ PERDA_CUR.motivo=b.dataset.m; $$('#pdMot .chip').forEach(x=>x.classList.toggle('on',x.dataset.m===PERDA_CUR.motivo)); });
+  const sel=$('#pdItem'); if(PERDA_CUR.ref) sel.value=PERDA_CUR.ref;
+  sel.onchange=()=>{ PERDA_CUR.ref=sel.value; perdaSync(); };
+  perdaSync();
+}
+function perdaSaldoInsumo(id){ let q=0; (ST.movs||[]).forEach(m=>{ if(m.insumo_id===id) q+=(+m.qtd||0); }); return q; }
+function perdaSync(){
+  const id=PERDA_CUR.ref, inf=$('#pdInfo'); if(!inf) return;
+  if(!id){ inf.style.display='none'; return; }
+  if(PERDA_CUR.tipo==='insumo'){
+    const i=ST.byId[id]||{}; $('#pdUn').value=i.unidade_custo||'';
+    inf.style.display=''; inf.innerHTML=`Saldo atual: <b>${num(perdaSaldoInsumo(id))} ${esc(i.unidade_custo||'')}</b> · custo ${brl(i.custo_por_unidade)}/${esc(i.unidade_custo||'un')}`;
+  }else{
+    const r=perdaReceitas().find(x=>x.id===id); const s=(ST.saldo||{})[id]||{};
+    const un=r?prodUn(r):(s.unidade||'un'); $('#pdUn').value=un||'';
+    inf.style.display=''; inf.innerHTML=`Saldo atual: <b>${num(s.saldo||0)} ${esc(un)}</b>`;
+  }
+}
+async function salvarPerda(){
+  const id=PERDA_CUR.ref, qtd=+$('#pdQtd').value||0, un=($('#pdUn').value||'').trim(),
+        data=$('#pdData').value||new Date().toISOString().slice(0,10), obs=($('#pdObs').value||'').trim();
+  if(!id){ toast('Escolha o item.'); return; }
+  if(!(qtd>0)){ toast('Informe a quantidade perdida.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const motLb=PERDA_MOT_L[PERDA_CUR.motivo]||'';
+    let row;
+    if(PERDA_CUR.tipo==='insumo'){
+      const i=ST.byId[id]||{}; const cu=+i.custo_por_unidade||0;
+      const custo=cu?+(cu*qtd).toFixed(2):null;
+      const mv=await post('lola_central_estoque_mov',[{insumo_id:id, tipo:'perda', qtd:-qtd, unidade:un||i.unidade_custo||'',
+        custo_unit:cu||null, custo_total:custo!=null?-custo:null, origem_tipo:'perda', origem_ref:'perda:'+data,
+        data, obs:motLb+(obs?' · '+obs:''), criado_por:quem}],'return=representation');
+      const movId=(mv&&mv[0]&&mv[0].id)||null;
+      row={data, tipo:'insumo', insumo_id:id, item_nome:i.nome||'?', qtd, unidade:un||i.unidade_custo||'',
+        motivo:PERDA_CUR.motivo, custo_estimado:custo, observacoes:obs||null, mov_id:movId, criado_por:quem};
+      ST.movs.push({insumo_id:id, qtd:-qtd, custo_total:custo!=null?-custo:0});
+    }else{
+      const r=perdaReceitas().find(x=>x.id===id)||{}; const s=(ST.saldo||{})[id]||{};
+      const novo=(+s.saldo||0)-qtd; const uf=un||s.unidade||'un';
+      await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:id, saldo:novo, unidade:uf,
+        saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+      ST.saldo=ST.saldo||{}; ST.saldo[id]={preproducao_id:id, saldo:novo, unidade:uf, saldo_data:data, atualizado_por:quem};
+      row={data, tipo:'producao', preproducao_id:id, item_nome:r.nome||'?', qtd, unidade:uf,
+        motivo:PERDA_CUR.motivo, custo_estimado:null, observacoes:obs||null, criado_por:quem};
+    }
+    const ins=await post('lola_central_perdas',[row],'return=representation');
+    ST.perdas=[(ins&&ins[0])?ins[0]:row, ...(ST.perdas||[])];
+    toast('Perda registrada ✓'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function apagarPerda(id){
+  const p=(ST.perdas||[]).find(x=>x.id===id); if(!p) return;
+  if(!confirm('Apagar a perda de "'+p.item_nome+'"? A quantidade volta pro saldo.')) return;
+  try{
+    await lolaEnsure(); const h=lolaHeaders({'Prefer':'return=minimal'}); h['Content-Type']='application/json';
+    if(p.tipo==='insumo'){
+      if(p.mov_id) await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?id=eq.'+p.mov_id,{method:'DELETE',headers:lolaHeaders({'Prefer':'return=minimal'})});
+      let rm=false;
+      ST.movs=(ST.movs||[]).filter(m=>{ if(!rm && m.insumo_id===p.insumo_id && Math.abs((+m.qtd||0)+(+p.qtd||0))<1e-9){ rm=true; return false; } return true; });
+    }else{
+      const s=(ST.saldo||{})[p.preproducao_id];
+      if(s){ const novo=(+s.saldo||0)+(+p.qtd||0);
+        await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+p.preproducao_id,{method:'PATCH',headers:h,body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})});
+        s.saldo=novo; }
+    }
+    await fetch(SB_URL+'/rest/v1/lola_central_perdas?id=eq.'+id,{method:'PATCH',headers:h,body:JSON.stringify({ativo:false})});
+    ST.perdas=(ST.perdas||[]).filter(x=>x.id!==id);
+    toast('Perda apagada ✓'); render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+/* ===== PRODUÇÕES (estoque de produções prontas) ===== */
+// converte g→kg e ml→L (só exibição; o banco fica em g/ml)
+function conv(q, u){ q=+q||0; const uu=(u||'').toLowerCase().trim();
+  if(uu==='g'||uu==='grama'||uu==='gramas') return {q:q/1000, u:'kg'};
+  if(uu==='mg') return {q:q/1e6, u:'kg'};
+  if(uu==='ml'||uu==='mililitro'||uu==='mililitros') return {q:q/1000, u:'L'};
+  if(uu==='l'||uu==='litro'||uu==='litros') return {q:q, u:'L'};
+  return {q:q, u:u||''}; }
+function convUn(u){ return conv(1,u).u; }
+/* Mostra na unidade em que o insumo é COMPRADO/custeado.
+   A receita guarda leite como 36000 "g", mas o leite é vendido e custeado por LITRO —
+   e é assim que o custo é calculado. Então a tela precisa dizer 36 L, não 36 kg.
+   (água/leite: 1 g ≈ 1 ml, que é a mesma aproximação que o cálculo do custo já faz) */
+function convCusto(q, unReceita, unCusto){
+  const c=conv(q, unReceita);                  // normaliza pra kg / L
+  const uc=(unCusto||'').toLowerCase().trim();
+  if(!uc) return c;
+  const ehVol = uc==='l'||uc==='litro'||uc==='litros'||uc==='ml';
+  const ehMassa = uc==='kg'||uc==='g'||uc==='mg';
+  if(ehVol && c.u==='kg') return {q:c.q, u:'L'};   // receita em massa, custo por volume → mostra L
+  if(ehMassa && c.u==='L') return {q:c.q, u:'kg'}; // o contrário
+  return c;
+}
+function rendInfo(r){ // interpreta o rendimento da receita (já em kg/L)
+  const rq=+r.rendimento_qtd||0, run=r.rendimento_un||'', pq=+r.porcao_qtd||0;
+  if(pq>0 && rq>0){ const ps=conv(pq,run); return {ehPorcao:true, base:rq/pq, un:'porções', porcaoQtd:ps.q, totalRend:rq, rendUn:ps.u}; }
+  const c=conv(rq,run); return {ehPorcao:false, base:c.q, un:c.u||'un', totalRend:c.q, rendUn:c.u};
+}
+function prodUn(r){ const s=(ST.saldo||{})[r.id]; if(s&&s.unidade) return s.unidade; const ri=rendInfo(r); return ri.ehPorcao?'un':convUn(r.rendimento_un||r.porcao_un||'un'); }
+function viewProd(){
+  const R=ST.receitas;
+  let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
+  h+=`<button class="btn" id="btnNovaProd" style="margin-bottom:10px"><i class="ph-duotone ph-plus-circle"></i> Adicionar nova produção</button>`;
+  h+=`<div class="btn2"><button class="btn sec" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button><button class="btn sec" id="btnHistProd"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
+  h+=`<div class="toolbar"><input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}"></div>`;
+  if(R==='loading'||!R){ h+=`<div class="spin"></div>`; return h; }
+  let list=(R||[]).slice();
+  if(ST.buscaP){ const b=norm(ST.buscaP); list=list.filter(x=>norm(x.nome).includes(b)); }
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-cooking-pot"></i>Nenhuma produção. Use “Adicionar nova produção”.</div>`; return h; }
+  h+=`<div class="lbl">Produções da Central (${list.length})</div>`;
+  list.forEach(x=>{
+    const s=(ST.saldo||{})[x.id]; const un=prodUn(x);
+    const tem = s && s.saldo_data;
+    const dataTxt = tem ? ('atualizado '+fmtData(String(s.saldo_data).slice(0,10))) : 'sem contagem — toque no estoque';
+    h+=`<div class="pcard" data-id="${x.id}">
+      <div class="prow"><div class="t ptog"><b>${esc(x.nome)}</b><span>${dataTxt}</span></div>
+        <button class="pstock${tem?' on':''}" title="atualizar estoque"><b>${tem?num(s.saldo):'—'}</b><span>${esc(un)}</span></button></div>
+      <div class="usos ringr"></div>
+      <div class="pacts"><button class="prodbtn"><i class="ph-duotone ph-plus-circle"></i> Produzir</button></div>
+    </div>`;
+  });
+  return h;
+}
+function wireProd(){
+  const bq=$('#bqp'); if(bq){ bq.oninput=()=>{ST.buscaP=bq.value; const pos=bq.selectionStart; render(); const n=$('#bqp'); if(n){n.focus();n.setSelectionRange(pos,pos);} }; }
+  $('#btnNovaProd')&&($('#btnNovaProd').onclick=openNovaReceita);
+  $('#btnContProd')&&($('#btnContProd').onclick=()=>openContagem('producao'));
+  $('#btnHistProd')&&($('#btnHistProd').onclick=()=>openContagensHist('producao'));
+  $$('#app .pcard').forEach(el=>{
+    const id=el.dataset.id;
+    const tg=el.querySelector('.ptog'); if(tg) tg.onclick=()=>toggleProdIngr(el);
+    const st=el.querySelector('.pstock'); if(st) st.onclick=()=>openEstoque(id);
+    const pb=el.querySelector('.prodbtn'); if(pb) pb.onclick=()=>openProduzir(id);
+  });
+}
+async function toggleProdIngr(el){
+  const box=el.querySelector('.ringr'), id=el.dataset.id;
+  if(box.classList.contains('on')){ box.classList.remove('on'); box.innerHTML=''; return; }
+  box.classList.add('on'); box.innerHTML='<div class="uinfo">carregando…</div>';
+  try{ const r=await post('rpc/central_receita_itens',{pid:id});
+    if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo">Sem ingredientes cadastrados. Use “Adicionar preparo” na aba Receitas.</div><button class="btn sec ipr" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`; box.querySelector('.ipr').onclick=()=>printReceita(id); return; }
+    const R=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(R);
+    const rendline = ri.base>0 ? `<div class="ring"><span>Rendimento</span><b>${num(ri.base)} ${esc(ri.un)}${ri.ehPorcao?' ('+num(ri.porcaoQtd)+' '+esc(ri.rendUn)+' cada)':''}</b></div>` : '';
+    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);
+      const nm=x.insumo_id?`<span class="ifl" data-ins="${x.insumo_id}" style="cursor:pointer;border-bottom:1px dashed var(--vinho);color:var(--vinho);font-weight:600" title="Ver a ficha deste insumo">${esc(x.nome)}</span>`:esc(x.nome);
+      return `<div class="ring"><span>${nm}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
+    box.querySelector('.ipr').onclick=()=>printReceita(id);
+    box.querySelector('.iet').onclick=()=>openEtiqueta(id);
+    box.querySelectorAll('.ifl').forEach(el=>el.onclick=(ev)=>{ev.stopPropagation();abrirFichaInsumo(el.dataset.ins,el.textContent);});
+  }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+/* ---- atualizar estoque (com data) ---- */
+let SALDO_CUR=null;
+function openEstoque(id){
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; SALDO_CUR=r;
+  const s=(ST.saldo||{})[id]||{}; const un=prodUn(r);
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Estoque — '+r.nome;
+  $('#shBody').innerHTML=`<div class="note">Diga quanto tem <b>agora</b> na Central. Fica gravado com a data.</div>
+    <div class="mf"><label>Data da contagem</label><input type="date" id="estData" value="${hoje}"></div>
+    <div class="mf"><label>Quanto tem</label><input type="number" id="estQtd" step="0.001" inputmode="decimal" value="${s.saldo!=null?s.saldo:''}" placeholder="0"></div>
+    <div class="mf"><label>Unidade</label><input type="text" id="estUn" value="${esc(un)}"></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar estoque';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEstoque; openSheet();
+  setTimeout(()=>$('#estQtd').focus(),60);
+}
+async function salvarEstoque(){
+  const r=SALDO_CUR; if(!r)return;
+  const qtd=+$('#estQtd').value||0, data=$('#estData').value||new Date().toISOString().slice(0,10), un=($('#estUn').value||'').trim()||'un';
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:qtd, unidade:un, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+    await post('lola_central_saldo_log',[{preproducao_id:r.id, data, saldo_novo:qtd, por:quem}],'return=minimal');
+    ST.saldo=ST.saldo||{}; ST.saldo[r.id]={preproducao_id:r.id, saldo:qtd, unidade:un, saldo_data:data, atualizado_por:quem};
+    toast('Estoque atualizado ✓'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+/* ---- produzir mais ---- */
+let PROD_CUR=null;
+async function openProduzir(id){
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; PROD_CUR=r;
+  const s=(ST.saldo||{})[id]||{}; const atual=+s.saldo||0; const un=prodUn(r); const ri=rendInfo(r);
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Produzir — '+r.nome;
+  $('#shBody').innerHTML=`<div class="note">Se produziu em quantidade diferente da receita, ajuste <b>um</b> ingrediente (ex.: o que o fornecedor mandou) — o resto se converte sozinho. No fim, diga <b>quanto rendeu</b>.</div>
+    <div class="mf"><label>Data</label><input type="date" id="prodData" value="${hoje}"></div>
+    <div id="prodRec"><div class="uinfo">carregando receita…</div></div>
+    <div class="mf"><label>${ri.ehPorcao?'Quantas porções rendeu':'Quanto rendeu ('+esc(un)+')'}</label><input type="number" id="prodQtd" step="0.001" placeholder="0" inputmode="decimal"></div>
+    <div class="entra on" id="prodNovo">Estoque atual: <b>${num(atual)} ${esc(un)}</b></div>
+    <div id="prodHist"></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Registrar produção';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarProduzir; openSheet();
+  $('#prodQtd').oninput=()=>{ $('#prodQtd').dataset.touched='1'; const q=+$('#prodQtd').value||0; $('#prodNovo').innerHTML=`Estoque atual ${num(atual)} + rendeu ${num(q)} = <b>${num(atual+q)} ${esc(un)}</b>`; };
+  setTimeout(()=>$('#prodQtd').focus(),60);
+  renderProdReceita(id);
+  try{ const hs=await api('lola_central_prod_hist?preproducao_id=eq.'+id+'&select=data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=8');
+    if(hs&&hs.length) $('#prodHist').innerHTML=`<div class="lbl">Últimas produções</div><div class="usos on">`+hs.map(x=>`<div class="ring"><span>${fmtData(String(x.data).slice(0,10))}${x.criado_por?' · '+esc(x.criado_por):''}</span><b>+${num(x.qtd_produzida)} → ${num(x.saldo_depois)}</b></div>`).join('')+`</div>`;
+  }catch(e){}
+}
+async function salvarProduzir(){
+  const r=PROD_CUR; if(!r)return; const q=+$('#prodQtd').value||0;
+  if(q<=0){ toast('Diga quanto foi produzido.'); return; }
+  const data=$('#prodData').value||new Date().toISOString().slice(0,10);
+  const s=(ST.saldo||{})[r.id]||{}; const novo=(+s.saldo||0)+q; const un=prodUn(r);
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+    await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem}],'return=minimal');
+    ST.saldo=ST.saldo||{}; ST.saldo[r.id]={preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem};
+    toast('Produção registrada ✓ (+'+num(q)+' '+esc(un)+')'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+function updateRend(ri, f){
+  const el=$('#prodRend'); if(!el)return;
+  if(!(ri.base>0)){ el.innerHTML='Rendimento não cadastrado — some no “Adicionar preparo”.'; return; }
+  const esper=ri.base*f;
+  el.innerHTML=`Rendimento esperado: <b>${num(esper)} ${esc(ri.un)}</b>`+(ri.ehPorcao?` <span style="color:var(--mut)">· receita cheia ≈ ${num(ri.base)} porções (${num(ri.porcaoQtd)} ${esc(ri.rendUn)} cada)</span>`:'');
+  const pq=$('#prodQtd'); if(pq && !pq.dataset.touched) pq.value=+esper.toFixed(3);
+}
+/* ===== ITENS PRODUZIDOS (histórico; etiquetar / editar rendimento) ===== */
+let EDIT_REND=null;
+async function carregarProduzidos(){
+  ST.prodHist='loading'; if(ST.tab==='pz') render();
+  try{ ST.prodHist=await api('lola_central_prod_hist?ativo=neq.false&select=id,preproducao_id,data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=400'); }
+  catch(e){ ST.prodHist=[]; }
+  if(ST.tab==='pz') render();
+}
+function viewProduzidos(){
+  let h=`<div class="note">Tudo que já foi <b>produzido</b> na Central. Toque num item pra <b>imprimir etiquetas</b> ou <b>corrigir o rendimento</b> da receita.</div>`;
+  h+=`<div class="toolbar"><input type="search" id="bqz" placeholder="Buscar produção…" value="${esc(ST.buscaZ||'')}"></div>`;
+  const d=ST.prodHist;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
+  const g={}; d.forEach(x=>{ if(!x.preproducao_id)return; const k=x.preproducao_id; (g[k]=g[k]||{id:k,nome:nomeDe(k),n:0,total:0,ultima:null,evts:[]}); g[k].n++; g[k].total+=(+x.qtd_produzida||0); g[k].evts.push(x); if(!g[k].ultima||String(x.data)>String(g[k].ultima)){g[k].ultima=x.data;} });
+  let list=Object.values(g);
+  if(ST.buscaZ){ const b=norm(ST.buscaZ); list=list.filter(x=>norm(x.nome).includes(b)); }
+  list.sort((a,b)=>String(b.ultima||'').localeCompare(String(a.ultima||'')));
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-package"></i>Nada produzido ainda. Registre pelo botão Produzir.</div>`; return h; }
+  h+=`<div class="lbl">Produzidos (${list.length})</div>`;
+  h+=list.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.id)||{}; const un=prodUn(r);
+    const evts=x.evts.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+    return `<div class="pzc" data-id="${x.id}">
+      <div class="prow pztog"><div class="t"><b>${esc(x.nome)}</b><span>última ${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'} · total ${num(x.total)} ${esc(un)}</span></div><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div>
+      <div class="usos pzbox">
+        <div class="lbl" style="margin:0 0 4px">Receita usada</div>
+        <div class="pzrec"><div class="uinfo">carregando…</div></div>
+        <div class="lbl" style="margin:10px 0 4px">Produções (${x.n})</div>
+        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${esc(un)}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
+      </div>
+      <div class="pacts"><button class="prodbtn pzet"><i class="ph-duotone ph-tag"></i> Etiquetas</button><button class="btn sec pzrend"><i class="ph-duotone ph-scales"></i> Rendimento</button></div>
+    </div>`;
+  }).join('');
+  return h;
+}
+function wireProduzidos(){
+  const bq=$('#bqz'); if(bq){ bq.oninput=()=>{ST.buscaZ=bq.value; const p=bq.selectionStart; render(); const n=$('#bqz'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+  $$('#app .pzc').forEach(el=>{ const id=el.dataset.id;
+    const tg=el.querySelector('.pztog'); if(tg) tg.onclick=async()=>{ const b=el.querySelector('.pzbox'); b.classList.toggle('on');
+      const rec=el.querySelector('.pzrec'); if(b.classList.contains('on') && rec && !rec.dataset.loaded){ rec.dataset.loaded='1';
+        const r=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(r);
+        const total=(ST.prodHist||[]).filter(h=>h.preproducao_id===id).reduce((s,h)=>s+(+h.qtd_produzida||0),0);
+        let fator=1; if(ri.base>0 && total>0) fator=total/ri.base;
+        try{ const rr=await post('rpc/central_receita_itens',{pid:id});
+          if(Array.isArray(rr)&&rr.length){
+            const cab = (fator!==1) ? `<div class="uinfo" style="margin-bottom:5px">Ingredientes p/ <b>${num(total)} ${esc(prodUn(r))}</b> produzidos (${num(fator)}× a receita):</div>` : '';
+            rec.innerHTML=cab+rr.map(z=>{const c=convCusto((+z.qtd||0)*fator, z.unidade, z.unidade_custo);return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
+          } else rec.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; }
+        catch(e){ rec.innerHTML='<div class="uinfo">Erro ao carregar a receita.</div>'; rec.dataset.loaded=''; }
+      } };
+    el.querySelector('.pzet').onclick=()=>openEtiqueta(id);
+    el.querySelector('.pzrend').onclick=()=>openEditRend(id);
+    el.querySelectorAll('.pzevrow').forEach(row=>{ const eid=row.dataset.eid;
+      row.querySelector('.pzedit').onclick=()=>editProdEvento(eid, id);
+      row.querySelector('.pzdel').onclick=()=>delProdEvento(eid, id);
+    });
+  });
+}
+function evtDe(eid){ return (ST.prodHist||[]).find(x=>x.id===eid); }
+async function delProdEvento(eid, prepId){
+  const e=evtDe(eid); if(!e)return;
+  if(!confirm('Excluir esta produção de '+fmtData(String(e.data).slice(0,10))+' (+'+num(e.qtd_produzida)+')? O estoque baixa essa quantidade.')) return;
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_prod_hist?id=eq.'+eid,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({ativo:false})});
+    const s=(ST.saldo||{})[prepId]; if(s){ const novo=(+s.saldo||0)-(+e.qtd_produzida||0); await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+prepId,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})}); s.saldo=novo; }
+    ST.prodHist=(ST.prodHist||[]).filter(x=>x.id!==eid); toast('Produção excluída ✓'); render();
+  }catch(err){ toast('Erro: '+err.message); }
+}
+let EDIT_EVT=null;
+function editProdEvento(eid, prepId){
+  const e=evtDe(eid); if(!e)return; EDIT_EVT={eid, prepId, old:+e.qtd_produzida||0};
+  const r=(ST.receitas||[]).find(x=>x.id===prepId)||{}; const un=prodUn(r);
+  $('#shTitle').textContent='Editar produção';
+  $('#shBody').innerHTML=`<div class="note">Corrija a data ou a quantidade produzida. O estoque ajusta pela diferença.</div>
+    <div class="mf"><label>Data</label><input type="date" id="evData" value="${esc(String(e.data).slice(0,10))}"></div>
+    <div class="mf"><label>Quanto produziu (${esc(un)})</label><input type="number" id="evQtd" step="0.001" inputmode="decimal" value="${e.qtd_produzida}"></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEditEvento; openSheet(); setTimeout(()=>$('#evQtd').focus(),60);
+}
+async function salvarEditEvento(){
+  const c=EDIT_EVT; if(!c)return; const nova=+$('#evQtd').value||0, data=$('#evData').value||new Date().toISOString().slice(0,10);
+  $('#shSave').setAttribute('disabled','');
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_prod_hist?id=eq.'+c.eid,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({qtd_produzida:nova, data})});
+    const dif=nova-c.old; const s=(ST.saldo||{})[c.prepId]; if(s && dif){ const novo=(+s.saldo||0)+dif; await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+c.prepId,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})}); s.saldo=novo; }
+    const e=evtDe(c.eid); if(e){ e.qtd_produzida=nova; e.data=data; }
+    toast('Produção atualizada ✓'); closeSheet(); render();
+  }catch(err){ toast('Erro: '+err.message); $('#shSave').removeAttribute('disabled'); }
+}
+let ER_UN='kg';
+const ER_G={g:1, kg:1000, mg:0.001}; // gramas por unidade (pra converter)
+function erSwitchUn(nu){
+  if(ER_G[ER_UN] && ER_G[nu]){ const f=ER_G[ER_UN]/ER_G[nu];
+    const r=$('#erRend'), p=$('#erPorc');
+    if(r&&r.value!=='') r.value=+(+r.value*f).toFixed(4);
+    if(p&&p.value!=='') p.value=+(+p.value*f).toFixed(4);
+  }
+  ER_UN=nu; $$('#erUnBtns button').forEach(b=>b.classList.toggle('on',b.dataset.u===nu)); erPortions();
+}
+function erPortions(){ const el=$('#erPor'); if(!el)return; const r=+$('#erRend').value||0, p=+$('#erPorc').value||0;
+  el.innerHTML = (r>0&&p>0) ? `Dá <b>${Math.round(r/p)} porções</b> — é o nº de etiquetas que ele vai sugerir.` : 'Preencha rendimento e tamanho da porção pra ver quantas porções (etiquetas) dá.'; }
+function openEditRend(id){
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; EDIT_REND=id;
+  ER_UN=(r.rendimento_un||'kg').toLowerCase(); if(!ER_G[ER_UN]&&ER_UN!=='un'&&ER_UN!=='l') ER_UN='kg';
+  $('#shTitle').textContent='Rendimento — '+r.nome;
+  $('#shBody').innerHTML=`<div class="note">Quanto essa receita rende e o tamanho da porção. Troque a unidade que ele converte sozinho; a porção define quantas etiquetas imprimir.</div>
+    <label class="iml">Unidade</label>
+    <div id="erUnBtns" class="unrow">${['g','kg','L','un'].map(u=>`<button data-u="${u}" class="${u===ER_UN?'on':''}">${u}</button>`).join('')}</div>
+    <div class="mf"><label>Rendimento da receita cheia</label><input type="number" id="erRend" step="0.0001" inputmode="decimal" value="${r.rendimento_qtd!=null?r.rendimento_qtd:''}" placeholder="quanto rende no total"></div>
+    <div class="mf"><label>Tamanho da porção <span style="color:var(--mut);font-weight:400">(quanto vai em cada etiqueta)</span></label><input type="number" id="erPorc" step="0.0001" inputmode="decimal" value="${r.porcao_qtd!=null?r.porcao_qtd:''}" placeholder="ex.: 2 (por porção)"></div>
+    <div class="entra on" id="erPor"></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar rendimento';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEditRend; openSheet();
+  $$('#erUnBtns button').forEach(b=>b.onclick=()=>erSwitchUn(b.dataset.u));
+  $('#erRend').oninput=erPortions; $('#erPorc').oninput=erPortions; erPortions();
+  setTimeout(()=>$('#erRend').focus(),60);
+}
+async function salvarEditRend(){
+  const id=EDIT_REND; const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return;
+  const rend=+$('#erRend').value||null, un=ER_UN||null, porc=+$('#erPorc').value||null;
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal'; await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_preproducoes?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({rendimento_qtd:rend, rendimento_un:un, porcao_qtd:porc, porcao_un:un, editado_por:quem, editado_em:new Date().toISOString()})});
+    r.rendimento_qtd=rend; r.rendimento_un=un; r.porcao_qtd=porc; r.porcao_un=un;
+    toast('Rendimento atualizado ✓'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function renderProdReceita(ppId){
+  const box=$('#prodRec'); if(!box)return;
+  const R=(ST.receitas||[]).find(x=>x.id===ppId)||{}; const ri=rendInfo(R);
+  box.innerHTML='<div class="uinfo" style="margin-top:6px">carregando receita…</div>';
+  try{ const r=await post('rpc/central_receita_itens',{pid:ppId});
+    const rendBox=`<div class="entra on" id="prodRend" style="margin-top:8px"></div>`;
+    if(!Array.isArray(r)||!r.length){ box.innerHTML=rendBox+`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`; updateRend(ri,1); $('#prodPrint').onclick=()=>printReceita(ppId); $('#prodEtiq').onclick=()=>openEtiqueta(ppId); return; }
+    box.innerHTML=`<div class="lbl">Ingredientes <span id="prodFactor" style="text-transform:none;letter-spacing:0;color:var(--mut);font-weight:600">— receita cheia</span></div>
+      <div class="usos on" id="prodIngr">${r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);
+        const nm=x.insumo_id?`<span class="ifl" data-ins="${x.insumo_id}" style="cursor:pointer;border-bottom:1px dashed var(--vinho);color:var(--vinho);font-weight:600" title="Ver a ficha deste insumo">${esc(x.nome)}</span>`:esc(x.nome);
+        return `<div class="ring iedit"><span>${nm}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${c.q}" value="${c.q}"><b>${esc(c.u)}</b></div>`;}).join('')}</div>
+      <div class="uinfo" style="margin-top:6px">Ajuste um ingrediente que o resto se converte na mesma proporção.</div>
+      ${rendBox}
+      <div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
+    $$('#prodIngr .riq').forEach(inp=>inp.oninput=()=>{ const orig=+inp.dataset.orig||0, val=+inp.value; if(!(orig>0))return; const f=val/orig; if(!(isFinite(f)&&f>0))return;
+      $$('#prodIngr .riq').forEach(o=>{ if(o!==inp){ const oo=+o.dataset.orig||0; o.value=+(oo*f).toFixed(3); } });
+      $('#prodFactor').textContent=`— ${num(f)}× da receita`; updateRend(ri,f); });
+    updateRend(ri,1);
+    $$('#prodIngr .ifl').forEach(el=>el.onclick=(ev)=>{ev.stopPropagation();abrirFichaInsumo(el.dataset.ins,el.textContent);});
+    $('#prodPrint').onclick=()=>printReceita(ppId);
+    $('#prodEtiq').onclick=()=>openEtiqueta(ppId);
+  }catch(e){ box.innerHTML='<div class="uinfo" style="margin-top:6px">Erro ao carregar a receita.</div>'; }
+}
+async function printReceita(ppId){
+  const r=(ST.receitas||[]).find(x=>x.id===ppId)||{}; let nome=r.nome||'Receita', modo='';
+  let ings=[]; let fator=1; const box=document.getElementById('prodIngr');
+  if(box){ box.querySelectorAll('.ring.iedit').forEach(row=>{ const inp=row.querySelector('.riq'); const orig=+inp.dataset.orig||0, val=+inp.value||0; if(fator===1 && orig>0) fator=val/orig; ings.push({nome:row.querySelector('span').textContent, qtd:num(val), un:row.querySelector('b').textContent}); }); }
+  else { try{ const rr=await post('rpc/central_receita_itens',{pid:ppId}); ings=(rr||[]).map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);return {nome:x.nome, qtd:num(c.q), un:c.u};}); }catch(e){} }
+  if(!(isFinite(fator)&&fator>0)) fator=1;
+  try{ const pp=await api('lola_preproducoes?id=eq.'+ppId+'&select=nome,modo_preparo'); if(pp&&pp[0]){ nome=pp[0].nome||nome; modo=pp[0].modo_preparo||''; } }catch(e){}
+  const ri=rendInfo(r); const esper=ri.base*fator;
+  const rendTxt = ri.base>0 ? `Rendimento esperado: ${num(esper)} ${esc(ri.un)}${ri.ehPorcao?` (porção de ${num(ri.porcaoQtd)} ${esc(ri.rendUn)})`:''}${fator!==1?` · ${num(fator)}× da receita`:''}` : '';
+  const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
+  const rows=ings.map(i=>`<tr><td>${esc(i.nome)}</td><td class="q">${esc(String(i.qtd))} ${esc(i.un)}</td></tr>`).join('');
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(nome)}</title>
+    <style>*{box-sizing:border-box}body{font-family:Georgia,'Times New Roman',serif;color:#2A1A17;padding:34px;max-width:640px;margin:0 auto}
+    h1{color:#A82A2A;font-size:27px;margin:0 0 4px}.d{color:#8A7A72;font-size:13px;margin-bottom:22px}
+    table{width:100%;border-collapse:collapse;margin-bottom:24px}
+    th{text-align:left;color:#B79A8E;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:0 4px 6px;border-bottom:2px solid #A82A2A}
+    td{padding:9px 4px;border-bottom:1px solid #ECE3D9;font-size:15.5px}td.q{text-align:right;font-weight:bold;white-space:nowrap}
+    h2{color:#A82A2A;font-size:14px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px}
+    .modo{white-space:pre-wrap;font-size:15.5px;line-height:1.65}
+    @media print{body{padding:6px}}</style></head>
+    <body><h1>${esc(nome)}</h1><div class="d">Produção da Central · impresso ${fmtData(new Date().toISOString().slice(0,10))}${rendTxt?' · '+rendTxt:''}</div>
+    <table><tr><th>Ingrediente</th><th class="q" style="text-align:right">Quantidade</th></tr>${rows||'<tr><td colspan=2>Sem ingredientes cadastrados.</td></tr>'}</table>
+    ${modo?`<h2>Modo de preparo</h2><div class="modo">${esc(modo)}</div>`:''}
+    </body></html>`);
+  w.document.close(); setTimeout(()=>{ try{w.focus();w.print();}catch(e){} }, 350);
+}
+/* ---- etiquetas de porção ---- */
+const CONSERV_PADRAO='Refrig. 0 a -6°C: 24h · Freezer -18°C: 1 mês';
+let ETIQ_CUR=null;
+function openEtiqueta(id){
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r;
+  const s=(ST.saldo||{})[id]||{}; const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'';
+  const hoje=new Date().toISOString().slice(0,10); const dias=s.validade_dias!=null?s.validade_dias:2;
+  const ri=rendInfo(r); const nSug=(ri.ehPorcao&&ri.base>0)?Math.round(ri.base):12;
+  $('#shTitle').textContent='Etiquetas — '+r.nome;
+  $('#shBody').innerHTML=`<div class="note">Etiquetas pra colar nas porções. Preencha e imprima — sai uma folha com várias iguais.</div>
+    <div class="mf"><label>Data de produção</label><input type="date" id="etData" value="${hoje}"></div>
+    <div class="mf"><label>Responsável</label><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div>
+    <div class="mf"><label>Validade (dias após produção)</label><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric"></div>
+    <div class="mf"><label>Conservação</label><textarea id="etCons" rows="2">${esc(CONSERV_PADRAO)}</textarea></div>
+    <div class="mf"><label>Tamanho da etiqueta</label><select id="etTam">
+      <option value="60x40" selected>Rolo 60 × 40 mm (térmica)</option>
+      <option value="50x30">Rolo 50 × 30 mm (térmica)</option>
+      <option value="100x50">Rolo 100 × 50 mm (térmica)</option>
+      <option value="58">Bobina 58 mm (largura)</option>
+      <option value="a4">Folha A4 (várias por página)</option>
+    </select></div>
+    <div class="mf"><label>Quantas etiquetas${ri.ehPorcao&&ri.base>0?` <span style="color:var(--mut);font-weight:400">(sugerido ${nSug} = rendimento ÷ porção)</span>`:''}</label><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric"></div>
+    <div class="mf"><label>Peso <span style="color:var(--mut);font-weight:400">(opcional — em branco deixa uma linha pra escrever à mão)</span></label><input type="text" id="etPeso" placeholder="ex.: 2,4 kg"></div>
+    <label class="etck"><input type="checkbox" id="etIng" checked> incluir ingredientes na etiqueta</label>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
+  $('#shSave').removeAttribute('disabled'); onSave=printEtiquetas; openSheet();
+}
+async function printEtiquetas(){
+  const r=ETIQ_CUR; if(!r)return;
+  const dataP=$('#etData').value||new Date().toISOString().slice(0,10);
+  const resp=($('#etResp').value||'').trim();
+  const dias=parseInt($('#etDias').value||'0',10)||0;
+  const cons=($('#etCons').value||'').trim();
+  const tam=$('#etTam').value; const n=Math.max(1,Math.min(200,parseInt($('#etQtd').value||'1',10)||1));
+  const incIng=$('#etIng').checked; const peso=($('#etPeso').value||'').trim();
+  const val=new Date(dataP+'T00:00:00'); val.setDate(val.getDate()+dias); const dataV=val.toISOString().slice(0,10);
+  let ings='';
+  if(incIng){ try{ const rr=await post('rpc/central_receita_itens',{pid:r.id}); ings=(rr||[]).map(x=>x.nome).join(', '); }catch(e){} }
+  // grava a validade escolhida pra lembrar
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, validade_dias:dias, atualizado_por:quem}],'resolution=merge-duplicates,return=minimal');
+    ST.saldo=ST.saldo||{}; ST.saldo[r.id]=Object.assign({}, ST.saldo[r.id]||{preproducao_id:r.id}, {validade_dias:dias});
+  }catch(e){}
+  const sizes={'60x40':{w:'60mm',h:'40mm',page:'60mm 40mm'},'50x30':{w:'50mm',h:'30mm',page:'50mm 30mm'},'100x50':{w:'100mm',h:'50mm',page:'100mm 50mm'},'58':{w:'54mm',h:'auto',page:'58mm auto'},'a4':{w:'90mm',h:'52mm',page:'A4'}};
+  const sz=sizes[tam]||sizes.a4; const roll = tam!=='a4';
+  const label=`<div class="lab"><div class="rin">
+      <div class="ln">${esc(r.nome)}</div>
+      <div class="lr"><span>Produção</span><b>${fmtData(dataP)}</b></div>
+      <div class="lr"><span>Validade</span><b>${fmtData(dataV)}${dias?` (${dias}d)`:''}</b></div>
+      <div class="lr pw"><span>Peso</span><b>${peso?esc(peso):''}</b></div>
+      ${resp?`<div class="lr"><span>Resp.</span><b>${esc(resp)}</b></div>`:''}
+      ${incIng&&ings?`<div class="li"><b>Ingr.:</b> ${esc(ings)}</div>`:''}
+      ${cons?`<div class="lc">${esc(cons)}</div>`:''}
+      ${roll?'':'<div class="lf">Lola · Cozinha Central</div>'}
+    </div></div>`;
+  const many=Array.from({length:n}).map(()=>label).join('');
+  const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas — ${esc(r.nome)}</title><style>
+    @page{size:${sz.page};margin:0}
+    *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#000;margin:0}
+    .sheet{display:${roll?'block':'flex'};flex-wrap:wrap;gap:${roll?'0':'6mm'};padding:${roll?'0':'6mm'}}
+    .lab{width:${sz.w};${sz.h!=='auto'?`height:${sz.h};`:''}${roll?'':'border:1px solid #000;border-radius:6px;'}overflow:hidden;position:relative;${roll?'page-break-after:always;':''}}
+    .rin{width:100%;height:100%;box-sizing:border-box;padding:${roll?'2mm 3mm':'2.5mm 3mm'};display:flex;flex-direction:column;gap:0.4mm}
+    .ln{font-weight:bold;font-size:${roll?'11pt':'12pt'};line-height:1.05;border-bottom:1.4px solid #000;padding-bottom:0.8mm;margin-bottom:0.8mm;text-transform:uppercase}
+    .lr.pw b{flex:1;text-align:left;padding-left:3mm;border-bottom:0.5pt solid #000;min-height:3.2mm}
+    .lr{display:flex;justify-content:space-between;font-size:${roll?'10.5pt':'9pt'};line-height:1.3}
+    .lr span{color:#333}.lr b{font-weight:bold}
+    .li{font-size:${roll?'8.5pt':'7.5pt'};line-height:1.2;margin-top:0.6mm;color:#111;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .li b{font-weight:bold}
+    .lc{font-size:${roll?'8pt':'7.5pt'};line-height:1.2;margin-top:0.6mm;border-top:1px dotted #999;padding-top:0.6mm;color:#222}
+    .lf{font-size:7pt;color:#666;margin-top:auto;padding-top:0.6mm;text-align:right}
+    @media print{.lab{break-inside:avoid}}
+    </style></head><body><div class="sheet">${many}</div></body></html>`);
+  w.document.close(); toast('Etiquetas geradas ✓'); closeSheet();
+  setTimeout(()=>{ try{w.focus();w.print();}catch(e){} }, 400);
+}
+/* ---- adicionar nova produção = nova receita ---- */
+function novaIngrRow(){ return `<div class="nrow"><input type="text" class="nrn" placeholder="ingrediente"><input type="number" class="nrq" step="0.001" placeholder="qtd" inputmode="decimal"><input type="text" class="nru" placeholder="un"><button class="nrx" title="remover"><i class="ph-duotone ph-x"></i></button></div>`; }
+function wireNovaIngr(){ $$('#nrIngr .nrx').forEach(b=>b.onclick=()=>{ const rows=$$('#nrIngr .nrow'); if(rows.length>1) b.closest('.nrow').remove(); else { b.closest('.nrow').querySelectorAll('input').forEach(i=>i.value=''); } }); }
+function openNovaReceita(){
+  $('#shTitle').textContent='Nova produção / receita';
+  $('#shBody').innerHTML=`<div class="note">Isso cria uma <b>nova receita</b> da Central — fica salva pra todos verem (aqui e no portal). Preencha o preparo e os ingredientes.</div>
+    <div class="mf"><label>Nome da produção</label><input type="text" id="nrNome" placeholder="ex.: Molho de queijo"></div>
+    <div class="mf"><label>Unidade do estoque</label><input type="text" id="nrUn" placeholder="kg, un, balde, pote…" value="kg"></div>
+    <div class="mf"><label>Rendimento da receita cheia</label><div class="rendrow"><input type="number" id="nrRend" step="0.001" placeholder="quanto rende" inputmode="decimal"><input type="text" id="nrRendUn" placeholder="un/g/kg" value="g"></div></div>
+    <div class="mf"><label>Tamanho da porção <span style="color:var(--mut);font-weight:400">(opcional — pra contar em porções)</span></label><input type="number" id="nrPorcao" step="0.001" placeholder="ex.: 45 (g por unidade)" inputmode="decimal"></div>
+    <div class="mf"><label>Modo de preparo</label><textarea id="nrPrep" rows="3" placeholder="Escreva como se faz…"></textarea></div>
+    <div class="lbl">Ingredientes</div>
+    <div id="nrIngr">${novaIngrRow()}${novaIngrRow()}</div>
+    <button class="btn sec" id="nrAdd" style="margin-top:2px"><i class="ph-duotone ph-plus"></i> mais um ingrediente</button>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar receita';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarNovaReceita; openSheet();
+  $('#nrAdd').onclick=()=>{ $('#nrIngr').insertAdjacentHTML('beforeend', novaIngrRow()); wireNovaIngr(); };
+  wireNovaIngr(); setTimeout(()=>$('#nrNome').focus(),60);
+}
+async function salvarNovaReceita(){
+  const nome=($('#nrNome').value||'').trim(); if(!nome){ toast('Dê um nome à produção.'); return; }
+  const un=($('#nrUn').value||'').trim()||'un', modo=($('#nrPrep').value||'').trim();
+  const rend=+$('#nrRend').value||0, rendUn=($('#nrRendUn').value||'').trim()||un, porcao=+$('#nrPorcao').value||0;
+  const ings=[]; $$('#nrIngr .nrow').forEach(el=>{ const n=(el.querySelector('.nrn').value||'').trim(); if(!n)return;
+    const q=+el.querySelector('.nrq').value||0, u=(el.querySelector('.nru').value||'').trim()||un; ings.push({nome_manual:n, unidade:u, qtd_bruta:q, qtd_liquida:q}); });
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const rows=await post('lola_preproducoes',[{nome, categoria:'central', e_preparo:true, ativo:true, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un, modo_preparo:modo||null, editado_por:quem, editado_em:new Date().toISOString()}],'return=representation');
+    const novo=(Array.isArray(rows)&&rows[0])?rows[0]:null; if(!novo) throw new Error('sem retorno do banco');
+    if(ings.length) await post('lola_preproducoes_itens', ings.map(i=>({preproducao_id:novo.id, ...i})),'return=minimal');
+    ST.receitas=ST.receitas||[]; ST.receitas.push({id:novo.id, nome, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un}); ST.receitas.sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+    toast('Receita criada ✓'); closeSheet(); ST.tab='prod'; render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+/* ===== CONTAGEM semanal (insumos e produções) ===== */
+let CONT_TIPO=null, CONT_ITEMS=[];
+function openContagem(tipo){
+  CONT_TIPO=tipo; let items=[];
+  if(tipo==='producao'){ items=(ST.receitas||[]).map(r=>{ const s=(ST.saldo||{})[r.id]||{}; const ri=rendInfo(r); const un=(s.unidade)||(ri.ehPorcao?'porções':convUn(r.rendimento_un||r.porcao_un||'un')); return {ref_id:r.id, nome:r.nome, unidade:un, sistema:+s.saldo||0}; }); }
+  else { const sal={}; ST.movs.forEach(m=>{ if(!m.insumo_id)return; sal[m.insumo_id]=(sal[m.insumo_id]||0)+(+m.qtd||0); });
+    items=Object.keys(sal).filter(id=>Math.abs(sal[id])>1e-9).map(id=>{const i=ST.byId[id]||{}; return {ref_id:id, nome:i.nome||'?', unidade:i.unidade_custo||'', sistema:sal[id]};});
+    items.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')); }
+  CONT_ITEMS=items;
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Contagem — '+(tipo==='producao'?'Produções':'Insumos');
+  let h=`<div class="note">Conte o que está fisicamente na Central e escreva a quantidade <b>contada</b>. Fica gravado com a data pra comparar depois. Deixe em branco o que não contar.</div>
+    <div class="mf"><label>Data da contagem</label><input type="date" id="contData" value="${hoje}"></div>
+    <div class="lbl">Itens (${items.length})</div>`;
+  if(!items.length) h+=`<div class="empty">Nenhum item pra contar.</div>`;
+  items.forEach((it,ix)=>{ h+=`<div class="citem"><div class="ct"><b>${esc(it.nome)}</b><span>sistema: ${num(it.sistema)} ${esc(it.unidade||'')}</span></div>
+    <input type="number" class="ccont" data-ix="${ix}" step="0.001" placeholder="qtd" inputmode="decimal"><span class="cu">${esc(it.unidade||'')}</span></div>`; });
+  $('#shBody').innerHTML=h;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar contagem';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarContagem; openSheet();
+}
+async function salvarContagem(){
+  const data=$('#contData').value||new Date().toISOString().slice(0,10);
+  const itens=[]; $$('#shBody .ccont').forEach(inp=>{ const v=inp.value.trim(); if(v==='')return; const it=CONT_ITEMS[+inp.dataset.ix]; if(!it)return;
+    itens.push({ref_id:it.ref_id, nome:it.nome, unidade:it.unidade, qtd_sistema:it.sistema, qtd_contada:+v||0}); });
+  if(!itens.length){ toast('Preencha ao menos um item contado.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const rows=await post('lola_central_contagem',[{tipo:CONT_TIPO, data, criado_por:quem}],'return=representation');
+    const cid=(Array.isArray(rows)&&rows[0])?rows[0].id:null; if(!cid) throw new Error('sem retorno do banco');
+    await post('lola_central_contagem_item', itens.map(i=>({contagem_id:cid, ...i})),'return=minimal');
+    if(CONT_TIPO==='producao'){
+      await post('lola_central_saldo?on_conflict=preproducao_id', itens.map(i=>({preproducao_id:i.ref_id, saldo:i.qtd_contada, unidade:i.unidade, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()})),'resolution=merge-duplicates,return=minimal');
+      await post('lola_central_saldo_log', itens.map(i=>({preproducao_id:i.ref_id, data, saldo_novo:i.qtd_contada, por:quem})),'return=minimal');
+      ST.saldo=ST.saldo||{}; itens.forEach(i=>{ ST.saldo[i.ref_id]={preproducao_id:i.ref_id, saldo:i.qtd_contada, unidade:i.unidade, saldo_data:data, atualizado_por:quem}; });
+    }
+    toast('Contagem salva ✓ ('+itens.length+' itens, '+fmtData(data)+')'); closeSheet(); render();
+  }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function openContagensHist(tipo){
+  $('#shTitle').textContent='Contagens — '+(tipo==='producao'?'Produções':'Insumos');
+  const f=$('.sh-foot'); if(f) f.style.display='none';
+  $('#shBody').innerHTML='<div class="uinfo">carregando…</div>'; openSheet();
+  try{ const list=await api('lola_central_contagem?tipo=eq.'+tipo+'&select=id,data,criado_por&order=data.desc,criado_em.desc&limit=80');
+    if(!list.length){ $('#shBody').innerHTML='<div class="empty"><i class="ph-duotone ph-clipboard-text"></i>Nenhuma contagem registrada ainda.</div>'; return; }
+    $('#shBody').innerHTML=`<div class="note">Cada contagem fica guardada com a data. Toque pra ver os itens e as diferenças pro sistema.</div>`+list.map(c=>`<button class="chist" data-id="${c.id}"><div class="t"><b>${fmtData(String(c.data).slice(0,10))}</b>${c.criado_por?`<span>${esc(c.criado_por)}</span>`:''}</div><i class="ph-duotone ph-caret-right"></i></button>`).join('');
+    $$('#shBody .chist').forEach(b=>b.onclick=()=>openContagemDet(b.dataset.id, tipo));
+  }catch(e){ $('#shBody').innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+async function openContagemDet(id, tipo){
+  $('#shBody').innerHTML='<div class="uinfo">carregando…</div>';
+  try{ const its=await api('lola_central_contagem_item?contagem_id=eq.'+id+'&select=nome,unidade,qtd_sistema,qtd_contada&order=nome');
+    let h=`<button class="btn sec" id="chVoltar" style="margin-bottom:12px"><i class="ph-duotone ph-arrow-left"></i> Voltar às contagens</button><div class="lbl">Itens contados (${its.length})</div>`;
+    h+=its.map(x=>{ const dif=(+x.qtd_contada||0)-(+x.qtd_sistema||0); const cls=Math.abs(dif)<1e-9?'':(dif<0?'neg':'pos');
+      return `<div class="cdet"><div class="t"><b>${esc(x.nome)}</b><span>sistema ${num(x.qtd_sistema)} · contado ${num(x.qtd_contada)} ${esc(x.unidade||'')}</span></div><div class="cdif ${cls}">${dif>0?'+':''}${num(dif)}</div></div>`; }).join('');
+    $('#shBody').innerHTML=h;
+    $('#chVoltar').onclick=()=>openContagensHist(tipo);
+  }catch(e){ $('#shBody').innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+/* ═══ PRÉ-PRODUÇÕES e FICHAS TÉCNICAS — o editor completo, em modo Central ═══
+   Pedido da Bianca (17/07): "na central a gente só consegue visualizar receitas,
+   tem que substituir esse botão pelas fichas técnicas pra serem editáveis, terem
+   os rendimentos, todas as informações".
+
+   O editor mora no app do Lola (modalPP/modalFicha, ~450 linhas + ~30 funções de
+   apoio). Copiar pra cá = todo conserto de custo/FC/conversão/CMV feito DUAS vezes,
+   e uma vai ser esquecida — já aconteceu aqui (lola_ccmq_estoque_mov: 6 linhas
+   contra 106). Então a gente ABRE a tela dele aqui dentro, em ?unidade=central:
+   filtra só o que é da Central, mostra o selo azul COZINHA CENTRAL, e o que for
+   criado nasce com cozinha='central'. Quem usa nunca sai do app da Central.
+   Decisão registrada em retomar/REESTRUTURACAO-cozinhas-separadas.md.          */
+const _EST_URL='https://lolaccmq.github.io/LolaEstoque/lolaestoque.html';
+function _telaDoEstoque(page){
+  const s=lolaSession()||{};
+  const quem=encodeURIComponent(s.nome||s.email||'');
+  const src=_EST_URL+'?embed=1&unidade=central&page='+page+'&u='+quem;
+  return '<iframe src="'+src+'" title="'+page+'" '
+       + 'style="width:100%;height:calc(100vh - 132px);min-height:520px;border:0;'
+       + 'border-radius:14px;background:#FBF7F1;display:block"></iframe>';
+}
+function viewFt(){ return _telaDoEstoque('fichas'); }
+function wireFt(){}
+function viewReceitasNova(){ return _telaDoEstoque('preproducoes'); }
+function wireReceitasNova(){}
+
+/* ↓ tela antiga (só visualizava). Mantida sem uso enquanto a nova é validada. */
+function viewReceitasAntiga(){
+  let h=`<div class="note">As <b>pré-produções com as receitas</b> — a MESMA base do portal. O que mudar aqui muda lá (é o mesmo dado). Toque numa pra ver os ingredientes.</div>`;
+  h+=`<button class="btn" id="btnNovaRec" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Adicionar preparo / nova receita</button>`;
+  if(ST.receitas==='loading'||!ST.receitas){ h+=`<div class="spin"></div>`; return h; }
+  const r=ST.receitas||[];
+  h+=`<div class="toolbar"><input type="search" id="bqr" placeholder="Buscar receita…" value="${esc(ST.buscaR||'')}"></div>`;
+  let list=r.slice(); if(ST.buscaR){const b=norm(ST.buscaR); list=list.filter(x=>norm(x.nome).includes(b));}
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-notebook"></i>Nenhuma receita.</div>`; return h; }
+  h+=`<div class="lbl">Produções da Central (${list.length})</div>`;
+  list.forEach(x=>{
+    h+=`<div class="ritem" data-id="${x.id}"><div class="srow srow-c"><div class="t"><b>${esc(x.nome)}</b><span>toque p/ ver ingredientes</span></div><div class="r"><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div></div><div class="usos ringr"></div></div>`; });
+  return h;
+}
+function wireReceitas(){
+  const bq=$('#bqr'); if(bq){ bq.oninput=()=>{ST.buscaR=bq.value;const p=bq.selectionStart;render();const n=$('#bqr');if(n){n.focus();n.setSelectionRange(p,p);}}; }
+  $('#btnNovaRec')&&($('#btnNovaRec').onclick=openNovaReceita);
+  $$('#app .ritem').forEach(el=>{ el.querySelector('.srow-c').onclick=()=>toggleReceita(el); });
+}
+async function toggleReceita(el){
+  const box=el.querySelector('.ringr'), id=el.dataset.id;
+  if(box.classList.contains('on')){ box.classList.remove('on'); box.innerHTML=''; return; }
+  box.classList.add('on'); box.innerHTML='<div class="uinfo">carregando…</div>';
+  try{ const r=await post('rpc/central_receita_itens',{pid:id});
+    if(!Array.isArray(r)||!r.length){ box.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; return; }
+    box.innerHTML=r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
+  }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+/* ===== FECHAR MÊS (mandado x produzido → furos) ===== */
+async function carregarFechamento(){
+  ST.fechData='loading'; if(ST.tab==='fech') render();
+  try{ ST.fechData=await post('rpc/central_fechamento',{mes:ST.fechMes, uni:ST.fechUni||'todas'}); }
+  catch(e){ ST.fechData=[]; }
+  if(ST.tab==='fech') render();
+}
+function viewFechar(){
+  const uni=ST.fechUni||'todas';
+  let h=`<div class="note">O que a Central <b>mandou</b> no mês (vem dos Pedidos à Central) comparado com o que foi <b>produzido</b> (histórico do Produzir). O <b>furo</b> aponta onde não bate — ele preenche conforme o Arthur registra as produções.</div>`;
+  h+=`<div class="mf"><label>Mês</label><input type="month" id="fechMes" value="${esc(ST.fechMes||'')}"></div>`;
+  h+=`<div class="tabs" style="margin-bottom:12px">
+     <button class="chip ${uni==='todas'?'on':''}" data-u="todas">Todas</button>
+     <button class="chip ${uni==='ccmq'?'on':''}" data-u="ccmq">CCMQ</button>
+     <button class="chip ${uni==='mac'?'on':''}" data-u="mac">MAC</button></div>`;
+  const d=ST.fechData;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-calculator"></i>Sem pedidos nesse mês/unidade.</div>`; return h; }
+  const totMand=d.reduce((s,x)=>s+(+x.valor||0),0);
+  let totFuroV=0, comProd=0;
+  const cards=d.map(x=>{
+    const mand=+x.qtd_mandado||0, prod=+x.produzido||0, valor=+x.valor||0;
+    const preco=mand>0?valor/mand:0, temProd=prod>0;
+    const cm=conv(mand,x.unidade), cp=conv(prod,x.unidade);
+    const furoQ=prod-mand, cf=conv(furoQ,x.unidade), furoV=furoQ*preco, furoPct=prod>0?furoQ/prod*100:0;
+    if(temProd){ totFuroV+=furoV; comProd++; }
+    const cls=!temProd?'':(Math.abs(furoQ)<1e-6?'ok':furoQ<0?'neg':'pos');
+    return `<div class="fcard ${cls}">
+      <div class="fh"><b>${esc(x.nome)}</b>${!temProd?'<span class="stpill pend">sem produção</span>':(furoQ<0?'<span class="stpill pend">mandou&nbsp;+</span>':'<span class="stpill ok">ok</span>')}</div>
+      <div class="frow"><span>Mandado</span><b>${num(cm.q)} ${esc(cm.u)} · ${brl(valor)}</b></div>
+      <div class="frow"><span>Produzido</span><b>${temProd?num(cp.q)+' '+esc(cp.u):'—'}</b></div>
+      ${temProd?`<div class="frow furo"><span>Furo</span><b>${cf.q>0?'+':''}${num(cf.q)} ${esc(cf.u)} · ${brl(furoV)} · ${num(furoPct)}%</b></div>`:''}
+    </div>`;
+  }).join('');
+  h+=`<div class="tot"><div class="k">Mandado no mês${uni!=='todas'?' · '+uni.toUpperCase():''}</div><div class="big">${brl(totMand)}</div><div class="s">${d.length} produções · ${comProd} com produção lançada</div></div>`;
+  h+=cards;
+  return h;
+}
+function wireFechar(){
+  const m=$('#fechMes'); if(m) m.onchange=()=>{ST.fechMes=m.value; carregarFechamento();};
+  $$('#app .tabs .chip[data-u]').forEach(b=>b.onclick=()=>{ST.fechUni=b.dataset.u; carregarFechamento();});
+}
+/* ===== COMPRAS por insumo por competência ===== */
+async function carregarCompras(){
+  ST.comprasData='loading'; if(ST.tab==='cmp') render();
+  try{ ST.comprasData=await post('rpc/central_compras_insumo',{mes:ST.comprasMes}); }
+  catch(e){ ST.comprasData=[]; }
+  if(ST.tab==='cmp') render();
+}
+function viewCompras(){
+  let h=`<div class="note">Quanto de cada insumo foi <b>comprado</b> na competência (das notas já lançadas na Central). Ajuda a planejar as próximas compras.</div>`;
+  h+=`<div class="mf"><label>Mês</label><input type="month" id="cmpMes" value="${esc(ST.comprasMes||'')}"></div>`;
+  const d=ST.comprasData;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-bag-open"></i>Nada comprado lançado nesse mês.<br>Lance as notas na aba Notas.</div>`; return h; }
+  const tot=d.reduce((s,x)=>s+(+x.custo||0),0);
+  h+=`<div class="tot"><div class="k">Comprado no mês</div><div class="big">${brl(tot)}</div><div class="s">${d.length} insumos</div></div>`;
+  h+=`<div class="toolbar"><input type="search" id="bqc" placeholder="Buscar insumo…" value="${esc(ST.buscaC||'')}"></div>`;
+  let list=d.slice(); if(ST.buscaC){const b=norm(ST.buscaC); list=list.filter(x=>norm(x.nome).includes(b));}
+  let cat='';
+  h+=list.map(x=>{ const c=conv(x.qtd,x.unidade); let head='';
+    if(x.categoria!==cat){ cat=x.categoria; head=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
+    return head+`<div class="srow"><div class="t"><b>${esc(x.nome)}</b><span>${x.notas?x.notas+' nota'+(x.notas>1?'s':''):''}</span></div><div class="r"><div class="q">${num(c.q)} ${esc(c.u)}</div><div class="v">${brl(x.custo)}</div></div></div>`;
+  }).join('');
+  return h;
+}
+function wireCompras(){
+  const m=$('#cmpMes'); if(m) m.onchange=()=>{ST.comprasMes=m.value; carregarCompras();};
+  const bq=$('#bqc'); if(bq){ bq.oninput=()=>{ST.buscaC=bq.value; const p=bq.selectionStart; render(); const n=$('#bqc'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+}
+/* ===== PRO CCMQ (ingredientes p/ prato especial) ===== */
+async function carregarEnvios(){
+  ST.envios='loading'; if(ST.tab==='env') render();
+  try{ ST.envios=await api('lola_central_envio_ccmq?ativo=neq.false&select=id,descricao,quantidade,unidade,prato,observacao,data,responsavel,atendido&order=atendido,data.desc,criado_em.desc'); }
+  catch(e){ ST.envios=[]; }
+  const ne=(ST.envios&&ST.envios!=='loading')?ST.envios.filter(x=>!x.atendido).length:0; const ce=$('#cntEnv'); if(ce){ if(ne){ce.style.display='';ce.textContent=ne;}else ce.style.display='none'; }
+  if(ST.tab==='env') render();
+}
+function viewEnvio(){
+  let h=`<div class="note">Ingredientes que precisam ir pro <b>Lola CCMQ</b> pra um prato especial. Marque aqui e a cozinha separa. (Mesma lista aparece no Pedidos à Central.)</div>`;
+  h+=`<button class="btn" id="btnNovoEnvio" style="margin-bottom:12px"><i class="ph-duotone ph-paper-plane-tilt"></i> Enviar para CCMQ</button>`;
+  const d=ST.envios;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  if(!d.length){ h+=`<div class="empty"><i class="ph-duotone ph-paper-plane-tilt"></i>Nada marcado ainda.</div>`; return h; }
+  const abertos=d.filter(x=>!x.atendido), feitos=d.filter(x=>x.atendido);
+  const linha=(x)=>{
+    const meta=[fmtData(String(x.data).slice(0,10))];
+    if(x.responsavel) meta.push(esc(x.responsavel));
+    if(x.prato) meta.push('prato: '+esc(x.prato));
+    if(x.observacao) meta.push(esc(x.observacao));
+    return `<div class="env-row ${x.atendido?'done':''}" data-id="${x.id}">
+     <div><div class="env-nome">${esc(x.descricao)}</div><div class="env-meta">${meta.join(' · ')}</div></div>
+     <div class="env-qtd">${x.quantidade
+        ? `<div class="env-qtd-v">${num(x.quantidade)}</div><div class="env-qtd-u">${esc(x.unidade||'')}</div>`
+        : `<span class="env-qtd-none">sem qtd</span>`}</div>
+     <div class="env-acts"><button class="prodbtn eatt">${x.atendido?'<i class="ph-duotone ph-arrow-counter-clockwise"></i> reabrir':'<i class="ph-duotone ph-check"></i> enviado'}</button><button class="pdel edel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>
+    </div>`;
+  };
+  const tabela=(lst)=>`<div class="env-tbl">`+lst.map(linha).join('')+`</div>`;
+  if(abertos.length){ h+=`<div class="lbl">A enviar (${abertos.length})</div>`+tabela(abertos); }
+  if(feitos.length){ h+=`<div class="lbl">Já enviados (${feitos.length})</div>`+tabela(feitos); }
+  return h;
+}
+function wireEnvio(){
+  $('#btnNovoEnvio')&&($('#btnNovoEnvio').onclick=()=>openEnvio());
+  $$('#app .env-row').forEach(el=>{ const id=el.dataset.id;
+    el.querySelector('.eatt').onclick=()=>toggleEnvio(id);
+    el.querySelector('.edel').onclick=()=>delEnvio(id, el.querySelector('.env-nome').textContent);
+  });
+}
+function openEnvio(){
+  const _s=lolaSession()||{}; const quem=_s.nome||_s.email||''; const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Enviar para CCMQ';
+  $('#shBody').innerHTML=`<div class="note">Sinalize que esse item vai pro Lola CCMQ pra um prato especial.</div>
+    <div class="mf"><label>Ingrediente / item</label><input type="text" id="envDesc" list="envList" placeholder="ex.: Pera argentina" autocomplete="off"><datalist id="envList">${(ST.insumos||[]).slice(0,500).map(i=>`<option value="${esc(i.nome)}"></option>`).join('')}</datalist></div>
+    <div class="mf"><label>Quantidade</label><div class="rendrow"><input type="number" id="envQtd" step="0.001" inputmode="decimal" placeholder="quanto"><input type="text" id="envUn" placeholder="kg/un/L" value="kg"></div></div>
+    <div class="mf"><label>Prato especial <span style="color:var(--mut);font-weight:400">(opcional)</span></label><input type="text" id="envPrato" placeholder="ex.: Salada de pera do menu"></div>
+    <div class="mf"><label>Data</label><input type="date" id="envData" value="${hoje}"></div>
+    <div class="mf"><label>Responsável</label><input type="text" id="envResp" value="${esc(quem)}"></div>
+    <div class="mf"><label>Observação</label><textarea id="envObs" rows="2" placeholder="detalhes…"></textarea></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEnvio; openSheet(); setTimeout(()=>$('#envDesc').focus(),60);
+}
+async function salvarEnvio(){
+  const desc=($('#envDesc').value||'').trim(); if(!desc){ toast('Diga qual ingrediente.'); return; }
+  const qtd=+$('#envQtd').value||null, un=($('#envUn').value||'').trim()||null, prato=($('#envPrato').value||'').trim()||null;
+  const data=$('#envData').value||new Date().toISOString().slice(0,10), resp=($('#envResp').value||'').trim()||null, obs=($('#envObs').value||'').trim()||null;
+  const ins=(ST.insumos||[]).find(i=>norm(i.nome)===norm(desc));
+  $('#shSave').setAttribute('disabled','');
+  try{ await post('lola_central_envio_ccmq',[{descricao:desc, insumo_id:ins?ins.id:null, quantidade:qtd, unidade:un, prato, observacao:obs, data, responsavel:resp, origem:'estoque-central'}],'return=minimal');
+    toast('Marcado pro CCMQ ✓'); closeSheet(); await carregarEnvios();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function toggleEnvio(id){
+  const x=(ST.envios||[]).find(y=>y.id===id); if(!x)return;
+  try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_central_envio_ccmq?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({atendido:!x.atendido})});
+    x.atendido=!x.atendido; toast(x.atendido?'Marcado como enviado ✓':'Reaberto'); render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+async function delEnvio(id, nome){
+  if(!confirm('Remover "'+nome+'" da lista pro CCMQ?')) return;
+  try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_central_envio_ccmq?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({ativo:false})});
+    ST.envios=(ST.envios||[]).filter(y=>y.id!==id); toast('Removido'); render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+/* ===== PEDIDOS À CENTRAL (o Arthur aceita/pronto por aqui) ===== */
+async function carregarPedidos(){
+  ST.pedidos='loading'; if(ST.tab==='ped') render();
+  try{ ST.pedidos=await api('lola_pedidos?select=id,numero_pedido,unidade,status,central_status,central_aceito_por,data_pedido,responsavel,valor_total,observacoes,lola_pedidos_itens(nome_item,quantidade,unidade,subtotal)&order=data_pedido.desc,numero_pedido.desc&limit=80'); }
+  catch(e){ ST.pedidos=[]; }
+  atualizaBadgePed();
+  if(ST.tab==='ped') render();
+}
+function atualizaBadgePed(){ const d=ST.pedidos; const nn=(d&&d!=='loading')?d.filter(p=>p.status==='solicitado' && (!p.central_status||p.central_status==='novo')).length:0; const cp=$('#cntPed'); if(cp){ if(nn){cp.style.display='';cp.textContent=nn;}else cp.style.display='none'; } }
+function pedUniTag(u){ return u==='ccmq'?'<span class="utag ccmq">CCMQ</span>':u==='mac'?'<span class="utag mac">MAC</span>':''; }
+function pedPill(cs){ cs=cs||'novo'; return cs==='pronto'?'<span class="stpill ok">pronto</span>':cs==='aceito'?'<span class="stpill az">aceito</span>':'<span class="stpill pend">novo</span>'; }
+function viewPedidos(){
+  const uni=ST.pedUni||'todas', filtro=ST.pedFiltro||'abertos';
+  let h=`<div class="note">Pedidos que o <b>CCMQ</b> e o <b>MAC</b> fazem pra Central. Aceite e marque quando estiver <b>pronto pra enviar</b>. (Eles continuam criando os pedidos do lado deles.)</div>`;
+  h+=`<div class="tabs" style="margin-bottom:8px">
+     <button class="chip ${uni==='todas'?'on':''}" data-pu="todas">Todas</button>
+     <button class="chip ${uni==='ccmq'?'on':''}" data-pu="ccmq">CCMQ</button>
+     <button class="chip ${uni==='mac'?'on':''}" data-pu="mac">MAC</button></div>`;
+  h+=`<div class="tabs" style="margin-bottom:12px">
+     <button class="chip ${filtro==='abertos'?'on':''}" data-pf="abertos">A fazer</button>
+     <button class="chip ${filtro==='todos'?'on':''}" data-pf="todos">Todos</button></div>`;
+  const d=ST.pedidos;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  let list=d.slice();
+  if(uni!=='todas') list=list.filter(p=>p.unidade===uni);
+  if(filtro==='abertos') list=list.filter(p=>p.status==='solicitado');
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-cart"></i>Nenhum pedido${filtro==='abertos'?' a fazer':''}.</div>`; return h; }
+  h+=list.map(p=>{
+    const its=p.lola_pedidos_itens||[];
+    return `<div class="pedc" data-id="${p.id}">
+      <div class="fh"><b>#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}</b>${pedPill(p.central_status)}</div>
+      <div class="frow"><span>Pedido</span><b>${fmtData(String(p.data_pedido).slice(0,10))}${p.responsavel?' · '+esc((p.responsavel||'').trim()):''}</b></div>
+      <div class="frow"><span>Itens</span><b>${its.length} · ${brl(p.valor_total)}</b></div>
+    </div>`;
+  }).join('');
+  return h;
+}
+function wirePedidos(){
+  $$('#app .tabs .chip[data-pu]').forEach(b=>b.onclick=()=>{ST.pedUni=b.dataset.pu;render();});
+  $$('#app .tabs .chip[data-pf]').forEach(b=>b.onclick=()=>{ST.pedFiltro=b.dataset.pf;render();});
+  $$('#app .pedc').forEach(el=>el.onclick=()=>openPedido(el.dataset.id));
+}
+let PED_CUR=null;
+function openPedido(id){
+  const p=(ST.pedidos||[]).find(x=>x.id===id); if(!p)return; PED_CUR=p;
+  const its=p.lola_pedidos_itens||[]; const cs=p.central_status||'novo';
+  $('#shTitle').textContent='Pedido #'+(p.numero_pedido||'')+' — '+(p.unidade||'').toUpperCase();
+  const f=$('.sh-foot'); if(f) f.style.display='none';
+  let h=`<div class="note">De <b>${p.responsavel?esc((p.responsavel||'').trim()):'—'}</b> · ${fmtData(String(p.data_pedido).slice(0,10))} · ${pedPill(cs)}${p.observacoes?'<br>Obs: '+esc(p.observacoes):''}</div>`;
+  h+=`<div class="lbl">Itens (${its.length}) · ${brl(p.valor_total)}</div>`;
+  h+=its.map(x=>`<div class="ring"><span>${esc(x.nome_item)}</span><b>${num(x.quantidade)} ${esc(x.unidade||'')}</b></div>`).join('')||'<div class="uinfo">Sem itens.</div>';
+  h+=`<div class="pacts" style="margin-top:14px">`;
+  if(cs==='novo') h+=`<button class="prodbtn" id="pedAceitar"><i class="ph-duotone ph-check"></i> Aceitar pedido</button>`;
+  else if(cs==='aceito') h+=`<button class="prodbtn" id="pedPronto"><i class="ph-duotone ph-package"></i> Pronto pra enviar</button><button class="pdel" id="pedVolta" title="voltar"><i class="ph-duotone ph-arrow-counter-clockwise"></i></button>`;
+  else h+=`<button class="btn sec" id="pedVolta2"><i class="ph-duotone ph-arrow-counter-clockwise"></i> Reabrir</button>`;
+  h+=`</div>`;
+  $('#shBody').innerHTML=h; openSheet();
+  $('#pedAceitar')&&($('#pedAceitar').onclick=()=>setPedidoStatus(id,'aceito'));
+  $('#pedPronto')&&($('#pedPronto').onclick=()=>setPedidoStatus(id,'pronto'));
+  $('#pedVolta')&&($('#pedVolta').onclick=()=>setPedidoStatus(id,'novo'));
+  $('#pedVolta2')&&($('#pedVolta2').onclick=()=>setPedidoStatus(id,'aceito'));
+}
+async function setPedidoStatus(id, cs){
+  const p=(ST.pedidos||[]).find(x=>x.id===id); if(!p)return;
+  const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+  const body={central_status:cs};
+  if(cs==='aceito'){ body.central_aceito_por=quem; body.central_aceito_em=new Date().toISOString(); }
+  if(cs==='pronto'){ body.central_pronto_em=new Date().toISOString(); }
+  try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_pedidos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(body)});
+    p.central_status=cs; if(body.central_aceito_por)p.central_aceito_por=body.central_aceito_por;
+    toast(cs==='aceito'?'Pedido aceito ✓':cs==='pronto'?'Pronto pra enviar ✓':'Reaberto'); closeSheet(); atualizaBadgePed(); render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+let RES_AL=null;
+function openResolver(id){
+  const a=(ST.alertas||[]).find(x=>x.id===id); if(!a)return; RES_AL=a;
+  $('#resTitle').textContent=a.desc_item||'Alerta';
+  $('#resJust').value=a.justificativa||'';
+  $('#resBg').classList.add('on'); $('#resModal').classList.add('on');
+  setTimeout(()=>$('#resJust').focus(),60);
+}
+function closeRes(){ $('#resBg').classList.remove('on'); $('#resModal').classList.remove('on'); }
+async function resSalvar(destino){
+  const a=RES_AL; if(!a)return; const just=$('#resJust').value.trim();
+  if(!just){ toast('Escreva a justificativa (é obrigatória).'); $('#resJust').focus(); return; }
+  $('#resCentral').setAttribute('disabled',''); $('#resCcmq').setAttribute('disabled','');
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_central_alertas?id=eq.'+a.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({justificativa:just, resolvido:true})});
+    const x=(ST.alertas||[]).find(y=>y.id===a.id); if(x){x.justificativa=just; x.resolvido=true;}
+    $('#resCentral').removeAttribute('disabled'); $('#resCcmq').removeAttribute('disabled'); closeRes();
+    if(destino==='central'){ const n=ST.notas.find(nn=>nn.chave===a.nota_chave);
+      if(n){ ST.tab='ent'; render(); abrirNota(a.nota_chave); }
+      else { toast('Justificado. A nota não está na lista da Central (já pode ter sido movida).'); render(); } }
+    else {
+      await fetch(SB_URL+'/rest/v1/financeiro_notas?chave=eq.'+encodeURIComponent(a.nota_chave),{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({unit:'ccmq'})});
+      const nl=await (await fetch(SB_URL+'/rest/v1/financeiro_nota_lanc?nota_chave=eq.'+encodeURIComponent(a.nota_chave)+'&select=lanc_id',{headers:lolaHeaders()})).json().catch(()=>[]);
+      const ids=(nl||[]).map(z=>z.lanc_id).filter(Boolean);
+      if(ids.length) await fetch(SB_URL+'/rest/v1/financeiro_lancamentos?id=in.('+ids.join(',')+')',{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({unit:'ccmq'})});
+      toast('Justificado e enviado pro CCMQ ✓'); await carregar();
+    }
+  }catch(e){ toast('Erro: '+e.message); $('#resCentral').removeAttribute('disabled'); $('#resCcmq').removeAttribute('disabled'); }
+}
+
+function viewEntrada(){
+  const filtro=ST.entFiltro||'pend';
+  const meses=[...new Set(ST.notas.map(mesDe).filter(Boolean))].sort().reverse(); // TODAS as notas
+  if(ST.comp!=='all' && !meses.includes(ST.comp)) ST.comp='all';
+  const noMes=n=>ST.comp==='all'||mesDe(n)===ST.comp;
+  const doMes=ST.notas.filter(noMes);
+  const nPend=doMes.filter(n=>!ST.imp.has(n.chave)).length, nFeitas=doMes.filter(n=>ST.imp.has(n.chave)).length;
+  let base=doMes.filter(n=> filtro==='pend'?!ST.imp.has(n.chave):filtro==='feitas'?ST.imp.has(n.chave):true);
+  if(ST.buscaN){ const b=norm(ST.buscaN); base=base.filter(n=>norm(n.emitente||'').includes(b)); }
+  base=base.slice().sort((a,b)=>String(b.data_emissao||'').localeCompare(String(a.data_emissao||'')));
+  let h=`<div class="note">Cada nota da Central vira <b>entrada de estoque</b>. Confira o insumo de cada item (o sistema já sugere) e confirme — o saldo sobe sozinho. A etiqueta mostra as que <b>já foram inseridas</b>.</div>`;
+  h+=`<button class="btn sec" id="btnManual" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Lançar entrada manual (sem nota)</button>`;
+  h+=`<div class="monthsel"><span>Competência</span>
+      <select id="selComp"><option value="all">Todas as competências (${ST.notas.length})</option>
+      ${meses.map(m=>`<option value="${m}"${ST.comp===m?' selected':''}>${compLabel(m)} (${ST.notas.filter(n=>mesDe(n)===m).length})</option>`).join('')}</select></div>`;
+  h+=`<div class="tabs" style="margin-bottom:12px">
+      <button class="chip ${filtro==='pend'?'on':''}" data-f="pend">A lançar (${nPend})</button>
+      <button class="chip ${filtro==='feitas'?'on':''}" data-f="feitas">Inseridas (${nFeitas})</button>
+      <button class="chip ${filtro==='todas'?'on':''}" data-f="todas">Todas (${doMes.length})</button></div>`;
+  h+=`<div class="toolbar"><input type="search" id="bqn" placeholder="Buscar fornecedor…" value="${esc(ST.buscaN||'')}"></div>`;
+  if(!base.length){ h+=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>Nenhuma nota${ST.buscaN?' de "'+esc(ST.buscaN)+'"':''}${ST.comp!=='all'?' em '+compLabel(ST.comp):''}.</div>`; return h; }
+  base.forEach(n=>{
+    const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0); const done=ST.imp.has(n.chave);
+    h+=`<div class="ncard ${done?'done':''}" data-ch="${esc(n.chave)}">
+      <span class="ic"><i class="ph-duotone ph-${done?'check-circle':'receipt'}"></i></span>
+      <div class="t"><b>${esc(n.emitente||'Fornecedor')}</b><span>${fmtData(n.data_emissao)} · ${its.length} ${its.length===1?'item':'itens'}</span></div>
+      <div class="r"><div class="v">${brl(tot)}</div><div class="n"><span class="stpill ${done?'ok':'pend'}">${done?'inserida':'a lançar'}</span></div></div>
+    </div>`;
+  });
+  return h;
+}
+function wireEntrada(){
+  $('#btnManual')&&($('#btnManual').onclick=abrirManual);
+  $('#selComp')&&($('#selComp').onchange=e=>{ST.comp=e.target.value;render();});
+  $$('#app .tabs .chip[data-f]').forEach(b=>b.onclick=()=>{ST.entFiltro=b.dataset.f;render();});
+  const bq=$('#bqn'); if(bq){ bq.oninput=()=>{ST.buscaN=bq.value; const p=bq.selectionStart; render(); const n=$('#bqn'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+  $$('.ncard').forEach(c=>c.onclick=()=>abrirNota(c.dataset.ch));
+}
+
+function viewSaldo(){
+  // saldo por insumo
+  const sal={}; ST.movs.forEach(m=>{ if(!m.insumo_id)return; const s=sal[m.insumo_id]||(sal[m.insumo_id]={q:0,v:0}); s.q+=(+m.qtd||0); s.v+=(+m.custo_total||0); });
+  let ids=Object.keys(sal);
+  const totalV=ids.reduce((s,id)=>s+sal[id].v,0);
+  if(ST.soComSaldo) ids=ids.filter(id=>Math.abs(sal[id].q)>1e-9);
+  const nEvt=ids.filter(id=>ST.byId[id]?.evento).length;
+  if(ST.soEvento) ids=ids.filter(id=>ST.byId[id]?.evento);
+  if(ST.busca){ const b=norm(ST.busca); ids=ids.filter(id=>norm(ST.byId[id]?.nome).includes(b)); }
+  ids.sort((a,b)=>{ const A=ST.byId[a]||{},B=ST.byId[b]||{}; return (A.categoria||'').localeCompare(B.categoria||'')||(A.nome||'').localeCompare(B.nome||''); });
+  let h=`<div class="totmini"><span>${ids.length} insumos${totalV>0?' · em estoque '+brl(totalV):''}</span></div>`;
+  h+=`<div class="btn2"><button class="btn sec" id="btnContIns"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button><button class="btn sec" id="btnHistIns"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
+  h+=`<div class="toolbar"><input type="search" id="bq" placeholder="Buscar insumo…" value="${esc(ST.busca)}">
+      <button class="chip ${ST.soComSaldo?'on':''}" id="chSaldo">só com saldo</button>${nEvt?`<button class="chip ${ST.soEvento?'on':''}" id="chEvt"><i class="ph-duotone ph-confetti"></i> evento (${nEvt})</button>`:''}</div>`;
+  if(!ids.length){ h+=`<div class="empty"><i class="ph-duotone ph-stack"></i>Ainda não há movimento de estoque.<br>Lance as notas na aba ao lado.</div>`; return h; }
+  let cat='';
+  ids.forEach(id=>{ const i=ST.byId[id]||{nome:'(insumo removido)'}; const s=sal[id];
+    if(i.categoria!==cat){ cat=i.categoria; h+=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
+    const usado=ST.usados&&ST.usados.has(id);
+    const sub=i.custo_por_unidade?brl(i.custo_por_unidade)+' / '+esc(i.unidade_custo||''):'';
+    h+=`<div class="sitem" data-ins="${id}"><div class="srow ${usado?'srow-c':''}"><div class="t"><b class="ifl" data-ins="${id}" style="cursor:pointer;border-bottom:1px dashed var(--vinho);color:var(--vinho)" title="Ver a ficha: preço, de qual nota veio, fornecedor">${esc(i.nome)}</b><span>${sub}${usado?' · <i class="ph-duotone ph-magnifying-glass"></i> onde é usado':''}</span>${usado?'':'<button class="norec vincrec"><i class="ph-duotone ph-warning-circle"></i> não está em receita · toque pra vincular</button>'}</div>
+      <div class="r">${i.evento?'<span class="evtag"><i class="ph-duotone ph-confetti"></i> Evento</span>':''}<div class="q">${num(s.q)} ${esc(i.unidade_custo||'')}</div><div class="v">${brl(s.v)}</div></div>
+      <button class="iedt" title="editar insumo"><i class="ph-duotone ph-pencil-simple"></i></button></div>
+      <div class="usos"></div></div>`;
+  });
+  return h;
+}
+function wireSaldo(){
+  const bq=$('#bq'); if(bq){ bq.oninput=()=>{ST.busca=bq.value; const p=bq.selectionStart; render(); const n=$('#bq'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+  $('#chSaldo')&&($('#chSaldo').onclick=()=>{ST.soComSaldo=!ST.soComSaldo;render();});
+  $('#chEvt')&&($('#chEvt').onclick=()=>{ST.soEvento=!ST.soEvento;render();});
+  $('#btnContIns')&&($('#btnContIns').onclick=()=>openContagem('insumo'));
+  $('#btnHistIns')&&($('#btnHistIns').onclick=()=>openContagensHist('insumo'));
+  $$('#app .sitem').forEach(el=>{ const c=el.querySelector('.srow-c'); if(c) c.onclick=()=>toggleUsos(el);
+    const ed=el.querySelector('.iedt'); if(ed) ed.onclick=(e)=>{ e.stopPropagation(); openEditInsumo(el.dataset.ins); };
+    const vr=el.querySelector('.vincrec'); if(vr) vr.onclick=(e)=>{ e.stopPropagation(); openVincularReceita(el.dataset.ins); };
+    const fl=el.querySelector('.ifl'); if(fl) fl.onclick=(e)=>{ e.stopPropagation(); abrirFichaInsumo(el.dataset.ins, fl.textContent); }; });
+}
+function openVincularReceita(id){
+  const it=ST.byId[id]; if(!it)return;
+  $('#shTitle').textContent='Vincular — '+it.nome;
+  const foot=$('.sh-foot'); if(foot) foot.style.display='none';
+  $('#shBody').innerHTML=`<div class="note">Esse insumo de estoque <b>não está em receita nenhuma</b>. Escolha o insumo <b>que as receitas já usam</b> pra <b>fundir</b> — o estoque passa a valer nele e o duplicado some.</div>
+    <input type="search" class="vsearch" id="vrBusca" placeholder="Buscar insumo da receita…" autocomplete="off"><div id="vrList"></div>`;
+  openSheet();
+  const drawVr=(fil)=>{ const b=norm(fil||''); const nn=norm(it.nome);
+    const A=new Set(nn.split(' ').filter(w=>w.length>2));
+    let list=(ST.insumos||[]).filter(x=>x.id!==id && x.ativo!==false && ST.usados && ST.usados.has(x.id));
+    list.forEach(x=>{ const xn=norm(x.nome); let sc=0; if(xn.includes(nn)||nn.includes(xn))sc=0.9; const B=new Set(xn.split(' ').filter(w=>w.length>2)); let inter=0; A.forEach(w=>{if(B.has(w))inter++;}); if(A.size&&B.size)sc=Math.max(sc,inter/(new Set([...A,...B]).size)); x._sc=sc; });
+    if(b) list=list.filter(x=>norm(x.nome).includes(b));
+    list.sort((a,c)=>(c._sc||0)-(a._sc||0)||(a.nome||'').localeCompare(c.nome||''));
+    list=list.slice(0,40);
+    $('#vrList').innerHTML=list.length?list.map(x=>`<button class="vrow" data-id="${x.id}"><i class="ph-duotone ph-arrows-merge"></i> ${esc(x.nome)}${x.categoria?`<span style="color:var(--mut);font-weight:400"> · ${esc(x.categoria)}</span>`:''}</button>`).join(''):'<div class="uinfo" style="margin-top:8px">Nada encontrado nas receitas.</div>';
+    $$('#vrList .vrow').forEach(el=>el.onclick=async()=>{ const tgt=ST.byId[el.dataset.id]; if(!tgt)return;
+      if(!confirm('Fundir "'+it.nome+'" em "'+tgt.nome+'"?\nO estoque passa pra ele e o duplicado é desativado.')) return;
+      try{ await fundirInsumo(id, tgt.id); toast('Fundido em "'+tgt.nome+'" ✓'); closeSheet(); await carregar(); }catch(e){ toast('Erro: '+e.message); }
+    });
+  };
+  $('#vrBusca').oninput=()=>drawVr($('#vrBusca').value); drawVr(''); setTimeout(()=>$('#vrBusca').focus(),80);
+}
+let EDIT_INS=null, EDIT_CAT=null, EDIT_EUN=null, EDIT_EVENTO=false;
+const INS_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Material de Limpeza','Materiais de Expediente'];
+function openEditInsumo(id){
+  const i=ST.byId[id]; if(!i)return; EDIT_INS=id; EDIT_CAT=i.categoria||''; EDIT_EUN=i.unidade_custo||'kg'; EDIT_EVENTO=!!i.evento;
+  const cats=[...new Set([...INS_CATS, ...(EDIT_CAT?[EDIT_CAT]:[])])];
+  $('#shTitle').textContent='Editar insumo';
+  $('#shBody').innerHTML=`<div class="note">Renomeie ou ajuste o insumo. A mudança vale em todo o sistema (fichas, estoque, sugestões).</div>
+    <div class="mf"><label>Nome</label><input type="text" id="ediNome" value="${esc(i.nome||'')}"></div>
+    <label class="iml">Categoria</label>
+    <div id="ediCatBtns" class="catbtns">${cats.map(c=>`<button data-c="${esc(c)}" class="${c===EDIT_CAT?'on':''}">${esc(c)}</button>`).join('')}</div>
+    <label class="iml">Unidade de custo</label>
+    <div id="ediUnBtns" class="unrow" style="margin-bottom:12px">${['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u===EDIT_EUN?'on':''}">${u}</button>`).join('')}</div>
+    <div class="mf"><label>Custo por unidade (R$)</label><input type="number" id="ediCusto" step="0.0001" value="${i.custo_por_unidade!=null?i.custo_por_unidade:''}"></div>
+    <label class="etck"><input type="checkbox" id="ediEvento" ${EDIT_EVENTO?'checked':''}> comprado pra <b style="color:#B23A6B">evento</b> — destacar na lista (não deixar parado)</label>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarEditInsumo; openSheet();
+  $('#ediEvento').onchange=e=>{ EDIT_EVENTO=e.target.checked; };
+  $$('#ediCatBtns button').forEach(b=>b.onclick=()=>{ EDIT_CAT=b.dataset.c; $$('#ediCatBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
+  $$('#ediUnBtns button').forEach(b=>b.onclick=()=>{ EDIT_EUN=b.dataset.u; $$('#ediUnBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
+  setTimeout(()=>$('#ediNome').focus(),60);
+}
+async function salvarEditInsumo(){
+  const id=EDIT_INS; if(!id)return; const i=ST.byId[id]||{};
+  const nome=($('#ediNome').value||'').trim(); if(!nome){ toast('O nome não pode ficar vazio.'); return; }
+  const cat=EDIT_CAT||null, un=EDIT_EUN||null;
+  const custoRaw=$('#ediCusto').value; const custo=custoRaw===''?i.custo_por_unidade:(+custoRaw||0);
+  const dup=(ST.insumos||[]).find(x=>x.id!==id && x.ativo!==false && norm(x.nome)===norm(nome));
+  if(dup){
+    if(confirm('Já existe "'+dup.nome+'".\n\nOK = FUNDIR os dois (junta o estoque e as receitas num só)\nCancelar = manter separado e renomear assim mesmo')){
+      $('#shSave').setAttribute('disabled','');
+      try{ await fundirInsumo(id, dup.id); toast('Fundido com "'+dup.nome+'" ✓'); closeSheet(); await carregar(); }
+      catch(e){ toast('Erro ao fundir: '+e.message); $('#shSave').removeAttribute('disabled'); }
+      return;
+    }
+  }
+  $('#shSave').setAttribute('disabled','');
+  try{ await lolaEnsure();
+    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, evento:EDIT_EVENTO, updated_at:new Date().toISOString()})});
+    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo; i.evento=EDIT_EVENTO;
+    buildInsumoOptions(); toast('Insumo atualizado ✓'); closeSheet(); render();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+async function fundirInsumo(fromId, toId){
+  await lolaEnsure(); const h=lolaHeaders({'Prefer':'return=minimal'}); h['Content-Type']='application/json';
+  for(const t of ['lola_central_estoque_mov','lola_central_estoque_map','lola_preproducoes_itens','lola_central_envio_ccmq','lola_fichas_tecnicas_itens']){
+    try{ await fetch(SB_URL+'/rest/v1/'+t+'?insumo_id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({insumo_id:toId})}); }catch(e){}
+  }
+  await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({ativo:false})});
+}
+/* ══════════════════════════════════════════════════════════
+   FICHA DO INSUMO — a mesma do app do Estoque.
+   Clicar em qualquer insumo (lista, receita, produção) abre
+   preço, de qual nota veio, fornecedor, FC, saldo e usos.
+   Usa a função insumo_ficha(uuid) do banco. — 16/07
+   ══════════════════════════════════════════════════════════ */
+function _ifData(d){ if(!d)return'—'; const p=String(d).slice(0,10).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):d; }
+function _ifN(v,c){ return (+v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?3:c}); }
+function _ifR(v){ return (v==null||isNaN(v))?'—':(+v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+const _IF_UN={kg:'por quilo',g:'por grama',L:'por litro',l:'por litro',ml:'por ml',un:'por unidade',cx:'por caixa',pct:'por pacote',molho:'por molho'};
+function _ifUnExt(u){const s=String(u==null?'':u).trim();return _IF_UN[s]||_IF_UN[s.toLowerCase()]||('por '+(s||'unidade'));}
+
+async function abrirFichaInsumo(insumoId, nomeFallback){
+  if(!insumoId) return;
+  const bg=document.createElement('div');
+  bg.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
+  const mo=document.createElement('div');
+  mo.style.cssText='background:var(--creme);border-radius:16px;max-width:680px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.2)';
+  mo.addEventListener('click',e=>e.stopPropagation());
+  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
+  mo.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card)">'
+    +'<div style="flex:1;min-width:0"><div id="ifTit" style="font-family:Fraunces,serif;font-size:18px;font-weight:600;color:var(--vinho);line-height:1.1">'+esc(nomeFallback||'Insumo')+'</div></div>'
+    +'<button id="ifX" style="width:30px;height:30px;border-radius:9px;background:var(--cremeDark);border:1px solid var(--border);color:var(--vinho);font-size:15px;cursor:pointer">✕</button></div>'
+    +'<div id="ifBody" style="padding:14px 16px 18px"><div class="uinfo">buscando…</div></div>';
+  bg.appendChild(mo); document.body.appendChild(bg);
+  mo.querySelector('#ifX').onclick=()=>bg.remove();
+  try{
+    const r=await post('rpc/insumo_ficha',{iid:insumoId});
+    const d=Array.isArray(r)?r[0]:r;
+    if(!d||!d.cadastro){ mo.querySelector('#ifBody').innerHTML='<div class="uinfo">Não encontrei os dados deste insumo.</div>'; return; }
+    mo.querySelector('#ifTit').textContent=d.cadastro.nome||nomeFallback||'Insumo';
+    mo.querySelector('#ifBody').innerHTML=_ifHtml(d);
+  }catch(e){ mo.querySelector('#ifBody').innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+
+function _ifHtml(d){
+  const c=d.cadastro||{}, uc=c.unidade_custo||'kg', compra=d.ultima_compra, fc=d.fc, saldo=d.saldo||{};
+  const cad=+c.custo_por_unidade||0, ult=compra?(+compra.preco_unit||0):0;
+  const dif=(cad>0&&ult>0)?((ult-cad)/cad*100):0, alerta=compra&&Math.abs(dif)>=1;
+  let h='';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+  h+= '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px">'
+    +   '<div style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--lbl);text-transform:uppercase">Custo cadastrado</div>'
+    +   '<div style="font-family:Fraunces,serif;font-size:22px;font-weight:600;color:var(--vinho);line-height:1.1;margin-top:2px">'+_ifR(cad)+'</div>'
+    +   '<div style="font-size:11px;font-weight:700;color:var(--sec);text-transform:uppercase;letter-spacing:.5px">'+esc(_ifUnExt(uc))+'</div>'
+    +   '<div style="font-size:10px;color:var(--lbl);margin-top:4px">'+(c.preco_atualizado_em?('atualizado '+_ifData(c.preco_atualizado_em)+(c.preco_atualizado_por?(' por '+esc(c.preco_atualizado_por)):'')):'sem atualização registrada')+'</div></div>';
+  h+= compra
+    ? ('<div style="background:'+(alerta?'#FBF0DD':'var(--card)')+';border:1px solid '+(alerta?'#F1DFB8':'var(--border)')+';border-radius:12px;padding:11px 13px">'
+      + '<div style="font-size:9px;font-weight:800;letter-spacing:1px;color:'+(alerta?'#9A6B1E':'var(--lbl)')+';text-transform:uppercase">Última compra</div>'
+      + '<div style="font-family:Fraunces,serif;font-size:22px;font-weight:600;color:'+(alerta?'#9A6B1E':'var(--vinho)')+';line-height:1.1;margin-top:2px">'+_ifR(ult)+'</div>'
+      + '<div style="font-size:11px;font-weight:700;color:'+(alerta?'#9A6B1E':'var(--sec)')+';text-transform:uppercase;letter-spacing:.5px">por '+esc(compra.unidade||uc)+' · '+_ifData(compra.data)+'</div>'
+      + (alerta?('<div style="font-size:10px;color:#9A6B1E;margin-top:4px;font-weight:700">⚠ '+(dif>0?'+':'')+_ifN(dif,1)+'% em relação ao cadastro</div>'):'')+'</div>')
+    : '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px"><div style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--lbl);text-transform:uppercase">Última compra</div><div style="font-size:12px;color:var(--lbl);margin-top:6px">Nenhuma entrada por nota.</div></div>';
+  h+='</div>';
+
+  if(compra){
+    h+='<div class="lbl" style="margin:0 0 6px">De onde veio esse preço</div>';
+    h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px">';
+    h+= '<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:700">'+esc(compra.fornecedor||'(entrada manual — sem nota)')+'</div>'
+      + '<div style="font-size:11px;color:var(--mut)">'+(compra.nota_numero?('Nota '+esc(compra.nota_numero)+' · '):'')+_ifData(compra.data)+(compra.lancado_por?(' · lançada por '+esc(compra.lancado_por)):'')+'</div></div>';
+    h+= '<div style="border-top:1px solid var(--fio);padding-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+      +  '<div><div style="font-size:9px;color:var(--lbl);text-transform:uppercase">Qtd</div><div style="font-size:13px;font-weight:700">'+_ifN(compra.qtd)+' '+esc(compra.unidade||'')+'</div></div>'
+      +  '<div><div style="font-size:9px;color:var(--lbl);text-transform:uppercase">Preço unit.</div><div style="font-size:13px;font-weight:700">'+_ifR(compra.preco_unit)+'</div></div>'
+      +  '<div><div style="font-size:9px;color:var(--lbl);text-transform:uppercase">Total</div><div style="font-size:13px;font-weight:700">'+_ifR(compra.total)+'</div></div></div>';
+    if(compra.descricao_na_nota) h+='<div style="border-top:1px solid var(--fio);padding-top:8px;margin-top:8px"><div style="font-size:9px;color:var(--lbl);text-transform:uppercase">Como veio escrito na nota</div><div style="font-size:12px;color:var(--sec);font-style:italic">"'+esc(compra.descricao_na_nota)+'"</div></div>';
+    h+='</div>';
+  }
+
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+  h+= '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px"><div style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--lbl);text-transform:uppercase">Saldo em estoque</div><div style="font-size:16px;font-weight:700;margin-top:2px">'+_ifN(saldo.qtd)+' '+esc(uc)+'</div><div style="font-size:11px;color:var(--mut)">'+_ifR(saldo.valor)+'</div></div>';
+  h+= '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px"><div style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--lbl);text-transform:uppercase">Peso / fator</div><div style="font-size:16px;font-weight:700;margin-top:2px">'+((fc&&fc.fc)?('FC '+_ifN(fc.fc,2)):(c.peso_un_g?(_ifN(c.peso_un_g,0)+' g/un'):'—'))+'</div><div style="font-size:11px;color:var(--mut)">'+((fc&&fc.peso_medio_g)?('1 un ≈ '+_ifN(fc.peso_medio_g,0)+' g'):(c.peso_un_g?'peso da embalagem':'sem fator cadastrado'))+'</div></div>';
+  h+='</div>';
+
+  const usos=d.usado_em||[];
+  h+='<div class="lbl" style="margin:0 0 6px">Onde é usado ('+usos.length+')</div>';
+  if(!usos.length) h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:11px;color:var(--lbl);margin-bottom:14px">Não entra em nenhuma receita.</div>';
+  else{
+    h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">';
+    usos.forEach((u,i)=>{ h+='<div style="display:flex;align-items:center;gap:8px;padding:9px 13px'+(i?';border-top:1px solid var(--fio)':'')+'">'
+      +'<span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:50px;background:'+(u.tipo==='preparo'?'#7A4FA3':'#C0392B')+';color:#fff;flex-shrink:0">'+(u.tipo==='preparo'?'PREPARO':'PRATO')+'</span>'
+      +'<div style="flex:1;min-width:0;font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(u.nome)+'</div>'
+      +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700">'+_ifN(u.qtd)+' '+esc(u.unidade||'')+'</div><div style="font-size:10px;color:var(--mut)">'+_ifR(u.custo)+'</div></div></div>'; });
+    h+='</div>';
+  }
+
+  const hist=d.historico_preco||[];
+  h+='<div class="lbl" style="margin:0 0 6px">Histórico de preço</div>';
+  if(!hist.length) h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;font-size:11px;color:var(--lbl);line-height:1.5">Nenhuma alteração registrada ainda.<br>A partir de agora, toda mudança grava <b>de onde veio</b>.</div>';
+  else{
+    const ORI={nota:'da nota',planilha:'da planilha do mês',manual:'na mão',correcao:'correção de cadastro'};
+    h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">';
+    hist.forEach((x,i)=>{ const de=+x.de||0,pa=+x.para||0,sobe=pa>de,v=de>0?((pa-de)/de*100):0;
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:9px 13px'+(i?';border-top:1px solid var(--fio)':'')+'">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+_ifR(de)+' → '+_ifR(pa)+'</div>'
+      +'<div style="font-size:10px;color:var(--mut)">'+_ifData(x.quando)+(x.quem?(' · '+esc(x.quem)):'')+(x.origem?(' · <b>'+esc(ORI[x.origem]||x.origem)+'</b>'):'')+'</div></div>'
+      +(de>0?('<span style="font-size:11px;font-weight:800;color:'+(sobe?'#B5302E':'#2C7A4B')+';flex-shrink:0">'+(sobe?'▲':'▼')+' '+_ifN(Math.abs(v),0)+'%</span>'):'')+'</div>'; });
+    h+='</div>';
+  }
+  return h;
+}
+
+async function toggleUsos(el){
+  const box=el.querySelector('.usos'), id=el.dataset.ins;
+  if(box.classList.contains('on')){ box.classList.remove('on'); box.innerHTML=''; return; }
+  box.classList.add('on'); box.innerHTML='<div class="uinfo">buscando…</div>';
+  try{ const r=await post('rpc/central_insumo_usos',{iid:id});
+    const pp=(r&&r.preproducoes)||[], pr=(r&&r.pratos)||[];
+    if(!pp.length && !pr.length){ box.innerHTML='<div class="uinfo">Não entra em nenhuma receita cadastrada.</div>'; return; }
+    let hh='';
+    if(pp.length) hh+=`<div class="ugrp"><b>Pré-produções (${pp.length}):</b> ${pp.map(esc).join(' · ')}</div>`;
+    if(pr.length) hh+=`<div class="ugrp"><b>Pratos (${pr.length}):</b> ${pr.map(esc).join(' · ')}</div>`;
+    box.innerHTML=hh;
+  }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
+}
+
+/* ============ FOLHA: abrir nota / mapear itens ============ */
+async function abrirNota(chave){
+  const n=ST.notas.find(x=>x.chave===chave); if(!n)return; ST.nota=n;
+  const jaImp=ST.imp.has(chave);
+  ST.itens=(n.itens||[]).map((it,ix)=>{
+    const dn=norm(it.desc); const m=ST.map[dn]||{};
+    return { ix, desc:it.desc||'', dn, un:it.un||'', qtd:+it.qtd||0, vunit:+it.vunit||0, vtotal:+it.vtotal||0,
+      insumo_id:m.insumo_id||'', fator:m.fator||1, ignorar:!!m.ignorar, naousamos:false, auto:!!m.insumo_id };
+  });
+  $('#shTitle').textContent=n.emitente||'Nota';
+  const tot=ST.itens.reduce((s,i)=>s+i.vtotal,0);
+  let h=`<div class="note">${fmtData(n.data_emissao)} · ${ST.itens.length} itens · ${brl(tot)}${jaImp?' · <b style="color:var(--okFg)">já lançada</b> (relançar substitui)':''}</div>`;
+  h+=`<div id="movBox"><button class="btn sec movbtn" id="btnMover"><i class="ph-duotone ph-arrows-left-right"></i> Esta nota é de outra unidade? Mover</button></div>`;
+  ST.itens.forEach(it=>{ h+=itemHTML(it); });
+  $('#shBody').innerHTML=h;
+  $('#shSave').innerHTML = jaImp?'<i class="ph-duotone ph-arrows-clockwise"></i> Relançar entrada':'<i class="ph-duotone ph-check"></i> Dar entrada no estoque';
+  $('#shSave').removeAttribute('disabled');
+  onSave=salvarEntrada;
+  openSheet();
+  wireItens();
+  const bm=$('#btnMover'); if(bm) bm.onclick=()=>renderMover(n.chave);
+  // sugestões p/ itens sem mapa
+  ST.itens.forEach(it=>{ if(!it.insumo_id && !it.ignorar) sugerir(it); });
+}
+function renderMover(chave){
+  const box=$('#movBox'); if(!box) return;
+  box.innerHTML=`<div class="movsel"><span>Mover esta nota para:</span>
+    <button data-u="ccmq">CCMQ</button><button data-u="mac">MAC</button><button data-u="__cancel" class="cancel">cancelar</button></div>`;
+  box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    if(b.dataset.u==='__cancel'){ box.innerHTML=`<button class="btn sec movbtn" id="btnMover"><i class="ph-duotone ph-arrows-left-right"></i> Esta nota é de outra unidade? Mover</button>`; box.querySelector('#btnMover').onclick=()=>renderMover(chave); return; }
+    moverNota(chave, b.dataset.u);
+  });
+}
+async function moverNota(chave, u){
+  try{
+    await lolaEnsure();
+    let r=await fetch(SB_URL+'/rest/v1/financeiro_notas?chave=eq.'+encodeURIComponent(chave),{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({unit:u})});
+    if(!r.ok) throw new Error(await r.text());
+    const nl=await (await fetch(SB_URL+'/rest/v1/financeiro_nota_lanc?nota_chave=eq.'+encodeURIComponent(chave)+'&select=lanc_id',{headers:lolaHeaders()})).json().catch(()=>[]);
+    const ids=(nl||[]).map(x=>x.lanc_id).filter(Boolean);
+    if(ids.length) await fetch(SB_URL+'/rest/v1/financeiro_lancamentos?id=in.('+ids.join(',')+')',{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({unit:u})});
+    toast('Nota movida para '+u.toUpperCase()+' ✓'); closeSheet(); await carregar();
+  }catch(e){ toast('Erro ao mover: '+e.message); }
+}
+function itemHTML(it){
+  const bloq=it.ignorar||it.naousamos;
+  return `<div class="item ${it.ignorar?'ign':''} ${it.naousamos?'alerta':''}" data-ix="${it.ix}">
+    <div class="top"><b>${esc(it.desc)}</b><div class="q">${num(it.qtd)} ${esc(it.un)}<br>${brl(it.vtotal)}</div></div>
+    <select class="selins" ${bloq?'disabled':''}>
+      <option value=""${it.insumo_id?'':' selected'}>— escolher insumo —</option>
+      <option value="__novo">+ criar novo insumo…</option>
+      <optgroup label="Sugestões" class="sugg"></optgroup>
+      ${OPTS_ALL}
+    </select>
+    <div class="auto ${it.auto?'on':''}"><i class="ph-duotone ph-magic-wand"></i> insumo memorizado desta descrição</div>
+    <div class="fchint"></div>
+    <div class="l2"><label>fator</label><input type="number" class="fat" step="0.00001" value="${it.fator}" title="multiplica a qtd da nota p/ a unidade do insumo"><span class="unit"></span></div>
+    <div class="entra"></div>
+    <div class="l3">
+      <button class="usbtn ${it.naousamos?'on':''}"><i class="ph-duotone ph-warning-circle"></i> não usamos</button>
+      <button class="ignbtn ${it.ignorar?'on':''}"><i class="ph-duotone ph-prohibit"></i> não é insumo</button>
+    </div>
+  </div>`;
+}
+function refreshFator(el, it){
+  const {fator,hint,warn}=computeFator(it);
+  it.fator=fator;
+  const fin=el.querySelector('.fat'); if(fin) fin.value=fator;
+  const ins=ST.byId[it.insumo_id];
+  el.querySelector('.unit').textContent = ins?('→ '+(ins.unidade_custo||'')):'';
+  const hd=el.querySelector('.fchint'); hd.textContent=hint||''; hd.classList.toggle('on',!!hint); hd.classList.toggle('warn',!!warn);
+  updateEntra(el, it);
+}
+function updateEntra(el, it){
+  const e=el.querySelector('.entra'); if(!e) return;
+  const ins=ST.byId[it.insumo_id];
+  if(!ins || it.ignorar || it.naousamos){ e.classList.remove('on'); e.textContent=''; return; }
+  const res=(it.qtd||0)*(it.fator||0);
+  e.innerHTML=`Entra no estoque: <b>${num(it.qtd)} ${esc(it.un||'')} × ${num(it.fator||0)} = ${num(res)} ${esc(ins.unidade_custo||'')}</b>`;
+  e.classList.add('on');
+}
+function wireItens(){
+  $$('#shBody .item').forEach(el=>{
+    const ix=+el.dataset.ix, it=ST.itens[ix];
+    const s=el.querySelector('.selins'); if(it.insumo_id) s.value=it.insumo_id;
+    refreshFator(el, it);
+    s.onchange=()=>{ if(s.value==='__novo'){ s.value=it.insumo_id||''; openCriarInsumo(it); return; } it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); };
+    el.querySelector('.fat').oninput=e=>{ it.fator=+e.target.value||0; updateEntra(el,it); };
+    el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; if(it.ignorar)it.naousamos=false;
+      el.classList.toggle('ign',it.ignorar); el.classList.remove('alerta');
+      el.querySelector('.ignbtn').classList.toggle('on',it.ignorar); el.querySelector('.usbtn').classList.remove('on');
+      s.disabled=it.ignorar||it.naousamos; updateEntra(el,it); };
+    el.querySelector('.usbtn').onclick=()=>{ it.naousamos=!it.naousamos; if(it.naousamos)it.ignorar=false;
+      el.classList.toggle('alerta',it.naousamos); el.classList.remove('ign');
+      el.querySelector('.usbtn').classList.toggle('on',it.naousamos); el.querySelector('.ignbtn').classList.remove('on');
+      s.disabled=it.ignorar||it.naousamos; updateEntra(el,it); };
+  });
+}
+/* ===== criar insumo na hora ===== */
+let CRIAR_IT=null, IM_UN='kg', IM_DEST=new Set(), IM_CONFIRM=false;
+function similarInsumos(nome){
+  const n=norm(nome); if(!n) return [];
+  const tk=s=>new Set(norm(s).split(' ').filter(w=>w.length>2));
+  const A=tk(nome), a0=[...A][0]; const out=[];
+  (ST.insumos||[]).forEach(x=>{ if(x.ativo===false) return; const xn=norm(x.nome); if(xn===n) return;
+    let sc=0; if(xn.includes(n)||n.includes(xn)) sc=0.85;
+    const B=tk(x.nome); if(A.size&&B.size){ let inter=0; A.forEach(w=>{ if(B.has(w))inter++; }); const uni=new Set([...A,...B]).size; sc=Math.max(sc, inter/uni);
+      const b0=[...B][0]; if(a0&&a0===b0) sc=Math.max(sc,0.55); }
+    if(sc>=0.5) out.push({nome:x.nome,id:x.id,cat:x.categoria,sc}); });
+  out.sort((a,b)=>b.sc-a.sc); return out.slice(0,5);
+}
+function renderImWarn(){
+  const box=$('#imWarn'); if(!box) return 0;
+  const sims=similarInsumos(($('#imNome').value||'').trim());
+  if(!sims.length){ box.innerHTML=''; return 0; }
+  box.innerHTML=`<div class="imwarn"><div class="imwt"><i class="ph-duotone ph-warning-circle"></i> Já tem parecido cadastrado — confira antes de criar:</div>${sims.map(s=>`<button class="imwuse" data-id="${s.id}">usar «${esc(s.nome)}»${s.cat?' · '+esc(s.cat):''}</button>`).join('')}</div>`;
+  $$('#imWarn .imwuse').forEach(b=>b.onclick=()=>usarInsumoExistente(b.dataset.id));
+  return sims.length;
+}
+function usarInsumoExistente(id){
+  const existente=ST.byId[id]; if(!existente) return;
+  const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
+  if(el){ const sel=el.querySelector('.selins');
+    if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions(); sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`; }
+    it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); }
+  closeIns(); toast(`Usando "${existente.nome}".`);
+}
+function toggleHort(){ $('#imHort').style.display = ($('#imCat').value==='Hortifruti')?'block':'none'; }
+function closeIns(){ $('#insBg').classList.remove('on'); $('#insModal').classList.remove('on'); }
+function openCriarInsumo(it){
+  CRIAR_IT=it;
+  $('#imNome').value = (it.desc||'').replace(/\s*[\d.,]+\s*(g|kg|ml|l|un|dz)\b.*$/i,'').trim() || (it.desc||'');
+  $('#imCat').innerHTML=[...FOOD_CATS,'Material de Limpeza','Materiais de Expediente'].map(c=>`<option>${c}</option>`).join('');
+  IM_UN='kg';
+  $('#imUn').innerHTML=['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u==='kg'?'on':''}">${u}</button>`).join('');
+  $$('#imUn button').forEach(b=>b.onclick=()=>{ IM_UN=b.dataset.u; $$('#imUn button').forEach(x=>x.classList.toggle('on',x===b)); });
+  IM_DEST=new Set(['central']);
+  $('#imDest').innerHTML=[['ccmq','CCMQ'],['mac','MAC'],['central','Central']].map(([v,l])=>`<button data-d="${v}" class="${IM_DEST.has(v)?'on':''}">${l}</button>`).join('');
+  $$('#imDest button').forEach(b=>b.onclick=()=>{ const v=b.dataset.d; if(IM_DEST.has(v))IM_DEST.delete(v); else IM_DEST.add(v); b.classList.toggle('on',IM_DEST.has(v)); });
+  const cu = it.qtd ? it.vtotal/it.qtd : (it.vunit||0);
+  $('#imCusto').value = cu ? (Math.round(cu*100)/100) : ''; $('#imPeso').value=''; $('#imFC').value='';
+  $('#imCat').onchange=toggleHort; toggleHort();
+  $('#imSave').removeAttribute('disabled'); $('#imSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar e usar';
+  IM_CONFIRM=false;
+  $('#imNome').oninput=()=>{ IM_CONFIRM=false; $('#imSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar e usar'; renderImWarn(); };
+  renderImWarn();
+  $('#insBg').classList.add('on'); $('#insModal').classList.add('on');
+  setTimeout(()=>$('#imNome').focus(),60);
+}
+async function salvarInsumo(){
+  const nome=$('#imNome').value.trim(); if(!nome){ toast('Dê um nome ao insumo.'); return; }
+  // evita duplicado: se já existe um insumo com esse mesmo nome, usa o que já tem
+  const nn=norm(nome);
+  const existente=ST.insumos.find(x=>x.ativo!==false && norm(x.nome)===nn);
+  if(existente){
+    const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
+    if(el){ const sel=el.querySelector('.selins');
+      if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions();
+        sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`; }
+      it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); }
+    closeIns(); toast(`"${existente.nome}" já existe — usei o cadastro que já tinha.`);
+    return;
+  }
+  // aviso de PARECIDOS: bloqueia uma vez pra conferir
+  const sims=similarInsumos(nome);
+  if(sims.length && !IM_CONFIRM){ IM_CONFIRM=true; renderImWarn(); $('#imSave').innerHTML='<i class="ph-duotone ph-warning-circle"></i> Criar assim mesmo'; toast('Tem insumo parecido — confira ou confirme.'); return; }
+  const cat=$('#imCat').value, un=IM_UN, custo=+$('#imCusto').value||0;
+  $('#imSave').setAttribute('disabled','');
+  try{
+    const rows=await post('lola_insumos', [{nome, categoria:cat, unidade_compra:un, unidade_custo:un, custo_por_unidade:custo, ativo:true, destinos:[...IM_DEST]}], 'return=representation');
+    const row=Array.isArray(rows)?rows[0]:null; if(!row) throw new Error('sem retorno do banco');
+    ST.insumos.push(row); ST.byId[row.id]=row;
+    const peso=+$('#imPeso').value||null, fc=+$('#imFC').value||null;
+    if(cat==='Hortifruti' && (peso||fc)){
+      await post('lola_central_fc?on_conflict=insumo_norm', [{insumo_norm:norm(nome), insumo_nome:nome, peso_medio_g:peso, fc:fc}], 'resolution=merge-duplicates,return=minimal');
+      ST.fc[norm(nome)]={peso_medio_g:peso, fc:fc};
+    }
+    buildInsumoOptions();
+    const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
+    if(el){ const sel=el.querySelector('.selins');
+      sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`;
+      it.insumo_id=row.id; sel.value=row.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
+    }
+    $('#imSave').removeAttribute('disabled'); closeIns(); toast('Insumo criado ✓');
+  }catch(e){ toast('Erro ao criar: '+e.message); $('#imSave').removeAttribute('disabled'); }
+}
+
+async function sugerir(it){
+  try{ let r=await post('rpc/central_sugere_insumo',{txt:it.desc});
+    if(!Array.isArray(r))return;
+    r=r.filter(x=>FOOD_CATS.has(x.categoria)); if(!r.length)return;
+    const el=$(`#shBody .item[data-ix="${it.ix}"]`); if(!el)return;
+    const og=el.querySelector('optgroup.sugg'); if(!og)return;
+    og.innerHTML=r.map(x=>`<option value="${x.id}">${esc(x.nome)}${x.unidade_custo?' ('+esc(x.unidade_custo)+')':''}</option>`).join('');
+    const best=r[0];
+    if(best && (best.sim||0)>=0.6 && !it.insumo_id){ it.insumo_id=best.id; el.querySelector('.selins').value=best.id; refreshFator(el,it); }
+  }catch(e){}
+}
+
+async function salvarEntrada(){
+  const nota=ST.nota; if(!nota)return;
+  const usar=ST.itens.filter(i=>!i.ignorar && !i.naousamos);
+  const alertas=ST.itens.filter(i=>i.naousamos);
+  const semins=usar.filter(i=>!i.insumo_id);
+  const oldB=$('#shFalta'); if(oldB) oldB.remove();
+  $$('#shBody .item').forEach(el=>el.classList.remove('falta'));
+  if(semins.length){
+    semins.forEach(i=>{ const el=$(`#shBody .item[data-ix="${i.ix}"]`); if(el) el.classList.add('falta'); });
+    const b=document.createElement('div'); b.id='shFalta'; b.className='falta-banner';
+    b.innerHTML=`<b>Falta escolher o insumo de ${semins.length} ${semins.length===1?'item':'itens'}:</b> ${semins.map(i=>esc(i.desc)).join(' · ')}.<br>Escolha o insumo (ou "+ criar novo insumo"), ou marque "não é insumo" / "não usamos".`;
+    $('#shBody').prepend(b); $('#shBody').scrollTop=0;
+    return;
+  }
+  const ignorados=ST.itens.filter(i=>i.ignorar);
+  if(!usar.length && !alertas.length && !ignorados.length){ toast('Diga o que fazer com os itens: escolha o insumo, ou marque "não é insumo" / "não usamos".'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const jaImp=ST.imp.has(nota.chave);
+    if(jaImp){ await lolaEnsure(); const h=lolaHeaders();
+      await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?origem_tipo=eq.nota&origem_ref=eq.'+encodeURIComponent(nota.chave),{method:'DELETE',headers:h}); }
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    if(usar.length){
+      const movs=usar.map(i=>{ const q=i.qtd*(i.fator||1); const cu=q? i.vtotal/q : i.vunit;
+        return { insumo_id:i.insumo_id, tipo:'entrada', qtd:q, unidade:(ST.byId[i.insumo_id]||{}).unidade_custo||i.un,
+          custo_unit:cu, custo_total:i.vtotal, origem_tipo:'nota', origem_ref:nota.chave, data:nota.data_emissao, obs:i.desc, criado_por:quem }; });
+      await post('lola_central_estoque_mov', movs, 'return=minimal');
+    }
+    // alertas "não usamos — por que foi pedido?"
+    if(alertas.length){
+      const arows=alertas.map(i=>({ nota_chave:nota.chave, desc_item:i.desc, insumo_id:i.insumo_id||null,
+        motivo:'nao_usamos', obs:(nota.emitente||'')+' · '+brl(i.vtotal), criado_por:quem }));
+      await post('lola_central_alertas', arows, 'return=minimal');
+    }
+    // memoriza o mapeamento (só dos que viraram estoque ou 'não é insumo')
+    const seen={}; const maprows=[];
+    ST.itens.filter(i=>!i.naousamos).forEach(i=>{ if(seen[i.dn])return; seen[i.dn]=1;
+      maprows.push({ desc_norm:i.dn, desc_orig:i.desc, insumo_id:i.ignorar?null:i.insumo_id, fator:i.fator||1, ignorar:i.ignorar, criado_por:quem, updated_at:new Date().toISOString() }); });
+    if(maprows.length) await post('lola_central_estoque_map?on_conflict=desc_norm', maprows, 'resolution=merge-duplicates,return=minimal');
+    await post('lola_central_estoque_nota?on_conflict=nota_chave',
+      {nota_chave:nota.chave, itens_total:ST.itens.length, itens_ok:usar.length, importada_em:new Date().toISOString(), por:quem},
+      'resolution=merge-duplicates,return=minimal');
+    toast(usar.length ? (alertas.length? `Entrada lançada · ${alertas.length} alerta(s) ⚠` : 'Entrada lançada no estoque ✓')
+                      : (alertas.length? `Nota concluída · ${alertas.length} alerta(s) ⚠` : 'Nota concluída (nada foi pro estoque) ✓'));
+    closeSheet(); await carregar();
+  }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+
+/* ============ ENTRADA MANUAL (sem nota fiscal) ============ */
+function abrirManual(){
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Entrada manual';
+  $('#shBody').innerHTML=`
+    <div class="note">Pra compras <b>sem nota fiscal</b> (feira, açougue) ou ajustes de estoque. Escolha o insumo, a quantidade e quanto pagou no total.</div>
+    <div class="mf"><label>Data</label><input type="date" id="mData" value="${hoje}"></div>
+    <div class="mf"><label>Fornecedor / observação (opcional)</label><input type="text" id="mForn" placeholder="ex.: Feira do produtor"></div>
+    <div class="lbl" style="margin:16px 0 8px">Itens</div>
+    <div id="mLines"></div>
+    <button class="btn sec" id="mAdd" style="margin-top:2px"><i class="ph-duotone ph-plus"></i> adicionar item</button>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Lançar no estoque';
+  onSave=salvarManual;
+  $('#mAdd').onclick=()=>addManualLine();
+  addManualLine();
+  openSheet();
+}
+function addManualLine(){
+  const d=document.createElement('div'); d.className='mline';
+  d.innerHTML=`<select class="mi"><option value="">— escolher insumo —</option>${OPTS_ALL}</select>
+    <div class="mrow"><input type="number" class="mq" step="0.001" placeholder="qtd">
+      <input type="number" class="mc" step="0.01" placeholder="R$ total">
+      <button class="mdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>`;
+  $('#mLines').appendChild(d);
+  d.querySelector('.mdel').onclick=()=>{ d.remove(); if(!$$('#mLines .mline').length) addManualLine(); };
+}
+async function salvarManual(){
+  const data=$('#mData').value||new Date().toISOString().slice(0,10);
+  const forn=($('#mForn').value||'').trim();
+  const lines=$$('#mLines .mline').map(el=>({
+    insumo_id:el.querySelector('.mi').value,
+    qtd:+el.querySelector('.mq').value||0,
+    custo:+el.querySelector('.mc').value||0
+  })).filter(l=>l.insumo_id && l.qtd>0);
+  if(!lines.length){ toast('Escolha ao menos um insumo com quantidade.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const ref='manual:'+Date.now();
+    const movs=lines.map(l=>({ insumo_id:l.insumo_id, tipo:'entrada', qtd:l.qtd,
+      unidade:(ST.byId[l.insumo_id]||{}).unidade_custo||'', custo_unit:l.qtd?l.custo/l.qtd:l.custo,
+      custo_total:l.custo, origem_tipo:'manual', origem_ref:ref, data, obs:forn||'entrada manual', criado_por:quem }));
+    await post('lola_central_estoque_mov', movs, 'return=minimal');
+    toast('Entrada manual lançada ✓'); closeSheet(); await carregar();
+  }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
+
+function openSheet(){ $('#sheetBg').classList.add('on'); $('#sheet').classList.add('on'); }
+function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classList.remove('on'); const f=$('.sh-foot'); if(f) f.style.display=''; }
+
+/* ============ eventos base ============ */
+$('#tabEnt').onclick=()=>{ST.tab='ent';render();};
+$('#tabSal').onclick=()=>{ST.tab='sal';render();};
+$('#tabProd').onclick=()=>{ST.tab='prod';render();};
+/* As duas abrem o editor do Estoque em modo Central (iframe) — não precisam
+   carregar dado aqui, a tela de dentro se vira sozinha. */
+$('#tabRec').onclick=()=>{ ST.tab='rec'; render(); };
+$('#tabFt').onclick =()=>{ ST.tab='ft';  render(); };
+$('#tabPed').onclick=()=>{ST.tab='ped'; render(); if(!ST.pedidos||ST.pedidos==='loading') carregarPedidos();};
+$('#tabPz').onclick=()=>{ST.tab='pz'; render(); if(!ST.prodHist||ST.prodHist==='loading') carregarProduzidos();};
+$('#tabPerd').onclick=async()=>{ ST.tab='perd'; render();
+  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='perd') render(); } };
+$('#tabCmp').onclick=()=>{ST.tab='cmp'; if(!ST.comprasMes){ST.comprasMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarCompras();};
+$('#tabFech').onclick=()=>{ST.tab='fech'; if(!ST.fechMes){ST.fechMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarFechamento();};
+$('#tabEnv').onclick=()=>{ST.tab='env'; render(); if(!ST.envios||ST.envios==='loading') carregarEnvios();};
+$('#tabAl').onclick=()=>{ST.tab='al';render();};
+$('#btnReload').onclick=()=>{$('#app').innerHTML='<div class="spin"></div>';carregar();};
+$('#btnBack').onclick=()=>{ location.href='/central/'; };   // volta pro hub da Central (era ../ = /adm/)
+let onSave=salvarEntrada;
+$('#shX').onclick=closeSheet; $('#sheetBg').onclick=closeSheet; $('#shSave').onclick=()=>onSave();
+$('#imX').onclick=closeIns; $('#insBg').onclick=closeIns; $('#imSave').onclick=salvarInsumo;
+$('#resX').onclick=closeRes; $('#resBg').onclick=closeRes; $('#resCentral').onclick=()=>resSalvar('central'); $('#resCcmq').onclick=()=>resSalvar('ccmq');
+
+(async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Estoque da Central'}); carregar(); })();
+</script>
+</body>
+</html>
