@@ -237,6 +237,30 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 #insModal.on,#resModal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
 #resBg{position:fixed;inset:0;background:rgba(42,26,23,.5);z-index:210;opacity:0;pointer-events:none;transition:.2s}
 #resBg.on{opacity:1;pointer-events:auto}
+
+/* Detalhe da compra: DE QUAIS NOTAS veio o insumo.
+   17/07 — a Bianca: "não está fazendo mto sentido 1 nota com 145kg de costela".
+   Não fazia mesmo (era inventário inicial somado com nota). Sem poder clicar,
+   um número esquisito não tinha como ser conferido. */
+#cpBg{position:fixed;inset:0;background:rgba(42,26,23,.5);z-index:210;opacity:0;pointer-events:none;transition:.2s}
+#cpBg.on{opacity:1;pointer-events:auto}
+#cpModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);z-index:211;width:calc(100% - 32px);max-width:480px;
+  background:var(--creme);border-radius:18px;opacity:0;pointer-events:none;transition:.2s;max-height:88vh;display:flex;flex-direction:column}
+#cpModal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.cptot{display:flex;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 6px;margin-bottom:12px}
+.cptot>div{flex:1;text-align:center;min-width:0}
+.cptot span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--lbl);font-weight:700;margin-bottom:3px}
+.cptot b{font-size:14px;font-weight:700;word-break:break-word}
+.cpn{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:8px}
+.cpn .h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:3px}
+.cpn .h b{font-size:13.5px;font-weight:700;line-height:1.25}
+.cpn .h .d{font-size:11.5px;color:var(--mut);font-weight:600;white-space:nowrap;flex-shrink:0}
+.cpn .desc{font-size:11.5px;color:var(--mut);margin-bottom:6px;line-height:1.35}
+.cpn .n{display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:700;align-items:baseline}
+.cpn .n .un{color:var(--sec);font-weight:600}
+.srow.clic{cursor:pointer}
+.srow.clic:active{background:var(--fio)}
+.srow .cx{color:var(--lbl);font-size:15px;flex-shrink:0;margin-left:-4px;display:flex;align-items:center}
 .im-body textarea{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;font:inherit;font-size:14px;color:var(--ink);resize:vertical}
 .im-head{display:flex;align-items:center;gap:10px;padding:16px 16px 10px;border-bottom:1px solid var(--fio)}
 .im-head h3{flex:1;font-family:Fraunces,serif;font-weight:600;font-size:17px;color:var(--vinho)}
@@ -373,6 +397,11 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button class="btn" id="resCentral" style="margin-bottom:8px"><i class="ph-duotone ph-stack"></i> Adicionar ao estoque da Central</button>
     <button class="btn sec" id="resCcmq"><i class="ph-duotone ph-arrow-right"></i> Enviar para o CCMQ (uso)</button>
   </div>
+</div>
+<div id="cpBg"></div>
+<div id="cpModal">
+  <div class="im-head"><h3 id="cpTitle">Insumo</h3><button class="x" id="cpX"><i class="ph-duotone ph-x"></i></button></div>
+  <div class="im-body" id="cpBody"></div>
 </div>
 <div id="toast"></div>
 
@@ -1193,7 +1222,7 @@ async function carregarCompras(){
   if(ST.tab==='cmp') render();
 }
 function viewCompras(){
-  let h=`<div class="note">Quanto de cada insumo foi <b>comprado</b> na competência (das notas já lançadas na Central). Ajuda a planejar as próximas compras.</div>`;
+  let h=`<div class="note">Quanto de cada insumo foi <b>comprado</b> na competência — só o que veio de <b>nota</b> ou de entrada manual. Estoque inicial não conta como compra. <b>Toque no insumo</b> pra ver de quais notas ele veio.</div>`;
   h+=`<div class="mf"><label>Mês</label><input type="month" id="cmpMes" value="${esc(ST.comprasMes||'')}"></div>`;
   const d=ST.comprasData;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
@@ -1202,16 +1231,47 @@ function viewCompras(){
   h+=`<div class="tot"><div class="k">Comprado no mês</div><div class="big">${brl(tot)}</div><div class="s">${d.length} insumos</div></div>`;
   h+=`<div class="toolbar"><input type="search" id="bqc" placeholder="Buscar insumo…" value="${esc(ST.buscaC||'')}"></div>`;
   let list=d.slice(); if(ST.buscaC){const b=norm(ST.buscaC); list=list.filter(x=>norm(x.nome).includes(b));}
+  ST._cmpList=list;   /* o clique acha o insumo por índice — a lista filtra, o `d` não */
   let cat='';
-  h+=list.map(x=>{ const c=conv(x.qtd,x.unidade); let head='';
+  h+=list.map((x,i)=>{ const c=conv(x.qtd,x.unidade); let head='';
     if(x.categoria!==cat){ cat=x.categoria; head=`<div class="catrow"><span>${esc(cat||'Sem categoria')}</span></div>`; }
-    return head+`<div class="srow"><div class="t"><b>${esc(x.nome)}</b><span>${x.notas?x.notas+' nota'+(x.notas>1?'s':''):''}</span></div><div class="r"><div class="q">${num(c.q)} ${esc(c.u)}</div><div class="v">${brl(x.custo)}</div></div></div>`;
+    /* o preço por unidade é o que denuncia número torto na hora (costela a R$ 15/kg não existe) */
+    const pu=(+x.qtd>0)?(+x.custo/+x.qtd):0;
+    return head+`<div class="srow clic" data-i="${i}">
+      <div class="t"><b>${esc(x.nome)}</b><span>${x.notas?x.notas+' nota'+(x.notas>1?'s':''):''}${pu>0?' · '+brl(pu)+'/'+esc(x.unidade):''}</span></div>
+      <div class="r"><div class="q">${num(c.q)} ${esc(c.u)}</div><div class="v">${brl(x.custo)}</div></div>
+      <div class="cx"><i class="ph-duotone ph-caret-right"></i></div></div>`;
   }).join('');
   return h;
 }
+function abrirCompraDet(x){
+  $('#cpTitle').textContent=x.nome;
+  const c=conv(x.qtd,x.unidade);
+  const pu=(+x.qtd>0)?(+x.custo/+x.qtd):0;
+  let h=`<div class="cptot">
+    <div><span>Comprado</span><b>${num(c.q)} ${esc(c.u)}</b></div>
+    <div><span>Preço médio</span><b>${pu>0?brl(pu)+'/'+esc(x.unidade):'—'}</b></div>
+    <div><span>Total</span><b>${brl(x.custo)}</b></div></div>`;
+  const its=x.itens||[];
+  h+=its.map(it=>{
+    const ci=conv(it.qtd,it.unidade);
+    const pui=(+it.qtd>0)?(+it.custo/+it.qtd):0;
+    const quem=it.emitente||(it.manual?'Entrada manual':'—');
+    return `<div class="cpn">
+      <div class="h"><b>${esc(quem)}${it.numero?' <span class="un">· nº '+esc(it.numero)+'</span>':''}</b><span class="d">${fmtData(it.data)}</span></div>
+      ${it.desc?`<div class="desc">${esc(it.desc)}</div>`:''}
+      <div class="n"><span class="un">${num(ci.q)} ${esc(ci.u)}${pui>0?' × '+brl(pui)+'/'+esc(it.unidade):''}</span><b>${brl(it.custo)}</b></div>
+    </div>`;
+  }).join('');
+  h+=`<div class="imnote" style="margin-top:2px">Cada linha é um item de nota. Se o mesmo insumo aparece duas vezes na mesma nota, aparecem duas linhas — e as duas somam.</div>`;
+  $('#cpBody').innerHTML=h;
+  $('#cpBg').classList.add('on'); $('#cpModal').classList.add('on');
+}
+function fecharCompraDet(){ $('#cpBg').classList.remove('on'); $('#cpModal').classList.remove('on'); }
 function wireCompras(){
   const m=$('#cmpMes'); if(m) m.onchange=()=>{ST.comprasMes=m.value; carregarCompras();};
   const bq=$('#bqc'); if(bq){ bq.oninput=()=>{ST.buscaC=bq.value; const p=bq.selectionStart; render(); const n=$('#bqc'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+  $$('#app .srow.clic').forEach(r=>r.onclick=()=>{ const x=(ST._cmpList||[])[+r.dataset.i]; if(x) abrirCompraDet(x); });
 }
 /* ===== PRO CCMQ (ingredientes p/ prato especial) ===== */
 async function carregarEnvios(){
@@ -1975,6 +2035,7 @@ let onSave=salvarEntrada;
 $('#shX').onclick=closeSheet; $('#sheetBg').onclick=closeSheet; $('#shSave').onclick=()=>onSave();
 $('#imX').onclick=closeIns; $('#insBg').onclick=closeIns; $('#imSave').onclick=salvarInsumo;
 $('#resX').onclick=closeRes; $('#resBg').onclick=closeRes; $('#resCentral').onclick=()=>resSalvar('central'); $('#resCcmq').onclick=()=>resSalvar('ccmq');
+$('#cpX').onclick=fecharCompraDet; $('#cpBg').onclick=fecharCompraDet;
 
 (async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Estoque da Central'}); carregar(); })();
 </script>
