@@ -1002,42 +1002,43 @@ function erSwitchUn(nu){
     if(r&&r.value!=='') r.value=+(+r.value*f).toFixed(4);
     if(p&&p.value!=='') p.value=+(+p.value*f).toFixed(4);
   }
-  ER_UN=nu; $$('#erUnBtns button').forEach(b=>b.classList.toggle('on',b.dataset.u===nu));
+  ER_UN=nu;
   const cont=(nu==='un'||nu==='porção');
-  const s1=$('#erUnRo'), s2=$('#erUnRo2'), lb=$('#erP2Lb');
-  if(s1)s1.textContent=nu;
-  if(s2)s2.textContent=cont?'g':nu;
-  if(lb)lb.textContent=cont?('2 · Cada '+(nu==='un'?'unidade':'porção')+' pesa quanto?'):'2 · Cada porção (etiqueta) leva quanto?';
+  const sel=$('#erUnSel'); if(sel&&sel.value!==nu) sel.value=nu;
+  const s2=$('#erUnRo2'); if(s2)s2.textContent=cont?'g':nu;
+  const p2=$('#erPorc'); if(p2)p2.placeholder=cont?'pesa quanto? (g)':'cada porção leva…';
   erPortions();
 }
 /* 17/07: "mais simples e mais didático" — feedback em português de cozinha e aviso quando a conta não fecha */
 function erPortions(){ const el=$('#erPor'); if(!el)return; const r=+$('#erRend').value||0, p=+$('#erPorc').value||0, u=ER_UN;
   const cont=(u==='un'||u==='porção');
-  if(!(r>0)){ el.innerHTML='Comece pelo <b>passo 1</b>: quanto rendeu fazer esta receita, do jeito que saiu da panela.'; return; }
+  if(!(r>0)){ el.innerHTML='Comece pelo total: quanto rendeu fazer esta receita, do jeito que saiu da panela.'; return; }
   if(cont){
     const lb=u==='un'?'unidades':'porções';
-    if(!(p>0)){ el.innerHTML=`<b style="color:var(--okFg)">✓ Rendeu ${num(r)} ${lb}.</b> Se quiser, diga no passo 2 quanto <b>pesa cada uma</b> — aparece na etiqueta.`; return; }
+    if(!(p>0)){ el.innerHTML=`<b style="color:var(--okFg)">✓ Rendeu ${num(r)} ${lb}.</b> Se quiser, diga ao lado quanto <b>pesa cada uma</b>.`; return; }
     const tot=r*p; const totLe=tot>=1000?((tot/1000).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg'):(num(tot)+' g');
-    el.innerHTML=`<b style="color:var(--okFg)">✓ ${num(r)} ${lb} de ${num(p)} g cada</b> — total ≈ <b>${totLe}</b>. É o nº de etiquetas que ele vai sugerir.`; return;
+    el.innerHTML=`<b style="color:var(--okFg)">✓ ${num(r)} ${lb} de ${num(p)} g cada</b> — total ≈ <b>${totLe}</b>.`; return;
   }
-  if(!(p>0)){ el.innerHTML=`Total anotado: <b>${num(r)} ${esc(u)}</b>. Agora o <b>passo 2</b>: quanto leva cada porção — é isso que define as etiquetas.`; return; }
-  if(p>r){ el.innerHTML=`<b style="color:#B5302E">⚠️ Confere esses números:</b> o total da receita (<b>${num(r)} ${esc(u)}</b>) está <b>menor</b> que uma porção só (<b>${num(p)} ${esc(u)}</b>). O passo 1 é a receita <b>inteira</b>, não uma porção. Faltou um zero? A unidade é ${esc(u)} mesmo?`; return; }
+  if(!(p>0)){ el.innerHTML=`Total anotado: <b>${num(r)} ${esc(u)}</b>. Agora: quanto leva <b>cada porção</b>?`; return; }
+  if(p>r){ el.innerHTML=`<b style="color:#B5302E">⚠️ Confere esses números:</b> o total da receita (<b>${num(r)} ${esc(u)}</b>) está <b>menor</b> que uma porção só (<b>${num(p)} ${esc(u)}</b>). O primeiro campo é a receita <b>inteira</b>, não uma porção. Faltou um zero? A unidade é ${esc(u)} mesmo?`; return; }
   const n=r/p;
-  el.innerHTML=`<b style="color:var(--okFg)">✓ Dá ${n>=10?Math.round(n):(+n.toFixed(1)).toLocaleString('pt-BR')} porções de ${num(p)} ${esc(u)}</b> — é o nº de etiquetas que ele vai sugerir.`; }
+  el.innerHTML=`<b style="color:var(--okFg)">✓ Dá ${n>=10?Math.round(n):(+n.toFixed(1)).toLocaleString('pt-BR')} porções de ${num(p)} ${esc(u)}</b>.`; }
 function openEditRend(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; EDIT_REND=id;
   ER_UN=(r.rendimento_un||'kg').toLowerCase(); if(ER_UN==='porcao'||ER_UN==='porção') ER_UN='porção'; else if(!ER_G[ER_UN]&&ER_UN!=='un'&&ER_UN!=='l') ER_UN='kg';
   $('#shTitle').textContent='Rendimento — '+r.nome;
   $('#shBody').innerHTML=`<div class="note">Preencha pela receita <b>inteira</b>, do jeito que ela sai da panela.<br>Ex.: rende <b>1,89 kg</b> no total · cada porção leva <b>40 g</b> → <b>47 porções</b>.</div>
-    <div class="mf"><label>1 · Quanto rendeu fazer esta receita?</label>
-      <div class="rendrow"><input type="number" id="erRend" step="0.0001" inputmode="decimal" value="${r.rendimento_qtd!=null?r.rendimento_qtd:''}" placeholder="ex.: 1890"><span class="chip" id="erUnRo" style="pointer-events:none;min-width:52px;justify-content:center">${ER_UN}</span></div>
-      <div id="erUnBtns" class="tabs chips" style="margin-top:6px">${['g','kg','L','un','porção'].map(u=>`<button class="chip ${u===ER_UN?'on':''}" data-u="${u}">${u}</button>`).join('')}</div></div>
-    <div class="mf"><label id="erP2Lb">2 · Cada porção (etiqueta) leva quanto?</label>
-      <div class="rendrow"><input type="number" id="erPorc" step="0.0001" inputmode="decimal" value="${r.porcao_qtd!=null?r.porcao_qtd:''}" placeholder="ex.: 40"><span class="chip" id="erUnRo2" style="pointer-events:none;min-width:52px;justify-content:center">${(ER_UN==='un'||ER_UN==='porção')?'g':ER_UN}</span></div></div>
+    <div class="mf"><label>Quanto rendeu · e quanto leva cada porção</label>
+      <div class="rendrow">
+        <input type="number" id="erRend" step="0.0001" inputmode="decimal" value="${r.rendimento_qtd!=null?r.rendimento_qtd:''}" placeholder="total (ex.: 1890)">
+        <select id="erUnSel" style="flex:0 0 96px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0 8px;font:inherit;font-size:13px;min-height:44px">${['g','kg','L','un','porção'].map(u=>`<option value="${u}"${u===ER_UN?' selected':''}>${u}</option>`).join('')}</select>
+        <input type="number" id="erPorc" step="0.0001" inputmode="decimal" value="${r.porcao_qtd!=null?r.porcao_qtd:''}" placeholder="${(ER_UN==='un'||ER_UN==='porção')?'pesa quanto? (g)':'cada porção leva…'}">
+        <span class="chip" id="erUnRo2" style="pointer-events:none;flex:0 0 52px;justify-content:center">${(ER_UN==='un'||ER_UN==='porção')?'g':ER_UN}</span>
+      </div></div>
     <div class="envsel" id="erPor" style="margin-top:2px"></div>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar rendimento';
   $('#shSave').removeAttribute('disabled'); onSave=salvarEditRend; openSheet();
-  $$('#erUnBtns button').forEach(b=>b.onclick=()=>erSwitchUn(b.dataset.u));
+  $('#erUnSel').onchange=e=>erSwitchUn(e.target.value);
   $('#erRend').oninput=erPortions; $('#erPorc').oninput=erPortions; erPortions();
   setTimeout(()=>$('#erRend').focus(),60);
 }
@@ -1109,12 +1110,19 @@ function openEtiqueta(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r;
   const s=(ST.saldo||{})[id]||{}; const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'';
   const hoje=new Date().toISOString().slice(0,10); const dias=s.validade_dias!=null?s.validade_dias:2;
-  const ri=rendInfo(r); const nSug=(ri.ehPorcao&&ri.base>0)?Math.round(ri.base):12;
+  const ri=rendInfo(r);
+  /* 17/07: sugerir pela PRODUÇÃO real — "foram 20 porções produzidas" → sugere 20 */
+  const _hist=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(h=>h.preproducao_id===id):[];
+  const _ultProd=_hist.length?Math.round(+_hist[0].qtd_produzida||0):0;
+  const nSug=_ultProd>0?_ultProd:((ri.ehPorcao&&ri.base>0)?Math.round(ri.base):12);
   $('#shTitle').textContent='Etiquetas — '+r.nome;
   /* 17/07: "tudo podia ser menor simulando como vai ficar na etiqueta" — campos em pares + prévia ao vivo */
   $('#shBody').innerHTML=`
     <div class="mf"><label>Produção e responsável</label><div class="rendrow"><input type="date" id="etData" value="${hoje}" style="max-width:160px"><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div></div>
-    <div class="mf"><label>Validade (dias) e nº de etiquetas${ri.ehPorcao&&ri.base>0?` <span style="color:var(--mut);font-weight:400">(sugerido ${nSug})</span>`:''}</label><div class="rendrow"><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric" style="max-width:110px"><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric"></div></div>
+    <div class="mf"><div class="rendrow">
+      <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Validade (dias após produção)</label><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric"></div>
+      <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Nº de etiquetas <span style="color:var(--mut);font-weight:600">(${_ultProd>0?'últimas '+_ultProd+' produzidas':'sugerido '+nSug})</span></label><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric"></div>
+    </div></div>
     <div class="mf"><label>Tamanho e peso <span style="color:var(--mut);font-weight:400">(peso em branco = linha pra escrever à mão)</span></label><div class="rendrow"><select id="etTam" style="flex:1">
       <option value="60x40" selected>60 × 40 mm</option>
       <option value="50x30">50 × 30 mm</option>
