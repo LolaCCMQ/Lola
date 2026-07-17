@@ -335,7 +335,8 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
     <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
     <button id="tabPz"><i class="ph-duotone ph-package"></i> Produzidos</button>
     <button id="tabPerd"><i class="ph-duotone ph-trash"></i> Perdas</button>
-    <button id="tabRec"><i class="ph-duotone ph-notebook"></i> Receitas</button>
+    <button id="tabRec"><i class="ph-duotone ph-cooking-pot"></i> Pré-produções</button>
+    <button id="tabFt"><i class="ph-duotone ph-book-open"></i> Fichas Técnicas</button>
     <button id="tabFech"><i class="ph-duotone ph-calculator"></i> Fechar mês</button>
     <button id="tabEnv"><i class="ph-duotone ph-paper-plane-tilt"></i> Pro CCMQ <span class="cnt" id="cntEnv" style="display:none">0</span></button>
     <button id="tabAl"><i class="ph-duotone ph-warning-circle"></i> Alertas <span class="cnt" id="cntAl" style="display:none">0</span></button>
@@ -416,7 +417,7 @@ async function carregar(){
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
-      api('lola_preproducoes?ativo=neq.false&or=(categoria.eq.central,destinos.cs.{central})&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome').catch(()=>null),
+      api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome').catch(()=>null),
       api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[]),
       api('lola_central_perdas?ativo=neq.false&select=*&order=data.desc,criado_em.desc&limit=500').catch(()=>[])
     ]);
@@ -480,6 +481,7 @@ function render(){
   $('#tabPz').classList.toggle('on',ST.tab==='pz');
   $('#tabPerd').classList.toggle('on',ST.tab==='perd');
   $('#tabRec').classList.toggle('on',ST.tab==='rec');
+  $('#tabFt').classList.toggle('on',ST.tab==='ft');
   $('#tabFech').classList.toggle('on',ST.tab==='fech');
   $('#tabEnv').classList.toggle('on',ST.tab==='env');
   $('#tabAl').classList.toggle('on',ST.tab==='al');
@@ -487,8 +489,8 @@ function render(){
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitas, fech:viewFechar, env:viewEnvio, al:viewAlertas};
-  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitas, fech:wireFechar, env:wireEnvio, al:wireAlertas};
+  const V={ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, fech:viewFechar, env:viewEnvio, al:viewAlertas};
+  const W={ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, fech:wireFechar, env:wireEnvio, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -1134,8 +1136,34 @@ async function openContagemDet(id, tipo){
     $('#chVoltar').onclick=()=>openContagensHist(tipo);
   }catch(e){ $('#shBody').innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
 }
-/* ===== RECEITAS (pré-produções, mesma base do portal) ===== */
-function viewReceitas(){
+/* ═══ PRÉ-PRODUÇÕES e FICHAS TÉCNICAS — o editor completo, em modo Central ═══
+   Pedido da Bianca (17/07): "na central a gente só consegue visualizar receitas,
+   tem que substituir esse botão pelas fichas técnicas pra serem editáveis, terem
+   os rendimentos, todas as informações".
+
+   O editor mora no app do Lola (modalPP/modalFicha, ~450 linhas + ~30 funções de
+   apoio). Copiar pra cá = todo conserto de custo/FC/conversão/CMV feito DUAS vezes,
+   e uma vai ser esquecida — já aconteceu aqui (lola_ccmq_estoque_mov: 6 linhas
+   contra 106). Então a gente ABRE a tela dele aqui dentro, em ?unidade=central:
+   filtra só o que é da Central, mostra o selo azul COZINHA CENTRAL, e o que for
+   criado nasce com cozinha='central'. Quem usa nunca sai do app da Central.
+   Decisão registrada em retomar/REESTRUTURACAO-cozinhas-separadas.md.          */
+const _EST_URL='https://lolaccmq.github.io/LolaEstoque/lolaestoque.html';
+function _telaDoEstoque(page){
+  const s=lolaSession()||{};
+  const quem=encodeURIComponent(s.nome||s.email||'');
+  const src=_EST_URL+'?embed=1&unidade=central&page='+page+'&u='+quem;
+  return '<iframe src="'+src+'" title="'+page+'" '
+       + 'style="width:100%;height:calc(100vh - 132px);min-height:520px;border:0;'
+       + 'border-radius:14px;background:#FBF7F1;display:block"></iframe>';
+}
+function viewFt(){ return _telaDoEstoque('fichas'); }
+function wireFt(){}
+function viewReceitasNova(){ return _telaDoEstoque('preproducoes'); }
+function wireReceitasNova(){}
+
+/* ↓ tela antiga (só visualizava). Mantida sem uso enquanto a nova é validada. */
+function viewReceitasAntiga(){
   let h=`<div class="note">As <b>pré-produções com as receitas</b> — a MESMA base do portal. O que mudar aqui muda lá (é o mesmo dado). Toque numa pra ver os ingredientes.</div>`;
   h+=`<button class="btn" id="btnNovaRec" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Adicionar preparo / nova receita</button>`;
   if(ST.receitas==='loading'||!ST.receitas){ h+=`<div class="spin"></div>`; return h; }
@@ -1974,12 +2002,14 @@ function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classLi
 $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
 $('#tabSal').onclick=()=>{ST.tab='sal';render();};
 $('#tabProd').onclick=()=>{ST.tab='prod';render();};
-$('#tabRec').onclick=async()=>{ ST.tab='rec'; render();
-  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&or=(categoria.eq.central,destinos.cs.{central})&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='rec') render(); } };
+/* As duas abrem o editor do Estoque em modo Central (iframe) — não precisam
+   carregar dado aqui, a tela de dentro se vira sozinha. */
+$('#tabRec').onclick=()=>{ ST.tab='rec'; render(); };
+$('#tabFt').onclick =()=>{ ST.tab='ft';  render(); };
 $('#tabPed').onclick=()=>{ST.tab='ped'; render(); if(!ST.pedidos||ST.pedidos==='loading') carregarPedidos();};
 $('#tabPz').onclick=()=>{ST.tab='pz'; render(); if(!ST.prodHist||ST.prodHist==='loading') carregarProduzidos();};
 $('#tabPerd').onclick=async()=>{ ST.tab='perd'; render();
-  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&or=(categoria.eq.central,destinos.cs.{central})&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='perd') render(); } };
+  if(!ST.receitas){ ST.receitas='loading'; try{ ST.receitas=await api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un&order=nome'); }catch(e){ ST.receitas=[]; } if(ST.tab==='perd') render(); } };
 $('#tabCmp').onclick=()=>{ST.tab='cmp'; if(!ST.comprasMes){ST.comprasMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarCompras();};
 $('#tabFech').onclick=()=>{ST.tab='fech'; if(!ST.fechMes){ST.fechMes=(function(){const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();} render(); carregarFechamento();};
 $('#tabEnv').onclick=()=>{ST.tab='env'; render(); if(!ST.envios||ST.envios==='loading') carregarEnvios();};
