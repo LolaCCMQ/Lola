@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Lola · Estoque da Central</title>
+<title>Lola · Cozinha Central</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
@@ -447,7 +447,7 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
   <header>
     <button class="back" id="btnBack" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
     <div>
-      <h1>Estoque da Central</h1>
+      <h1>Cozinha Central</h1><!-- 18/07: era "Estoque da Central" — Bianca renomeou -->
       <div class="sub">Entrada das notas e saldo dos insumos</div>
     </div>
     <div class="spacer"></div>
@@ -2669,7 +2669,7 @@ $('#imX').onclick=closeIns; $('#insBg').onclick=closeIns; $('#imSave').onclick=s
 $('#resX').onclick=closeRes; $('#resBg').onclick=closeRes; $('#resCentral').onclick=()=>resSalvar('central'); $('#resCcmq').onclick=()=>resSalvar('ccmq');
 $('#cpX').onclick=fecharCompraDet; $('#cpBg').onclick=fecharCompraDet;
 
-(async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Estoque da Central'}); carregar(); })();
+(async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Cozinha Central'}); carregar(); })();
 </script>
 </body>
 </html>
