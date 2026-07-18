@@ -385,10 +385,21 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .movsel button{flex:1;background:var(--vinho);color:#fff;border:0;border-radius:10px;min-height:42px;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
 .movsel button.cancel{background:var(--card);color:var(--sec);border:1px solid var(--border)}
 .item .l2 .unit{font-size:12px;color:var(--mut);font-weight:700}
-.item .l3{display:flex;gap:8px;margin-top:8px}
-.item .l3 button{flex:1;background:none;border:1px solid var(--border);border-radius:10px;padding:9px 6px;font:inherit;font-size:12px;font-weight:700;color:var(--sec);cursor:pointer;min-height:42px;display:flex;align-items:center;justify-content:center;gap:5px}
+/* chips pequenos no canto (redesign 18/07/2026 — mockup aprovado pela Bianca) */
+.item .l3{display:flex;gap:6px;margin-top:9px;justify-content:flex-end;flex-wrap:wrap}
+.item .l3 button{background:none;border:1px solid var(--border);border-radius:50px;padding:6px 12px;font:inherit;font-size:11px;font-weight:700;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:4px;min-height:30px}
 .item .l3 .usbtn.on{background:var(--pendBg);color:var(--pendFg);border-color:#EFD9AE}
 .item .l3 .ignbtn.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
+.item .l3 .okbtn{color:var(--okFg)}
+/* item resolvido colapsa numa linha */
+.item.mini{display:flex;align-items:center;gap:8px;padding:11px 12px;cursor:pointer;margin-bottom:6px}
+.item.mini .mic{flex-shrink:0;font-size:16px;color:var(--okFg)}
+.item.mini.alerta .mic{color:var(--pendFg)}
+.item.mini.ign .mic{color:var(--mut)}
+.item.mini .mnm{flex:1;min-width:0;font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item.mini .mrs{flex-shrink:0;font-size:11.5px;color:var(--mut);font-weight:600;text-align:right;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* "pegar bruto" (FC aplicado na receita) */
+.fcb{display:block;font-size:10.5px;color:var(--pendFg);font-weight:700}
 
 /* entrada manual */
 .mf{margin-bottom:10px}
@@ -513,7 +524,7 @@ async function carregar(){
       api('lola_central_estoque_nota?select=nota_chave'),
       api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,preco_atualizado_em,preco_atualizado_por&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
-      api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total'),
+      api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total,origem_tipo,origem_ref'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
@@ -549,27 +560,33 @@ function buildInsumoOptions(){
     h+=`<option value="${i.id}">${esc(i.nome)}${i.unidade_custo?' ('+esc(i.unidade_custo)+')':''}</option>`; });
   if(cat)h+='</optgroup>'; OPTS_ALL=h;
 }
-// fator automático: converte a unidade da nota p/ a unidade do insumo e aplica o FC (fator de correção)
-const CONT=new Set(['un','und','unid','unidade','maço','maco','pç','pc','peça','peca','pct','pacote','cx','caixa','mç','mc']);
+/* CONVERSÃO automática: converte a unidade da NOTA p/ a unidade de CUSTO do insumo.
+   SÓ MULTIPLICA (fardo→un ×6, maço→kg pelo peso médio, g→kg). Desde 17/07/2026 (decisão
+   da Bianca) a correção de limpeza (FC) NÃO entra aqui — ela é aplicada NA RECEITA, na
+   baixa da produção. O estoque guarda o BRUTO (o que está na geladeira de verdade),
+   senão a contagem física nunca bate. FC continua morando em lola_central_fc.fc. */
+const CONT=new Set(['un','und','unid','unidade','maço','maco','pç','pc','peça','peca','pct','pacote','cx','caixa','mç','mc','fd','fardo','frd','sc','saco','bdj','bandeja','dz']);
 function computeFator(it){
   const ins=ST.byId[it.insumo_id]; if(!ins) return {fator:it.fator||1, hint:''};
   const iu=(ins.unidade_custo||'').toLowerCase().trim();
   const nu=(it.un||'').toLowerCase().trim();
-  const rec=ST.fc[norm(ins.nome)]||{}; const F=rec.fc||1; const peso=rec.peso_medio_g||null;
+  const rec=ST.fc[norm(ins.nome)]||{}; const peso=rec.peso_medio_g||null;
   const nf=n=>(+n).toLocaleString('pt-BR',{maximumFractionDigits:3});
   const cont=CONT.has(nu); let fator=null, hint='', warn=false;
   if(iu==='kg'){
-    if(nu==='kg'){ fator=1/F; hint = F!==1 ? `Fator ${nf(1/F)}: FC ${nf(F)} — cada 1 kg comprado rende ${nf(1/F)} kg limpo` : `Fator 1: entra igual à nota (${nf(it.qtd)} kg), sem correção`; }
-    else if(nu==='g'){ fator=(1/1000)/F; hint=`Fator ${nf(fator)}: ${nf(it.qtd)} g = ${nf(it.qtd/1000)} kg`+(F!==1?` · FC ${nf(F)}`:''); }
-    else if(peso){ fator=(peso/1000)/F; hint=`Fator ${nf(fator)}: 1 ${it.un||'un'} pesa ~${peso} g`+(F!==1?` bruto → ${Math.round(peso/F)} g limpo (FC ${nf(F)})`:'')+` = ${nf(fator)} kg cada`; }
-    else if(cont){ if(it.fator && it.fator!==1){ fator=it.fator; hint=`Fator ${nf(fator)}: 1 ${it.un} = ${nf(fator)} kg (peso que você informou)`; } else { fator=1; warn=true; hint=`Quanto pesa 1 "${it.un}"? Ponha esse peso no fator. Ex.: embalagem de 1,5 kg → ponha 1,5 (aí ${nf(it.qtd)} × 1,5 = ${nf(it.qtd*1.5)} kg).`; } }
-  } else if(iu==='un'||iu==='und'){ if(cont){ fator=1; hint=`Fator 1: ${nf(it.qtd)} unidade(s), entra igual à nota`; } }
-  else if(iu==='l'||iu==='ml'){
-    if(nu==='l'||nu==='lt'){ fator=1; hint=`Fator 1: entra ${nf(it.qtd)} L igual à nota`; }
-    else if(nu==='ml'){ fator=1/1000; hint=`Fator ${nf(1/1000)}: ${nf(it.qtd)} ml = ${nf(it.qtd/1000)} L`; }
-    else if(cont){ if(it.fator && it.fator!==1){ fator=it.fator; hint=`Fator ${nf(fator)}: 1 ${it.un} = ${nf(fator)} L`; } else { fator=1; warn=true; hint=`Quantos litros tem 1 "${it.un}"? Ponha esse valor no fator. Ex.: 1 caixa de 1 L → ponha 1.`; } }
-  } else if(iu==='g'){ if(nu==='g'){fator=1/F;hint=F!==1?`Fator ${nf(1/F)}: FC ${nf(F)}`:`Fator 1: entra igual à nota`;} else if(nu==='kg'){fator=1000/F;hint=`Fator ${nf(1000/F)}: ${nf(it.qtd)} kg = ${nf(it.qtd*1000)} g`;} }
-  if(fator==null){ warn=true; return {fator: it.fator||1, hint:`Nota em "${it.un||'?'}", insumo em ${iu||'?'} — confira se precisa converter o fator.`, warn:true}; }
+    if(nu==='kg'){ fator=1; hint=`Entra igual à nota: ${nf(it.qtd)} kg bruto (a limpeza é descontada na receita)`; }
+    else if(nu==='g'){ fator=1/1000; hint=`Conversão ${nf(fator)}: ${nf(it.qtd)} g = ${nf(it.qtd/1000)} kg`; }
+    else if(peso){ fator=Math.round(peso)/1000; hint=`Conversão ${nf(peso/1000)}: 1 ${it.un||'un'} pesa ~${nf(peso)} g = ${nf(peso/1000)} kg cada`; }
+    else if(cont){ if(it.fator && it.fator!==1){ fator=it.fator; hint=`Conversão ${nf(fator)}: 1 ${it.un} = ${nf(fator)} kg (peso que você informou)`; } else { fator=1; warn=true; hint=`Quanto pesa 1 "${it.un}"? Ponha esse peso na conversão. Ex.: embalagem de 1,5 kg → ponha 1,5 (aí ${nf(it.qtd)} × 1,5 = ${nf(it.qtd*1.5)} kg).`; } }
+  } else if(iu==='un'||iu==='und'){
+    if(cont){ if(it.fator && it.fator!==1){ fator=it.fator; hint=`Conversão ${nf(fator)}: 1 ${it.un||'un'} da nota = ${nf(fator)} un (ex.: fardo com ${nf(fator)})`; }
+      else { fator=1; hint=`Conversão 1: ${nf(it.qtd)} unidade(s), entra igual à nota. Se a nota vende fardo/caixa, ponha quantas unidades vêm dentro (1 fardo = 6 latas → 6).`; } }
+  } else if(iu==='l'||iu==='ml'){
+    if(nu==='l'||nu==='lt'){ fator=1; hint=`Entra ${nf(it.qtd)} L igual à nota`; }
+    else if(nu==='ml'){ fator=1/1000; hint=`Conversão ${nf(1/1000)}: ${nf(it.qtd)} ml = ${nf(it.qtd/1000)} L`; }
+    else if(cont){ if(it.fator && it.fator!==1){ fator=it.fator; hint=`Conversão ${nf(fator)}: 1 ${it.un} = ${nf(fator)} L`; } else { fator=1; warn=true; hint=`Quantos litros tem 1 "${it.un}"? Ponha esse valor na conversão. Ex.: 1 caixa de 1 L → ponha 1.`; } }
+  } else if(iu==='g'){ if(nu==='g'){fator=1;hint=`Entra igual à nota`;} else if(nu==='kg'){fator=1000;hint=`Conversão 1000: ${nf(it.qtd)} kg = ${nf(it.qtd*1000)} g`;} }
+  if(fator==null){ warn=true; return {fator: it.fator||1, hint:`Nota em "${it.un||'?'}", insumo em ${iu||'?'} — confira se precisa converter.`, warn:true}; }
   return {fator: Math.round(fator*100000)/100000, hint, warn};
 }
 
@@ -765,6 +782,19 @@ function convCusto(q, unReceita, unCusto){
   if(ehMassa && c.u==='L') return {q:c.q, u:'kg'}; // o contrário
   return c;
 }
+/* ===== FC NA RECEITA (decisão Bianca 17-18/07/2026) =====
+   A ficha guarda a qtd LIMPA (qtd_liquida); o estoque guarda o BRUTO.
+   Na produção o sistema mostra "pegar bruto = limpa × FC" e BAIXA o bruto
+   do estoque de insumos. FC vem de lola_central_fc.fc (7 insumos folha/erva).
+   NÃO apagar lola_central_fc — é correção legítima. */
+function fcDoInsumo(nome){ const r=ST.fc[norm(nome||'')]; const f=r&&r.fc!=null?+r.fc:1; return (isFinite(f)&&f>0)?f:1; }
+/* qtd na unidade de CUSTO do insumo (é a unidade obrigatória dos movimentos de estoque) */
+function qtdCusto(q, unReceita, ins){
+  const c=conv(q, unReceita); const uc=((ins&&ins.unidade_custo)||'').toLowerCase().trim();
+  const cu=(c.u||'').toLowerCase();
+  if((uc==='g'||uc==='ml') && (cu==='kg'||cu==='l')) return c.q*1000;
+  return c.q;
+}
 function rendInfo(r){ // interpreta o rendimento da receita (já em kg/L)
   const rq=+r.rendimento_qtd||0, run=r.rendimento_un||'', pq=+r.porcao_qtd||0;
   if(pq>0 && rq>0){ const ps=conv(pq,run); return {ehPorcao:true, base:rq/pq, un:'porções', porcaoQtd:ps.q, totalRend:rq, rendUn:ps.u}; }
@@ -821,9 +851,12 @@ async function toggleProdIngr(el){
     if(!Array.isArray(r)||!r.length){ box.innerHTML=`<div class="uinfo">Sem ingredientes cadastrados. Use “Adicionar preparo” na aba Receitas.</div><button class="btn sec ipr" style="margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir receita (PDF)</button>`; box.querySelector('.ipr').onclick=()=>printReceita(id); return; }
     const R=(ST.receitas||[]).find(x=>x.id===id)||{}; const ri=rendInfo(R);
     const rendline = ri.base>0 ? `<div class="ring"><span>Rendimento</span><b>${num(ri.base)} ${esc(ri.un)}${ri.ehPorcao?' ('+num(ri.porcaoQtd)+' '+esc(ri.rendUn)+' cada)':''}</b></div>` : '';
-    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);
+    box.innerHTML='<div class="lbl" style="margin:0 0 4px">Ingredientes</div>'+r.map(x=>{
+      const f=fcDoInsumo(x.nome); const liq=(x.qtd_liq!=null?+x.qtd_liq:+x.qtd)||0;
+      const c=convCusto(f!==1?liq:x.qtd,x.unidade,x.unidade_custo);
+      const cb=f!==1?convCusto(liq*f,x.unidade,x.unidade_custo):null;
       const nm=x.insumo_id?`<span class="ifl" data-ins="${x.insumo_id}" style="cursor:pointer;border-bottom:1px dashed var(--vinho);color:var(--vinho);font-weight:600" title="Ver a ficha deste insumo">${esc(x.nome)}</span>`:esc(x.nome);
-      return `<div class="ring"><span>${nm}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
+      return `<div class="ring"><span>${nm}</span><b>${num(c.q)} ${esc(c.u)}${cb?`<span class="fcb">pegar ${num(cb.q)} ${esc(cb.u)} bruto (FC ${num(f)})</span>`:''}</b></div>`;}).join('')+rendline+`<div class="btn2" style="margin-top:8px"><button class="btn sec ipr"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec iet"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
     box.querySelector('.ipr').onclick=()=>printReceita(id);
     box.querySelector('.iet').onclick=()=>openEtiqueta(id);
     box.querySelectorAll('.ifl').forEach(el=>el.onclick=(ev)=>{ev.stopPropagation();abrirFichaInsumo(el.dataset.ins,el.textContent);});
@@ -856,9 +889,9 @@ async function salvarEstoque(){
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
 /* ---- produzir mais ---- */
-let PROD_CUR=null;
+let PROD_CUR=null, PROD_ITENS=null, PROD_TOUCHED=false;
 async function openProduzir(id){
-  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; PROD_CUR=r;
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; PROD_CUR=r; PROD_ITENS=null; PROD_TOUCHED=false;
   const s=(ST.saldo||{})[id]||{}; const atual=+s.saldo||0; const un=prodUn(r); const ri=rendInfo(r);
   const hoje=new Date().toISOString().slice(0,10);
   $('#shTitle').textContent='Produzir — '+r.nome;
@@ -885,9 +918,36 @@ async function salvarProduzir(){
   $('#shSave').setAttribute('disabled','');
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
     await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
-    await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem}],'return=minimal');
+    const _h=await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem}],'return=representation');
+    const histId=(Array.isArray(_h)&&_h[0])?_h[0].id:null;
     ST.saldo=ST.saldo||{}; ST.saldo[r.id]={preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem};
-    toast('Produção registrada ✓ (+'+num(q)+' '+esc(un)+')'); closeSheet(); render();
+    /* BAIXA AUTOMÁTICA dos insumos (18/07/2026, decisão da Bianca): baixa o BRUTO
+       (qtd limpa × FC) na unidade_custo. Se ninguém mexeu nos ingredientes, escala
+       a receita pelo produzido ÷ rendimento cadastrado. origem_ref liga ao prod_hist
+       pra poder desfazer. Só insumos (sub-preparos não baixam aqui). */
+    let nb=0;
+    if(histId && Array.isArray(PROD_ITENS) && PROD_ITENS.length){
+      try{
+        const ri2=rendInfo(r); let fEsc=1;
+        if(!PROD_TOUCHED && ri2.base>0 && q>0) fEsc=q/ri2.base;
+        const inps=$$('#prodIngr .riq'); const rows=[];
+        PROD_ITENS.forEach((p,i)=>{
+          if(!p.insumo_id) return; const ins=ST.byId[p.insumo_id]; if(!ins) return;
+          let fRow=fEsc;
+          if(PROD_TOUCHED && inps[i]){ const o=+inps[i].dataset.orig||0, v=+inps[i].value||0; fRow=(o>0&&v>=0)?v/o:1; }
+          const bruta = p.fc!==1 ? p.liq*p.fc : p.baseQtd;   // na unidade da receita
+          const qb=qtdCusto(bruta*fRow, p.un, ins); if(!(qb>0)) return;
+          const cu=+ins.custo_por_unidade||0;
+          rows.push({insumo_id:p.insumo_id, tipo:'producao', qtd:-+qb.toFixed(5), unidade:ins.unidade_custo||'',
+            custo_unit:cu||null, custo_total:cu?-+(cu*qb).toFixed(2):null,
+            origem_tipo:'producao', origem_ref:'prodhist:'+histId, data,
+            obs:'Produção — '+(r.nome||''), criado_por:quem});
+        });
+        if(rows.length){ await post('lola_central_estoque_mov', rows, 'return=minimal'); nb=rows.length;
+          rows.forEach(m=>ST.movs.push({insumo_id:m.insumo_id, qtd:m.qtd, custo_total:m.custo_total||0, origem_tipo:'producao', origem_ref:m.origem_ref})); }
+      }catch(eb){ toast('Produção salva, mas a baixa de insumos falhou: '+eb.message); }
+    }
+    toast('Produção registrada ✓ (+'+num(q)+' '+esc(un)+')'+(nb?' · '+nb+' insumo'+(nb===1?'':'s')+' baixado'+(nb===1?'':'s'):'')); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
 function updateRend(ri, f){
@@ -952,7 +1012,11 @@ function wireProduzidos(){
             /* 17/07: sem o "(40× a receita)" — a Bianca: "não é muito relevante". E porção é a unidade. */
             const _temPorc=+r.porcao_qtd>0&&r.porcao_un;
             const cab = `<div class="uinfo" style="margin-bottom:5px">Ingredientes p/ <b>${num(total)} ${_temPorc?'porções':esc(prodUn(r))}</b> ${_temPorc||/^(un|por)/i.test(prodUn(r))?'produzidas':'produzidos'}:</div>`;
-            rec.innerHTML=cab+rr.map(z=>{const c=convCusto((+z.qtd||0)*fator, z.unidade, z.unidade_custo);return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
+            rec.innerHTML=cab+rr.map(z=>{
+              const f=fcDoInsumo(z.nome); const liq=((z.qtd_liq!=null?+z.qtd_liq:+z.qtd)||0)*fator;
+              const c=convCusto(f!==1?liq:(+z.qtd||0)*fator, z.unidade, z.unidade_custo);
+              const cb=f!==1?convCusto(liq*f, z.unidade, z.unidade_custo):null;
+              return `<div class="ring"><span>${esc(z.nome)}</span><b>${num(c.q)} ${esc(c.u)}${cb?`<span class="fcb">bruto ${num(cb.q)} ${esc(cb.u)} (FC ${num(f)})</span>`:''}</b></div>`;}).join('');
           } else rec.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; }
         catch(e){ rec.innerHTML='<div class="uinfo">Erro ao carregar a receita.</div>'; rec.dataset.loaded=''; }
       } };
@@ -967,9 +1031,13 @@ function wireProduzidos(){
 function evtDe(eid){ return (ST.prodHist||[]).find(x=>x.id===eid); }
 async function delProdEvento(eid, prepId){
   const e=evtDe(eid); if(!e)return;
-  if(!confirm('Excluir esta produção de '+fmtData(String(e.data).slice(0,10))+' (+'+num(e.qtd_produzida)+')? O estoque baixa essa quantidade.')) return;
+  if(!confirm('Excluir esta produção de '+fmtData(String(e.data).slice(0,10))+' (+'+num(e.qtd_produzida)+')? O estoque baixa essa quantidade e os insumos baixados voltam.')) return;
   try{ await lolaEnsure();
     await fetch(SB_URL+'/rest/v1/lola_central_prod_hist?id=eq.'+eid,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({ativo:false})});
+    /* devolve os insumos que a produção baixou (18/07/2026) */
+    const _ref='prodhist:'+eid;
+    await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?origem_tipo=eq.producao&origem_ref=eq.'+encodeURIComponent(_ref),{method:'DELETE',headers:lolaHeaders({'Prefer':'return=minimal'})});
+    ST.movs=(ST.movs||[]).filter(m=>!(m.origem_tipo==='producao'&&m.origem_ref===_ref));
     const s=(ST.saldo||{})[prepId]; if(s){ const novo=(+s.saldo||0)-(+e.qtd_produzida||0); await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+prepId,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})}); s.saldo=novo; }
     ST.prodHist=(ST.prodHist||[]).filter(x=>x.id!==eid); toast('Produção excluída ✓'); render();
   }catch(err){ toast('Erro: '+err.message); }
@@ -991,6 +1059,12 @@ async function salvarEditEvento(){
   try{ await lolaEnsure();
     await fetch(SB_URL+'/rest/v1/lola_central_prod_hist?id=eq.'+c.eid,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({qtd_produzida:nova, data})});
     const dif=nova-c.old; const s=(ST.saldo||{})[c.prepId]; if(s && dif){ const novo=(+s.saldo||0)+dif; await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+c.prepId,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString()})}); s.saldo=novo; }
+    /* escala as baixas de insumo desta produção na mesma proporção (18/07/2026) */
+    if(dif && c.old>0 && nova>0){ try{ const _ref='prodhist:'+c.eid; const fr=nova/c.old;
+      const ms=await api('lola_central_estoque_mov?origem_tipo=eq.producao&origem_ref=eq.'+encodeURIComponent(_ref)+'&select=id,qtd,custo_total');
+      for(const m of (ms||[])){ await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?id=eq.'+m.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({qtd:+(+m.qtd*fr).toFixed(5), custo_total:m.custo_total!=null?+(+m.custo_total*fr).toFixed(2):null, data})}); }
+      ST.movs=(ST.movs||[]).map(m=>(m.origem_tipo==='producao'&&m.origem_ref===_ref)?Object.assign({},m,{qtd:+m.qtd*fr, custo_total:(+m.custo_total||0)*fr}):m);
+    }catch(e2){} }
     const e=evtDe(c.eid); if(e){ e.qtd_produzida=nova; e.data=data; }
     toast('Produção atualizada ✓'); closeSheet(); render();
   }catch(err){ toast('Erro: '+err.message); $('#shSave').removeAttribute('disabled'); }
@@ -1062,15 +1136,26 @@ async function renderProdReceita(ppId){
   try{ const r=await post('rpc/central_receita_itens',{pid:ppId});
     const rendBox=`<div class="entra on" id="prodRend" style="margin-top:8px"></div>`;
     if(!Array.isArray(r)||!r.length){ box.innerHTML=rendBox+`<div class="uinfo" style="margin-top:6px">Sem ingredientes cadastrados nesta receita ainda.</div><div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`; updateRend(ri,1); $('#prodPrint').onclick=()=>printReceita(ppId); $('#prodEtiq').onclick=()=>openEtiqueta(ppId); return; }
+    /* FC na receita (18/07/2026): a qtd editável é a LIMPA; o bruto (limpa × FC) aparece
+       embaixo e é o que BAIXA do estoque ao registrar. PROD_ITENS guarda a base da baixa. */
+    PROD_ITENS=r.map(x=>{ const f=fcDoInsumo(x.nome); const liq=(x.qtd_liq!=null?+x.qtd_liq:+x.qtd)||0;
+      return {insumo_id:x.insumo_id||null, nome:x.nome, un:x.unidade, fc:f, liq, baseQtd:+x.qtd||0}; });
+    PROD_TOUCHED=false;
     box.innerHTML=`<div class="lbl">Ingredientes <span id="prodFactor" style="text-transform:none;letter-spacing:0;color:var(--mut);font-weight:600">— receita cheia</span></div>
-      <div class="usos on" id="prodIngr">${r.map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);
+      <div class="usos on" id="prodIngr">${r.map(x=>{
+        const f=fcDoInsumo(x.nome); const liq=(x.qtd_liq!=null?+x.qtd_liq:+x.qtd)||0;
+        const c=convCusto(f!==1?liq:x.qtd,x.unidade,x.unidade_custo);
+        const cb=f!==1?convCusto(liq*f,x.unidade,x.unidade_custo):null;
         const nm=x.insumo_id?`<span class="ifl" data-ins="${x.insumo_id}" style="cursor:pointer;border-bottom:1px dashed var(--vinho);color:var(--vinho);font-weight:600" title="Ver a ficha deste insumo">${esc(x.nome)}</span>`:esc(x.nome);
-        return `<div class="ring iedit"><span>${nm}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${c.q}" value="${c.q}"><b>${esc(c.u)}</b></div>`;}).join('')}</div>
-      <div class="uinfo" style="margin-top:6px">Ajuste um ingrediente que o resto se converte na mesma proporção.</div>
+        return `<div class="ring iedit"><span>${nm}${cb?`<span class="fcb">pegar ${num(cb.q)} ${esc(cb.u)} bruto (FC ${num(f)})</span>`:''}</span><input class="riq" type="number" step="0.001" inputmode="decimal" data-orig="${c.q}" data-fc="${f}" data-un="${esc(cb?cb.u:c.u)}" value="${c.q}"><b>${esc(c.u)}</b></div>`;}).join('')}</div>
+      <div class="uinfo" style="margin-top:6px">Ajuste um ingrediente que o resto se converte na mesma proporção. Ao registrar, os insumos <b>baixam do estoque</b> (o bruto, quando tem FC).</div>
       ${rendBox}
       <div class="btn2" style="margin-top:8px"><button class="btn sec" id="prodPrint"><i class="ph-duotone ph-printer"></i> Imprimir receita</button><button class="btn sec" id="prodEtiq"><i class="ph-duotone ph-tag"></i> Etiquetas</button></div>`;
-    $$('#prodIngr .riq').forEach(inp=>inp.oninput=()=>{ const orig=+inp.dataset.orig||0, val=+inp.value; if(!(orig>0))return; const f=val/orig; if(!(isFinite(f)&&f>0))return;
+    const _updFcb=row=>{ const inp=row.querySelector('.riq'); const f=+inp.dataset.fc||1; if(f===1)return;
+      const b=row.querySelector('.fcb'); if(b) b.textContent=`pegar ${num((+inp.value||0)*f)} ${inp.dataset.un||''} bruto (FC ${num(f)})`; };
+    $$('#prodIngr .riq').forEach(inp=>inp.oninput=()=>{ PROD_TOUCHED=true; const orig=+inp.dataset.orig||0, val=+inp.value; if(!(orig>0))return; const f=val/orig; if(!(isFinite(f)&&f>0))return;
       $$('#prodIngr .riq').forEach(o=>{ if(o!==inp){ const oo=+o.dataset.orig||0; o.value=+(oo*f).toFixed(3); } });
+      $$('#prodIngr .ring.iedit').forEach(_updFcb);
       $('#prodFactor').textContent=`— ${num(f)}× da receita`; updateRend(ri,f); });
     updateRend(ri,1);
     $$('#prodIngr .ifl').forEach(el=>el.onclick=(ev)=>{ev.stopPropagation();abrirFichaInsumo(el.dataset.ins,el.textContent);});
@@ -1081,14 +1166,21 @@ async function renderProdReceita(ppId){
 async function printReceita(ppId){
   const r=(ST.receitas||[]).find(x=>x.id===ppId)||{}; let nome=r.nome||'Receita', modo='';
   let ings=[]; let fator=1; const box=document.getElementById('prodIngr');
-  if(box){ box.querySelectorAll('.ring.iedit').forEach(row=>{ const inp=row.querySelector('.riq'); const orig=+inp.dataset.orig||0, val=+inp.value||0; if(fator===1 && orig>0) fator=val/orig; ings.push({nome:row.querySelector('span').textContent, qtd:num(val), un:row.querySelector('b').textContent}); }); }
-  else { try{ const rr=await post('rpc/central_receita_itens',{pid:ppId}); ings=(rr||[]).map(x=>{const c=convCusto(x.qtd,x.unidade,x.unidade_custo);return {nome:x.nome, qtd:num(c.q), un:c.u};}); }catch(e){} }
+  if(box){ box.querySelectorAll('.ring.iedit').forEach(row=>{ const inp=row.querySelector('.riq'); const orig=+inp.dataset.orig||0, val=+inp.value||0; if(fator===1 && orig>0) fator=val/orig;
+    const fcv=+inp.dataset.fc||1; const nEl=row.querySelector('span');
+    const nomeTxt=(nEl.childNodes[0]?nEl.childNodes[0].textContent:nEl.textContent)||'';
+    ings.push({nome:nomeTxt, qtd:num(val), un:row.querySelector('b').textContent, bruto:fcv!==1?`pegar ${num(val*fcv)} ${inp.dataset.un||''} bruto (FC ${num(fcv)})`:''}); }); }
+  else { try{ const rr=await post('rpc/central_receita_itens',{pid:ppId}); ings=(rr||[]).map(x=>{
+    const f=fcDoInsumo(x.nome); const liq=(x.qtd_liq!=null?+x.qtd_liq:+x.qtd)||0;
+    const c=convCusto(f!==1?liq:x.qtd,x.unidade,x.unidade_custo);
+    const cb=f!==1?convCusto(liq*f,x.unidade,x.unidade_custo):null;
+    return {nome:x.nome, qtd:num(c.q), un:c.u, bruto:cb?`pegar ${num(cb.q)} ${cb.u} bruto (FC ${num(f)})`:''};}); }catch(e){} }
   if(!(isFinite(fator)&&fator>0)) fator=1;
   try{ const pp=await api('lola_preproducoes?id=eq.'+ppId+'&select=nome,modo_preparo'); if(pp&&pp[0]){ nome=pp[0].nome||nome; modo=pp[0].modo_preparo||''; } }catch(e){}
   const ri=rendInfo(r); const esper=ri.base*fator;
   const rendTxt = ri.base>0 ? `Rendimento esperado: ${num(esper)} ${esc(ri.un)}${ri.ehPorcao?` (porção de ${num(ri.porcaoQtd)} ${esc(ri.rendUn)})`:''}${fator!==1?` · ${num(fator)}× da receita`:''}` : '';
   const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
-  const rows=ings.map(i=>`<tr><td>${esc(i.nome)}</td><td class="q">${esc(String(i.qtd))} ${esc(i.un)}</td></tr>`).join('');
+  const rows=ings.map(i=>`<tr><td>${esc(i.nome)}</td><td class="q">${esc(String(i.qtd))} ${esc(i.un)}${i.bruto?`<br><small style="font-weight:normal;color:#8A5A00">${esc(i.bruto)}</small>`:''}</td></tr>`).join('');
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(nome)}</title>
     <style>*{box-sizing:border-box}body{font-family:Georgia,'Times New Roman',serif;color:#2A1A17;padding:34px;max-width:640px;margin:0 auto}
     h1{color:#A82A2A;font-size:27px;margin:0 0 4px}.d{color:#8A7A72;font-size:13px;margin-bottom:22px}
@@ -1361,7 +1453,11 @@ async function toggleReceita(el){
   box.classList.add('on'); box.innerHTML='<div class="uinfo">carregando…</div>';
   try{ const r=await post('rpc/central_receita_itens',{pid:id});
     if(!Array.isArray(r)||!r.length){ box.innerHTML='<div class="uinfo">Sem ingredientes cadastrados nesta receita.</div>'; return; }
-    box.innerHTML=r.map(x=>{const c=conv(x.qtd,x.unidade);return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}</b></div>`;}).join('');
+    box.innerHTML=r.map(x=>{
+      const f=fcDoInsumo(x.nome); const liq=(x.qtd_liq!=null?+x.qtd_liq:+x.qtd)||0;
+      const c=conv(f!==1?liq:x.qtd,x.unidade);
+      const cb=f!==1?conv(liq*f,x.unidade):null;
+      return `<div class="ring"><span>${esc(x.nome)}</span><b>${num(c.q)} ${esc(c.u)}${cb?`<span class="fcb">pegar ${num(cb.q)} ${esc(cb.u)} bruto (FC ${num(f)})</span>`:''}</b></div>`;}).join('');
   }catch(e){ box.innerHTML='<div class="uinfo">Erro: '+esc(e.message)+'</div>'; }
 }
 /* A aba "Fechar mês" (mandado x produzido → furos) foi TIRADA daqui em 17/07/2026.
@@ -1590,7 +1686,9 @@ async function toggleEnvio(id){
     if(q>0 && x.tipo_item==='insumo' && x.ref_id){
       if(marcar){
         const cu=x.valor_unit!=null?+x.valor_unit:null;
-        const mv=await post('lola_central_estoque_mov',[{insumo_id:x.ref_id, tipo:'envio', qtd:-q, unidade:x.unidade||'',
+        /* 18/07/2026: tipo 'baixa' — o CHECK do banco só aceita entrada|baixa|perda|ajuste|producao.
+           'envio' violava o CHECK e o "marcar enviado" de INSUMO quebrava. origem_tipo continua 'envio'. */
+        const mv=await post('lola_central_estoque_mov',[{insumo_id:x.ref_id, tipo:'baixa', qtd:-q, unidade:x.unidade||'',
           custo_unit:cu, custo_total:cu!=null?-+(cu*q).toFixed(2):null, origem_tipo:'envio', origem_ref:'envio:'+id,
           data:String(x.data).slice(0,10), obs:'Envio '+(ENV_DEST[x.destino]||x.destino||'CCMQ'), criado_por:quem}],'return=representation');
         movId=(mv&&mv[0]&&mv[0].id)||null;
@@ -2116,6 +2214,10 @@ async function abrirNota(chave){
     return { ix, desc:it.desc||'', dn, un:it.un||'', qtd:+it.qtd||0, vunit:+it.vunit||0, vtotal:+it.vtotal||0,
       insumo_id:m.insumo_id||'', fator:m.fator||1, ignorar:!!m.ignorar, naousamos:false, auto:!!m.insumo_id };
   });
+  /* recomputa a conversão de TODOS os mapeados ANTES de render — o de-para antigo pode
+     carregar o ÷FC de antes de 18/07 (ex.: rúcula kg→kg com 0,556 gravado). O computeFator
+     novo devolve a conversão pura; item colapsado não pode ficar com fator velho. */
+  ST.itens.forEach(it=>{ if(it.insumo_id && !it.ignorar){ const rc=computeFator(it); it.fator=rc.fator; } });
   $('#shTitle').textContent=n.emitente||'Nota';
   const tot=ST.itens.reduce((s,i)=>s+i.vtotal,0);
   let h=`<div class="note">${fmtData(n.data_emissao)} · ${ST.itens.length} itens · ${brl(tot)}${jaImp?' · <b style="color:var(--okFg)">já lançada</b> (relançar substitui)':''}</div>`;
@@ -2151,7 +2253,25 @@ async function moverNota(chave, u){
     toast('Nota movida para '+u.toUpperCase()+' ✓'); closeSheet(); await carregar();
   }catch(e){ toast('Erro ao mover: '+e.message); }
 }
+/* Redesign 18/07/2026 (mockup aprovado): item RESOLVIDO colapsa numa linha (toque reabre);
+   "não usamos"/"não é insumo" viram chips pequenos no canto; o campo virou "Conversão". */
+function itemStatus(it){
+  if(it.ignorar) return 'ign';
+  if(it.naousamos) return 'us';
+  if(it.insumo_id) return computeFator(it).warn ? 'pend' : 'ok';
+  return 'pend';
+}
 function itemHTML(it){
+  const st=itemStatus(it);
+  if(!it.aberto && st!=='pend'){
+    const ins=ST.byId[it.insumo_id]||{};
+    const res = st==='ign' ? 'não é insumo'
+              : st==='us'  ? 'não usamos ⚠'
+              : `${num((it.qtd||0)*(it.fator||0))} ${esc(ins.unidade_custo||'')} — ${esc(ins.nome||'')}`;
+    const ic  = st==='ign' ? 'ph-prohibit' : st==='us' ? 'ph-warning-circle' : 'ph-check-circle';
+    return `<div class="item mini ${st==='ign'?'ign':''} ${st==='us'?'alerta':''}" data-ix="${it.ix}" title="toque para editar">
+      <i class="ph-duotone ${ic} mic"></i><div class="mnm">${esc(it.desc)}</div><div class="mrs">${res}</div></div>`;
+  }
   const bloq=it.ignorar||it.naousamos;
   return `<div class="item ${it.ignorar?'ign':''} ${it.naousamos?'alerta':''}" data-ix="${it.ix}">
     <div class="top"><b>${esc(it.desc)}</b><div class="q">${num(it.qtd)} ${esc(it.un)}<br>${brl(it.vtotal)}</div></div>
@@ -2163,13 +2283,19 @@ function itemHTML(it){
     </select>
     <div class="auto ${it.auto?'on':''}"><i class="ph-duotone ph-magic-wand"></i> insumo memorizado desta descrição</div>
     <div class="fchint"></div>
-    <div class="l2"><label>fator</label><input type="number" class="fat" step="0.00001" value="${it.fator}" title="multiplica a qtd da nota p/ a unidade do insumo"><span class="unit"></span></div>
+    <div class="l2"><label>Conversão</label><input type="number" class="fat" step="0.00001" value="${it.fator}" title="multiplica a qtd da nota p/ chegar na unidade do insumo (ex.: 1 fardo = 6 latas → 6)"><span class="unit"></span></div>
     <div class="entra"></div>
     <div class="l3">
       <button class="usbtn ${it.naousamos?'on':''}"><i class="ph-duotone ph-warning-circle"></i> não usamos</button>
       <button class="ignbtn ${it.ignorar?'on':''}"><i class="ph-duotone ph-prohibit"></i> não é insumo</button>
+      <button class="okbtn"><i class="ph-duotone ph-check"></i> pronto</button>
     </div>
   </div>`;
+}
+function renderItem(ix){
+  const it=ST.itens[ix]; const el=$(`#shBody .item[data-ix="${ix}"]`); if(!el)return;
+  const d=document.createElement('div'); d.innerHTML=itemHTML(it);
+  const nv=d.firstElementChild; el.replaceWith(nv); wireItem(nv);
 }
 function refreshFator(el, it){
   const {fator,hint,warn}=computeFator(it);
@@ -2188,23 +2314,20 @@ function updateEntra(el, it){
   e.innerHTML=`Entra no estoque: <b>${num(it.qtd)} ${esc(it.un||'')} × ${num(it.fator||0)} = ${num(res)} ${esc(ins.unidade_custo||'')}</b>`;
   e.classList.add('on');
 }
-function wireItens(){
-  $$('#shBody .item').forEach(el=>{
-    const ix=+el.dataset.ix, it=ST.itens[ix];
-    const s=el.querySelector('.selins'); if(it.insumo_id) s.value=it.insumo_id;
-    refreshFator(el, it);
-    s.onchange=()=>{ if(s.value==='__novo'){ s.value=it.insumo_id||''; openCriarInsumo(it); return; } it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); };
-    el.querySelector('.fat').oninput=e=>{ it.fator=+e.target.value||0; updateEntra(el,it); };
-    el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; if(it.ignorar)it.naousamos=false;
-      el.classList.toggle('ign',it.ignorar); el.classList.remove('alerta');
-      el.querySelector('.ignbtn').classList.toggle('on',it.ignorar); el.querySelector('.usbtn').classList.remove('on');
-      s.disabled=it.ignorar||it.naousamos; updateEntra(el,it); };
-    el.querySelector('.usbtn').onclick=()=>{ it.naousamos=!it.naousamos; if(it.naousamos)it.ignorar=false;
-      el.classList.toggle('alerta',it.naousamos); el.classList.remove('ign');
-      el.querySelector('.usbtn').classList.toggle('on',it.naousamos); el.querySelector('.ignbtn').classList.remove('on');
-      s.disabled=it.ignorar||it.naousamos; updateEntra(el,it); };
-  });
+function wireItem(el){
+  const ix=+el.dataset.ix, it=ST.itens[ix]; if(!it) return;
+  if(el.classList.contains('mini')){ el.onclick=()=>{ it.aberto=true; renderItem(ix); }; return; }
+  const s=el.querySelector('.selins'); if(it.insumo_id) s.value=it.insumo_id;
+  refreshFator(el, it);
+  s.onchange=()=>{ if(s.value==='__novo'){ s.value=it.insumo_id||''; openCriarInsumo(it); return; }
+    it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
+    if(it.insumo_id && !computeFator(it).warn){ it.aberto=false; renderItem(ix); } };
+  el.querySelector('.fat').oninput=e=>{ it.fator=+e.target.value||0; updateEntra(el,it); };
+  el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; if(it.ignorar){ it.naousamos=false; it.aberto=false; } renderItem(ix); };
+  el.querySelector('.usbtn').onclick=()=>{ it.naousamos=!it.naousamos; if(it.naousamos){ it.ignorar=false; it.aberto=false; } renderItem(ix); };
+  const ok=el.querySelector('.okbtn'); if(ok) ok.onclick=()=>{ if(itemStatus(it)==='pend'){ toast('Escolha o insumo primeiro (ou marque um dos chips).'); return; } it.aberto=false; renderItem(ix); };
 }
+function wireItens(){ $$('#shBody .item').forEach(wireItem); }
 /* ===== criar insumo na hora ===== */
 let CRIAR_IT=null, IM_UN='kg', IM_DEST=new Set(), IM_CONFIRM=false;
 function similarInsumos(nome){
@@ -2231,7 +2354,8 @@ function usarInsumoExistente(id){
   const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
   if(el){ const sel=el.querySelector('.selins');
     if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions(); sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`; }
-    it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); }
+    it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
+    if(!computeFator(it).warn){ it.aberto=false; renderItem(it.ix); } }
   closeIns(); toast(`Usando "${existente.nome}".`);
 }
 function toggleHort(){ $('#imHort').style.display = ($('#imCat').value==='Hortifruti')?'block':'none'; }
@@ -2266,7 +2390,8 @@ async function salvarInsumo(){
     if(el){ const sel=el.querySelector('.selins');
       if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions();
         sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`; }
-      it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it); }
+      it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
+      if(!computeFator(it).warn){ it.aberto=false; renderItem(it.ix); } }
     closeIns(); toast(`"${existente.nome}" já existe — usei o cadastro que já tinha.`);
     return;
   }
@@ -2289,6 +2414,7 @@ async function salvarInsumo(){
     if(el){ const sel=el.querySelector('.selins');
       sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`;
       it.insumo_id=row.id; sel.value=row.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
+      if(!computeFator(it).warn){ it.aberto=false; renderItem(it.ix); }
     }
     $('#imSave').removeAttribute('disabled'); closeIns(); toast('Insumo criado ✓');
   }catch(e){ toast('Erro ao criar: '+e.message); $('#imSave').removeAttribute('disabled'); }
