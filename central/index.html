@@ -111,10 +111,29 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .ini-row .t small{display:block;font-weight:600;font-size:11.5px;color:var(--mut);margin-top:1px}
 .ini-row b{font-family:Fraunces,serif;font-weight:600;color:var(--vinho);white-space:nowrap}
 .ini-vazio{padding:16px;text-align:center;font-size:12px;color:var(--lbl)}
-/* tarefas do Artur (18/07) */
-.ini-row.tarrow{cursor:default}
-.ini-row .tardone{flex-shrink:0;color:var(--okFg);min-height:34px;padding:0 12px;font-size:11.5px}
-.ini-row .tarlink{flex-shrink:0;color:var(--lbl);font-size:17px;display:flex;align-items:center;padding:4px}
+/* tarefas do Artur (18/07 · card completo importado do Reuniões e Tarefas) */
+.tarcards{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.tarcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 15px;border-left:4px solid var(--cor,#7E1E1F)}
+.tc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px}
+.tc-badge{font-size:10px;font-weight:800;padding:3px 9px;border-radius:99px;background:#1f7a4d22;color:#1f7a4d;display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
+.tc-dt{font-size:11px;color:var(--mut);font-weight:600}
+.tarcard h4{margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3}
+.tc-chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 7px}
+.tc-chip{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--cremeDark);color:var(--sec)}
+.tc-cont{font-size:12.5px;color:var(--sec);line-height:1.5;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:2px}
+.tc-cont.open{display:block;-webkit-line-clamp:unset;overflow:visible}
+.tc-mais{font-size:11px;font-weight:700;color:var(--vinho);cursor:pointer;display:inline-block;margin-bottom:4px}
+.tc-prazo{font-size:11.5px;font-weight:700;color:var(--sec);margin:5px 0 0}
+.tc-prazo.atras{color:var(--urgFg)}
+.tc-oklbl{font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--lbl);margin:9px 0 5px}
+.tc-okrow{display:flex;flex-wrap:wrap;gap:6px}
+.okchip{font-size:11px;font-weight:700;padding:6px 11px;border-radius:99px;border:1px solid var(--border);background:var(--creme);color:var(--sec);cursor:pointer}
+.okchip.on{background:#E6F3EA;border-color:#BFE0CC;color:#1f7a4d}
+.tc-foot{display:flex;gap:8px;align-items:center;margin-top:11px}
+.tc-foot .tardone{flex-shrink:0;color:var(--okFg);min-height:34px;padding:0 12px;font-size:11.5px}
+.tc-foot .spacer2{flex:1}
+.tc-por{font-size:11px;color:var(--mut);font-weight:600}
+.tarlink{flex-shrink:0;color:var(--lbl);font-size:17px;display:flex;align-items:center;padding:4px}
 .pzev{margin-top:2px}
 .pzevrow{align-items:center;gap:8px}
 .pzevrow span{flex:1;min-width:0}
@@ -1880,9 +1899,61 @@ async function resSalvar(destino){
    Concluir aqui grava os MESMOS campos que o registros.html usa (concluido/concluido_em/etapa). */
 async function carregarTarefas(){
   ST.tarefas='loading'; if(ST.tab==='ini') render();
-  try{ ST.tarefas=await api('lola_assuntos?eh_tarefa=is.true&concluido=not.is.true&responsaveis=cs.'+encodeURIComponent('["Artur"]')+'&select=id,titulo,prazo,data,criado_por,responsaveis&order=prazo.asc.nullslast,data.desc&limit=60'); }
-  catch(e){ ST.tarefas=[]; }
+  try{ const r=await api('lola_assuntos?eh_tarefa=is.true&concluido=not.is.true&responsaveis=cs.'+encodeURIComponent('["Artur"]')+'&select=id,titulo,conteudo,prazo,data,criado_por,responsaveis,unidades,categorias,tags,oks&order=prazo.asc.nullslast,data.desc&limit=60');
+    /* tag 'socias' fica fora — mesmo sigilo do portal (o /central é tela de cozinha) */
+    ST.tarefas=(r||[]).filter(t=>!(t.tags||[]).includes('socias'));
+  }catch(e){ ST.tarefas=[]; }
   if(ST.tab==='ini') render();
+}
+/* cores/rotulos iguais aos do registros.html — pro card parecer o MESMO card */
+const TAR_CAT_COLORS={'Operacional':'#2C7A4B','Manutenções':'#6B6258','Compras':'#2C5AA0','Cozinha':'#B5302E','Salão':'#9A6B1E','Bar':'#7A4FA3','Eventos':'#B23A6B','Financeiro':'#0F766E','RH':'#8A6A2B','Marketing':'#B24A8A','Entregas':'#1F7A6E','Processos':'#4858A8','Reunião':'#6B4FA8'};
+const TAR_UNI_SHORT={'Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'CENTRAL'};
+function tarCor(t){ for(const c of (t.categorias||[])){ if(TAR_CAT_COLORS[c]) return TAR_CAT_COLORS[c]; } return '#7E1E1F'; }
+function tarOks(t){ return (t.oks&&typeof t.oks==='object'&&!Array.isArray(t.oks))?t.oks:{}; }
+function tarCardHTML(t){
+  const hoje=new Date().toISOString().slice(0,10);
+  const atras=t.prazo&&String(t.prazo).slice(0,10)<hoje;
+  const uni=(t.unidades||[]).map(u=>`<span class="tc-chip">${esc(TAR_UNI_SHORT[u]||u)}</span>`).join('');
+  const cat=(t.categorias||[]).map(c=>`<span class="tc-chip" style="color:${TAR_CAT_COLORS[c]||'#7E1E1F'}">${esc(c)}</span>`).join('');
+  const tags=(t.tags||[]).filter(x=>x!=='roteiro'&&x!=='socias').map(x=>`<span class="tc-chip">#${esc(x)}</span>`).join('');
+  const cid='tcc'+t.id;
+  const longo=t.conteudo&&(t.conteudo.length>180||t.conteudo.split('\n').length>3);
+  const cont=t.conteudo?`<div class="tc-cont" id="${cid}">${esc(t.conteudo)}</div>${longo?`<span class="tc-mais" data-c="${cid}">ver mais</span>`:''}`:'';
+  const resp=t.responsaveis||[]; const oks=tarOks(t); const nok=resp.filter(r=>oks[r]).length;
+  const okh=resp.length?`<div class="tc-oklbl">OK dos responsáveis (${nok}/${resp.length})</div><div class="tc-okrow">${resp.map(r=>`<span class="okchip ${oks[r]?'on':''}" data-id="${t.id}" data-nome="${esc(r)}">${oks[r]?'✓ ':'○ '}${esc(r)}</span>`).join('')}</div>`:'';
+  return `<div class="tarcard" style="--cor:${tarCor(t)}">
+    <div class="tc-top"><span class="tc-badge"><i class="ph-duotone ph-check-square"></i> Tarefa</span><span class="tc-dt">${t.data?fmtData(String(t.data).slice(0,10)):''}</span></div>
+    <h4>${esc(t.titulo||'(sem título)')}</h4>
+    ${(uni||cat)?`<div class="tc-chips">${uni}${cat}</div>`:''}
+    ${cont}
+    ${t.prazo?`<div class="tc-prazo ${atras?'atras':''}">${atras?'⚠️ Atrasado: ':'🗓 Prazo: '}${fmtData(String(t.prazo).slice(0,10))}</div>`:''}
+    ${okh}
+    ${tags?`<div class="tc-chips" style="margin:8px 0 0">${tags}</div>`:''}
+    <div class="tc-foot"><button class="chip tardone" data-id="${t.id}"><i class="ph-duotone ph-check"></i> Concluir</button>
+      <a class="tarlink" title="Abrir no Reuniões e Tarefas" href="/registros.html?open=${t.id}" target="_blank" rel="noopener"><i class="ph-duotone ph-arrow-square-out"></i></a>
+      <span class="spacer2"></span>${t.criado_por?`<span class="tc-por">por ${esc(t.criado_por)}</span>`:''}</div>
+  </div>`;
+}
+/* OK por responsável — mesma regra do registros.html: todos com OK = tarefa concluída */
+async function toggleOkTarefa(id, nome){
+  const t=(ST.tarefas||[]).find(x=>String(x.id)===String(id)); if(!t) return;
+  const oks=Object.assign({}, tarOks(t));
+  if(oks[nome]) delete oks[nome]; else oks[nome]=new Date().toISOString();
+  const resp=t.responsaveis||[]; const nok=resp.filter(r=>oks[r]).length; const done=resp.length>0&&nok===resp.length;
+  const em=done?new Date().toISOString():null; const et=done?'feito':(nok>0?'fazendo':'afazer');
+  try{ await lolaEnsure();
+    const r=await fetch(SB_URL+'/rest/v1/lola_assuntos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({oks:oks, concluido:done, concluido_em:em, etapa:et, updated_at:new Date().toISOString()})});
+    if(!r.ok) throw new Error(await r.text());
+    _tarLog(oks[nome]?'deu OK':'desfez o OK', t);
+    t.oks=oks;
+    if(done){ ST.tarefas=(ST.tarefas||[]).filter(x=>String(x.id)!==String(id)); _tarLog('concluiu', t); toast('✓ Tarefa concluída'); }
+    else toast('OK atualizado');
+    render();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+/* sino do portal: registra a atividade como o registros.html faz (melhor esforço) */
+function _tarLog(acao, t){
+  try{ const _s=lolaSession()||{}; post('lola_atividades',[{quem:_s.nome||_s.email||null, acao:acao, alvo_tipo:'tarefa', alvo_id:t.id||null, alvo_titulo:String(t.titulo||'').slice(0,120)}],'return=minimal').catch(()=>{}); }catch(e){}
 }
 async function concluirTarefa(id){
   const t=(ST.tarefas||[]).find(x=>String(x.id)===String(id)); if(!t) return;
@@ -1891,6 +1962,7 @@ async function concluirTarefa(id){
     const r=await fetch(SB_URL+'/rest/v1/lola_assuntos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({concluido:true, concluido_em:new Date().toISOString(), etapa:'feito', updated_at:new Date().toISOString()})});
     if(!r.ok) throw new Error(await r.text());
     ST.tarefas=(ST.tarefas||[]).filter(x=>String(x.id)!==String(id));
+    _tarLog('concluiu', t);
     toast('Tarefa concluída ✓'); render();
   }catch(e){ toast('Erro: '+e.message); }
 }
@@ -1920,20 +1992,15 @@ function viewInicio(){
   else if(!ph.length) h+=`<div class="ini-vazio">Nada registrado ainda hoje — registre pelo botão Produzir.</div>`;
   else h+=ph.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.preproducao_id)||{}; return `<div class="ini-row" data-go="pz"><div class="t">${esc(nomeDe(x.preproducao_id))}<small>${x.criado_por?esc(x.criado_por):''}</small></div><b>+${num(x.qtd_produzida)} ${esc(prodUn(r))}</b></div>`; }).join('');
   h+=`</div>`;
-  /* Tarefas do Artur — vem do Reuniões e Tarefas (18/07) */
+  /* Tarefas do Artur — o CARD COMPLETO do Reuniões e Tarefas (pedido da Bianca, 18/07) */
   const tf=ST.tarefas;
-  h+=`<div class="lbl">Tarefas do Artur${Array.isArray(tf)?' ('+tf.length+')':''}</div><div class="ini-list">`;
-  if(!tf||tf==='loading') h+=`<div class="ini-vazio">carregando…</div>`;
-  else if(!tf.length) h+=`<div class="ini-vazio">Nenhuma tarefa aberta pro Artur. 🎉</div>`;
+  h+=`<div class="lbl">Tarefas do Artur${Array.isArray(tf)?' ('+tf.length+')':''}</div>`;
+  if(!tf||tf==='loading') h+=`<div class="ini-list"><div class="ini-vazio">carregando…</div></div>`;
+  else if(!tf.length) h+=`<div class="ini-list"><div class="ini-vazio">Nenhuma tarefa aberta pro Artur. 🎉</div></div>`;
   else{
-    h+=tf.slice(0,6).map(t=>{ const atras=t.prazo&&String(t.prazo).slice(0,10)<hoje;
-      const outros=(t.responsaveis||[]).filter(x=>x!=='Artur');
-      return `<div class="ini-row tarrow"><div class="t">${esc(t.titulo||'(sem título)')}<small>${atras?'⚠️ atrasada · ':''}${t.prazo?'prazo '+fmtData(String(t.prazo).slice(0,10)):(t.data?fmtData(String(t.data).slice(0,10)):'')}${t.criado_por?' · por '+esc(t.criado_por):''}${outros.length?' · com '+outros.map(esc).join(', '):''}</small></div>
-        <button class="chip tardone" data-id="${t.id}"><i class="ph-duotone ph-check"></i> feita</button>
-        <a class="tarlink" title="Abrir no Reuniões e Tarefas" href="/registros.html?open=${t.id}" target="_blank" rel="noopener"><i class="ph-duotone ph-arrow-square-out"></i></a></div>`; }).join('');
-    if(tf.length>6) h+=`<div class="ini-row"><a class="t" style="color:var(--mut);text-decoration:none;font-weight:600" href="/registros.html" target="_blank" rel="noopener">ver todas as ${tf.length} no Reuniões e Tarefas</a></div>`;
+    h+=`<div class="tarcards">${tf.slice(0,8).map(tarCardHTML).join('')}</div>`;
+    if(tf.length>8) h+=`<div class="ini-list" style="margin-top:-6px"><div class="ini-row"><a class="t" style="color:var(--mut);text-decoration:none;font-weight:600" href="/registros.html" target="_blank" rel="noopener">ver todas as ${tf.length} no Reuniões e Tarefas</a></div></div>`;
   }
-  h+=`</div>`;
   if(al.length){
     h+=`<div class="lbl">Precisa de atenção</div><div class="ini-list">`;
     h+=al.slice(0,4).map(a=>`<div class="ini-row" data-go="al"><span style="width:8px;height:8px;border-radius:99px;background:var(--urgFg);flex-shrink:0"></span><div class="t" style="font-weight:600">${esc(a.desc_item||'Alerta')}<small>${a.criado_por?esc(a.criado_por)+' · ':''}${fmtData(String(a.criado_em||'').slice(0,10))}</small></div><i class="ph-duotone ph-caret-right" style="color:var(--lbl)"></i></div>`).join('');
@@ -1949,6 +2016,8 @@ function wireInicio(){
   $$('#app [data-go]').forEach(el=>el.onclick=()=>_iniGo(el.dataset.go));
   $$('#app .ini-ped').forEach(el=>el.onclick=()=>{ const id=el.dataset.id; _iniGo('ped'); setTimeout(()=>{ try{ openPedido(id); }catch(_){} },60); });
   $$('#app .tardone').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); concluirTarefa(b.dataset.id); });
+  $$('#app .okchip').forEach(c=>c.onclick=()=>toggleOkTarefa(c.dataset.id, c.dataset.nome));
+  $$('#app .tc-mais').forEach(s=>s.onclick=()=>{ const e=document.getElementById(s.dataset.c); if(!e)return; e.classList.toggle('open'); s.textContent=e.classList.contains('open')?'ver menos':'ver mais'; });
 }
 
 function viewEntrada(){
