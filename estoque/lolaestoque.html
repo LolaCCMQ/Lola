@@ -114,6 +114,8 @@ body{font-family:'Manrope',sans-serif;background:var(--rf);color:var(--tx);min-h
 .ft-hd,.ft-row{display:grid;grid-template-columns:minmax(0,1fr) 92px 92px 62px 118px 132px;align-items:center;gap:10px;padding:9px 14px;}
 .ft-hd{background:#FAF4EC;border-bottom:1px solid var(--rb);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#A08B7F;font-weight:700;}
 .ft-row{border-top:1px solid #F3EBE2;}
+/* 18/07: ficha INATIVA (fora do menu) fica com cor mais fraquinha — pedido da Bianca */
+.ft-row.inat{opacity:.5}
 .ft-row:first-child{border-top:0;}
 .ft-row:hover{background:#FCF8F2;}
 .ft-row.alerta{background:#FFF7F6;}
@@ -2187,15 +2189,15 @@ function drawFT(w){
     const dataEd=x.editado_em?new Date(x.editado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):null;
 
     const lim=_ftLim(x);
-    const row=div('ft-row'+((!semPreco&&cmv>lim)?' alerta':''));
+    /* 18/07: selo de destino saiu (a aba de cardápio já diz onde). Entrou ATIVO/INATIVO
+       no menu: inativa fica esmaecida (.inat) + etiqueta cinza. */
+    const row=div('ft-row'+((!semPreco&&cmv>lim)?' alerta':'')+(x.no_menu===false?' inat':''));
 
     // ficha: nome + selos + revisar
     const nome=div('ft-nome');
     nome.appendChild(span('ft-nome-t',x.nome));
-    _destinosDeVenda(x).forEach(d=>{   // pra onde vende — só isso
-      const s=span('ft-sel',DEST_LBL[d]||d); s.style.background=DEST_COR[d]||'#888';
-      s.title='Vendida para '+(DEST_LBL[d]||d); nome.appendChild(s);
-    });
+    if(x.no_menu===false){ const s=span('ft-sel','INATIVO'); s.style.background='#8A7A72';
+      s.title='Fora do menu atual — edite a ficha pra reativar'; nome.appendChild(s); }
     if(x.revisar){
       const rv=span('ft-rev'); rv.innerHTML='<i class="ph-duotone ph-warning"></i> revisar';
       rv.title=x.revisar_motivo||''; rv.addEventListener('click',()=>modalRevisarFicha('ft',x));
@@ -2409,7 +2411,10 @@ function drawREC(w){
     /* 17/07: clicar na receita abre o EDITAR (quem só vê, abre a visualização) */
     nome.style.cursor='pointer'; nome.title='Abrir no editor';
     nome.addEventListener('click',()=>{ if(podeMexerAqui()){ ehPP?modalPrep(x):modalFicha(x); } else { ehPP?verFichaPrep(x):verFichaFT(x); } });
-    _destinosDeVenda(x).forEach(d=>{ const s=span('ft-sel',DEST_LBL[d]||d); s.style.background=DEST_COR[d]||'#888'; s.title='Vendida para '+(DEST_LBL[d]||d); nome.appendChild(s); });
+    /* 18/07: ficha não mostra mais o selo de destino — mostra INATIVO quando fora do menu.
+       PP continua com os selos (o destino dela alimenta os Pedidos). */
+    if(ehPP){ _destinosDeVenda(x).forEach(d=>{ const s=span('ft-sel',DEST_LBL[d]||d); s.style.background=DEST_COR[d]||'#888'; s.title='Vendida para '+(DEST_LBL[d]||d); nome.appendChild(s); }); }
+    else if(x.no_menu===false){ const s=span('ft-sel','INATIVO'); s.style.background='#8A7A72'; s.title='Fora do menu atual'; nome.appendChild(s); row.classList.add('inat'); }
     if(x.revisar){ const rv=span('ft-rev'); rv.innerHTML='<i class="ph-duotone ph-warning"></i> revisar'; rv.title=x.revisar_motivo||''; rv.addEventListener('click',()=>modalRevisarFicha(ehPP?'pp':'ft',x)); nome.appendChild(rv); }
     if(!ehPP&&x.produto_pronto){ const pr=span('ft-pronto'); pr.innerHTML='<i class="ph-duotone ph-package"></i> produto pronto'; pr.title='Comprado feito — limite de CMV 50%'; nome.appendChild(pr); }
     row.appendChild(nome);
@@ -2568,7 +2573,7 @@ async function modalFicha(item){
   const _tabBeb=(_ftTab||'').indexOf('beb_')===0;
   const _tabCard=_tabBeb?_ftTab.slice(4):(['ccmq','mac','eventos','central'].includes(_ftTab)?_ftTab:'ccmq');
   const _defCat=item?.categoria||(_tabBeb?'bebida':'prato');
-  let f={nome:item?.nome||'',cardapio:item?.cardapio||_tabCard,categoria:_defCat,rendimento_qtd:item?.rendimento_qtd||1,rendimento_un:item?.rendimento_un||'porção',preco_venda:item?.preco_venda||'',meta_cmv:item?.meta_cmv||30,modo_preparo:item?.modo_preparo||'',observacoes:item?.observacoes||'',e_preparo:!!item?.e_preparo,produto_pronto:!!item?.produto_pronto};
+  let f={nome:item?.nome||'',cardapio:item?.cardapio||_tabCard,categoria:_defCat,rendimento_qtd:item?.rendimento_qtd||1,rendimento_un:item?.rendimento_un||'porção',preco_venda:item?.preco_venda||'',meta_cmv:item?.meta_cmv||30,modo_preparo:item?.modo_preparo||'',observacoes:item?.observacoes||'',e_preparo:!!item?.e_preparo,produto_pronto:!!item?.produto_pronto,no_menu:item?(item.no_menu!==false):true};
   // Custo fixo do banco — não zera ao editar preço de venda
   let custoTotalFixo=parseFloat(item?.custo_total||0);
   let custoPorcaoFixo=parseFloat(item?.custo_por_porcao||0);
@@ -2713,13 +2718,22 @@ async function modalFicha(item){
   const nomeEditFt=finp('',_autorFt.v,v=>{_autorFt.v=v;});
   nomeEditFt.placeholder='Seu nome...';
   const descEd=el('input','fi',null,{type:'text',id:'ft-descricao-edicao',placeholder:ed?'Ex: ajustei gramatura do croissant de 80g para 110g':'Nova ficha'});
-  // Seletor de destinos
-  const destSelectorFT=mkDestinosSelector(item?.destinos||[],'ft');
-  /* 17/07: "utilizar menos linhas e menos espaços" — os dois interruptores gigantes
-     viraram etiquetas na linha do "Onde é servido" (igual ao editor de PP). */
+  /* 18/07 (Bianca): "aqui não precisa mais a etiqueta de onde é servido e sim se o
+     preparo está ou não no menu". O mkDestinosSelector SAIU do modal — a tela já é
+     separada por aba de cardápio. `destinos` fica intacto no banco (PP/insumo usam
+     os deles nos Pedidos); só não se edita mais por aqui. Entra a pílula ATIVO/INATIVO
+     (coluna nova lola_fichas_tecnicas.no_menu, default true). */
+  const destSelectorFT=document.createElement('div');
+  destSelectorFT.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
   const _mkFlagPill=(get,set,label,cor,title,extra)=>{ const b=document.createElement('button'); b.type='button'; b.title=title;
     const paint=()=>{ b.style.cssText='padding:7px 16px;border-radius:50px;font-size:12.5px;font-weight:800;cursor:pointer;border:1.5px solid '+cor+';background:'+(get()?cor:'#fff')+';color:'+(get()?'#fff':cor); b.textContent=(get()?'✓ ':'')+label; };
     b.onclick=()=>{ set(!get()); paint(); if(extra)extra(); }; paint(); return b; };
+  (()=>{ const b=document.createElement('button'); b.type='button';
+    b.title='Está no cardápio atual? INATIVA fica esmaecida na lista, mas continua com custo, receita e histórico.';
+    const paint=()=>{ const on=f.no_menu!==false;
+      b.style.cssText='padding:7px 16px;border-radius:50px;font-size:12.5px;font-weight:800;cursor:pointer;border:1.5px solid '+(on?'#2C7A4B':'#8A7A72')+';background:'+(on?'#2C7A4B':'#fff')+';color:'+(on?'#fff':'#8A7A72');
+      b.textContent=on?'✓ ATIVO no menu':'INATIVO — fora do menu'; };
+    b.onclick=()=>{ f.no_menu=!(f.no_menu!==false); paint(); }; paint(); destSelectorFT.appendChild(b); })();
   destSelectorFT.appendChild(_mkFlagPill(()=>f.e_preparo,v=>f.e_preparo=v,'Pré-preparo','#7A4FA3','Entra no Pedido à Central em todas as unidades'));
   destSelectorFT.appendChild(_mkFlagPill(()=>f.produto_pronto,v=>f.produto_pronto=v,'Produto pronto','#9A6B1E','Comprado feito, sem manipulação (ex.: torta fatiada) — limite de CMV vira 50%',()=>calcTotais()));
 
@@ -2745,7 +2759,7 @@ async function modalFicha(item){
       fgrp('Rendimento (qtd)',finp('',f.rendimento_qtd,v=>f.rendimento_qtd=v,'number')),
       fgrp('Unidade rendimento',fsel('',['porção','un','kg','L','pessoa'],f.rendimento_un,v=>f.rendimento_un=v)),
     ]),
-    fgrp('🏷️ Onde é servido',destSelectorFT),
+    fgrp('🏷️ Situação no menu',destSelectorFT),
     fgrp('📷 Fotos do prato',fotosWidget),
     el('hr','dv'),
     div('fl_ jb aic mb3',[
@@ -2789,7 +2803,7 @@ async function modalFicha(item){
     const ct2=ings.length>0?ings.reduce((t,ig)=>t+parseFloat(ig.custo_total||0),0):custoTotalFixo;
     const cpp2=ings.length>0?ct2/parseFloat(f.rendimento_qtd||1):custoPorcaoFixo;
     const descricaoEd=document.getElementById('ft-descricao-edicao')?.value||'';
-    const p={nome:f.nome,cardapio:f.cardapio,categoria:f.categoria,destinos:destSelectorFT.getDestinos(),e_preparo:!!f.e_preparo,produto_pronto:!!f.produto_pronto,rendimento_qtd:parseFloat(f.rendimento_qtd),rendimento_un:f.rendimento_un,preco_venda:parseFloat(f.preco_venda)||null,custo_total:ct2,custo_por_porcao:cpp2,modo_preparo:f.modo_preparo||null,observacoes:f.observacoes||null,editado_por:_autorFt.v||null,editado_em:new Date().toISOString()};
+    const p={nome:f.nome,cardapio:f.cardapio,categoria:f.categoria,no_menu:f.no_menu!==false,e_preparo:!!f.e_preparo,produto_pronto:!!f.produto_pronto,rendimento_qtd:parseFloat(f.rendimento_qtd),rendimento_un:f.rendimento_un,preco_venda:parseFloat(f.preco_venda)||null,custo_total:ct2,custo_por_porcao:cpp2,modo_preparo:f.modo_preparo||null,observacoes:f.observacoes||null,editado_por:_autorFt.v||null,editado_em:new Date().toISOString()};
     /* QUEM FAZ — mesma regra da pré-produção. Nova nasce na cozinha do app;
        editando, mantém a de quem já era dona. */
     p.cozinha = (ed && item && item.cozinha) ? item.cozinha : APP_COZ[0];
@@ -6166,7 +6180,9 @@ async function abrirFichaInsumo(insumoId, nomeFallback){
   const ov=div('ov'); const mo=div('mo mol');
   mo.addEventListener('click',e=>e.stopPropagation());
   ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
-  mo.appendChild(div('mh',[el('h3',null,nomeFallback||'Insumo'),btn('xb','✕',()=>ov.remove())]));
+  mo.appendChild(div('mh',[el('h3',null,nomeFallback||'Insumo'),
+    btn('btn bg bsm','✎ Editar',()=>{ ov.remove(); const _it=_ins.find(x=>x.id===insumoId); if(_it) modalIns(_it); }),
+    btn('xb','✕',()=>ov.remove())]));
   const mb=div('mb'); mb.appendChild(div('ld',[div('sp'),document.createTextNode('Buscando...')]));
   mo.appendChild(mb); ov.appendChild(mo); document.body.appendChild(ov);
   try{
