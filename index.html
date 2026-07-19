@@ -780,7 +780,7 @@
   .home-group.favs .home-group-title{color:#c99a33}
   .app-grid{grid-template-columns:repeat(2,1fr);gap:12px}
   @media(max-width:640px){.app-grid{grid-template-columns:1fr;gap:10px}}
-  .home-apps .app-card{display:flex;flex-direction:row;align-items:center;text-align:left;gap:13px;background:#fff;border:1px solid #ece3d9!important;border-radius:16px!important;padding:13px 40px 13px 14px;box-shadow:0 1px 2px rgba(42,26,23,.05)!important;transition:border-color .16s, box-shadow .16s}
+  .home-apps .app-card{display:flex;flex-direction:row;align-items:center;text-align:left;gap:13px;background:#fff;border:1px solid #ece3d9!important;border-radius:16px!important;padding:13px 14px;box-shadow:0 1px 2px rgba(42,26,23,.05)!important;transition:border-color .16s, box-shadow .16s}
   .home-apps .app-card:hover{transform:none;border-color:#f0d9cf!important;box-shadow:0 12px 26px -18px rgba(42,26,23,.30)!important}
   .home-apps .app-tile{width:44px;height:44px;border-radius:13px;font-size:22px}
   .app-card .app-meio{flex:1;min-width:0}
@@ -865,7 +865,9 @@
         <button class="nav-item" data-mod="tarefas" data-menu="tarefas" onclick="switchModule('tarefas')"><span class="ni"><i class="ph-duotone ph-clipboard-text"></i></span><span class="nl">Reuniões & Tarefas</span></button>
         <button class="nav-item" data-mod="chat" onclick="abrirChat()"><span class="ni"><i class="ph-duotone ph-chat-circle"></i></span><span class="nl">Chat da Equipe</span><span class="nav-badge" id="chatNavBadge" style="display:none">0</span></button>
         <button class="nav-item" data-mod="diario" data-menu="diario" onclick="switchModule('diario')"><span class="ni"><i class="ph-duotone ph-notebook"></i></span><span class="nl">Diário de Gerentes</span></button>
-        <button class="nav-item" data-mod="compras" data-menu="compras" onclick="switchModule('compras')" style="display:none"><span class="ni"><i class="ph-duotone ph-list-checks"></i></span><span class="nl">Lista de Compras</span></button>
+        <!-- 19/07 (Bianca): Lista de Compras ELIMINADA da navegação. O módulo e a tabela
+             lola_lista_compras continuam no código/banco, dormentes — reativar é recolocar
+             este botão + as entradas em MENU_GROUPS e HOME_APPS. -->
         <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni"><i class="ph-duotone ph-credit-card"></i></span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Inventário</span></button><button class="nav-item" data-mod="eventos" data-menu="eventos" onclick="switchModule('eventos')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Eventos</span></button><button class="nav-item" data-mod="inbox" data-menu="inbox" onclick="switchModule('inbox')"><span class="ni"><i class="ph-duotone ph-chat-circle-dots"></i></span><span class="nl">Atendimento</span></button>
         
         <button class="nav-item" data-mod="avaliacoes" data-menu="avaliacoes" onclick="switchModule('avaliacoes')"><span class="ni"><i class="ph-duotone ph-star"></i></span><span class="nl">Avaliações</span></button>
@@ -1066,7 +1068,7 @@ const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Com
 window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
- {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]},
+ {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]}, /* 19/07: Lista de Compras eliminada */
  {label:'Administração',items:[['lolamac','📈 Lola MAC']]}, /* 19/07: usuarios e rh saíram do menu — moram no /adm */
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['est_envios','📥 Envios da Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
@@ -1107,12 +1109,12 @@ var HOME_APPS=[
     {m:'tarefas', label:'Reuniões & Tarefas', d:'Pauta, follow-ups e pendências', icon:'clipboard-text', col:'#C4622D', bg:'#FBEDE3'},
     {m:'diario', label:'Diário de Gerentes', d:'Registro diário do turno', icon:'notebook', col:'#5A7D2C', bg:'#EEF2E2'},
     {m:'doc_escala', label:'Escala', d:'Turnos e folgas da equipe', icon:'calendar-dots', col:'#2C5AA0', bg:'#E6EEF8'},
-    {m:'compras', label:'Lista de Compras', d:'Itens a comprar por unidade', icon:'list-checks', col:'#A8632C', bg:'#F7EBE2'},
     {m:'comprascartao', label:'Compras no Cartão', d:'Gastos no cartão corporativo', icon:'credit-card', col:'#2C7A4B', bg:'#E6F3EA'},
     {m:'est_pedidos', label:'Pedidos à Central', d:'Solicitações à Cozinha Central', icon:'shopping-cart', col:'#A8632C', bg:'#F7EBE2'},
     {m:'man_painel', label:'Manutenções', d:'Chamados e ordens de serviço', icon:'wrench', col:'#2C5AA0', bg:'#E6EEF8'},
     {m:'inbox', label:'Atendimento', d:'Conversas e canais dos clientes', icon:'chat-circle-dots', col:'#6B4FA8', bg:'#F0EAF7'},
-    {m:'especiais', label:'Especiais do Dia', d:'Pratos e ofertas do dia', icon:'sparkle', col:'#7C1A1C', bg:'#F7E7E7'}
+    {m:'especiais', label:'Especiais do Dia', d:'Pratos e ofertas do dia', icon:'sparkle', col:'#7C1A1C', bg:'#F7E7E7'},
+    {m:'avaliacoes', label:'Avaliações', d:'Avaliações da equipe', icon:'star', col:'#B8862B', bg:'#F7F0DD'} /* 19/07: Bianca moveu de Gestão pra Operação */
   ]},
   {g:'Estoque & Cozinha', items:[
     {m:'est_insumos', label:'Estoque', d:'Saldo e movimentações', icon:'package', col:'#B8862B', bg:'#F7F0DD'},
@@ -1125,9 +1127,8 @@ var HOME_APPS=[
     {m:'eventos', label:'Eventos', d:'Reservas e produção', icon:'calendar-dots', col:'#C4622D', bg:'#FBEDE3'}
   ]},
   {g:'Gestão', items:[
-    {m:'lolamac', label:'Lola MAC', d:'Indicadores da unidade MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'},
-    {m:'avaliacoes', label:'Avaliações', d:'Avaliações da equipe', icon:'star', col:'#B8862B', bg:'#F7F0DD'}
-    /* 19/07: RH e Usuários saíram da home — moram no /adm (só admin) */
+    {m:'lolamac', label:'Lola MAC', d:'Indicadores da unidade MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'}
+    /* 19/07: RH e Usuários saíram da home (moram no /adm, só admin); Avaliações subiu pra Operação */
   ]}
 ];
 var FAVS=[];
@@ -1136,26 +1137,20 @@ var APP_BY_MENU={}; HOME_APPS.forEach(function(g){g.items.forEach(function(a){ i
 function navFor(menuKey){ return document.querySelector('[data-menu="'+menuKey+'"],[data-menu-free="'+menuKey+'"]'); }
 function homeOpen(menuKey){ var nav=navFor(menuKey); if(nav){ nav.click(); } }
 window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.lola==='voltar-menu'){ switchModule('home'); } }catch(_){} });
+/* 19/07 (Bianca): FAVORITOS saíram da home — "não precisa mais pq agora está melhor
+   a navegação". A estrela sumiu do card e a seção do topo morreu; loadFavs/toggleFav
+   e as RPCs continuam no arquivo (inofensivas), caso um dia voltem. */
 function appCardHTML(a){
-  var fav=FAVS.indexOf(a.m)>=0;
   return '<div class="app-card-wrap">'
     +'<button class="app-card" onclick="homeOpen(\''+a.m+'\')">'
     +'<span class="app-tile" style="background:'+a.col+';color:#fff;box-shadow:0 5px 12px -6px '+a.col+'"><i class="ph-duotone ph-'+a.icon+'"></i></span>'
     +'<span class="app-meio"><b>'+a.label+'</b>'+(a.d?'<span>'+a.d+'</span>':'')+'</span></button>'
-    +'<button class="fav-star'+(fav?' on':'')+'" title="'+(fav?'Remover dos favoritos':'Favoritar')+'" aria-label="'+(fav?'Remover dos favoritos':'Favoritar')+'" onclick="toggleFav(\''+a.m+'\',event)"><i class="'+(fav?'ph-fill':'ph-duotone')+' ph-star"></i></button>'
     +'</div>';
 }
 function renderHomeApps(){
   var wrap=document.getElementById('homeApps'); if(!wrap) return;
   var html='';
-  var favCards='';
-  FAVS.forEach(function(mk){
-    var a=APP_BY_MENU[mk]; if(!a) return;
-    var nav=navFor(mk);
-    if(!nav || nav.style.display==='none') return;
-    favCards+=appCardHTML(a);
-  });
-  if(favCards){ html+='<div class="home-group favs"><div class="home-group-title"><i class="ph-fill ph-star" style="color:#c99a33;font-size:1rem"></i> Favoritos</div><div class="app-grid">'+favCards+'</div></div>'; }
+  /* 19/07: seção Favoritos removida (Bianca) */
   HOME_APPS.forEach(function(grp){
     var cards='';
     grp.items.forEach(function(a){
