@@ -848,8 +848,9 @@
       </div>
       <div class="sb-section" style="display:none">
         <span class="sb-label">Administração</span>
-        <button class="nav-item" data-mod="usuarios" data-menu="usuarios" onclick="switchModule('usuarios')"><span class="ni"><i class="ph-duotone ph-users"></i></span><span class="nl">Usuários</span></button>
-        <button class="nav-item" data-mod="rh" data-menu="rh" onclick="switchModule('rh')"><span class="ni"><i class="ph-duotone ph-briefcase"></i></span><span class="nl">RH</span></button>
+        <!-- 19/07 (Bianca): Usuários e RH SAÍRAM do menu do portal — moram no /adm
+             (cards do hub, só admin). Os módulos continuam aqui dentro; o /adm abre
+             com ?mod=usuarios | ?mod=rh (deep-link no startPortal). -->
         <button class="nav-item" data-mod="lolamac" data-menu="lolamac" onclick="openLolaMAC()"><span class="ni"><i class="ph-duotone ph-chart-line-up"></i></span><span class="nl">Lola MAC</span></button>
       </div>
       <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" data-menu="est_insumos" onclick="openEstoque('insumos')"><span class="ni"><i class="ph-duotone ph-jar"></i></span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" data-menu="est_preproducoes" onclick="openEstoque('preproducoes')"><span class="ni"><i class="ph-duotone ph-cooking-pot"></i></span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" data-menu="est_fichas" onclick="openEstoque('fichas')"><span class="ni"><i class="ph-duotone ph-book-open"></i></span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="producao" data-menu="est_producao" onclick="openEstoque('producao')"><span class="ni"><i class="ph-duotone ph-fork-knife"></i></span><span class="nl">Produção do dia</span></button><button class="nav-item nav-estoque" data-page="contagem" data-menu="est_contagem" onclick="openEstoque('contagem')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" data-menu="est_saidas" onclick="openEstoque('saidas')"><span class="ni"><i class="ph-duotone ph-export"></i></span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" data-menu="est_fornecedores" onclick="openEstoque('fornecedores')"><span class="ni"><i class="ph-duotone ph-truck"></i></span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" data-menu="est_pedidos" onclick="openEstoque('pedidos')"><span class="ni"><i class="ph-duotone ph-shopping-cart"></i></span><span class="nl">Pedidos à Central</span></button><button class="nav-item nav-estoque" data-page="envios" data-menu="est_envios" onclick="openEstoque('envios')"><span class="ni"><i class="ph-duotone ph-tray-arrow-down"></i></span><span class="nl">Envios da Central</span></button><button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni"><i class="ph-duotone ph-carrot"></i></span><span class="nl">Pedidos Hortifrúti</span></button></div>
@@ -1037,7 +1038,7 @@ window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
  {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['compras','🛒 Lista de Compras'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]},
- {label:'Administração',items:[['usuarios','👥 Usuários'],['rh','💼 RH'],['lolamac','📈 Lola MAC']]},
+ {label:'Administração',items:[['lolamac','📈 Lola MAC']]}, /* 19/07: usuarios e rh saíram do menu — moram no /adm */
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['est_envios','📥 Envios da Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
  {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
  {label:'Documentos',items:[['doc_vouchers','🎁 Vouchers'],['doc_reservas','🎉 Reservas e Eventos'],['doc_admissional','📄 Ficha Admissional'],['doc_alergenicos','⚠️ Alergênicos'],['doc_vinhos','🍷 Carta de Vinhos']]}
@@ -1094,9 +1095,8 @@ var HOME_APPS=[
   ]},
   {g:'Gestão', items:[
     {m:'lolamac', label:'Lola MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'},
-    {m:'avaliacoes', label:'Avaliações', icon:'star', col:'#B8862B', bg:'#F7F0DD'},
-    {m:'rh', label:'RH', icon:'users', col:'#6B4FA8', bg:'#F0EAF7'},
-    {m:'usuarios', label:'Usuários', icon:'identification-card', col:'#6B4FA8', bg:'#F0EAF7'}
+    {m:'avaliacoes', label:'Avaliações', icon:'star', col:'#B8862B', bg:'#F7F0DD'}
+    /* 19/07: RH e Usuários saíram da home — moram no /adm (só admin) */
   ]}
 ];
 var FAVS=[];
@@ -2323,6 +2323,11 @@ function startPortal(){
   }catch(e){ try{console.warn('header init:',e);}catch(_){} }
   try{ if(typeof initDB==='function')initDB(); }catch(e){ try{console.warn('initDB:',e);}catch(_){} }
   switchModule('home');
+  /* 19/07: deep-link do /adm — Usuários e RH saíram do menu daqui e os cards do hub
+     abrem o portal com ?mod=usuarios|rh. Só esses dois, de propósito. */
+  try{ const _m=new URLSearchParams(location.search).get('mod');
+    if(_m==='usuarios'||_m==='rh') setTimeout(function(){ switchModule(_m); },80);
+  }catch(_){}
   // Watchdog: re-executa os loaders enquanto algum card ainda nao carregou (corrige cards presos em Carregando)
   (function(){
     var ids=['dashTasks','dashCompras','dashPedidos','dashEquip','dashRevisar','dashMargem'];
