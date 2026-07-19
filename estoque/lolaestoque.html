@@ -676,15 +676,15 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
       {id:'contagem',ic:'ph-package',lb:'Contagem Estoque'},
       {id:'saidas',ic:'ph-arrow-square-out',lb:'Saída de Estoque'},
       {id:'fornecedores',ic:'ph-storefront',lb:'Fornecedores'},
-      {id:'pedidos',ic:'ph-shopping-cart',lb:'Pedidos à Central'},
-      {id:'envios',ic:'ph-tray-arrow-down',lb:'Envios da Central'},
+      {id:'pedidos',ic:'ph-shopping-cart',lb:'Pedidos'},
+      /* 19/07: "Envios da Central" saiu do menu — virou a seção Recebimentos dentro de PEDIDOS */
     ]},
   ];
   const sb=el('aside','sidebar');
   menus.forEach(m=>{
     sb.appendChild(span('ns',m.s));
     m.items.forEach(it=>{
-      const ni=el('div','ni'+(it.id===PAGE?' active':''),null,{html:'<i class="ph-duotone '+it.ic+'"></i><span>'+it.lb+'</span>'+(it.id==='envios'?'<span class="ni-badge" id="enviosBadge" style="display:none"></span>':'')});
+      const ni=el('div','ni'+(it.id===PAGE?' active':''),null,{html:'<i class="ph-duotone '+it.ic+'"></i><span>'+it.lb+'</span>'+(it.id==='pedidos'?'<span class="ni-badge" id="enviosBadge" style="display:none"></span>':'')});
       ni.dataset.page=it.id;
       ni.addEventListener('click',()=>{closeSidebar();nav(it.id);});
       sb.appendChild(ni);
@@ -696,7 +696,9 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
 }
 
 
-const TITLES={dashboard:'Cozinha',insumos:'Insumos',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos à Central',envios:'Envios da Central',entnotas:'Entrada de Notas'};
+/* 19/07 (Bianca): "Pedidos à Central" virou PEDIDOS — página única com Pedidos à
+   Central + Enviar pra outras unidades + Recebimentos (a antiga Envios da Central). */
+const TITLES={dashboard:'Cozinha',insumos:'Insumos',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos',envios:'Envios da Central',entnotas:'Entrada de Notas'};
 const SUBS={dashboard:'Visão geral das operações',insumos:'Ingredientes e matérias-primas com custo real',conferencia:'Suba a planilha do mês e confira preço por preço antes de aplicar',preproducoes:'Fichas técnicas dos preparos da cozinha',fichas:'Composição e custo dos pratos do cardápio',producao:'O que a Cozinha Central produziu hoje',contagem:'Registro de estoque do CCMQ e Mac',saidas:'Registro de saídas de insumos do estoque',fornecedores:'Cadastro e gestão de fornecedores',pedidos:'Pedidos entre unidades e Cozinha Central',envios:'Ingredientes e produções que a Central mandou pra cá',entnotas:'Puxa as notas do Financeiro e lança no estoque'};
 
 function nav(p){PAGE=p;document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.page===p));renderPage();}
@@ -721,7 +723,7 @@ async function renderPage(){
   main.innerHTML='';
   main.appendChild(brandHead(TITLES[PAGE],SUBS[PAGE]));
   const body=div(null,null,{id:'pb'});main.appendChild(body);
-  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgCont2,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPed,envios:pgEnvios,entnotas:pgEntradaNotas};
+  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgCont2,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPedU,envios:pgEnvios,entnotas:pgEntradaNotas};
   if(map[PAGE])await map[PAGE](body);
 }
 
@@ -4925,7 +4927,7 @@ const INS_TO_COST={'carnes':'Carnes e Pescados','Carnes e Pescados':'Carnes e Pe
 ══════════════════════════════════ */
 async function updEnviosBadge(){
   try{
-    const r=await db('lola_central_envio_ccmq','GET',null,'?select=id&ativo=neq.false&atendido=eq.false&destino=eq.ccmq');
+    const r=await db('lola_central_envio_ccmq','GET',null,'?select=id&ativo=neq.false&atendido=eq.false&destino=eq.'+APP_COZ_ID);
     const b=$('#enviosBadge'); if(!b)return;
     if(r.length){b.style.display='';b.textContent=r.length;}else b.style.display='none';
   }catch(e){}
@@ -4991,7 +4993,8 @@ async function _envPedirPeso(e,ci){
 async function pgEnvios(c){
   c.appendChild(ld());
   try{
-    const envios=await db('lola_central_envio_ccmq','GET',null,'?select=*&ativo=neq.false&destino=eq.ccmq&order=atendido.asc,data.desc,criado_em.desc');
+    /* 19/07: filtra pela cozinha do app (antes era ccmq fixo) — a mesma tela serve as três */
+    const envios=await db('lola_central_envio_ccmq','GET',null,'?select=*&ativo=neq.false&destino=eq.'+APP_COZ_ID+'&order=atendido.asc,data.desc,criado_em.desc');
     const insIds=[...new Set(envios.filter(e=>e.insumo_id).map(e=>e.insumo_id))];
     let custoMap={};
     if(insIds.length){
@@ -5003,12 +5006,12 @@ async function pgEnvios(c){
 
     const note=div(null);
     note.style.cssText='background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:var(--ts);line-height:1.5';
-    note.innerHTML='<i class="ph-duotone ph-info" style="color:var(--v)"></i> O que a <b>Cozinha Central</b> mandou pro CCMQ. Ao marcar <b>Recebido</b>, o custo sai do estoque da Central e a transferência é lançada no <b>Financeiro</b> das duas contas.';
+    note.innerHTML='<i class="ph-duotone ph-info" style="color:var(--v)"></i> O que mandaram pra cá (<b>'+(_ENV_DEST_LBL[APP_COZ_ID]||APP_COZ_ID)+'</b>). Envio vindo da <b>Cozinha Central</b>: marcar <b>Recebido</b> dá baixa no estoque da Central e lança no <b>Financeiro</b> das duas contas. Envio de outra unidade só muda o status.';
     c.appendChild(note);
 
     if(!envios.length){
       const empt=div(null);empt.style.cssText='text-align:center;padding:36px 16px;color:var(--ts)';
-      empt.innerHTML='<div style="font-size:34px;color:var(--rm)"><i class="ph-duotone ph-tray"></i></div><div style="margin-top:8px;font-weight:700">Nada da Central por enquanto.</div><div style="font-size:12px;margin-top:4px">Quando o Arthur enviar algo, aparece aqui.</div>';
+      empt.innerHTML='<div style="font-size:34px;color:var(--rm)"><i class="ph-duotone ph-tray"></i></div><div style="margin-top:8px;font-weight:700">Nada a receber por enquanto.</div><div style="font-size:12px;margin-top:4px">Quando alguma unidade enviar algo pra cá, aparece aqui.</div>';
       c.appendChild(empt);
       return;
     }
@@ -5025,16 +5028,18 @@ async function pgEnvios(c){
       if(e.atendido)html+='<span style="margin-left:auto;background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 10px;border-radius:50px"><i class="ph-duotone ph-check-circle"></i> recebido</span>';
       html+='</div>';
       if(e.prato)html+='<div style="font-size:12px;color:var(--ts);margin-bottom:3px"><i class="ph-duotone ph-fork-knife" style="color:var(--v)"></i> Prato: <b>'+_envEsc(e.prato)+'</b></div>';
-      html+='<div style="font-size:12px;color:var(--ts);margin-bottom:3px"><i class="ph-duotone ph-calendar" style="color:var(--v)"></i> Enviado '+DBR(String(e.data).slice(0,10))+(e.responsavel?' · '+_envEsc(e.responsavel):'')+'</div>';
+      html+='<div style="font-size:12px;color:var(--ts);margin-bottom:3px"><i class="ph-duotone ph-calendar" style="color:var(--v)"></i> Enviado '+DBR(String(e.data).slice(0,10))+(e.responsavel?' · '+_envEsc(e.responsavel):'')+' · de <b>'+_envEsc(_ehEnvioDaCentral(e)?'Cozinha Central':(_ENV_DEST_LBL[e.origem]||e.origem))+'</b></div>';
       if(e.observacao)html+='<div style="font-size:12px;color:var(--ts);margin-bottom:3px"><i class="ph-duotone ph-note" style="color:var(--v)"></i> '+_envEsc(e.observacao)+'</div>';
+      const _daCentral=_ehEnvioDaCentral(e);
       if(cst.ok&&custoTot>0)html+='<div style="font-size:12px;color:var(--ts)"><i class="ph-duotone ph-currency-circle-dollar" style="color:var(--v)"></i> Custo estimado: <b>'+R(custoTot)+'</b>'+(cst.qtd!=null&&_envUn(e.unidade)!==_envUn(custoInfo&&custoInfo.unidade_custo)?' <span style="color:var(--rm)">('+_envQtd(cst.qtd)+' '+_envEsc((custoInfo&&custoInfo.unidade_custo)||'')+')</span>':'')+'</div>';
-      if(!cst.ok)html+='<div style="font-size:12px;color:#9A6B1E;background:#FBF0DD;border:1px solid #F1DFB8;border-radius:9px;padding:7px 9px;margin-top:4px"><i class="ph-duotone ph-warning"></i> Falta o peso de <b>1 '+_envEsc(e.unidade||'un')+'</b> pra converter em '+_envEsc((custoInfo&&custoInfo.unidade_custo)||'')+' e calcular o custo.</div>';
+      else if(!_daCentral&&e.custo_total>0)html+='<div style="font-size:12px;color:var(--ts)"><i class="ph-duotone ph-currency-circle-dollar" style="color:var(--v)"></i> Custo estimado: <b>'+R(e.custo_total)+'</b></div>';
+      if(!cst.ok&&_daCentral)html+='<div style="font-size:12px;color:#9A6B1E;background:#FBF0DD;border:1px solid #F1DFB8;border-radius:9px;padding:7px 9px;margin-top:4px"><i class="ph-duotone ph-warning"></i> Falta o peso de <b>1 '+_envEsc(e.unidade||'un')+'</b> pra converter em '+_envEsc((custoInfo&&custoInfo.unidade_custo)||'')+' e calcular o custo.</div>';
       if(e.atendido&&e.recebido_por)html+='<div style="font-size:11px;color:var(--rm);margin-top:5px">Recebido por '+_envEsc(e.recebido_por)+(e.recebido_em?' · '+new Date(e.recebido_em).toLocaleDateString('pt-BR'):'')+'</div>';
       wrap.innerHTML=html;
       const acts=div(null);
       if(!e.atendido){
         acts.style.cssText='display:flex;gap:8px;margin-top:12px';
-        if(!cst.ok){
+        if(!cst.ok&&_daCentral){
           const bP=el('button','btn bo',null,{html:'<i class="ph-duotone ph-scales"></i> Informar peso'});
           bP.style.cssText='flex:1;padding:11px;font-size:13px;font-weight:800';
           bP.onclick=()=>_envPedirPeso(e,custoInfo);
@@ -5066,6 +5071,16 @@ async function pgEnvios(c){
   }catch(err){c.innerHTML='<div style="padding:20px;color:red;font-weight:700">❌ Erro ao carregar.<br><small>'+_envEsc(err.message)+'</small></div>';}
 }
 async function receberEnvio(e,custoInfo){
+  /* 19/07: envio entre unidades que NÃO vem da Central só muda o status — não tem
+     baixa nem Financeiro (só a Central tem estoque por movimento). O fluxo da
+     Central continua idêntico (RPC envio_ccmq_receber). */
+  if(!_ehEnvioDaCentral(e)){
+    if(!confirm('Confirmar recebimento de "'+e.descricao+'" (enviado por '+(_ENV_DEST_LBL[e.origem]||e.origem)+')?'))return;
+    try{ await db('lola_central_envio_ccmq','PATCH',{atendido:true,recebido_por:ME||null,recebido_em:new Date().toISOString()},'?id=eq.'+e.id);
+      updEnviosBadge(); renderPage();
+    }catch(err){ alert('Erro ao receber: '+err.message); }
+    return;
+  }
   const _cst=_envCusto(e,custoInfo);
   if(!_cst.ok){ return _envPedirPeso(e,custoInfo); }
   const custoTot=_cst.v;
@@ -5077,6 +5092,13 @@ async function receberEnvio(e,custoInfo){
   }catch(err){ if(String((err&&err.message)||'').indexOf('CONV_FALTA_PESO')>=0){ _envPedirPeso(e,custoInfo); return; } alert('Erro ao receber: '+err.message);}
 }
 async function desfazerEnvio(e){
+  if(!_ehEnvioDaCentral(e)){
+    if(!confirm('Desfazer o recebimento de "'+e.descricao+'"?'))return;
+    try{ await db('lola_central_envio_ccmq','PATCH',{atendido:false,recebido_por:null,recebido_em:null},'?id=eq.'+e.id);
+      updEnviosBadge(); renderPage();
+    }catch(err){ alert('Erro ao desfazer: '+err.message); }
+    return;
+  }
   if(!confirm('Desfazer o recebimento de "'+e.descricao+'"?\n\nRemove a baixa na Central e os lançamentos de transferência no Financeiro.'))return;
   try{
     await db('rpc/envio_ccmq_desfazer','POST',{p_envio_id:e.id});
@@ -5236,6 +5258,140 @@ async function lancarNotaEN(n,rows,bSave){
     document.querySelectorAll('.ov').forEach(o=>o.remove());
     renderPage();
   }catch(e){alert('Erro ao lançar: '+e.message);bSave.textContent='✓ Lançar entrada da nota';bSave.disabled=false;}
+}
+/* ═════════ 19/07 · PEDIDOS UNIFICADA (Bianca): "deve ser exatamente integrado ao
+   PEDIDOS A CENTRAL - mas renomeado PEDIDOS - e de lá, além de pedidos a central
+   podemos enviar itens para outras unidades". Três seções na MESMA tela:
+   · Pedidos à Central — a tela de sempre (pgPed, intocada)
+   · Enviar — novo: manda item DAQUI pra outra unidade (grava lola_central_envio_ccmq
+     com origem=APP_COZ_ID; quem recebe vê em Recebimentos na tela Pedidos de lá)
+   · Recebimentos — a antiga "Envios da Central" (pgEnvios), agora filtrando destino
+     pela cozinha do app. Envio vindo da CENTRAL mantém o fluxo completo (RPC: baixa
+     + Financeiro); envio entre outras unidades só muda status (sem baixa/financeiro,
+     porque só a Central tem estoque por movimento). ═════════ */
+let _pedTab='ped';
+const _ENV_DEST_LBL={ccmq:'Lola CCMQ', mac:'Lola MAC', central:'Cozinha Central', eventos:'Eventos'};
+function _ehEnvioDaCentral(e){ return !e.origem || e.origem==='estoque-central' || e.origem==='central'; }
+async function pgPedU(c){
+  const bar=div(null); bar.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px';
+  const chips=[['ped','ph-shopping-cart','Pedidos à Central'],['env','ph-paper-plane-tilt','Enviar'],['rec','ph-tray-arrow-down','Recebimentos']];
+  chips.forEach(function(ch){ const k=ch[0], on=_pedTab===k;
+    const b=document.createElement('button'); b.type='button';
+    b.style.cssText='display:inline-flex;align-items:center;gap:7px;padding:0 16px;height:38px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;border:2px solid '+(on?'var(--v)':'var(--rb)')+';background:'+(on?'var(--v)':'#fff')+';color:'+(on?'#fff':'var(--tx)');
+    b.innerHTML='<i class="ph-duotone '+ch[1]+'"></i> '+ch[2]+(k==='rec'?' <span id="recChipBadge" style="display:none;background:'+(on?'#fff':'var(--v)')+';color:'+(on?'var(--v)':'#fff')+';border-radius:50px;padding:1px 8px;font-size:11px"></span>':'');
+    b.onclick=function(){ _pedTab=k; renderPage(); };
+    bar.appendChild(b); });
+  c.appendChild(bar);
+  const body=div(null); c.appendChild(body);
+  _updRecChipBadge();
+  if(_pedTab==='env') return pgEnviar(body);
+  if(_pedTab==='rec') return pgEnvios(body);
+  return pgPed(body);
+}
+async function _updRecChipBadge(){
+  try{ const r=await db('lola_central_envio_ccmq','GET',null,'?select=id&ativo=neq.false&atendido=eq.false&destino=eq.'+APP_COZ_ID);
+    const b=$('#recChipBadge'); if(b&&r.length){ b.style.display='inline-block'; b.textContent=r.length; } }catch(e){}
+}
+let _envCat=null, _envNovoDest=null, _envNovoSel=null;
+async function pgEnviar(c){
+  c.appendChild(ld());
+  try{
+    if(!_envCat) _envCat=await db('lola_insumos','GET',null,'?select=id,nome,unidade_custo,custo_por_unidade&ativo=eq.true&order=nome.asc');
+    const meus=await db('lola_central_envio_ccmq','GET',null,'?select=*&ativo=neq.false&origem=eq.'+APP_COZ_ID+'&order=atendido.asc,data.desc,criado_em.desc&limit=60');
+    c.innerHTML='';
+    const note=div(null);
+    note.style.cssText='background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:var(--ts);line-height:1.5';
+    note.innerHTML='<i class="ph-duotone ph-info" style="color:var(--v)"></i> Mandar item <b>daqui ('+(_ENV_DEST_LBL[APP_COZ_ID]||APP_COZ_ID)+')</b> pra outra unidade. Quem recebe marca <b>Recebido</b> na tela Pedidos de lá. Insumo vai a custo; item avulso vai sem preço.';
+    c.appendChild(note);
+    /* form */
+    const form=div(null); form.style.cssText='background:#fff;border:1.5px solid var(--rb);border-radius:14px;padding:16px;margin-bottom:16px';
+    const lb=function(t){ return el('div',null,null,{html:t,style:'font-size:11px;font-weight:800;color:var(--rm);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 6px'}); };
+    form.appendChild(lb('Pra onde vai'));
+    const drow=div(null); drow.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+    const dests=['ccmq','mac','central','eventos'].filter(function(k){return k!==APP_COZ_ID;});
+    if(!_envNovoDest||_envNovoDest===APP_COZ_ID) _envNovoDest=dests[0];
+    dests.forEach(function(k){ const on=_envNovoDest===k;
+      const b=document.createElement('button'); b.type='button'; b.dataset.d=k;
+      b.style.cssText='padding:9px 16px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;border:2px solid '+(on?'var(--v)':'var(--rb)')+';background:'+(on?'var(--v)':'#fff')+';color:'+(on?'#fff':'var(--tx)');
+      b.textContent=_ENV_DEST_LBL[k];
+      b.onclick=function(){ _envNovoDest=k; drow.querySelectorAll('button').forEach(function(x){ const o=x.dataset.d===k;
+        x.style.border='2px solid '+(o?'var(--v)':'var(--rb)'); x.style.background=o?'var(--v)':'#fff'; x.style.color=o?'#fff':'var(--tx)'; }); };
+      drow.appendChild(b); });
+    form.appendChild(drow);
+    form.appendChild(lb('O que vai'));
+    const busca=document.createElement('input'); busca.type='search'; busca.placeholder='Buscar insumo… (ou digite um item avulso)';
+    busca.style.cssText='width:100%;border:1.5px solid var(--rb);border-radius:11px;padding:11px 13px;font:inherit;font-size:14px;background:#fff';
+    form.appendChild(busca);
+    const sug=div(null); sug.style.cssText='margin-top:6px'; form.appendChild(sug);
+    const selBox=div(null); selBox.style.cssText='display:none;margin-top:8px;background:var(--rf);border:1px solid var(--rb);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--ts)'; form.appendChild(selBox);
+    function pintaSel(){
+      if(_envNovoSel){ selBox.style.display='block';
+        selBox.innerHTML='<b style="color:var(--tx)">'+_envEsc(_envNovoSel.nome)+'</b> · '+R(_envNovoSel.custo_por_unidade)+'/'+_envEsc(_envNovoSel.unidade_custo||'un')+' (custo)';
+        unInp.value=_envNovoSel.unidade_custo||unInp.value||'un';
+      } else selBox.style.display='none';
+    }
+    busca.oninput=function(){
+      _envNovoSel=null; pintaSel(); sug.innerHTML='';
+      const q=busca.value.trim().toLowerCase(); if(q.length<2) return;
+      _envCat.filter(function(i){ return i.nome.toLowerCase().indexOf(q)>=0; }).slice(0,8).forEach(function(i){
+        const s=document.createElement('button'); s.type='button';
+        s.style.cssText='display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--rb);border-radius:9px;padding:8px 12px;margin-top:4px;font:inherit;font-size:13px;cursor:pointer';
+        s.innerHTML=_envEsc(i.nome)+' <span style="color:var(--rm);font-size:11px">'+R(i.custo_por_unidade)+'/'+_envEsc(i.unidade_custo||'un')+'</span>';
+        s.onclick=function(){ _envNovoSel=i; busca.value=i.nome; sug.innerHTML=''; pintaSel(); };
+        sug.appendChild(s); });
+    };
+    const qrow=div(null); qrow.style.cssText='display:flex;gap:8px;margin-top:2px';
+    const qtdInp=document.createElement('input'); qtdInp.type='number'; qtdInp.step='0.001'; qtdInp.placeholder='quantidade'; qtdInp.setAttribute('inputmode','decimal');
+    qtdInp.style.cssText='flex:1;border:1.5px solid var(--rb);border-radius:11px;padding:11px 13px;font:inherit;font-size:14px';
+    const unInp=document.createElement('input'); unInp.type='text'; unInp.placeholder='kg/un/L';
+    unInp.style.cssText='width:110px;border:1.5px solid var(--rb);border-radius:11px;padding:11px 13px;font:inherit;font-size:14px';
+    form.appendChild(lb('Quantidade')); qrow.appendChild(qtdInp); qrow.appendChild(unInp); form.appendChild(qrow);
+    form.appendChild(lb('Observação (opcional)'));
+    const obsInp=document.createElement('input'); obsInp.type='text'; obsInp.placeholder='ex.: pra o evento de sábado';
+    obsInp.style.cssText='width:100%;border:1.5px solid var(--rb);border-radius:11px;padding:11px 13px;font:inherit;font-size:14px';
+    form.appendChild(obsInp);
+    const bEnv=el('button','btn bp',null,{html:'<i class="ph-duotone ph-paper-plane-tilt"></i> Enviar'});
+    bEnv.style.cssText='width:100%;margin-top:14px;padding:12px;font-size:14px;font-weight:800';
+    bEnv.onclick=async function(){
+      const nome=busca.value.trim(); const qtd=parseFloat(String(qtdInp.value).replace(',','.'));
+      if(!nome){ alert('Diga o que vai.'); return; }
+      if(!(qtd>0)){ alert('Diga a quantidade.'); return; }
+      const vu=_envNovoSel?(+_envNovoSel.custo_por_unidade||null):null;
+      bEnv.disabled=true;
+      try{
+        await db('lola_central_envio_ccmq','POST',{descricao:nome,
+          insumo_id:_envNovoSel?_envNovoSel.id:null, tipo_item:_envNovoSel?'insumo':null, ref_id:_envNovoSel?_envNovoSel.id:null,
+          quantidade:qtd, unidade:(unInp.value||'').trim()||null, observacao:obsInp.value.trim()||null,
+          data:new Date().toISOString().slice(0,10), responsavel:ME||null,
+          destino:_envNovoDest, origem:APP_COZ_ID,
+          valor_unit:vu, custo_total:(vu&&qtd)?+(vu*qtd).toFixed(2):null});
+        _envNovoSel=null; renderPage();
+      }catch(err){ alert('Erro ao enviar: '+err.message); bEnv.disabled=false; }
+    };
+    form.appendChild(bEnv);
+    c.appendChild(form);
+    /* enviados daqui */
+    if(meus.length){
+      c.appendChild(el('div',null,null,{html:'Enviados daqui ('+meus.length+')',style:'font-size:12px;font-weight:800;color:var(--v);margin:6px 0 8px;text-transform:uppercase;letter-spacing:1px'}));
+      meus.forEach(function(e){
+        const w=div(null); w.style.cssText='background:#fff;border:1.5px solid var(--rb);border-radius:14px;padding:13px 15px;margin-bottom:9px'+(e.atendido?';opacity:.72':'');
+        let h='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">'+_envEsc(e.descricao)+'</b>';
+        if(e.quantidade)h+='<span style="background:var(--rt);color:var(--v);font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:50px">'+_envQtd(e.quantidade)+' '+_envEsc(e.unidade||'')+'</span>';
+        h+='<span style="margin-left:auto;font-size:11px;font-weight:700;padding:3px 10px;border-radius:50px;'+(e.atendido?'background:#dcfce7;color:#166534':'background:#FBF0DD;color:#9A6B1E')+'">'+(e.atendido?'✓ recebido':'a caminho')+'</span></div>';
+        h+='<div style="font-size:12px;color:var(--ts);margin-top:4px">→ <b>'+_envEsc(_ENV_DEST_LBL[e.destino]||e.destino||'?')+'</b> · '+DBR(String(e.data).slice(0,10))+(e.responsavel?' · '+_envEsc(e.responsavel):'')+(e.custo_total?' · '+R(e.custo_total):'')+'</div>';
+        if(e.atendido&&e.recebido_por)h+='<div style="font-size:11px;color:var(--rm);margin-top:3px">Recebido por '+_envEsc(e.recebido_por)+'</div>';
+        w.innerHTML=h;
+        if(!e.atendido){
+          const bc=el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-x"></i> Cancelar envio'});
+          bc.style.cssText='margin-top:9px;font-size:12px';
+          bc.onclick=async function(){ if(!confirm('Cancelar o envio de "'+e.descricao+'"?')) return;
+            try{ await db('lola_central_envio_ccmq','PATCH',{ativo:false},'?id=eq.'+e.id); renderPage(); }catch(err){ alert('Erro: '+err.message); } };
+          w.appendChild(bc);
+        }
+        c.appendChild(w);
+      });
+    }
+  }catch(err){ c.innerHTML='<div style="padding:20px;color:red;font-weight:700">❌ Erro ao carregar.<br><small>'+_envEsc(err.message)+'</small></div>'; }
 }
 async function pgPed(c){
   c.appendChild(ld());
