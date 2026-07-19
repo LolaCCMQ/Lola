@@ -402,7 +402,7 @@ td .sub{font-size:10px;color:var(--ts);margin-top:2px;}
   table{min-width:500px}
   .mo{width:95vw!important;max-width:95vw!important;margin:10px auto}
   .moxl{width:95vw!important;max-width:95vw!important}
-  .fg2,.fg3{grid-template-columns:1fr!important}
+  .fg2,.fg3,.fg4{grid-template-columns:1fr!important}
   .g3{grid-template-columns:1fr!important}
   .custo-box{padding:10px 12px}
   h2{font-size:20px}
@@ -1761,7 +1761,7 @@ async function verFichaPrep(pp){
     itens=await db('lola_preproducoes_itens','GET',null,
       '?select=*,lola_insumos(nome,custo_por_unidade,unidade_custo),lola_preproducoes_sub:sub_preproducao_id(nome,custo_por_unidade,rendimento_un)&preproducao_id=eq.'+pp.id);
   }catch(e){console.error('verFichaPrep erro:',e);}
-  fichaTable(itens,pp.rendimento_qtd,pp.rendimento_un,pp.custo_total,pp.custo_por_unidade,'📋 '+pp.nome);
+  fichaTable(itens,pp.rendimento_qtd,pp.rendimento_un,pp.custo_total,pp.custo_por_unidade,'📋 '+pp.nome,null,null,pp.modo_preparo);
 }
 
 
@@ -2196,6 +2196,10 @@ function drawFT(w){
     // ficha: nome + selos + revisar
     const nome=div('ft-nome');
     nome.appendChild(span('ft-nome-t',x.nome));
+    /* 19/07 (Bianca): clicar no nome abre a EDIÇÃO (quem não pode editar cai na
+       visualização) — e o botão VER saiu, o editar mostra a mesma coisa. */
+    nome.style.cursor='pointer'; nome.title='Abrir a ficha';
+    nome.addEventListener('click',()=>{ podeMexerAqui()?modalFicha(x):verFichaFT(x); });
     if(x.no_menu===false){ const s=span('ft-sel','INATIVO'); s.style.background='#8A7A72';
       s.title='Fora do menu atual — edite a ficha pra reativar'; nome.appendChild(s); }
     if(x.revisar){
@@ -2229,7 +2233,7 @@ function drawFT(w){
     // ações
     const acts=div('ft-acts');
     acts.appendChild(el('button','ins-sb'+(x.revisar?' warn':''),null,{html:'<i class="ph-duotone ph-warning"></i>',title:x.revisar?(x.revisar_motivo||'Revisar'):'Marcar para revisar',onclick:()=>modalRevisarFicha('ft',x)}));
-    acts.appendChild(el('button','ins-sb',null,{html:'<i class="ph-duotone ph-eye"></i>',title:'Ver'+(x.capa?' (com foto)':''),onclick:()=>verFichaFT(x)}));
+    /* 19/07: botão VER (olhinho) removido — o clique no nome abre editar/ver. */
     if(podeMexerAqui()){
       acts.appendChild(el('button','ins-sb',null,{html:'<i class="ph-duotone ph-pencil-simple"></i>',title:'Editar',onclick:()=>modalFicha(x)}));
       acts.appendChild(el('button','ins-sb del',null,{html:'<i class="ph-duotone ph-trash"></i>',title:'Excluir',onclick:async()=>{
@@ -2476,7 +2480,7 @@ async function verFichaFT(ft){
     '?ficha_id=eq.'+ft.id+'&order=editado_em.desc&limit=10');}catch(e){}
   let _fotos=[];
   try{ const _fr=await db('lola_fichas_fotos','GET',null,'?ficha_id=eq.'+ft.id+'&order=created_at.asc'); _fotos=(_fr||[]).map(function(x){return x.foto;}); }catch(e){}
-  fichaTable(itens,ft.rendimento_qtd,ft.rendimento_un,ft.custo_total,ft.custo_por_porcao,'📋 '+ft.nome,hist,_fotos);
+  fichaTable(itens,ft.rendimento_qtd,ft.rendimento_un,ft.custo_total,ft.custo_por_porcao,'📋 '+ft.nome,hist,_fotos,ft.modo_preparo);
 }
 
 
@@ -2746,20 +2750,21 @@ async function modalFicha(item){
       fgrp('Nome do prato',finp('',f.nome,v=>f.nome=v)),
       ...(ed?[fgrp('📝 O que foi alterado',descEd)]:[]),
     ]),
-    div('fg3',[
-      fgrp('Cardápio',fsel('',['ccmq','mac','central','eventos'],f.cardapio,v=>f.cardapio=v)),
+    /* 18/07 (Bianca): o campo Cardápio SAIU do modal — "tudo ali é do Lola CCMQ";
+       a ficha nova continua gravando o cardápio da cozinha/aba do app (f.cardapio
+       via _tabCard), só não se escolhe mais na mão. E "tentar ocupar uma ou duas
+       linhas somente" — o miolo virou 2 linhas (fg4 + fg3). */
+    div('fg4',[
       fgrp('Categoria',fsel('',['prato','sobremesa','bebida','produto_evento'],f.categoria,v=>{f.categoria=v;})),
       fgrp('Preço de venda (R$)',precoInp),
-    ]),
-    div('fg2',[
       fgrp('🎯 Meta de CMV (%)',metaCmvInp),
       fgrp('\u00A0',btn('btn bg bsm','↧ Usar preço sugerido',()=>{if(_precoSug>0){f.preco_venda=_precoSug.toFixed(2);if(precoInp)precoInp.value=f.preco_venda;calcTotais();}})),
     ]),
-    div('fg2',[
+    div('fg3',[
       fgrp('Rendimento (qtd)',finp('',f.rendimento_qtd,v=>f.rendimento_qtd=v,'number')),
       fgrp('Unidade rendimento',fsel('',['porção','un','kg','L','pessoa'],f.rendimento_un,v=>f.rendimento_un=v)),
+      fgrp('🏷️ Situação no menu',destSelectorFT),
     ]),
-    fgrp('🏷️ Situação no menu',destSelectorFT),
     fgrp('📷 Fotos do prato',fotosWidget),
     el('hr','dv'),
     div('fl_ jb aic mb3',[
@@ -6320,7 +6325,7 @@ function _renderFichaInsumo(mb, d, ov){
   };
 }
 
-function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico,fotos){
+function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico,fotos,modoPreparo){
   // Construção imperativa para evitar bugs com null/string em children
   function td(txt,style,children){
     const t=document.createElement('td');
@@ -6401,12 +6406,14 @@ function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico
   // TFOOT
   const tfoot=document.createElement('tfoot');
   const r1=document.createElement('tr');
-  const t1a=document.createElement('td');t1a.colSpan=9;t1a.style.cssText='padding:10px;font-weight:800;font-size:12px;background:#2a6645;color:#fff;text-transform:uppercase;letter-spacing:1px';t1a.textContent='CUSTO TOTAL DA RECEITA';
-  const t1b=document.createElement('td');t1b.style.cssText='padding:10px;font-weight:800;font-size:13px;background:#2a6645;color:#fff;text-align:right';t1b.textContent=R(custoTotal);
+  /* 19/07 (Bianca): "deixar mais minimalista essas duas faixas coloridas" — os dois
+     rodapés cheios de cor viraram linhas discretas: fundo claro, texto na cor. */
+  const t1a=document.createElement('td');t1a.colSpan=9;t1a.style.cssText='padding:9px 10px;font-weight:700;font-size:10.5px;background:none;border-top:2px solid #2a6645;color:#2a6645;text-transform:uppercase;letter-spacing:1px';t1a.textContent='Custo total da receita';
+  const t1b=document.createElement('td');t1b.style.cssText='padding:9px 10px;font-weight:800;font-size:13px;background:none;border-top:2px solid #2a6645;color:#2a6645;text-align:right';t1b.textContent=R(custoTotal);
   r1.appendChild(t1a);r1.appendChild(t1b);
   const r2=document.createElement('tr');
-  const t2a=document.createElement('td');t2a.colSpan=9;t2a.style.cssText='padding:10px;font-weight:800;font-size:12px;background:var(--v);color:#fff;text-transform:uppercase;letter-spacing:1px';const _unBaseRod=rendUn==='g'?'KG':rendUn==='ml'?'L':rendUn.toUpperCase();t2a.textContent='CUSTO POR PORÇÃO / '+_unBaseRod;
-  const t2b=document.createElement('td');t2b.style.cssText='padding:10px;font-weight:800;font-size:14px;background:var(--v);color:#fff;text-align:right';t2b.textContent=R(custoPorcao);
+  const t2a=document.createElement('td');t2a.colSpan=9;t2a.style.cssText='padding:9px 10px;font-weight:700;font-size:10.5px;background:none;border-top:1px solid var(--rb);color:var(--v);text-transform:uppercase;letter-spacing:1px';const _unBaseRod=rendUn==='g'?'KG':rendUn==='ml'?'L':rendUn.toUpperCase();t2a.textContent='Custo por porção / '+_unBaseRod;
+  const t2b=document.createElement('td');t2b.style.cssText='padding:9px 10px;font-weight:800;font-size:14px;background:none;border-top:1px solid var(--rb);color:var(--v);text-align:right';t2b.textContent=R(custoPorcao);
   r2.appendChild(t2a);r2.appendChild(t2b);
   tfoot.appendChild(r1);tfoot.appendChild(r2);
   tbl.appendChild(tfoot);
@@ -6456,9 +6463,24 @@ function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico
   if(fotos&&fotos.length){
     fotosEl=document.createElement('div');
     fotosEl.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px';
-    fotos.forEach(function(src){ var im=document.createElement('img'); im.src=src; im.style.cssText='width:120px;height:120px;object-fit:cover;border-radius:10px;border:1.5px solid var(--rb);cursor:pointer'; im.addEventListener('click',function(){window.open(src,'_blank');}); fotosEl.appendChild(im); });
+    /* 19/07 (Bianca): "a foto da ficha deve ser bem maior" — de miniatura 120px pra
+       foto grande (até 480px, 4:3, encolhe no celular). */
+    fotos.forEach(function(src){ var im=document.createElement('img'); im.src=src; im.style.cssText='width:min(480px,100%);aspect-ratio:4/3;object-fit:cover;border-radius:14px;border:1.5px solid var(--rb);cursor:pointer'; im.addEventListener('click',function(){window.open(src,'_blank');}); fotosEl.appendChild(im); });
   }
-  mkModal(titulo,[resumo,...(fotosEl?[fotosEl]:[]),scrollWrap,...(histEl?[histEl]:[])],null,'mo moxl');
+  /* 19/07 (Bianca): "não está aparecendo modo de preparo nas receitas das fichas" */
+  let modoEl=null;
+  if(modoPreparo){
+    modoEl=document.createElement('div');
+    modoEl.style.cssText='margin-top:18px';
+    const mTitle=document.createElement('div');
+    mTitle.style.cssText='font-size:13px;font-weight:700;color:var(--ts);margin-bottom:8px';
+    mTitle.textContent='📖 Modo de preparo';
+    const mBody=document.createElement('div');
+    mBody.style.cssText='padding:12px 14px;background:var(--rf);border-radius:9px;border-left:3px solid var(--v);font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--tx)';
+    mBody.textContent=modoPreparo;
+    modoEl.appendChild(mTitle); modoEl.appendChild(mBody);
+  }
+  mkModal(titulo,[resumo,...(fotosEl?[fotosEl]:[]),scrollWrap,...(modoEl?[modoEl]:[]),...(histEl?[histEl]:[])],null,'mo moxl');
 }
 
 
