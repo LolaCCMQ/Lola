@@ -765,6 +765,35 @@
   .home-apps .app-card{border:1px solid #ECE3D9;border-radius:13px}
   .dash-card{border:1px solid #ECE3D9;border-radius:16px}
   .home-group-title{font-size:.7rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#B79A8E}
+
+  /* ===== 19/07 · LAUNCHER APROVADO PELA BIANCA (prévia previa-launcher-portal.html) =====
+     Cartão creme quente 920px, seções com overline+régua, cards linha-com-descrição,
+     tile 44px na cor do app com sombra colorida. Fonte oficial: MANROPE (decisão 19/07). */
+  .home-wrap{max-width:920px}
+  #homeApps{background:#fbf7f1;border:1px solid #efe4d8;border-radius:22px;padding:30px;
+    box-shadow:0 1px 2px rgba(42,26,23,.05), 0 24px 50px -30px rgba(42,26,23,.30)}
+  @media(max-width:640px){#homeApps{padding:16px;border-radius:18px}}
+  .home-group{margin-bottom:24px}
+  .home-group:last-child{margin-bottom:0}
+  .home-group-title{font-family:'Manrope',sans-serif;font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#b79a8e;margin:0 2px 12px;display:flex;align-items:center;gap:12px}
+  .home-group-title::after{content:"";flex:1;height:1px;background:#ece3d9}
+  .home-group.favs .home-group-title{color:#c99a33}
+  .app-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(max-width:640px){.app-grid{grid-template-columns:1fr;gap:10px}}
+  .home-apps .app-card{display:flex;flex-direction:row;align-items:center;text-align:left;gap:13px;background:#fff;border:1px solid #ece3d9!important;border-radius:16px!important;padding:13px 40px 13px 14px;box-shadow:0 1px 2px rgba(42,26,23,.05)!important;transition:border-color .16s, box-shadow .16s}
+  .home-apps .app-card:hover{transform:none;border-color:#f0d9cf!important;box-shadow:0 12px 26px -18px rgba(42,26,23,.30)!important}
+  .home-apps .app-tile{width:44px;height:44px;border-radius:13px;font-size:22px}
+  .app-card .app-meio{flex:1;min-width:0}
+  .app-card .app-meio b{display:block;font-weight:700;font-size:14.5px;color:#2a1a17;letter-spacing:-.01em;line-height:1.25}
+  .app-card .app-meio span{display:block;font-weight:500;font-size:12.5px;color:#8a7a72;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fav-star{top:50%;right:8px;transform:translateY(-50%);color:#c7b8ac;font-size:18px;transition:transform .16s,color .16s,background .12s}
+  .fav-star:hover{background:none;transform:translateY(-50%) scale(1.18)}
+  .fav-star.on{color:#c99a33}
+
+  /* ===== 19/07 · TODAS as telas do portal com 920px de largura máxima —
+     EXCETO Atendimento (#module-inbox) e Reuniões & Tarefas (#module-tarefas). Bianca. ===== */
+  .module-panel.active{max-width:920px;width:100%;margin-left:auto;margin-right:auto;align-self:center}
+  #module-tarefas.active,#module-inbox.active{max-width:none;align-self:stretch;margin-left:0;margin-right:0}
 </style>
 </head>
 <body>
@@ -896,25 +925,12 @@
       <p id="homeSub">Bem-vindo ao Portal Lola.</p>
     </div>
 
-    <!-- V3: Suas tarefas + Últimas atividades -->
-    <div class="hv3-grid">
-      <section>
-        <div class="hv3-sec-head"><span class="hv3-label">Suas tarefas · <span id="dashTaskCount">—</span></span><button class="hv3-link" onclick="abrirMinhasTarefas()">Ver todas →</button></div>
-        <div id="dashTasks" class="hv3-list"><div class="dash-card-loading">Carregando...</div></div>
-        <button class="hv3-cta" onclick="abrirNovaTarefaV3()"><i class="ph-duotone ph-plus"></i> Nova tarefa</button>
-      </section>
-      <section>
-        <div class="hv3-sec-head"><span class="hv3-label">Últimas atividades</span></div>
-        <div id="dashAtividades" class="hv3-list"><div class="dash-card-loading">Carregando...</div></div>
-      </section>
-    </div>
-
     <!-- Grade de apps (gerada por JS a partir do menu visível — respeita permissões) -->
-    <div class="hv3-sec-head" style="margin-top:38px"><span class="hv3-label">Acesso rápido</span></div>
+    <div class="hv3-sec-head"><span class="hv3-label">Acesso rápido</span></div>
     <div id="homeApps" class="home-apps"></div>
 
     <!-- Bloquinho pessoal -->
-    <div class="dash-card" id="notepadCard" style="margin-bottom:18px">
+    <div class="dash-card" id="notepadCard" style="margin-top:24px;margin-bottom:18px">
       <div class="dash-card-header">
         <div class="dash-card-title"><span class="icon"><i class="ph-duotone ph-note-pencil"></i></span> Meu bloquinho <span id="notepadStatus" style="font-size:.68rem;color:var(--muted);font-weight:400;margin-left:6px"></span></div>
       </div>
@@ -933,6 +949,19 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- V3: Suas tarefas + Últimas atividades (log do portal) -->
+    <div class="hv3-grid" style="margin-top:24px">
+      <section>
+        <div class="hv3-sec-head"><span class="hv3-label">Suas tarefas · <span id="dashTaskCount">—</span></span><button class="hv3-link" onclick="abrirMinhasTarefas()">Ver todas →</button></div>
+        <div id="dashTasks" class="hv3-list"><div class="dash-card-loading">Carregando...</div></div>
+        <button class="hv3-cta" onclick="abrirNovaTarefaV3()"><i class="ph-duotone ph-plus"></i> Nova tarefa</button>
+      </section>
+      <section>
+        <div class="hv3-sec-head"><span class="hv3-label">Últimas atividades</span></div>
+        <div id="dashAtividades" class="hv3-list"><div class="dash-card-loading">Carregando...</div></div>
+      </section>
     </div>
   </div>
 </div>
@@ -1071,31 +1100,33 @@ function applyMenuPerms(){
 }
 
 /* ===== Grade de apps da home (a partir do menu visível — respeita permissões) ===== */
+/* 19/07: launcher aprovado — cada app ganhou descrição (d) e o tile passou a usar
+   a cor sólida (col) com símbolo branco. bg ficou sem uso na home, mas outras telas leem. */
 var HOME_APPS=[
   {g:'Operação', items:[
-    {m:'tarefas', label:'Reuniões & Tarefas', icon:'clipboard-text', col:'#C4622D', bg:'#FBEDE3'},
-    {m:'diario', label:'Diário de Gerentes', icon:'notebook', col:'#5A7D2C', bg:'#EEF2E2'},
-    {m:'doc_escala', label:'Escala', icon:'calendar-dots', col:'#2C5AA0', bg:'#E6EEF8'},
-    {m:'compras', label:'Lista de Compras', icon:'list-checks', col:'#A8632C', bg:'#F7EBE2'},
-    {m:'comprascartao', label:'Compras no Cartão', icon:'credit-card', col:'#2C7A4B', bg:'#E6F3EA'},
-    {m:'est_pedidos', label:'Pedidos à Central', icon:'shopping-cart', col:'#A8632C', bg:'#F7EBE2'},
-    {m:'man_painel', label:'Manutenções', icon:'wrench', col:'#2C5AA0', bg:'#E6EEF8'},
-    {m:'inbox', label:'Atendimento', icon:'chat-circle-dots', col:'#6B4FA8', bg:'#F0EAF7'},
-    {m:'especiais', label:'Especiais do Dia', icon:'sparkle', col:'#7C1A1C', bg:'#F7E7E7'}
+    {m:'tarefas', label:'Reuniões & Tarefas', d:'Pauta, follow-ups e pendências', icon:'clipboard-text', col:'#C4622D', bg:'#FBEDE3'},
+    {m:'diario', label:'Diário de Gerentes', d:'Registro diário do turno', icon:'notebook', col:'#5A7D2C', bg:'#EEF2E2'},
+    {m:'doc_escala', label:'Escala', d:'Turnos e folgas da equipe', icon:'calendar-dots', col:'#2C5AA0', bg:'#E6EEF8'},
+    {m:'compras', label:'Lista de Compras', d:'Itens a comprar por unidade', icon:'list-checks', col:'#A8632C', bg:'#F7EBE2'},
+    {m:'comprascartao', label:'Compras no Cartão', d:'Gastos no cartão corporativo', icon:'credit-card', col:'#2C7A4B', bg:'#E6F3EA'},
+    {m:'est_pedidos', label:'Pedidos à Central', d:'Solicitações à Cozinha Central', icon:'shopping-cart', col:'#A8632C', bg:'#F7EBE2'},
+    {m:'man_painel', label:'Manutenções', d:'Chamados e ordens de serviço', icon:'wrench', col:'#2C5AA0', bg:'#E6EEF8'},
+    {m:'inbox', label:'Atendimento', d:'Conversas e canais dos clientes', icon:'chat-circle-dots', col:'#6B4FA8', bg:'#F0EAF7'},
+    {m:'especiais', label:'Especiais do Dia', d:'Pratos e ofertas do dia', icon:'sparkle', col:'#7C1A1C', bg:'#F7E7E7'}
   ]},
   {g:'Estoque & Cozinha', items:[
-    {m:'est_insumos', label:'Estoque', icon:'package', col:'#B8862B', bg:'#F7F0DD'},
-    {m:'est_insumos', label:'Insumos', icon:'jar', col:'#9A6B1E', bg:'#FBF0DD'},
-    {m:'est_fichas', label:'Fichas Técnicas', icon:'book-open', col:'#9A3B6B', bg:'#F6E7EF'},
-    {m:'loucas', label:'Inventário', icon:'package', col:'#2C7A6B', bg:'#E2F0EC'},
-    {m:'hortifruti', label:'Hortifrúti', icon:'carrot', col:'#5A7D2C', bg:'#EEF2E2'}
+    {m:'est_insumos', label:'Estoque', d:'Saldo e movimentações', icon:'package', col:'#B8862B', bg:'#F7F0DD'},
+    {m:'est_insumos', label:'Insumos', d:'Cadastro de ingredientes', icon:'jar', col:'#9A6B1E', bg:'#FBF0DD'},
+    {m:'est_fichas', label:'Fichas Técnicas', d:'Receitas e rendimentos', icon:'book-open', col:'#9A3B6B', bg:'#F6E7EF'},
+    {m:'loucas', label:'Inventário', d:'Contagens e ajustes', icon:'package', col:'#2C7A6B', bg:'#E2F0EC'},
+    {m:'hortifruti', label:'Hortifrúti', d:'Frutas, legumes e verduras', icon:'carrot', col:'#5A7D2C', bg:'#EEF2E2'}
   ]},
   {g:'Eventos', items:[
-    {m:'eventos', label:'Eventos', icon:'calendar-dots', col:'#C4622D', bg:'#FBEDE3'}
+    {m:'eventos', label:'Eventos', d:'Reservas e produção', icon:'calendar-dots', col:'#C4622D', bg:'#FBEDE3'}
   ]},
   {g:'Gestão', items:[
-    {m:'lolamac', label:'Lola MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'},
-    {m:'avaliacoes', label:'Avaliações', icon:'star', col:'#B8862B', bg:'#F7F0DD'}
+    {m:'lolamac', label:'Lola MAC', d:'Indicadores da unidade MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'},
+    {m:'avaliacoes', label:'Avaliações', d:'Avaliações da equipe', icon:'star', col:'#B8862B', bg:'#F7F0DD'}
     /* 19/07: RH e Usuários saíram da home — moram no /adm (só admin) */
   ]}
 ];
@@ -1109,9 +1140,9 @@ function appCardHTML(a){
   var fav=FAVS.indexOf(a.m)>=0;
   return '<div class="app-card-wrap">'
     +'<button class="app-card" onclick="homeOpen(\''+a.m+'\')">'
-    +'<span class="app-tile" style="background:'+a.bg+';color:'+a.col+'"><i class="ph-duotone ph-'+a.icon+'"></i></span>'
-    +'<b>'+a.label+'</b></button>'
-    +'<button class="fav-star'+(fav?' on':'')+'" title="'+(fav?'Remover dos favoritos':'Favoritar')+'" aria-label="'+(fav?'Remover dos favoritos':'Favoritar')+'" onclick="toggleFav(\''+a.m+'\',event)"><i class="ph-duotone ph-star"></i></button>'
+    +'<span class="app-tile" style="background:'+a.col+';color:#fff;box-shadow:0 5px 12px -6px '+a.col+'"><i class="ph-duotone ph-'+a.icon+'"></i></span>'
+    +'<span class="app-meio"><b>'+a.label+'</b>'+(a.d?'<span>'+a.d+'</span>':'')+'</span></button>'
+    +'<button class="fav-star'+(fav?' on':'')+'" title="'+(fav?'Remover dos favoritos':'Favoritar')+'" aria-label="'+(fav?'Remover dos favoritos':'Favoritar')+'" onclick="toggleFav(\''+a.m+'\',event)"><i class="'+(fav?'ph-fill':'ph-duotone')+' ph-star"></i></button>'
     +'</div>';
 }
 function renderHomeApps(){
@@ -1124,7 +1155,7 @@ function renderHomeApps(){
     if(!nav || nav.style.display==='none') return;
     favCards+=appCardHTML(a);
   });
-  if(favCards){ html+='<div class="home-group"><div class="home-group-title"><i class="ph-duotone ph-star" style="color:#E0A81E;font-size:.9rem"></i> Favoritos</div><div class="app-grid">'+favCards+'</div></div>'; }
+  if(favCards){ html+='<div class="home-group favs"><div class="home-group-title"><i class="ph-fill ph-star" style="color:#c99a33;font-size:1rem"></i> Favoritos</div><div class="app-grid">'+favCards+'</div></div>'; }
   HOME_APPS.forEach(function(grp){
     var cards='';
     grp.items.forEach(function(a){
