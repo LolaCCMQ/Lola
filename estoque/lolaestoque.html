@@ -5269,23 +5269,23 @@ async function lancarNotaEN(n,rows,bSave){
      pela cozinha do app. Envio vindo da CENTRAL mantém o fluxo completo (RPC: baixa
      + Financeiro); envio entre outras unidades só muda status (sem baixa/financeiro,
      porque só a Central tem estoque por movimento). ═════════ */
-let _pedTab='ped';
+let _pedSec='ped'; /* ⚠️ _pedTab já existe (abas internas da lista de pedidos) — esta é a SEÇÃO da página */
 const _ENV_DEST_LBL={ccmq:'Lola CCMQ', mac:'Lola MAC', central:'Cozinha Central', eventos:'Eventos'};
 function _ehEnvioDaCentral(e){ return !e.origem || e.origem==='estoque-central' || e.origem==='central'; }
 async function pgPedU(c){
   const bar=div(null); bar.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px';
   const chips=[['ped','ph-shopping-cart','Pedidos à Central'],['env','ph-paper-plane-tilt','Enviar'],['rec','ph-tray-arrow-down','Recebimentos']];
-  chips.forEach(function(ch){ const k=ch[0], on=_pedTab===k;
+  chips.forEach(function(ch){ const k=ch[0], on=_pedSec===k;
     const b=document.createElement('button'); b.type='button';
     b.style.cssText='display:inline-flex;align-items:center;gap:7px;padding:0 16px;height:38px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;border:2px solid '+(on?'var(--v)':'var(--rb)')+';background:'+(on?'var(--v)':'#fff')+';color:'+(on?'#fff':'var(--tx)');
     b.innerHTML='<i class="ph-duotone '+ch[1]+'"></i> '+ch[2]+(k==='rec'?' <span id="recChipBadge" style="display:none;background:'+(on?'#fff':'var(--v)')+';color:'+(on?'var(--v)':'#fff')+';border-radius:50px;padding:1px 8px;font-size:11px"></span>':'');
-    b.onclick=function(){ _pedTab=k; renderPage(); };
+    b.onclick=function(){ _pedSec=k; renderPage(); };
     bar.appendChild(b); });
   c.appendChild(bar);
   const body=div(null); c.appendChild(body);
   _updRecChipBadge();
-  if(_pedTab==='env') return pgEnviar(body);
-  if(_pedTab==='rec') return pgEnvios(body);
+  if(_pedSec==='env') return pgEnviar(body);
+  if(_pedSec==='rec') return pgEnvios(body);
   return pgPed(body);
 }
 async function _updRecChipBadge(){
