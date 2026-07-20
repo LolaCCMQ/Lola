@@ -5924,6 +5924,12 @@ async function editarPedido(ped){
   try{
     if(!_pp.length)_pp=await db('lola_preproducoes','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
     if(!_ins.length)_ins=await db('lola_insumos','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
+    /* 19/07 (Bianca): "precisamos poder acrescentar insumos e também os itens que estão
+       na CENTRAL do inventário" — 3ª aba no Adicionar item: utensílios/equipamentos do
+       inventário que estão na Cozinha Central (vão junto e voltam; sem preço). */
+    const _invCen=await db('lola_inv_itens','GET',null,'?select=id,nome,categoria&ativo=neq.false&unidade=eq.'+encodeURIComponent('Cozinha Central')+'&order=nome.asc').catch(function(){return [];});
+    const embExist=await db('lola_pedido_embalagens','GET',null,'?select=*&pedido_id=eq.'+ped.id).catch(function(){return [];});
+    const embs=embExist.map(function(e){return {inv_item_id:e.inv_item_id,nome:e.nome,unidade:e.unidade||'un',quantidade:parseFloat(e.quantidade)||0};});
 
     const existentes=await db('lola_pedidos_itens','GET',null,'?select=*&pedido_id=eq.'+ped.id);
     // Construir lista de itens editáveis
@@ -6045,6 +6051,9 @@ async function editarPedido(ped){
          listaTotal=_pp.map(x=>{
            return {nome:x.nome,unidade:ppUnidade(x),preco:ppPreco(x),cat:x.categoria,info:ppInfo(x)};
          }).sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
+      } else if(tipoAdd==='inv'){
+        listaTotal=_invCen.map(function(x){return {nome:x.nome,unidade:'un',preco:0,cat:x.categoria||'',inv:x.id};})
+          .sort(function(a,b){return a.nome.localeCompare(b.nome,'pt');});
       } else {
         listaTotal=_ins.map(x=>{
           const uc=x.unidade_custo||'kg';
@@ -6072,11 +6081,11 @@ async function editarPedido(ped){
         filtrado.forEach(x=>{
           const row=document.createElement('div');
           row.style.cssText='padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--rf);display:flex;justify-content:space-between;align-items:center';
-          row.innerHTML='<span style="font-weight:600">'+x.nome+'</span><span style="font-size:11px;color:var(--ts)">'+R(x.preco)+'/'+x.unidade+'</span>';
+          row.innerHTML='<span style="font-weight:600">'+x.nome+'</span><span style="font-size:11px;color:var(--ts)">'+(x.inv?'inventário · vai e volta':R(x.preco)+'/'+x.unidade)+'</span>';
           row.addEventListener('mousedown',e=>{
             e.preventDefault();
             selectedItem=x;
-            inp.value=x.nome+' — '+R(x.preco)+'/'+x.unidade;
+            inp.value=x.nome+(x.inv?' — inventário':' — '+R(x.preco)+'/'+x.unidade);
             dropdown.style.display='none';
           });
           row.addEventListener('mouseover',()=>row.style.background='var(--rf)');
@@ -6093,8 +6102,13 @@ async function editarPedido(ped){
 
       const addBtn=btn('btn bp','+ Adicionar',()=>{
         if(!selectedItem){alert('Selecione um item da lista.');return;}
-        itens.push({...selectedItem,quantidade:0});
-        rebuildTabela();
+        if(selectedItem.inv){
+          embs.push({inv_item_id:selectedItem.inv,nome:selectedItem.nome,unidade:'un',quantidade:1});
+          rebuildEmb();
+        } else {
+          itens.push({...selectedItem,quantidade:0});
+          rebuildTabela();
+        }
         inp.value='';selectedItem=null;dropdown.style.display='none';
       });
       addBtn.style.cssText='white-space:nowrap;flex-shrink:0';
@@ -6105,14 +6119,42 @@ async function editarPedido(ped){
       optsWrap.appendChild(row);
     }
 
-    ['Pré-produções','Insumos'].forEach((lb,i)=>{
-      const k=['preprods','insumos'][i];
+    ['Pré-produções','Insumos','Inventário (Central)'].forEach((lb,i)=>{
+      const k=['preprods','insumos','inv'][i];
       const p=span('tp'+(tipoAdd===k?' active':''),lb);
       p.addEventListener('click',()=>{tipoAdd=k;tabsAdd.querySelectorAll('.tp').forEach(x=>x.classList.remove('active'));p.classList.add('active');buildOpts();});
       tabsAdd.appendChild(p);
     });
     mb.appendChild(tabsAdd);mb.appendChild(optsWrap);
     buildOpts();
+
+    /* embalagens/utensílios do inventário (voltam) — editável aqui também (19/07) */
+    const embWrap=div(null); mb.appendChild(embWrap);
+    function rebuildEmb(){
+      embWrap.innerHTML='';
+      const ativos=embs.filter(function(v){return v.quantidade>0;});
+      if(!ativos.length) return;
+      const t=div(null); t.style.cssText='font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--v);margin:14px 0 6px';
+      t.innerHTML='<i class="ph-duotone ph-package"></i> Embalagens / utensílios (voltam)';
+      embWrap.appendChild(t);
+      ativos.forEach(function(v){
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;margin-bottom:4px;background:var(--rf);border:1px solid var(--rb)';
+        const nm=document.createElement('div'); nm.style.cssText='flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        nm.textContent=v.nome;
+        const inpQ=document.createElement('input'); inpQ.type='number'; inpQ.min='0'; inpQ.step='1'; inpQ.value=v.quantidade; inpQ.setAttribute('inputmode','numeric');
+        inpQ.style.cssText='width:70px;padding:6px;border:1.5px solid var(--rb);border-radius:8px;font-size:13px;text-align:center;font-family:Manrope,sans-serif;font-weight:700';
+        inpQ.addEventListener('input',function(e){ v.quantidade=parseFloat(e.target.value)||0; });
+        inpQ.addEventListener('change',function(){ if(!(v.quantidade>0)) rebuildEmb(); });
+        const un=document.createElement('span'); un.style.cssText='font-size:11px;color:var(--ts);width:24px;font-weight:600'; un.textContent='un';
+        const rm=document.createElement('button'); rm.type='button'; rm.title='Tirar';
+        rm.style.cssText='background:none;border:none;color:#B5302E;font-size:15px;cursor:pointer;padding:4px;flex-shrink:0'; rm.textContent='✕';
+        rm.onclick=function(){ v.quantidade=0; rebuildEmb(); };
+        row.appendChild(nm); row.appendChild(inpQ); row.appendChild(un); row.appendChild(rm);
+        embWrap.appendChild(row);
+      });
+    }
+    rebuildEmb();
 
     // Footer
     const obsInp=finp('',ped.observacoes||'',v=>ped.observacoes=v);
@@ -6142,6 +6184,12 @@ async function editarPedido(ped){
             await db('lola_pedidos_itens','DELETE',null,'?id=eq.'+antigo.id);
           }
         }
+        /* embalagens do inventário: regrava o conjunto (19/07) */
+        try{
+          await db('lola_pedido_embalagens','DELETE',null,'?pedido_id=eq.'+ped.id);
+          const embV=embs.filter(function(v){return v.quantidade>0;});
+          if(embV.length) await db('lola_pedido_embalagens','POST',embV.map(function(v){return {pedido_id:ped.id,inv_item_id:v.inv_item_id,nome:v.nome,unidade:v.unidade||'un',quantidade:v.quantidade};}));
+        }catch(eEmb){ alert('Itens salvos, mas as embalagens falharam: '+eEmb.message); }
         _peds=await db('lola_pedidos','GET',null,'?select=*&order=created_at.desc');
         // Reconstruir tabs de meses com os dados atualizados
         const mesesNovos=[...new Set(_peds.map(p=>p.data_pedido?.substring(0,7)).filter(Boolean))].sort().reverse();
