@@ -887,20 +887,18 @@
       <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" data-menu="est_insumos" onclick="openEstoque('insumos')"><span class="ni"><i class="ph-duotone ph-jar"></i></span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="preproducoes" data-menu="est_preproducoes" onclick="openEstoque('preproducoes')"><span class="ni"><i class="ph-duotone ph-cooking-pot"></i></span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" data-menu="est_fichas" onclick="openEstoque('fichas')"><span class="ni"><i class="ph-duotone ph-book-open"></i></span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="producao" data-menu="est_producao" onclick="openEstoque('producao')"><span class="ni"><i class="ph-duotone ph-fork-knife"></i></span><span class="nl">Produção do dia</span></button><button class="nav-item nav-estoque" data-page="contagem" data-menu="est_contagem" onclick="openEstoque('contagem')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" data-menu="est_saidas" onclick="openEstoque('saidas')"><span class="ni"><i class="ph-duotone ph-export"></i></span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="fornecedores" data-menu="est_fornecedores" onclick="openEstoque('fornecedores')"><span class="ni"><i class="ph-duotone ph-truck"></i></span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" data-menu="est_pedidos" onclick="openEstoque('pedidos')"><span class="ni"><i class="ph-duotone ph-shopping-cart"></i></span><span class="nl">Pedidos à Central</span></button><button class="nav-item nav-estoque" data-page="envios" data-menu="est_envios" onclick="openEstoque('envios')"><span class="ni"><i class="ph-duotone ph-tray-arrow-down"></i></span><span class="nl">Envios da Central</span></button><button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni"><i class="ph-duotone ph-carrot"></i></span><span class="nl">Pedidos Hortifrúti</span></button></div>
       <div class="sb-section">
         <span class="sb-label">Manutenções</span>
-        <button class="nav-item nav-manut" data-page="painel" data-menu="man_painel" onclick="openManutencoes('painel')"><span class="ni"><i class="ph-duotone ph-chart-bar"></i></span><span class="nl">Painel</span></button>
-        <button class="nav-item nav-manut" data-page="equip" data-menu="man_equip" onclick="openManutencoes('equip')"><span class="ni"><i class="ph-duotone ph-wrench"></i></span><span class="nl">Equipamentos</span></button>
-        <button class="nav-item nav-manut" data-page="prev" data-menu="man_prev" onclick="openManutencoes('prev')"><span class="ni"><i class="ph-duotone ph-calendar-check"></i></span><span class="nl">Preventivas</span></button>
-        <button class="nav-item nav-manut" data-page="desc" data-menu="man_desc" onclick="openManutencoes('desc')"><span class="ni"><i class="ph-duotone ph-trash"></i></span><span class="nl">Descartes</span></button>
-        <button class="nav-item nav-manut" data-page="cont" data-menu="man_cont" onclick="openManutencoes('cont')"><span class="ni"><i class="ph-duotone ph-address-book"></i></span><span class="nl">Contatos</span></button>
+        <!-- 19/07 (Bianca): "deveria estar só EQUIPAMENTOS e quando entramos no painel
+             temos as outras opções" — os 5 itens viraram UM; Painel/Preventivas/Descartes/
+             Contatos ficam nas abas internas do app de Manutenções. -->
+        <button class="nav-item nav-manut" data-page="painel" data-menu="man_painel" onclick="openManutencoes('painel')"><span class="ni"><i class="ph-duotone ph-wrench"></i></span><span class="nl">Equipamentos</span></button>
       </div>
       <div class="sb-divider"></div>
       <div class="sb-section">
         <span class="sb-label">Documentos</span>
-        <a class="nav-item" data-menu="doc_vouchers" href="https://docs.google.com/spreadsheets/d/1yysbU4BXCkz3MkeYgAuvL4xMn1d_vigJF69CGKOd6pc/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-gift"></i></span><span class="nl">Vouchers</span><span class="na">↗</span></a>
-        <a class="nav-item" data-menu="doc_reservas" href="https://docs.google.com/spreadsheets/d/1PMdALLmCpkne3aK5GC8-Vgu2yEAY27lPHqCDwmLDDEg/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-confetti"></i></span><span class="nl">Reservas e Eventos</span><span class="na">↗</span></a>
-        <a class="nav-item" data-menu="doc_admissional" href="https://drive.google.com/file/d/1gw6i5pNNsn6693sCXCwV3mYXwdN6NOO7/view" target="_blank"><span class="ni"><i class="ph-duotone ph-file-text"></i></span><span class="nl">Ficha Admissional</span><span class="na">↗</span></a>
-        <a class="nav-item" data-menu="doc_alergenicos" href="https://docs.google.com/presentation/d/1jlRfMKjxwoiwye5fQfNH7EoChdtaOljT/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-warning"></i></span><span class="nl">Alergênicos</span><span class="na">↗</span></a>
-        <a class="nav-item" data-menu="doc_vinhos" href="https://www.canva.com/design/DAG1EHvh54o/j35XbjhitPxbNCSiWozm_Q/edit" target="_blank"><span class="ni"><i class="ph-duotone ph-wine"></i></span><span class="nl">Carta de Vinhos</span><span class="na">↗</span></a>
+        <!-- 19/07 (Bianca): os 5 links viraram o APP Documentos — página com todos os
+             links úteis e PDFs, cadastrados em portal_documentos (gerente+ edita).
+             data-menu-free = visível pra todo mundo. -->
+        <button class="nav-item" data-mod="documentos" data-menu-free="documentos" onclick="switchModule('documentos')"><span class="ni"><i class="ph-duotone ph-files"></i></span><span class="nl">Documentos</span></button>
       </div>
       
     </nav>
@@ -911,6 +909,7 @@
       <div class="module-panel" id="module-manutencoes"><iframe id="manutFrame" title="Manutenções" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-usuarios"></div>
       <div class="module-panel" id="module-rh"></div>
+      <div class="module-panel" id="module-documentos" style="overflow-y:auto"></div>
       <div class="module-panel" id="module-financeiro"><iframe id="finFrame" title="Financeiro" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-lolamac"><iframe id="lolamacFrame" title="Lola MAC" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-compras"></div>
@@ -1078,13 +1077,13 @@ var MENU_GROUPS=[
  {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]}, /* 19/07: Lista de Compras eliminada */
  {label:'Administração',items:[['lolamac','📈 Lola MAC']]}, /* 19/07: usuarios e rh saíram do menu — moram no /adm */
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['est_envios','📥 Envios da Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
- {label:'Manutenções',items:[['man_painel','📊 Painel'],['man_equip','🔧 Equipamentos'],['man_prev','📅 Preventivas'],['man_desc','🗑️ Descartes'],['man_cont','📇 Contatos']]},
- {label:'Documentos',items:[['doc_vouchers','🎁 Vouchers'],['doc_reservas','🎉 Reservas e Eventos'],['doc_admissional','📄 Ficha Admissional'],['doc_alergenicos','⚠️ Alergênicos'],['doc_vinhos','🍷 Carta de Vinhos']]}
+ {label:'Manutenções',items:[['man_painel','🔧 Equipamentos']]}, /* 19/07: item único — as outras telas são abas internas do app */
+ {label:'Documentos',items:[]} /* 19/07: virou o app Documentos (data-menu-free, todo mundo vê; cadastro em portal_documentos) */
 ];
 var ALL_MENU=[]; MENU_GROUPS.forEach(function(g){g.items.forEach(function(it){ALL_MENU.push(it[0]);});});
 function defaultMenu(role){
   if(role==='admin') return ALL_MENU.slice();
-  var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala','doc_vouchers','doc_reservas','doc_admissional','doc_alergenicos','doc_vinhos'];
+  var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala']; /* 19/07: doc_vouchers..doc_vinhos viraram o app Documentos (livre) */
   var est=['est_insumos','est_preproducoes','est_fichas','est_contagem','est_saidas','est_fornecedores','est_pedidos','est_envios'];
   var ger=['hortifruti','comprascartao','avaliacoes','loucas','inbox'];
   if(role==='gerente') return base.concat(est).concat(ger);
@@ -1119,6 +1118,7 @@ var HOME_APPS=[
     {m:'comprascartao', label:'Compras no Cartão', d:'Gastos no cartão corporativo', icon:'credit-card', col:'#2C7A4B', bg:'#E6F3EA'},
     {m:'est_pedidos', label:'Pedidos à Central', d:'Solicitações à Cozinha Central', icon:'shopping-cart', col:'#A8632C', bg:'#F7EBE2'},
     {m:'man_painel', label:'Manutenções', d:'Chamados e ordens de serviço', icon:'wrench', col:'#2C5AA0', bg:'#E6EEF8'},
+    {m:'documentos', label:'Documentos', d:'Links úteis e PDFs da casa', icon:'files', col:'#6B6258', bg:'#F1EEE9'},
     {m:'inbox', label:'Atendimento', d:'Conversas e canais dos clientes', icon:'chat-circle-dots', col:'#6B4FA8', bg:'#F0EAF7'},
     {m:'especiais', label:'Especiais do Dia', d:'Pratos e ofertas do dia', icon:'sparkle', col:'#7C1A1C', bg:'#F7E7E7'},
     {m:'avaliacoes', label:'Avaliações', d:'Avaliações da equipe', icon:'star', col:'#B8862B', bg:'#F7F0DD'} /* 19/07: Bianca moveu de Gestão pra Operação */
@@ -1269,6 +1269,7 @@ function switchModule(mod){ try{ applyCollapse(mod==='home'?userCollapsePref():t
   }
   if(mod==='usuarios' && typeof renderUsuarios==='function') renderUsuarios();
   if(mod==='rh' && typeof renderRH==='function') renderRH();
+  if(mod==='documentos' && typeof renderDocumentos==='function') renderDocumentos();
   if(mod==='hortifruti' && typeof renderHorti==='function') renderHorti();
   if(mod==='comprascartao' && typeof renderCartao==='function') renderCartao();
   if(mod==='avaliacoes' && typeof renderAvaliacoes==='function') renderAvaliacoes();
@@ -1479,6 +1480,70 @@ const ADM_ROLES=[['admin','Admin — vê tudo'],['gerente','Gerente'],['eventos'
 function admRoleSelect(id, cur){
   return '<select onchange="admSetRole(\''+id+'\',this.value)" style="font-size:.8rem;padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;background:#fff;color:var(--ink)">'+
     ADM_ROLES.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===cur?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+}
+/* ===== DOCUMENTOS (19/07, Bianca): "abre uma página com todos os links úteis e pdfs
+   que usamos". Cadastro em portal_documentos — todo mundo vê; gerente+ edita.
+   Os 5 links antigos da sidebar viraram o cadastro inicial. ===== */
+var __docsCache=null;
+function podeEditarDocs(){ try{ return (ROLE_LEVEL[window.__portalUser?.role]||0)>=(ROLE_LEVEL['gerente']||4); }catch(e){ return false; } }
+async function renderDocumentos(){
+  var panel=document.getElementById('module-documentos'); if(!panel) return;
+  panel.innerHTML='<div style="padding:26px;color:#8A7A72">Carregando documentos…</div>';
+  var docs=[];
+  try{
+    var r=await fetch(PORTAL_URL+'/rest/v1/portal_documentos?ativo=eq.true&order=grupo.asc,ordem.asc,titulo.asc',{headers:{apikey:PORTAL_KEY,Authorization:'Bearer '+PORTAL_KEY}});
+    docs=await r.json();
+  }catch(e){ panel.innerHTML='<div style="padding:26px;color:#B5302E">Erro ao carregar: '+e.message+'</div>'; return; }
+  __docsCache=docs;
+  var pode=podeEditarDocs();
+  var h='<div style="padding:22px 26px 60px;max-width:920px;margin:0 auto;width:100%">';
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><h2 style="font-family:\'Fraunces\',serif;font-weight:600;font-size:1.6rem;color:#A82A2A;margin:0">Documentos</h2>';
+  if(pode) h+='<button onclick="docNovo()" style="margin-left:auto;background:#A82A2A;color:#fff;border:none;border-radius:11px;padding:9px 16px;font:700 .82rem Manrope,sans-serif;cursor:pointer">＋ Adicionar</button>';
+  h+='</div><div style="font-size:.85rem;color:#8A7A72;margin-bottom:14px">Links úteis e PDFs da casa — planilhas, fichas e cartas num lugar só.'+(pode?' Você pode adicionar e editar.':'')+'</div>';
+  if(!docs.length) h+='<div style="padding:30px;text-align:center;color:#8A7A72">Nenhum documento cadastrado ainda.</div>';
+  var grupos=[]; docs.forEach(function(d){ var g=d.grupo||'Geral'; if(grupos.indexOf(g)<0) grupos.push(g); });
+  grupos.forEach(function(g){
+    h+='<div style="font:800 12px Manrope,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#b79a8e;margin:18px 2px 10px;display:flex;align-items:center;gap:12px">'+g+'<span style="flex:1;height:1px;background:#ece3d9"></span></div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px" class="docs-grid">';
+    docs.filter(function(d){return (d.grupo||'Geral')===g;}).forEach(function(d){
+      h+='<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #ece3d9;border-radius:14px;padding:12px 14px;box-shadow:0 1px 2px rgba(42,26,23,.05)">'
+        +'<span style="width:40px;height:40px;border-radius:12px;background:#FBEDE3;color:#A82A2A;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0"><i class="ph-duotone ph-'+(d.icone||'file-text')+'"></i></span>'
+        +'<a href="'+d.url+'" target="_blank" rel="noopener" style="flex:1;min-width:0;font:700 14px Manrope,sans-serif;color:#2a1a17;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+d.titulo+' <span style="color:#c7b8ac">↗</span></a>'
+        +(pode?'<button onclick="docEditar(\''+d.id+'\')" title="Editar" style="background:none;border:none;color:#8A7A72;cursor:pointer;font-size:15px;padding:4px;flex-shrink:0"><i class="ph-duotone ph-pencil-simple"></i></button>'
+          +'<button onclick="docRemover(\''+d.id+'\')" title="Remover" style="background:none;border:none;color:#B5302E;cursor:pointer;font-size:15px;padding:4px;flex-shrink:0"><i class="ph-duotone ph-trash"></i></button>':'')
+        +'</div>';
+    });
+    h+='</div>';
+  });
+  h+='<style>@media(max-width:640px){.docs-grid{grid-template-columns:1fr!important}}</style></div>';
+  panel.innerHTML=h;
+}
+async function docNovo(){
+  var titulo=prompt('Nome do documento:'); if(!titulo) return;
+  var url=prompt('Link (URL completa, começando com https://):'); if(!url) return;
+  var grupo=prompt('Grupo (ex.: Planilhas, RH, Cozinha, Salão, Geral):','Geral')||'Geral';
+  try{
+    await fetch(PORTAL_URL+'/rest/v1/portal_documentos',{method:'POST',headers:{apikey:PORTAL_KEY,Authorization:'Bearer '+PORTAL_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({titulo:titulo,url:url,grupo:grupo,criado_por:(window.__portalUser&&window.__portalUser.name)||null})});
+    renderDocumentos();
+  }catch(e){ alert('Erro: '+e.message); }
+}
+async function docEditar(id){
+  var d=(__docsCache||[]).find(function(x){return x.id===id;}); if(!d) return;
+  var titulo=prompt('Nome:',d.titulo); if(!titulo) return;
+  var url=prompt('Link:',d.url); if(!url) return;
+  var grupo=prompt('Grupo:',d.grupo||'Geral')||'Geral';
+  try{
+    await fetch(PORTAL_URL+'/rest/v1/portal_documentos?id=eq.'+id,{method:'PATCH',headers:{apikey:PORTAL_KEY,Authorization:'Bearer '+PORTAL_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({titulo:titulo,url:url,grupo:grupo})});
+    renderDocumentos();
+  }catch(e){ alert('Erro: '+e.message); }
+}
+async function docRemover(id){
+  var d=(__docsCache||[]).find(function(x){return x.id===id;}); if(!d) return;
+  if(!confirm('Tirar "'+d.titulo+'" da página Documentos?')) return;
+  try{
+    await fetch(PORTAL_URL+'/rest/v1/portal_documentos?id=eq.'+id,{method:'PATCH',headers:{apikey:PORTAL_KEY,Authorization:'Bearer '+PORTAL_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({ativo:false})});
+    renderDocumentos();
+  }catch(e){ alert('Erro: '+e.message); }
 }
 async function renderUsuarios(){
   const panel=document.getElementById('module-usuarios');
