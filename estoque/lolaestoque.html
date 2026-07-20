@@ -1827,17 +1827,17 @@ async function modalPrep(item){
        e depois ver quanto fica o preço do kg OU da unidade — da unidade de medida
        escolhida". O resumo gira em torno do rendimento como a pessoa declara, e o
        custo/preço sai NAQUELA unidade. Mesmas CONTAS de sempre. */
+    /* 20/07 (Bianca, 3ª rodada): "não precisa a soma dos ingredientes; custo da
+       produção sim, quanto rendeu sim, e o custo por unidade OU por quilo conforme
+       o que colocamos ali em cima". Só as 4 linhas que importam, na unidade escolhida. */
     (function(){
       const temPorc=!!numPorcoes2;
       const unPorc=f.porcao_un||f.rendimento_un||'g';
-      let h2=somaIngredientesHTML(ings)
-        +'<div class="fl_ jb mb3"><span>Custo da produção</span><strong class="tv">'+R(ct)+'</strong></div>';
+      let h2='<div class="fl_ jb mb3"><span>Custo da produção</span><strong class="tv">'+R(ct)+'</strong></div>';
       if(temPorc){
         h2+='<div class="fl_ jb mb3"><span>Rendeu</span><strong>'+numPorcoes2.toFixed(1)+' unidade'+(numPorcoes2>=2?'s':'')+' de '+N(f.porcao_qtd,0)+' '+unPorc+' <small style="font-weight:600;color:var(--ts)">('+N(qtd,0)+' '+f.rendimento_un+' no total)</small></strong></div>'
           +'<div class="fl_ jb mb3"><span>Custo por unidade</span><strong class="tv">'+R(custoPorcao2)+'</strong></div>'
-          +'<div class="fl_ jb mb3"><span>Preço por unidade com margem ('+m+'% CMV)</span><strong>'+R(custoPorcao2/(m/100))+'</strong></div>'
-          +'<div class="fl_ jb mb3" style="font-size:12px;color:var(--ts)"><span>Custo por '+unBase+'</span><strong>'+R(f.custo_por_unidade)+'</strong></div>'
-          +'<div class="fl_ jb" style="font-size:12px;color:var(--ts)"><span>Preço do '+unBase+' com margem ('+m+'% CMV)</span><strong>'+R(f.valor_venda_central)+'</strong></div>';
+          +'<div class="fl_ jb"><span>Preço por unidade com margem ('+m+'% CMV)</span><strong>'+R(custoPorcao2/(m/100))+'</strong></div>';
       } else {
         h2+='<div class="fl_ jb mb3"><span>Rendeu</span><strong>'+N(qtd,0)+' '+f.rendimento_un+'</strong></div>'
           +'<div class="fl_ jb mb3"><span>Custo por '+unBase+'</span><strong class="tv">'+R(f.custo_por_unidade)+'</strong></div>'
