@@ -34,6 +34,16 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .tabs button i{font-size:18px}
 .tabs button .cnt{font-size:11px;background:var(--urgBg);color:var(--urgFg);border-radius:999px;padding:1px 7px;font-weight:800}
 .tabs button.on .cnt{background:rgba(255,255,255,.24);color:#fff}
+/* 20/07 (Bianca): "esse menu ficou ruim, nada intuitivo - tem que ser mais colorido" —
+   cada aba tem a SUA cor: fundo pastel + ícone colorido no repouso, cor sólida quando ativa. */
+#tabIni{--tc:#A82A2A;--tb:#FBEDEC} #tabEnt{--tc:#2C5AA0;--tb:#E6EEF8} #tabPed{--tc:#C4622D;--tb:#FBEDE3}
+#tabSal{--tc:#2C7A4B;--tb:#E6F3EA} #tabCmp{--tc:#1F7A6B;--tb:#E2F0EC} #tabProd{--tc:#7A4FA3;--tb:#EFE7F6}
+#tabPz{--tc:#B8862B;--tb:#F7F0DD} #tabPerd{--tc:#B5302E;--tb:#FBEAE7} #tabRec{--tc:#9A3B6B;--tb:#F6E7EF}
+#tabEnv{--tc:#9A6B1E;--tb:#FBF0DD} #tabAl{--tc:#E07B00;--tb:#FDF0E0}
+.tabs>button{background:var(--tb,var(--card));border-color:var(--tb,var(--border));color:var(--sec)}
+.tabs>button i{color:var(--tc,var(--vinho))}
+.tabs>button.on{background:var(--tc,var(--vinho));border-color:var(--tc,var(--vinho));color:#fff}
+.tabs>button.on i{color:#fff}
 
 .note{background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sec);margin-bottom:16px;overflow-wrap:anywhere}
 .monthsel{display:flex;align-items:center;gap:10px;margin:2px 0 12px}
