@@ -99,6 +99,16 @@ a.app .t span.lock i{font-size:13px;line-height:1}
        coisas pras sócias". Os dois cards viraram o atalho azul lá embaixo.
        O Painel continua escondido, como já estava aqui. -->
 
+  <a class="app" href="vendas/" id="cardVendas" style="display:none">
+    <span class="ico"><i class="ph-duotone ph-wine"></i></span>
+    <span class="t">
+      <b>Vendas CCMQ</b>
+      <span>Venda do dia, pax e percapta — importado do Bitbar todo dia de manhã</span>
+      <span class="lock"><i class="ph-duotone ph-lock-key"></i> acesso restrito</span>
+    </span>
+    <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
+  </a>
+
   <a class="app" href="financeiro/" id="cardFin" style="display:none">
     <span class="ico"><i class="ph-duotone ph-chart-line-up"></i></span>
     <span class="t">
@@ -152,7 +162,7 @@ const $=s=>document.querySelector(s);
 (async()=>{
   const sess=await lolaGate({titulo:'Área administrativa'});
   $('#quem').innerHTML=`Você é <b>${sess.nome||sess.email}</b> · ${PAPEL_NOME[sess.papel]||sess.papel}`;
-  if(sess.papel==='admin'||sess.papel==='financeiro') $('#cardFin').style.display='flex';
+  if(sess.papel==='admin'||sess.papel==='financeiro'){ $('#cardFin').style.display='flex'; $('#cardVendas').style.display='flex'; }
   if(sess.papel==='admin'||sess.papel==='gerente') $('#cardEvf').style.display='flex';
   /* Usuários e RH: SÓ ADMIN (decisão da Bianca, 19/07) */
   if(sess.papel==='admin'){ $('#cardUsu').style.display='flex'; $('#cardRH').style.display='flex'; }
