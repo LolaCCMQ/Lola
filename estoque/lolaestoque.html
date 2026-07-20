@@ -2035,7 +2035,9 @@ async function modalPrep(item){
       fgrp('Categoria',fsel('',['central','mac','ccmq'],f.categoria,v=>f.categoria=v)),
       fgrp('✍️ Editado por',nomeEdit),
     ]),
-    fgrp('🏷️ Onde é utilizado',destBtnsWrap),
+    /* 20/07 (Bianca): "essa informação de ONDE é UTILIZADO podemos excluir" —
+       a linha de chips (CCMQ/MAC/Central/Eventos + Pré-preparo) saiu da tela.
+       destinos e e_preparo continuam sendo gravados com o valor que já tinham. */
     div('fg2',[
       fgrp('Rendimento total',rendWidget),
       fgrp('Margem venda central',margWidget),
@@ -4928,8 +4930,18 @@ async function verDivergencias(p,divs,data,resp){
    • Margem: custo/(m/100), a MESMA fórmula do editor da pré-produção. */
 function _ppBulk(x){ return ['g','ml','kg','L'].includes(x.rendimento_un||'un'); }
 function _ppPorcao(x){
-  const pq=parseFloat(x.porcao_qtd)||0, pu=x.porcao_un||'';
-  return (_ppBulk(x) && pq>0 && pu && pu!==(x.rendimento_un||'un')) ? pq : 0;
+  /* 20/07: modelo novo "Vendido em → Por unidade" grava porcao_un IGUAL ao rendimento,
+     e dados antigos vêm com porcao_un null — a regra antiga (exigia unidade DIFERENTE)
+     escondia o preço por unidade desses PPs. Agora: rendimento a granel + porção > 0
+     = vende por unidade. Porção em g/ml com rendimento em kg/L é convertida; porção
+     MAIOR que o rendimento = dado inválido, cai pro preço a granel. */
+  const rq=parseFloat(x.rendimento_qtd)||0, ru=x.rendimento_un||'un';
+  let pq=parseFloat(x.porcao_qtd)||0; const pu=x.porcao_un||'';
+  if(!_ppBulk(x)||pq<=0) return 0;
+  if((ru==='kg'||ru==='L')&&(pu==='g'||pu==='ml'||(!pu&&rq>0&&pq>rq))) pq=pq/1000;
+  if((ru==='g'||ru==='ml')&&(pu==='kg'||pu==='L')) pq=pq*1000;
+  if(rq>0&&pq>rq) return 0;
+  return pq;
 }
 function ppPreco(x){
   const pq=_ppPorcao(x);
@@ -4941,7 +4953,11 @@ function ppPreco(x){
 }
 function ppUnidade(x){
   const ru=x.rendimento_un||'un';
-  if(_ppPorcao(x)>0) return (x.porcao_un==='un')?'porção':x.porcao_un;
+  if(_ppPorcao(x)>0){
+    const pu=x.porcao_un||'';
+    if(!pu||pu===ru) return 'un';            // modelo novo: vendido por unidade
+    return (pu==='un')?'porção':pu;          // legado: porção com unidade própria
+  }
   return ru==='g'?'kg':ru==='ml'?'L':ru;
 }
 function ppInfo(x){
