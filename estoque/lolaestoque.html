@@ -1975,6 +1975,60 @@ async function modalPrep(item){
   paintPre();
   destBtnsWrap.appendChild(preBtn);
 
+  /* 20/07 (Bianca): "o rendimento total deveria ser um campo bem menor com a unidade
+     do ladinho; daí dizer se o produto é vendido em grama ou em UNIDADE; se for
+     unidade, quantas gramas tem cada uma — e o preço já sai pela unidade. Tem que
+     simplificar, está muito difícil de entender." MESMOS campos por trás
+     (rendimento_qtd/un, porcao_qtd/un, margem_venda) — e a unidade da porção agora
+     é AUTOMÁTICA (= a do rendimento): um select a menos e o "null" de antes morre. */
+  let _vendPaint=function(){};
+  const rendWidget=(function(){
+    const w=document.createElement('div');
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px';
+    rendInp=finp('',f.rendimento_qtd,v=>{f.rendimento_qtd=v;f._rendManual=true;calcTotais();},'number');
+    rendInp.style.flex='1'; rendInp.style.minWidth='0';
+    const unSel=fsel('',['g','ml','kg','L','un'],(f.rendimento_un==='porção'?'un':(f.rendimento_un||'g')),v=>{f.rendimento_un=v; if(parseFloat(f.porcao_qtd)>0) f.porcao_un=v; _vendPaint(); calcTotais();});
+    unSel.style.cssText='flex:0 0 86px;width:86px';
+    row.appendChild(rendInp); row.appendChild(unSel); w.appendChild(row);
+    w.appendChild(el('button','btn bg bsm','= soma dos ingredientes',{type:'button',style:'margin-top:6px;display:block',onclick:()=>{f._rendManual=false;f.rendimento_qtd=Math.round(sumInRendUn()*1000)/1000;rendInp.value=f.rendimento_qtd;calcTotais();}}));
+    return w;
+  })();
+  const vendWidget=(function(){
+    const w=document.createElement('div');
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
+    let vendUn=parseFloat(f.porcao_qtd)>0;
+    const bG=document.createElement('button'); bG.type='button';
+    const bU=document.createElement('button'); bU.type='button';
+    const porcWrap=document.createElement('div'); porcWrap.style.cssText='display:none;gap:8px;align-items:center';
+    porcWrap.appendChild(el('span',null,'cada unidade tem',{style:'font-size:12.5px;color:var(--ts);font-weight:600;white-space:nowrap'}));
+    const porcInp=finp('',f.porcao_qtd||'',v=>{f.porcao_qtd=v; f.porcao_un=(f.rendimento_un==='porção'?'un':f.rendimento_un); calcTotais();},'number');
+    porcInp.placeholder='ex.: 186'; porcInp.style.cssText='width:110px';
+    const porcUnLbl=document.createElement('span'); porcUnLbl.style.cssText='font-size:12.5px;font-weight:800;color:var(--tx)';
+    porcWrap.appendChild(porcInp); porcWrap.appendChild(porcUnLbl);
+    function paint(){
+      const on='padding:8px 16px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;background:#A82A2A;color:#fff;border:1.5px solid #A82A2A';
+      const off='padding:8px 16px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;background:#fff;color:#5A463E;border:1.5px solid var(--border)';
+      const u=(f.rendimento_un==='porção'?'un':(f.rendimento_un||'g'));
+      bG.style.cssText=vendUn?off:on; bU.style.cssText=vendUn?on:off;
+      bG.textContent=(vendUn?'':'✓ ')+'A granel (por '+(u==='g'?'kg':u==='ml'?'L':u)+')';
+      bU.textContent=(vendUn?'✓ ':'')+'Por unidade';
+      porcWrap.style.display=vendUn?'flex':'none';
+      porcUnLbl.textContent=u;
+    }
+    bG.onclick=function(){ vendUn=false; f.porcao_qtd=null; f.porcao_un=null; porcInp.value=''; paint(); calcTotais(); };
+    bU.onclick=function(){ vendUn=true; f.porcao_un=(f.rendimento_un==='porção'?'un':f.rendimento_un); paint(); calcTotais(); setTimeout(function(){porcInp.focus();},50); };
+    _vendPaint=paint; paint();
+    row.appendChild(bG); row.appendChild(bU); row.appendChild(porcWrap);
+    w.appendChild(row);
+    return w;
+  })();
+  const margWidget=el('div',null,[
+    fsel('',['30','40','50','60','70','personalizado'],String(f.margem_venda),v=>{
+      if(v==='personalizado'){margInp.style.display='block';}
+      else{margInp.style.display='none';f.margem_venda=parseFloat(v);calcTotais();}
+    }),
+    (()=>{margInp=finp('',f.margem_venda,v=>{f.margem_venda=parseFloat(v)||70;calcTotais();},'number');margInp.placeholder='% personalizado';margInp.style.display=['30','40','50','60','70'].includes(String(f.margem_venda))?'none':'block';margInp.style.marginTop='6px';return margInp;})()
+  ]);
   mkModal((ed?'Editar':'Nova')+' pré-produção',[
     div('fg3',[
       fgrp('Nome',finp('',f.nome,v=>f.nome=v)),
@@ -1983,20 +2037,10 @@ async function modalPrep(item){
     ]),
     fgrp('🏷️ Onde é utilizado',destBtnsWrap),
     div('fg2',[
-      fgrp('Rendimento total',el('div',null,[(rendInp=finp('',f.rendimento_qtd,v=>{f.rendimento_qtd=v;f._rendManual=true;calcTotais();},'number')),el('button','btn bg bsm','= soma dos ingredientes',{type:'button',style:'margin-top:6px;display:block',onclick:()=>{f._rendManual=false;f.rendimento_qtd=Math.round(sumInRendUn()*1000)/1000;rendInp.value=f.rendimento_qtd;calcTotais();}})])),
-      fgrp('Unidade',fsel('',['g','ml','kg','L','un','porção'],f.rendimento_un,v=>{f.rendimento_un=v;calcTotais();})),
+      fgrp('Rendimento total',rendWidget),
+      fgrp('Margem venda central',margWidget),
     ]),
-    div('fg3',[
-      fgrp('Qtd por porção',finp('',f.porcao_qtd||'',v=>{f.porcao_qtd=v;calcTotais();},'number')),
-      fgrp('Unidade porção',fsel('',['g','ml','kg','L','un','porção'],f.porcao_un||f.rendimento_un,v=>f.porcao_un=v)),
-      fgrp('Margem venda central',el('div',null,[
-        fsel('',['30','40','50','60','70','personalizado'],String(f.margem_venda),v=>{
-          if(v==='personalizado'){margInp.style.display='block';}
-          else{margInp.style.display='none';f.margem_venda=parseFloat(v);calcTotais();}
-        }),
-        (()=>{margInp=finp('',f.margem_venda,v=>{f.margem_venda=parseFloat(v)||70;calcTotais();},'number');margInp.placeholder='% personalizado';margInp.style.display=['30','40','50','60','70'].includes(String(f.margem_venda))?'none':'block';margInp.style.marginTop='6px';return margInp;})()
-      ])),
-    ]),
+    fgrp('🏷️ Vendido em',vendWidget),
     el('hr','dv'),
     div('fl_ jb aic mb3',[
       el('strong',null,'Ingredientes',{style:'font-size:13px'}),
