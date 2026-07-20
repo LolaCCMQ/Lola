@@ -1,1 +1,4 @@
-deploy kick 2026-07-09 b — destravar fila do Pages (financeiro: imprimir conferência do dia)
+gatilho de deploy — pode apagar (03/07/2026)
+novo gatilho 04/07/2026
+gatilho 04/07 12h40
+gatilho 19/07 — destravar build retido (7810c80, Escala tela cheia)
