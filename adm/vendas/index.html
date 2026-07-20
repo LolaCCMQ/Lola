@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Vendas CCMQ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#A82A2A; --vinhoH:#7E1E1F;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --r-btn:13px; --r-card:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px 64px}
+
+.apphead{display:flex;align-items:center;gap:10px;padding:16px 0 14px;border-bottom:1px solid var(--fio)}
+.apphead .back{font-size:20px;color:var(--sec);text-decoration:none;display:flex}
+.apphead h1{font-family:Fraunces,serif;font-weight:600;font-size:19px;color:var(--vinho)}
+.pill-un{margin-left:auto;font-size:11px;font-weight:700;background:#FBE4E0;color:#C0392B;border-radius:9px;padding:3px 10px}
+
+.lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin:32px 0 10px}
+
+.dia-nav{display:flex;align-items:center;justify-content:space-between;margin:20px 0 4px;color:var(--sec);font-size:13.5px}
+.dia-nav b{font-weight:700;color:var(--ink)}
+.dia-nav button{background:none;border:0;color:var(--mut);font-size:18px;padding:8px 14px;cursor:pointer;font-family:inherit}
+.dia-nav button:disabled{opacity:.25;cursor:default}
+
+.centro{text-align:center}
+.big{font-family:Fraunces,serif;font-weight:600;font-size:44px;color:var(--ink);letter-spacing:-.01em;margin-top:6px}
+.big small{font-size:19px;color:var(--mut);font-family:'Manrope',sans-serif;font-weight:400}
+.big-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin-top:2px}
+
+.linha-kpis{display:flex;margin:20px 0 0;border-top:1px solid var(--fio)}
+.kpi{flex:1;padding:12px 4px 0;text-align:center}
+.kpi + .kpi{border-left:1px solid var(--fio)}
+.kpi .v{font-family:Fraunces,serif;font-weight:600;font-size:19px}
+.kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl);font-weight:600;margin-top:1px}
+.kpi.editavel{cursor:pointer}
+.kpi.editavel .v{color:var(--vinho)}
+.kpi .lapis{font-size:11px;color:var(--lbl)}
+.kpi .ref{display:block;font-size:9.5px;color:var(--mut);margin-top:2px}
+.meta-linha{margin-top:16px;font-size:12.5px;color:var(--mut);text-align:center}
+
+.mes-list{border-top:1px solid var(--fio)}
+.dia-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--fio);font-size:12.5px;cursor:pointer}
+.dia-row .d{width:64px;color:var(--sec);white-space:nowrap}
+.dia-row .bar{flex:1;height:7px;border-radius:4px;background:var(--cremeDark);position:relative;overflow:hidden}
+.dia-row .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:#D9B8AE}
+.dia-row.sel .bar i{background:var(--vinho)}
+.dia-row.sel .d,.dia-row.sel .v{font-weight:700;color:var(--ink)}
+.dia-row .v{width:58px;text-align:right;color:var(--sec)}
+.mes-tot{display:flex;justify-content:space-between;padding:10px 0 0;font-size:12.5px;color:var(--sec)}
+.mes-tot b{font-weight:700;color:var(--ink)}
+
+.prod{display:flex;align-items:baseline;gap:10px;padding:10px 0;border-bottom:1px solid var(--fio)}
+.prod .n{font-weight:600;font-size:13.5px;flex:1;min-width:0}
+.prod .q{font-size:11.5px;color:var(--mut);white-space:nowrap}
+.prod .val{font-family:Fraunces,serif;font-weight:600;font-size:14.5px;white-space:nowrap}
+
+.canc-head{display:flex;align-items:baseline;gap:8px}
+.canc-chip{font-size:11px;font-weight:600;background:#FBEAE7;color:#B5302E;border-radius:9px;padding:3px 10px}
+.canc{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid var(--fio);font-size:13px}
+.canc .n{flex:1;min-width:0}
+.canc .m{font-size:11.5px;color:var(--mut);font-style:italic}
+.canc .q{font-weight:700;color:#B5302E;white-space:nowrap}
+.sem{padding:14px 0;font-size:12.5px;color:var(--mut)}
+
+.cta{display:block;width:100%;margin-top:36px;background:var(--vinho);color:#fff;border:none;border-radius:var(--r-btn);min-height:44px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.cta:active{background:var(--vinhoH)}
+
+.grupo-lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:600;margin:22px 0 4px}
+
+.sheet-bg{position:fixed;inset:0;background:rgba(42,26,23,.35);display:none;z-index:50}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:20px 16px 28px;max-width:560px;margin:0 auto;display:none;z-index:51}
+.sheet h3{font-family:Fraunces,serif;font-weight:600;font-size:17px;color:var(--vinho);margin-bottom:4px}
+.sheet p{font-size:12.5px;color:var(--sec);margin-bottom:14px}
+.sheet input{width:100%;border:1px solid var(--border);border-radius:var(--r-btn);min-height:48px;padding:0 14px;font-size:19px;font-family:Fraunces,serif;font-weight:600;color:var(--ink);background:var(--creme)}
+.sheet .acts{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.sheet .acts button{flex:1;min-height:44px;border-radius:var(--r-btn);font-size:14px;font-weight:600;font-family:inherit;border:1px solid var(--border);background:#fff;color:var(--sec);cursor:pointer}
+.sheet .acts button.ok{background:var(--vinho);color:#fff;border:none;font-weight:700}
+.sheet .usar-bitbar{display:block;margin:12px auto 0;background:none;border:0;color:var(--mut);font:inherit;font-size:12.5px;font-weight:600;text-decoration:underline;cursor:pointer}
+.sheet .who{font-size:11px;color:var(--lbl);margin-top:12px;text-align:center}
+
+.carregando{padding:60px 0;text-align:center;color:var(--mut);font-size:13px}
+.erro{padding:40px 16px;text-align:center;color:#B5302E;font-size:13px;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="apphead">
+    <a class="back" href="/adm/"><i class="ph-duotone ph-caret-left"></i></a>
+    <h1>Vendas</h1>
+    <span class="pill-un">CCMQ</span>
+  </div>
+
+  <div id="conteudo"><div class="carregando">Carregando as vendas…</div></div>
+</div>
+
+<div class="sheet-bg" id="sheetBg" onclick="fecharPax()"></div>
+<div class="sheet" id="sheetPax">
+  <h3>Ajustar PAX do dia</h3>
+  <p id="paxTexto"></p>
+  <input type="number" id="paxInput" inputmode="numeric" min="1">
+  <div class="acts">
+    <button type="button" onclick="fecharPax()">Cancelar</button>
+    <button type="button" class="ok" onclick="salvarPax()">Salvar</button>
+  </div>
+  <button type="button" class="usar-bitbar" id="btnUsarBitbar" onclick="salvarPax(true)">Voltar a usar a contagem do Bitbar</button>
+  <div class="who" id="paxWho"></div>
+</div>
+
+<script src="/adm/auth.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const REST=SB_URL+'/rest/v1';
+const UN='CCMQ';
+
+let SESS=null, DIAS=[], IDX=0, PRODS_CACHE={}, VER_TODOS=false;
+
+const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const SEMANA=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const SEM3=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+function dt(iso){ return new Date(iso+'T12:00:00'); }
+function real(v){ return Math.round(Number(v)||0).toLocaleString('pt-BR'); }
+function dec(v,c){ return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:c==null?2:c,maximumFractionDigits:c==null?2:c}); }
+function paxOficial(d){ return d.pax_ajustado!=null ? Number(d.pax_ajustado) : Number(d.pax)||0; }
+function percapta(d){ const p=paxOficial(d); return p>0 ? Number(d.venda_produtos)/p : 0; }
+
+async function api(path,opt){
+  const r=await fetch(REST+path, Object.assign({headers:lolaHeaders(opt&&opt.body?{Prefer:'return=representation'}:{})},opt||{}));
+  if(!r.ok) throw new Error('Banco respondeu '+r.status);
+  return r.status===204?null:r.json();
+}
+
+async function carregar(){
+  DIAS=await api(`/lola_bitbar_dias?unidade=eq.${UN}&select=*&order=data.desc&limit=400`);
+  if(!DIAS.length){ $('#conteudo').innerHTML='<div class="sem" style="text-align:center;padding:60px 0">Ainda não tem nenhum dia importado do Bitbar.</div>'; return; }
+  IDX=0; VER_TODOS=false;
+  render();
+}
+
+async function prodsDoDia(data){
+  if(PRODS_CACHE[data]) return PRODS_CACHE[data];
+  const p=await api(`/lola_bitbar_produtos?unidade=eq.${UN}&data=eq.${data}&select=cod,produto,grupo,qtde,valor,qtde_cortesia,qtde_cancelada,motivo_cancel,qtde_liquida&order=valor.desc`);
+  PRODS_CACHE[data]=p; return p;
+}
+
+async function render(){
+  const d=DIAS[IDX], dj=dt(d.data);
+  const pax=paxOficial(d), perc=percapta(d), ajustado=d.pax_ajustado!=null;
+
+  /* dias do mesmo mês da data selecionada (em ordem crescente) */
+  const mesSel=d.data.slice(0,7);
+  const doMes=DIAS.filter(x=>x.data.slice(0,7)===mesSel).slice().reverse();
+  const maxV=Math.max(...doMes.map(x=>Number(x.venda_produtos)||0),1);
+  const somaMes=doMes.reduce((s,x)=>s+(Number(x.venda_produtos)||0),0);
+  const mediaMes=somaMes/doMes.length;
+
+  let html=`
+    <div class="dia-nav">
+      <button id="btAnt" ${IDX>=DIAS.length-1?'disabled':''}>‹</button>
+      <b>${SEMANA[dj.getDay()]} · ${dj.getDate()} de ${MESES[dj.getMonth()]}</b>
+      <button id="btProx" ${IDX<=0?'disabled':''}>›</button>
+    </div>
+    <div class="centro">
+      <div class="big"><small>R$</small> ${real(d.venda_produtos)}</div>
+      <div class="big-label">Venda de produtos · sem serviço</div>
+    </div>
+    <div class="linha-kpis">
+      <div class="kpi editavel" onclick="abrirPax()">
+        <div class="v">${pax||'—'} <span class="lapis"><i class="ph-duotone ph-pencil-simple"></i></span></div>
+        <div class="l">pax</div>
+        <span class="ref">${ajustado?('ajustado · bitbar: '+(d.pax??'—')):('bitbar: '+(d.pax??'—'))}</span>
+      </div>
+      <div class="kpi"><div class="v">${perc?dec(perc):'—'}</div><div class="l">percapta</div></div>
+      <div class="kpi"><div class="v">${dec(d.qtde_itens_liquida,0)}</div><div class="l">itens líquidos</div></div>
+    </div>
+    <div class="meta-linha">${[d.clima, d.servico!=null?('serviço R$ '+real(d.servico)):null, d.cort_promo!=null?('cortesias/promo R$ '+real(d.cort_promo)):null].filter(Boolean).join(' · ')}</div>
+
+    <div class="lbl">${MESES[dj.getMonth()].charAt(0).toUpperCase()+MESES[dj.getMonth()].slice(1)} até agora</div>
+    <div class="mes-list">
+      ${doMes.map(x=>{ const xd=dt(x.data), w=Math.round((Number(x.venda_produtos)||0)/maxV*100);
+        return `<div class="dia-row ${x.data===d.data?'sel':''}" data-dia="${x.data}">
+          <span class="d">${SEM3[xd.getDay()]} ${String(xd.getDate()).padStart(2,'0')}</span>
+          <span class="bar"><i style="width:${w}%"></i></span>
+          <span class="v">${real(x.venda_produtos)}</span></div>`; }).join('')}
+    </div>
+    <div class="mes-tot"><span>${doMes.length} dias · média ${real(mediaMes)}</span><b>R$ ${real(somaMes)}</b></div>
+
+    <div id="blocoProdutos"><div class="carregando">Carregando os produtos…</div></div>`;
+
+  $('#conteudo').innerHTML=html;
+  $('#btAnt').onclick=()=>{ if(IDX<DIAS.length-1){ IDX++; VER_TODOS=false; render(); } };
+  $('#btProx').onclick=()=>{ if(IDX>0){ IDX--; VER_TODOS=false; render(); } };
+  document.querySelectorAll('.dia-row').forEach(r=>r.onclick=()=>{ const i=DIAS.findIndex(x=>x.data===r.dataset.dia); if(i>=0){ IDX=i; VER_TODOS=false; render(); } });
+
+  try{ renderProdutos(d, await prodsDoDia(d.data)); }
+  catch(e){ $('#blocoProdutos').innerHTML='<div class="erro">Não consegui carregar os produtos: '+e.message+'</div>'; }
+}
+
+function renderProdutos(d, prods){
+  const canc=prods.filter(p=>Number(p.qtde_cancelada)>0);
+  const totCanc=d.qtde_cancelados!=null?Number(d.qtde_cancelados):canc.reduce((s,p)=>s+Number(p.qtde_cancelada),0);
+  let html='';
+
+  if(!VER_TODOS){
+    const top=prods.slice(0,6);
+    html+='<div class="lbl">Mais vendidos do dia</div><div>'+
+      top.map(p=>`<div class="prod"><span class="n">${p.produto}</span><span class="q">${dec(p.qtde,Number.isInteger(Number(p.qtde))?0:2)} un</span><span class="val">R$ ${real(p.valor)}</span></div>`).join('')+'</div>';
+  }else{
+    html+='<div class="lbl">Todos os produtos do dia · '+prods.length+'</div>';
+    const grupos={};
+    prods.forEach(p=>{ (grupos[p.grupo]=grupos[p.grupo]||[]).push(p); });
+    Object.keys(grupos).sort((a,b)=>{
+      const sv=g=>grupos[g].reduce((s,p)=>s+Number(p.valor),0); return sv(b)-sv(a); })
+      .forEach(g=>{
+        const nome=g.replace(/^\d+\s*-\s*/,'');
+        const soma=grupos[g].reduce((s,p)=>s+Number(p.valor),0);
+        html+=`<div class="grupo-lbl">${nome} · R$ ${real(soma)}</div>`+
+          grupos[g].map(p=>`<div class="prod"><span class="n">${p.produto}</span><span class="q">${dec(p.qtde,Number.isInteger(Number(p.qtde))?0:2)} un</span><span class="val">R$ ${real(p.valor)}</span></div>`).join('');
+      });
+  }
+
+  html+='<div class="lbl canc-head">Cancelados do dia '+(totCanc?`<span class="canc-chip">${dec(totCanc,Number.isInteger(totCanc)?0:1)} itens</span>`:'')+'</div>';
+  html+= canc.length
+    ? '<div>'+canc.map(p=>`<div class="canc"><span class="n">${p.produto}${p.motivo_cancel?` <span class="m">— ${p.motivo_cancel}</span>`:''}</span><span class="q">${dec(p.qtde_cancelada,Number.isInteger(Number(p.qtde_cancelada))?0:1)}</span></div>`).join('')+'</div>'
+    : '<div class="sem">Nenhum cancelamento nesse dia.</div>';
+
+  html+=`<button class="cta" onclick="VER_TODOS=${VER_TODOS?'false':'true'};renderProdutos(DIAS[IDX],PRODS_CACHE[DIAS[IDX].data])">${VER_TODOS?'Mostrar só os mais vendidos':'Ver todos os produtos do dia'}</button>`;
+  $('#blocoProdutos').innerHTML=html;
+}
+
+/* ---------- PAX ---------- */
+function abrirPax(){
+  const d=DIAS[IDX];
+  $('#paxTexto').innerHTML=`O Bitbar contou <b>${d.pax??'—'}</b>. Informe a contagem oficial da equipe — a percapta recalcula sozinha e o valor do Bitbar fica guardado como referência.`;
+  $('#paxInput').value=paxOficial(d)||'';
+  $('#btnUsarBitbar').style.display = d.pax_ajustado!=null ? 'block' : 'none';
+  $('#paxWho').textContent = d.pax_ajustado!=null && d.pax_ajustado_por ? `Último ajuste: ${d.pax_ajustado_por}` : '';
+  $('#sheetBg').style.display='block'; $('#sheetPax').style.display='block';
+  $('#paxInput').focus();
+}
+function fecharPax(){ $('#sheetBg').style.display='none'; $('#sheetPax').style.display='none'; }
+async function salvarPax(limpar){
+  const d=DIAS[IDX];
+  let body;
+  if(limpar){ body={pax_ajustado:null, pax_ajustado_por:null, pax_ajustado_em:null}; }
+  else{
+    const p=parseInt($('#paxInput').value,10);
+    if(!p||p<1){ fecharPax(); return; }
+    if(p===Number(d.pax)){ body={pax_ajustado:null, pax_ajustado_por:null, pax_ajustado_em:null}; }
+    else body={pax_ajustado:p, pax_ajustado_por:(SESS&&(SESS.nome||SESS.email))||'', pax_ajustado_em:new Date().toISOString()};
+  }
+  try{
+    const r=await api(`/lola_bitbar_dias?data=eq.${d.data}&unidade=eq.${UN}`,{method:'PATCH',body:JSON.stringify(body)});
+    if(r&&r[0]) DIAS[IDX]=r[0]; else Object.assign(DIAS[IDX],body);
+  }catch(e){ alert('Não consegui salvar o PAX: '+e.message); }
+  fecharPax(); render();
+}
+
+/* ---------- boot ---------- */
+(async()=>{
+  SESS=await lolaGate({papeis:['admin','financeiro'], titulo:'Vendas · CCMQ'});
+  try{ await carregar(); }
+  catch(e){ $('#conteudo').innerHTML='<div class="erro">Não consegui falar com o banco: '+e.message+'</div>'; }
+})();
+</script>
+</body>
+</html>
