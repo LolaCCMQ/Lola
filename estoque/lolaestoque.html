@@ -247,21 +247,24 @@ body{font-family:'Manrope',sans-serif;background:var(--rf);color:var(--tx);min-h
 .ped-ab.recv{background:#E6F3EA;border-color:#C9E6D4;color:#2C7A4B;}
 .ped-ab.send{background:var(--v);border-color:var(--v);color:#fff;}
 .ped-ab.warn{background:#FBF0DD;border-color:#F1DFB8;color:#9A6B1E;}
+/* 19/07 (Bianca): "ajustar o pedidos a central que esta cortado, alinhar as colunas,
+   colocar icones sem nome" — desktop virou GRID com colunas fixas (nada corta nos 920px)
+   e as ações são SÓ ÍCONE (o nome fica no title/tooltip). */
 @media(min-width:769px){
-  .ped-card{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;padding:10px 16px;}
+  .ped-card{display:grid;grid-template-columns:118px minmax(0,1fr) 176px 96px auto;align-items:center;gap:12px;padding:10px 16px;}
   .ped-card>.ped-top{display:contents;}
-  .ped-numwrap{order:1;flex-shrink:0;}
-  .ped-meta{order:2;margin:0;white-space:nowrap;flex-shrink:0;}
-  .ped-status{order:3;margin:0;flex-shrink:0;}
-  .ped-status select{padding:6px 10px;font-size:12px;}
-  .ped-val{order:4;margin:0 0 0 auto;flex-shrink:0;font-size:16px;}
-  .ped-btns{order:5;margin:0;flex-wrap:nowrap;flex-shrink:0;}
-  .ped-ab{height:32px;padding:0 12px;}
+  .ped-numwrap{grid-column:1;grid-row:1;}
+  .ped-meta{grid-column:2;grid-row:1;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ped-status{grid-column:3;grid-row:1;margin:0;}
+  .ped-status select{width:100%;padding:6px 10px;font-size:12px;}
+  .ped-val{grid-column:4;grid-row:1;margin:0;font-size:15px;text-align:right;}
+  .ped-btns{grid-column:5;grid-row:1;margin:0;flex-wrap:nowrap;justify-content:flex-end;}
+  .ped-ab{width:36px;height:34px;padding:0;flex:0 0 36px;}
 }
 @media(max-width:768px){
   .ped-btns{flex-wrap:nowrap;gap:5px;justify-content:stretch;}
-  .ped-ab{flex:1 1 0;min-width:0;padding:0;font-size:11px;overflow:hidden;}
-  .ped-ab i{font-size:14px;}
+  .ped-ab{flex:1 1 0;min-width:0;padding:0;height:36px;}
+  .ped-ab i{font-size:16px;}
 }
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:50px;border:none;cursor:pointer;font-family:'Manrope',sans-serif;font-size:12.5px;font-weight:700;transition:all .15s;white-space:nowrap;}
@@ -4889,7 +4892,8 @@ function drawPed(w){
     card.appendChild(st);
     // botões (compactos, 1 linha)
     const btns=div('ped-btns');
-    const pab=(ic,lb,extra,fn)=>el('button','ped-ab'+(extra?' '+extra:''),null,{html:'<i class="ph-duotone '+ic+'"></i> '+lb,onclick:fn});
+    /* 19/07: só ícone (o nome vira tooltip) — pedido da Bianca pra ficar mais clean */
+    const pab=(ic,lb,extra,fn)=>el('button','ped-ab'+(extra?' '+extra:''),null,{html:'<i class="ph-duotone '+ic+'"></i>',title:lb,'aria-label':lb,onclick:fn});
     btns.appendChild(pab('ph-eye','Ver','',()=>verPedido(p)));
     btns.appendChild(pab('ph-pencil-simple','Editar','',()=>editarPedido(p)));
     if(p.status==='rascunho'){
