@@ -4850,6 +4850,37 @@ async function verDivergencias(p,divs,data,resp){
   ov.appendChild(mo);document.body.appendChild(ov);
 }
 
+/* ── Preço/unidade da pré-produção no pedido — REGRA ÚNICA ──────────────
+   (movida pra cá em 19/07: morava dentro do modal de NOVO pedido e o modal de
+   EDITAR também usa — fora do escopo, o Editar quebrava com "ppUnidade is not
+   defined". Histórico da regra: Lasanha 38,53×89,90, Risotinho R$ 2.573.)
+   • Vende por PORÇÃO só quando o rendimento é a granel (g/ml/kg/L) e existe
+     porção declarada — senão a conta divide un por g e estoura.
+   • Margem: custo/(m/100), a MESMA fórmula do editor da pré-produção. */
+function _ppBulk(x){ return ['g','ml','kg','L'].includes(x.rendimento_un||'un'); }
+function _ppPorcao(x){
+  const pq=parseFloat(x.porcao_qtd)||0, pu=x.porcao_un||'';
+  return (_ppBulk(x) && pq>0 && pu && pu!==(x.rendimento_un||'un')) ? pq : 0;
+}
+function ppPreco(x){
+  const pq=_ppPorcao(x);
+  if(pq>0){
+    const numP=(parseFloat(x.rendimento_qtd)||1)/pq;
+    if(numP>0) return (parseFloat(x.custo_total||0)/numP)/((parseFloat(x.margem_venda)||70)/100);
+  }
+  return parseFloat(x.valor_venda_central)||0;
+}
+function ppUnidade(x){
+  const ru=x.rendimento_un||'un';
+  if(_ppPorcao(x)>0) return (x.porcao_un==='un')?'porção':x.porcao_un;
+  return ru==='g'?'kg':ru==='ml'?'L':ru;
+}
+function ppInfo(x){
+  const pq=_ppPorcao(x);
+  if(!pq) return '';
+  const numP=(parseFloat(x.rendimento_qtd)||1)/pq;
+  return '(porção de '+pq+' '+(x.rendimento_un||'')+' — '+numP.toFixed(1)+' porções)';
+}
 function drawPed(w){
   w.innerHTML='';
   const f=pedFiltrados();
@@ -5691,144 +5722,86 @@ async function modalNovoPedido(){
 
   let _buscaNovoPed='';
 
-  /* ── Preço/unidade da pré-produção no pedido — REGRA ÚNICA ──────────────
-     Havia duas cópias disso, com contas diferentes, e o mesmo item saía com
-     preços diferentes dependendo da tela (Lasanha: 38,53 numa e 89,90 noutra;
-     Risotinho ia a R$ 2.573). Agora as duas telas chamam estas funções.
-     • Vende por PORÇÃO só quando o rendimento é a granel (g/ml/kg/L) e existe
-       porção declarada — senão a conta divide un por g e estoura.
-     • Margem: custo/(m/100), a MESMA fórmula do editor da pré-produção
-       (o "70" ali significa CMV de 70%). Nunca custo/(1-m).                  */
-  function _ppBulk(x){ return ['g','ml','kg','L'].includes(x.rendimento_un||'un'); }
-  function _ppPorcao(x){
-    const pq=parseFloat(x.porcao_qtd)||0, pu=x.porcao_un||'';
-    return (_ppBulk(x) && pq>0 && pu && pu!==(x.rendimento_un||'un')) ? pq : 0;
-  }
-  function ppPreco(x){
-    const pq=_ppPorcao(x);
-    if(pq>0){
-      const numP=(parseFloat(x.rendimento_qtd)||1)/pq;
-      if(numP>0) return (parseFloat(x.custo_total||0)/numP)/((parseFloat(x.margem_venda)||70)/100);
-    }
-    return parseFloat(x.valor_venda_central)||0;
-  }
-  function ppUnidade(x){
-    const ru=x.rendimento_un||'un';
-    if(_ppPorcao(x)>0) return (x.porcao_un==='un')?'porção':x.porcao_un;
-    return ru==='g'?'kg':ru==='ml'?'L':ru;
-  }
-  function ppInfo(x){
-    const pq=_ppPorcao(x);
-    if(!pq) return '';
-    const numP=(parseFloat(x.rendimento_qtd)||1)/pq;
-    return '(porção de '+pq+' '+(x.rendimento_un||'')+' — '+numP.toFixed(1)+' porções)';
-  }
+  /* 19/07: as funções ppPreco/ppUnidade/ppInfo SUBIRAM pro nível de cima (antes de
+     drawPed). Elas moravam AQUI DENTRO do modal de novo pedido, e o modal de EDITAR
+     também as usa — "ppUnidade is not defined" quebrava o Editar desde a unificação
+     de 15/07. Regra única, agora num escopo que as duas telas enxergam. */
 
-  function buildItens(){
-    itensArea.innerHTML='';
-
-    /* O catálogo do pedido é QUEM A CENTRAL FAZ — regra da Bianca (17/07):
-       "se a central produz, aparece na lista de produções que a gente pode comprar dela".
-       Antes era `e_preparo || destinos.includes('central')`, e isso tinha um FURO:
-       pré-produção nova cadastrada na Central, sem marcar pré-preparo e sem destino,
-       NÃO aparecia aqui — o Lola não conseguia pedir.
-       Fallback pro critério antigo só pras que ainda não têm cozinha (legado). */
+  /* 19/07 (Bianca): "estamos com 2 barras de rolagem — deixar as listas pro dropdown".
+     A lista gigante de TODOS os itens (fichas+PPs+insumos, cada um com input) SAIU.
+     Agora: busca com DROPDOWN de sugestões → toca pra adicionar → só os adicionados
+     ficam na tela, com qtd editável e ✕. Os FILTROS são os mesmos de 17/07
+     ("o catálogo do pedido é quem a Central faz"; com busca, qualquer insumo entra). */
+  function _pedCatalogo(){
+    const q=_buscaNovoPed;
     const ppDest=_pp.filter(x=>(x.cozinha ? x.cozinha==='central'
                                           : (x.e_preparo||(x.destinos||[]).includes('central')))&&
-      (!_buscaNovoPed||x.nome.toLowerCase().includes(_buscaNovoPed)));
-    const ftDest=ftPre.filter(x=>(!_buscaNovoPed||x.nome.toLowerCase().includes(_buscaNovoPed)));
-    // Sem busca: só os insumos marcados p/ a unidade/central. Com busca: QUALQUER insumo do catálogo
-    // (pra incluir avulsos tipo queijo fatiado, salame, banana, com quantidade).
+      (!q||x.nome.toLowerCase().includes(q)));
+    const ftDest=ftPre.filter(x=>(!q||x.nome.toLowerCase().includes(q)));
     const insDest=_ins.filter(x=>{
-      if(_buscaNovoPed) return x.nome.toLowerCase().includes(_buscaNovoPed);
+      if(q) return x.nome.toLowerCase().includes(q);
       return (x.destinos||[]).includes(_destPed)||(x.destinos||[]).includes('central');
     });
-
-    const conteudo=div(null);
-
-    if(!ppDest.length&&!insDest.length&&!ftDest.length){
-      conteudo.appendChild(div('tss mt3 mb3','Nenhum item fixo para '+DEST_LBL[_destPed]+'. Dica: digite na busca acima o nome de qualquer insumo (ex.: queijo fatiado, salame, banana) para incluí-lo com quantidade.'));
-      itensArea.appendChild(conteudo);
-      return;
-    }
-
-    function mkGrupo(titulo, lista, getPreco, getUnidade, getId, getNome){
-      if(!lista.length) return;
-      const g=div(null);
-      g.style.cssText='margin-bottom:16px';
-      const gt=document.createElement('div');
-      gt.style.cssText='font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--v);margin-bottom:8px;padding-bottom:4px;border-bottom:1.5px solid var(--rb)';
-      gt.textContent=titulo;
-      g.appendChild(gt);
-
-      lista.forEach(item=>{
-        const id=getId(item);
-        if(!qtdMap[id]) qtdMap[id]={item,quantidade:'',preco:getPreco(item),unidade:getUnidade(item),nome:getNome(item)};
-
+    const out=[];
+    ftDest.forEach(x=>out.push({id:'ft_'+x.id, nome:x.nome, grupo:'Ficha', preco:parseFloat(x.custo_por_porcao)||0, unidade:x.rendimento_un||'porção', item:x}));
+    ppDest.forEach(x=>out.push({id:'pp_'+x.id, nome:x.nome, grupo:'Pré-prod.', preco:ppPreco(x), unidade:ppUnidade(x), info:ppInfo(x), item:x}));
+    insDest.forEach(x=>{
+      const uc=x.unidade_custo||'kg', uCompra=x.unidade_compra||uc;
+      let pr=parseFloat(x.custo_por_unidade)||0;
+      if(uCompra==='g'&&uc==='kg') pr=x.custo_por_unidade/1000;
+      else if(uCompra==='ml'&&uc==='L') pr=x.custo_por_unidade/1000;
+      out.push({id:'ins_'+x.id, nome:x.nome, grupo:'Insumo', preco:pr, unidade:uCompra, item:x});
+    });
+    return out;
+  }
+  function buildItens(){
+    itensArea.innerHTML='';
+    /* itens JÁ adicionados — qtd editável + ✕ */
+    const sels=Object.entries(qtdMap).filter(function(par){return par[1].quantidade>0;});
+    if(sels.length){
+      const g=div(null); g.style.cssText='margin-bottom:10px';
+      sels.forEach(function(par){ const v=par[1];
         const row=document.createElement('div');
         row.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;margin-bottom:4px;background:var(--rf);border:1px solid var(--rb)';
-
-        // Nome + preço
         const info=document.createElement('div');info.style.cssText='flex:1;min-width:0';
-        const n=document.createElement('div');n.style.cssText='font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-        n.textContent=getNome(item);
-        const p2=document.createElement('div');p2.style.cssText='font-size:11px;color:var(--ts)';
-        p2.textContent=R(getPreco(item))+'/'+getUnidade(item);
-        info.appendChild(n);info.appendChild(p2);row.appendChild(info);
-
-        // Input quantidade
+        info.innerHTML='<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_envEsc(v.nome)+'</div><div style="font-size:11px;color:var(--ts)">'+R(v.preco)+'/'+_envEsc(v.unidade)+'</div>';
         const inp=document.createElement('input');
-        inp.type='number';inp.min='0';inp.step='0.5';
-        inp.placeholder='0';
-        inp.value=qtdMap[id].quantidade||'';
-        inp.setAttribute('inputmode','decimal');
-        inp.style.cssText='width:80px;padding:8px;border:2px solid var(--rb);border-radius:10px;font-size:15px;text-align:center;font-family:Manrope,sans-serif;font-weight:700;-webkit-appearance:none';
-        inp.addEventListener('input',e=>{
-          qtdMap[id].quantidade=parseFloat(e.target.value)||0;
-          inp.style.borderColor=parseFloat(e.target.value)>0?'var(--v)':'var(--rb)';
-          calcTotal();
-        });
-        if(qtdMap[id].quantidade>0) inp.style.borderColor='var(--v)';
-
-        // Unidade
-        const un=document.createElement('div');
-        un.style.cssText='font-size:11px;color:var(--ts);width:30px;text-align:left;font-weight:600';
-        un.textContent=getUnidade(item);
-        row.appendChild(info);row.appendChild(inp);row.appendChild(un);
+        inp.type='number';inp.min='0';inp.step='0.5';inp.value=v.quantidade;inp.setAttribute('inputmode','decimal');
+        inp.style.cssText='width:80px;padding:8px;border:2px solid var(--v);border-radius:10px;font-size:15px;text-align:center;font-family:Manrope,sans-serif;font-weight:700;-webkit-appearance:none';
+        inp.addEventListener('input',function(e){ v.quantidade=parseFloat(e.target.value)||0; calcTotal(); });
+        inp.addEventListener('change',function(){ if(!(v.quantidade>0)) buildItens(); });
+        const un=document.createElement('div');un.style.cssText='font-size:11px;color:var(--ts);width:30px;font-weight:600';un.textContent=v.unidade;
+        const rm=document.createElement('button');rm.type='button';rm.title='Tirar do pedido';
+        rm.style.cssText='background:none;border:none;color:#B5302E;font-size:16px;cursor:pointer;padding:4px;flex-shrink:0';
+        rm.textContent='✕';
+        rm.onclick=function(){ v.quantidade=0; buildItens(); };
+        row.appendChild(info);row.appendChild(inp);row.appendChild(un);row.appendChild(rm);
         g.appendChild(row);
       });
-      conteudo.appendChild(g);
+      itensArea.appendChild(g);
+    } else if(!_buscaNovoPed){
+      itensArea.appendChild(div('tss mt2 mb2','Busque acima e toque no item pra adicionar — só o que você adicionar aparece aqui.'));
     }
-
-    // Grupo fichas técnicas (pré-preparo) — preço = custo por porção
-    mkGrupo('🏷️ Fichas técnicas',ftDest,
-      x=>parseFloat(x.custo_por_porcao)||0,
-      x=>x.rendimento_un||'porção',
-      x=>'ft_'+x.id,
-      x=>x.nome
-    );
-
-    // Grupo pré-produções — usa as regras compartilhadas (ppPreco/ppUnidade), as mesmas do autocomplete
-    mkGrupo('🍳 Pré-produções',ppDest, ppPreco, ppUnidade,
-      x=>'pp_'+x.id,
-      x=>x.nome
-    );
-
-    // Grupo insumos
-    mkGrupo('🧂 Insumos',insDest,
-      x=>{
-        const uc=x.unidade_custo||'kg';
-        const uCompra=x.unidade_compra||uc;
-        if(uCompra==='g'&&uc==='kg') return x.custo_por_unidade/1000;
-        if(uCompra==='ml'&&uc==='L') return x.custo_por_unidade/1000;
-        return parseFloat(x.custo_por_unidade)||0;
-      },
-      x=>x.unidade_compra||x.unidade_custo||'un',
-      x=>'ins_'+x.id,
-      x=>x.nome
-    );
-
-    itensArea.appendChild(conteudo);
+    /* dropdown de sugestões */
+    if(_buscaNovoPed && _buscaNovoPed.length>=2){
+      const op=_pedCatalogo().filter(function(o){return !(qtdMap[o.id]&&qtdMap[o.id].quantidade>0);}).slice(0,12);
+      const dd=div(null);
+      dd.style.cssText='background:#fff;border:1.5px solid var(--rb);border-radius:12px;overflow:hidden;margin-bottom:10px;box-shadow:0 8px 24px rgba(170,43,43,.10)';
+      if(!op.length) dd.appendChild(div('tss',null,{style:'padding:10px 12px',html:'Nada encontrado com esse nome.'}));
+      op.forEach(function(o){
+        const b=document.createElement('button'); b.type='button';
+        b.style.cssText='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:none;border-bottom:1px solid var(--rf);padding:9px 12px;font-family:Manrope,sans-serif;cursor:pointer';
+        b.innerHTML='<span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_envEsc(o.nome)+(o.info?' <span style="font-weight:600;color:var(--ts);font-size:11px">'+_envEsc(o.info)+'</span>':'')+'</span>'
+          +'<span style="font-size:10px;font-weight:800;color:var(--rm);flex-shrink:0">'+o.grupo+'</span>'
+          +'<span style="font-size:11px;font-weight:700;color:var(--v);white-space:nowrap;flex-shrink:0">'+R(o.preco)+'/'+_envEsc(o.unidade)+'</span>';
+        b.onclick=function(){
+          qtdMap[o.id]={item:o.item,quantidade:1,preco:o.preco,unidade:o.unidade,nome:o.nome};
+          _buscaNovoPed=''; buscaInp.value=''; buildItens(); buscaInp.focus();
+        };
+        dd.appendChild(b);
+      });
+      itensArea.appendChild(dd);
+    }
     calcTotal();
   }
 
