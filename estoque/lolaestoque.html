@@ -4878,28 +4878,48 @@ async function verDivergencias(p,divs,data,resp){
   ));
   mb.appendChild(tbl);
   mo.appendChild(mb);
-  // Botões: Imprimir | WhatsApp Central
-  const linhasDiv=divergencias.map(v=>{
-    const sol=parseFloat(v.item.quantidade)||0;const recv=parseFloat(v.qtdRecebida)||0;
-    return (v.item.nome_item||v.item.nome||'?')+': solicitado '+N(sol,1)+' '+v.item.unidade+', recebido '+N(recv,1)+' '+v.item.unidade;
-  }).join('\n');
-  const msgWz='Divergencias no recebimento do Pedido #'+p.numero_pedido+' ('+dataFmt+'):\n\n'+linhasDiv+'\n\nPor favor verificar e reenviar os itens pendentes.\n\nLola Bar CCMQ';
+  /* 20/07 (Bianca): "Nota de recebimento" e "Imprimir" faziam a mesma coisa — ficou
+     SÓ a Nota de recebimento (o botão de WhatsApp também saiu). A nota agora lista
+     TODOS os itens do pedido com quantidade recebida, preço unitário, subtotal e o
+     VALOR TOTAL do pedido (dos itens recebidos). Obs.: ao salvar o recebimento, a
+     quantidade dos itens já vira a RECEBIDA e o valor_total é recalculado. */
   mo.appendChild(div('mf',[
     btn('btn bg','Fechar',()=>ov.remove()),
-    btn('btn bp bsm','🧾 Nota recebimento',()=>{
+    btn('btn bp bsm','🧾 Nota recebimento',async()=>{
+      let its=[];
+      try{ its=await db('lola_pedidos_itens','GET',null,'?select=*&pedido_id=eq.'+p.id+'&order=nome_item.asc'); }catch(e){}
+      const solMap={};
+      (divergencias||[]).forEach(v=>{ solMap[v.item.nome_item||v.item.nome||'']=parseFloat(v.item.quantidade)||0; });
       const w2=window.open('','_blank');
       const dtN=new Date((data||new Date().toISOString().split('T')[0])+'T12:00:00').toLocaleDateString('pt-BR');
-      let hn='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:24px;max-width:680px;margin:0 auto}h1{color:#AA2B2B;border-bottom:2px solid #AA2B2B;padding-bottom:8px}.info{background:#f8f8f8;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#AA2B2B;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase}td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px}.footer{margin-top:24px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}</style></head><body>';
+      let hn='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:24px;max-width:720px;margin:0 auto}h1{color:#AA2B2B;border-bottom:2px solid #AA2B2B;padding-bottom:8px}.info{background:#f8f8f8;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#AA2B2B;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase}td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px}.tot td{border-top:2px solid #AA2B2B;border-bottom:none;font-size:15px;font-weight:800;padding-top:12px}.footer{margin-top:24px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}</style></head><body>';
       hn+='<h1>🧾 Nota de Recebimento</h1><div class="info"><strong>Pedido:</strong> #'+p.numero_pedido+'&nbsp;&nbsp;<strong>Data:</strong> '+dtN+'&nbsp;&nbsp;<strong>Recebido por:</strong> '+(resp||'—')+'</div>';
-      hn+='<table><tr><th>Item</th><th style="text-align:right">Solicitado</th><th style="text-align:right">Recebido</th><th style="text-align:right">Diferença</th><th>Un</th></tr>';
-      (divergencias||[]).forEach(v=>{
-        const s2=parseFloat(v.item.quantidade)||0,r2=parseFloat(v.qtdRecebida)||0,d2=r2-s2;
-        const c2=d2===0?'':'color:'+(d2<0?'#dc2626':'#c47700');
-        hn+='<tr><td><strong>'+(v.item.nome_item||v.item.nome||'')+'</strong></td><td style="text-align:right">'+N(s2,1)+'</td><td style="text-align:right;font-weight:700;'+c2+'">'+N(r2,1)+'</td><td style="text-align:right;'+c2+'">'+(d2>0?'+':'')+N(d2,1)+'</td><td>'+(v.item.unidade||'')+'</td></tr>';
-      });
-      hn+='<div class="footer">Gerado em '+new Date().toLocaleString('pt-BR')+' · Lola Bar CCMQ</div></body></html>';
+      hn+='<table><tr><th>Item</th><th>Un</th><th style="text-align:right">Solicitado</th><th style="text-align:right">Recebido</th><th style="text-align:right">Preço un.</th><th style="text-align:right">Subtotal</th></tr>';
+      let tot=0;
+      if(its.length){
+        its.forEach(it=>{
+          const rec=parseFloat(it.quantidade)||0, pu=parseFloat(it.preco_unitario)||0, sub=rec*pu; tot+=sub;
+          const sol=(it.nome_item in solMap)?solMap[it.nome_item]:rec;
+          const dif=rec-sol;
+          const c2=dif===0?'':'color:'+(dif<0?'#dc2626':'#c47700');
+          hn+='<tr><td><strong>'+(it.nome_item||'')+'</strong></td><td>'+(it.unidade||'')+'</td><td style="text-align:right">'+N(sol,1)+'</td><td style="text-align:right;font-weight:700;'+c2+'">'+N(rec,1)+'</td><td style="text-align:right">'+R(pu)+'</td><td style="text-align:right;font-weight:700">'+R(sub)+'</td></tr>';
+        });
+      } else {
+        (divergencias||[]).forEach(v=>{
+          const s2=parseFloat(v.item.quantidade)||0,r2=parseFloat(v.qtdRecebida)||0,d2=r2-s2;
+          const c2=d2===0?'':'color:'+(d2<0?'#dc2626':'#c47700');
+          hn+='<tr><td><strong>'+(v.item.nome_item||v.item.nome||'')+'</strong></td><td>'+(v.item.unidade||'')+'</td><td style="text-align:right">'+N(s2,1)+'</td><td style="text-align:right;font-weight:700;'+c2+'">'+N(r2,1)+'</td><td></td><td></td></tr>';
+        });
+        tot=parseFloat(p.valor_total)||0;
+      }
+      hn+='<tr class="tot"><td colspan="5" style="text-align:right">TOTAL DO PEDIDO (itens recebidos)</td><td style="text-align:right;color:#AA2B2B">'+R(tot)+'</td></tr>';
+      hn+='</table><div class="footer">Gerado em '+new Date().toLocaleString('pt-BR')+' · Lola Bar CCMQ</div></body></html>';
       w2.document.write(hn);w2.print();
-    }),
+    })
+  ]));
+  /* 20/07: os dois botões abaixo SAÍRAM do modal (mesma coisa que a nota / WhatsApp
+     dispensado). Mantidos aqui dentro de if(false) só como referência histórica. */
+  if(false) mo.appendChild(div('mf',[
     btn('btn bo bsm','\u{1F5A8}\u{FE0F} Imprimir',()=>{
       const w=window.open('','_blank');
       let h='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#AA2B2B}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#AA2B2B;color:#fff;padding:8px 10px;text-align:left}td{padding:8px 10px;border-bottom:1px solid #eee}strong{color:#dc2626}</style></head><body>';
