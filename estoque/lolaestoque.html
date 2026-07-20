@@ -1823,11 +1823,18 @@ async function modalPrep(item){
     f.valor_venda_central=f.custo_por_unidade/(m/100);
     const numPorcoes2=parseFloat(f.porcao_qtd)>0?(parseFloat(f.rendimento_qtd)/parseFloat(f.porcao_qtd)):null;
     const custoPorcao2=numPorcoes2?ct/numPorcoes2:null;
-    custoResEl.innerHTML=somaIngredientesHTML(ings)+'<div class="fl_ jb mb3"><span>Custo total</span><strong>'+R(ct)+'</strong></div>'+
-      '<div class="fl_ jb mb3"><span>Rendimento total</span><strong>'+N(qtd,0)+' '+f.rendimento_un+'</strong></div>'+
-      (numPorcoes2?'<div class="fl_ jb mb3"><span>Porções ('+N(f.porcao_qtd,0)+' '+f.porcao_un+')</span><strong>'+numPorcoes2.toFixed(1)+'</strong></div>':'')+
-      (custoPorcao2?'<div class="fl_ jb mb3"><span>Custo/porção</span><strong class="tv">'+R(custoPorcao2)+'</strong></div>':'')+'<div class="fl_ jb mb3"><span>Custo/'+unBase+'</span><strong class="tv">'+R(f.custo_por_unidade)+'</strong></div>'+
-      '<div class="fl_ jb"><span>Valor venda central ('+m+'% CMV)</span><strong>'+R(f.valor_venda_central)+'</strong></div>';
+    /* 19/07 (Bianca): "deveria ter o custo da produção, quantas unidades renderam e
+       qual o preço por unidade — e depois o preço + margem". Mesmas CONTAS, nova
+       apresentação: os técnicos (custo/kg, venda por kg) ficam discretos no fim. */
+    custoResEl.innerHTML=somaIngredientesHTML(ings)
+      +'<div class="fl_ jb mb3"><span>Custo da produção</span><strong class="tv">'+R(ct)+'</strong></div>'
+      +(numPorcoes2
+        ?'<div class="fl_ jb mb3"><span>Rendeu</span><strong>'+numPorcoes2.toFixed(1)+' unidade'+(numPorcoes2>=2?'s':'')+' de '+N(f.porcao_qtd,0)+' '+f.porcao_un+' <small style="font-weight:600;color:var(--ts)">('+N(qtd,0)+' '+f.rendimento_un+' no total)</small></strong></div>'
+         +'<div class="fl_ jb mb3"><span>Custo por unidade</span><strong class="tv">'+R(custoPorcao2)+'</strong></div>'
+         +'<div class="fl_ jb mb3"><span>Preço por unidade com margem ('+m+'% CMV)</span><strong>'+R(custoPorcao2/(m/100))+'</strong></div>'
+        :'<div class="fl_ jb mb3"><span>Rendeu</span><strong>'+N(qtd,0)+' '+f.rendimento_un+'</strong></div>')
+      +'<div class="fl_ jb mb3" style="font-size:12px;color:var(--ts)"><span>Custo/'+unBase+'</span><strong>'+R(f.custo_por_unidade)+'</strong></div>'
+      +'<div class="fl_ jb" style="font-size:12px;color:var(--ts)"><span>Valor venda central ('+m+'% CMV) — por '+unBase+'</span><strong>'+R(f.valor_venda_central)+'</strong></div>';
   }
 
   // Lista unificada: insumos + sub-pré-prods em ordem alfabética
