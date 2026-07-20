@@ -219,6 +219,20 @@ async function api(path,opt){
   return r.status===204?null:r.json();
 }
 
+/* 20/07 (Bianca): "temos que ter um calendario para ver o faturamento e os produtos
+   vendidos em uma data especifica" — clicar na data (📅) abre o seletor nativo e pula
+   direto pro dia. Dia sem venda registrada = aviso. */
+function wireCalendario(idTitulo, aoEscolher, isoAtual){
+  const el=document.getElementById(idTitulo); if(!el) return;
+  const inp=document.createElement('input');
+  inp.type='date'; inp.value=isoAtual||'';
+  if(DIAS.length){ inp.min=DIAS[DIAS.length-1].data; inp.max=DIAS[0].data; }
+  inp.style.cssText='position:absolute;opacity:0;pointer-events:none;width:0;height:0;border:0;padding:0';
+  el.parentNode.insertBefore(inp, el.nextSibling);
+  el.onclick=()=>{ try{ inp.showPicker(); }catch(e){ inp.click(); } };
+  inp.onchange=()=>{ if(inp.value) aoEscolher(inp.value); };
+}
+
 async function carregar(){
   const [dias, metas]=await Promise.all([
     api(`/lola_bitbar_dias?unidade=eq.${UN}&select=*&order=data.desc&limit=800`),
@@ -258,7 +272,7 @@ async function renderDia(){
   let html=`
     <div class="nav-linha">
       <button id="btAnt" ${IDX>=DIAS.length-1?'disabled':''}>‹</button>
-      <b>${SEMANA[dj.getDay()]} · ${dj.getDate()} de ${MESES[dj.getMonth()]}</b>
+      <b id="diaTitulo" style="cursor:pointer" title="Escolher uma data no calendário">${SEMANA[dj.getDay()]} · ${dj.getDate()} de ${MESES[dj.getMonth()]} <span style="font-size:15px">📅</span></b>
       <button id="btProx" ${IDX<=0?'disabled':''}>›</button>
     </div>
     <div class="centro">
@@ -292,6 +306,7 @@ async function renderDia(){
   $('#conteudo').innerHTML=html;
   $('#btAnt').onclick=()=>{ if(IDX<DIAS.length-1){ IDX++; renderDia(); } };
   $('#btProx').onclick=()=>{ if(IDX>0){ IDX--; renderDia(); } };
+  wireCalendario('diaTitulo', iso=>{ const i=DIAS.findIndex(x=>x.data===iso); if(i>=0){ IDX=i; renderDia(); } else alert('Sem venda registrada nesse dia.'); }, d.data);
   document.querySelectorAll('.dia-row').forEach(r=>r.onclick=()=>{ const i=DIAS.findIndex(x=>x.data===r.dataset.dia); if(i>=0){ IDX=i; renderDia(); } });
 
   try{ renderProdutosDia(d, await prodsDoDia(d.data)); }
@@ -447,7 +462,7 @@ async function renderProd(){
   let navHtml, tituloPeriodo;
   if(PROD_MODO==='dia'){
     const d=DIAS[PROD_IDX], dj=dt(d.data);
-    navHtml=`<button id="bpAnt" ${PROD_IDX>=DIAS.length-1?'disabled':''}>‹</button><b>${SEMANA[dj.getDay()]} · ${dj.getDate()} de ${MESES[dj.getMonth()]}</b><button id="bpProx" ${PROD_IDX<=0?'disabled':''}>›</button>`;
+    navHtml=`<button id="bpAnt" ${PROD_IDX>=DIAS.length-1?'disabled':''}>‹</button><b id="prodTitulo" style="cursor:pointer" title="Escolher uma data no calendário">${SEMANA[dj.getDay()]} · ${dj.getDate()} de ${MESES[dj.getMonth()]} <span style="font-size:15px">📅</span></b><button id="bpProx" ${PROD_IDX<=0?'disabled':''}>›</button>`;
     tituloPeriodo='do dia';
   }else{
     const i=mesesDisp.indexOf(PROD_MES);
@@ -470,6 +485,7 @@ async function renderProd(){
   if(PROD_MODO==='dia'){
     if(bA) bA.onclick=()=>{ if(PROD_IDX<DIAS.length-1){ PROD_IDX++; renderProd(); } };
     if(bP) bP.onclick=()=>{ if(PROD_IDX>0){ PROD_IDX--; renderProd(); } };
+    wireCalendario('prodTitulo', iso=>{ const i=DIAS.findIndex(x=>x.data===iso); if(i>=0){ PROD_IDX=i; renderProd(); } else alert('Sem venda registrada nesse dia.'); }, DIAS[PROD_IDX].data);
   }else{
     const i=mesesDisp.indexOf(PROD_MES);
     if(bA) bA.onclick=()=>{ if(i>0){ PROD_MES=mesesDisp[i-1]; renderProd(); } };
