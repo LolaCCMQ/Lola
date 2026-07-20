@@ -2490,12 +2490,20 @@ function drawREC(w){
     row.appendChild(nome);
     const mob=div('ft-mob');
     const subEl=t=>el('div',null,t,{style:'font-size:9.5px;font-weight:700;color:#B79A8E;text-transform:uppercase;letter-spacing:.08em;line-height:1.3'});
-    const custoCell=div('ft-num',[ehPP?R(x.custo_por_unidade):R(x.custo_por_porcao)]);
-    custoCell.appendChild(subEl(ehPP?('por '+unBase):'por porção'));
+    /* 20/07 (Bianca): "se na receita a gente diz que vende a UNIDADE — na lista deve
+       aparecer o preço por unidade também". PP com porção usa as MESMAS regras do
+       pedido (_ppPorcao/ppPreco): custo e venda POR UNIDADE; sem porção, por kg/L. */
+    const _pq=ehPP?_ppPorcao(x):0;
+    const _numU=_pq>0?((parseFloat(x.rendimento_qtd)||1)/_pq):0;
+    const _custoPP=(_pq>0&&_numU>0)?(parseFloat(x.custo_total||0)/_numU):x.custo_por_unidade;
+    const _vendaPP=_pq>0?ppPreco(x):x.valor_venda_central;
+    const _unLbl=ehPP?(_pq>0?'por unidade':('por '+unBase)):'por porção';
+    const custoCell=div('ft-num',[ehPP?R(_custoPP):R(x.custo_por_porcao)]);
+    custoCell.appendChild(subEl(_unLbl));
     mob.appendChild(custoCell);
     const pv=div('ft-num pv ft-pv'+(semPreco?' vazio':''));
-    pv.textContent=semPreco?(ehPP?'—':'sem preço'):(ehPP?R(x.valor_venda_central):R(x.preco_venda));
-    if(!semPreco) pv.appendChild(subEl(ehPP?('por '+unBase):'por porção'));
+    pv.textContent=semPreco?(ehPP?'—':'sem preço'):(ehPP?R(_vendaPP):R(x.preco_venda));
+    if(!semPreco) pv.appendChild(subEl(_unLbl));
     mob.appendChild(pv);
     const cc=div('ft-cmvcel'); if(ehPP){ cc.textContent='—'; cc.style.cssText='text-align:right;color:#B79A8E;font-size:12px'; } else cc.appendChild(mkCMVCompacto(x.preco_venda,x.custo_por_porcao,lim));
     mob.appendChild(cc);
