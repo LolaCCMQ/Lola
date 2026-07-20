@@ -5511,34 +5511,36 @@ async function pgPed(c){
 
     async function recarregarPedidos(){
       const btnRef=$('#btn-refresh-ped');
-      if(btnRef){btnRef.innerHTML='<i class="ph-duotone ph-circle-notch"></i> Atualizando';btnRef.disabled=true;}
+      if(btnRef){btnRef.innerHTML='<i class="ph-duotone ph-circle-notch"></i>';btnRef.disabled=true;}
       _peds=await db('lola_pedidos','GET',null,'?select=*&order=created_at.desc');
       atualizaResumo();
       drawPed($('#ped-t'));
-      if(btnRef){btnRef.innerHTML='<i class="ph-duotone ph-arrows-clockwise"></i> Atualizar';btnRef.disabled=false;}
+      if(btnRef){btnRef.innerHTML='<i class="ph-duotone ph-arrows-clockwise"></i>';btnRef.disabled=false;}
     }
 
-    // Montar barra manualmente para evitar null nodes
-    const barraTopo=div('fl_ jb aic pedbar');
-    const tabsGrupo=div('fl_ gap2 aic pedtabs');
-    const tabsEl=div('tabs');
-    [{k:'todos',l:'Todos'},{k:'rascunho',l:'Rascunhos'},{k:'ccmq',l:'CCMQ'},{k:'mac',l:'Mac'},{k:'terceiro',l:'Terceiros'},{k:'em_producao',l:'Em produção'},{k:'pronto_entrega',l:'Pronto p/ entrega'}]
-      .forEach(t=>{const p=span('tp'+(_pedTab===t.k?' active':''),t.l);p.addEventListener('click',()=>{_pedTab=t.k;drawPed($('#ped-t'));});tabsEl.appendChild(p);});
-    tabsGrupo.appendChild(tabsEl);
-    barraTopo.appendChild(tabsGrupo);
-    const btnsDir=div('fl_ gap2 pedbtns');
-    const bAtualizar=el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-arrows-clockwise"></i> Atualizar',onclick:recarregarPedidos});
+    /* 19/07 (Bianca): "reorganizar esses botões" — linha 1: mês à esquerda, Atualizar
+       (só ícone) + Novo pedido à direita; linha 2: filtros de status numa linha só,
+       com rolagem lateral quando apertar (nada de quebrar em duas linhas tortas). */
+    const linha1=div(null);
+    linha1.style.cssText='display:flex;align-items:center;gap:8px;width:100%';
+    linha1.appendChild(mesDropWrap);
+    const _sp=div(null); _sp.style.cssText='flex:1'; linha1.appendChild(_sp);
+    const bAtualizar=el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-arrows-clockwise"></i>',title:'Atualizar',onclick:recarregarPedidos});
     bAtualizar.id='btn-refresh-ped';
-    btnsDir.appendChild(bAtualizar);
+    bAtualizar.style.cssText='width:40px;height:40px;padding:0;justify-content:center;flex-shrink:0;font-size:16px';
+    linha1.appendChild(bAtualizar);
     const bNovo=el('button','btn bp',null,{html:'<i class="ph-duotone ph-plus"></i> Novo pedido',onclick:()=>modalNovoPedido()});
-    bNovo.style.cssText='padding:10px 22px;font-size:13px;font-weight:800;letter-spacing:.5px;box-shadow:0 3px 10px rgba(170,43,43,.3)';
-    btnsDir.appendChild(bNovo);
-    barraTopo.appendChild(btnsDir);
+    bNovo.style.cssText='padding:10px 22px;font-size:13px;font-weight:800;letter-spacing:.5px;box-shadow:0 3px 10px rgba(170,43,43,.3);flex-shrink:0';
+    linha1.appendChild(bNovo);
+    const tabsEl=div('tabs');
+    tabsEl.style.cssText='display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;width:100%;-webkit-overflow-scrolling:touch';
+    [{k:'todos',l:'Todos'},{k:'rascunho',l:'Rascunhos'},{k:'ccmq',l:'CCMQ'},{k:'mac',l:'Mac'},{k:'terceiro',l:'Terceiros'},{k:'em_producao',l:'Em produção'},{k:'pronto_entrega',l:'Pronto p/ entrega'}]
+      .forEach(t=>{const p=span('tp'+(_pedTab===t.k?' active':''),t.l);p.style.whiteSpace='nowrap';p.style.flexShrink='0';p.addEventListener('click',()=>{_pedTab=t.k;drawPed($('#ped-t'));});tabsEl.appendChild(p);});
     const barraWrap=div('abar no-print');
     const coluna=div(null);
-    coluna.style.cssText='display:flex;flex-direction:column;gap:8px;flex:1';
-    coluna.appendChild(barraTopo);
-    coluna.appendChild(mesDropWrap);
+    coluna.style.cssText='display:flex;flex-direction:column;gap:10px;flex:1';
+    coluna.appendChild(linha1);
+    coluna.appendChild(tabsEl);
     barraWrap.appendChild(coluna);
     c.appendChild(barraWrap);
 
