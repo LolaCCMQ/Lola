@@ -1776,7 +1776,7 @@ async function modalPrep(item){
   if(!podeMexer(item?item.cozinha:APP_COZ_ID)){ alert('Você vê esta receita, mas não altera as receitas desta cozinha.\nSe precisa mudar, fale com a Bianca.'); return; }
   const ed=!!item;
   let margInp;
-  let f={nome:item?.nome||'',categoria:item?.categoria||_ppTab,cat_custo:item?.cat_custo||'',rendimento_qtd:item?.rendimento_qtd||1000,rendimento_un:item?.rendimento_un||'g',custo_total:item?.custo_total||0,custo_por_unidade:item?.custo_por_unidade||0,valor_venda_central:item?.valor_venda_central||0,margem_venda:item?.margem_venda||70,porcao_qtd:item?.porcao_qtd||null,porcao_un:item?.porcao_un||null,modo_preparo:item?.modo_preparo||'',observacoes:item?.observacoes||''};
+  let f={nome:item?.nome||'',categoria:item?.categoria||_ppTab,cat_custo:item?.cat_custo||'',rendimento_qtd:item?.rendimento_qtd||1000,rendimento_un:item?.rendimento_un||'g',custo_total:item?.custo_total||0,custo_por_unidade:item?.custo_por_unidade||0,valor_venda_central:item?.valor_venda_central||0,margem_venda:item?.margem_venda||70,porcao_qtd:item?.porcao_qtd||null,porcao_un:item?.porcao_un||null,peso_unidade_g:item?.peso_unidade_g||null,modo_preparo:item?.modo_preparo||'',observacoes:item?.observacoes||''};
   const ings=[];
   const iw=div(null);
   let rendInp; f._rendManual=!!(ed&&item&&item.rendimento_qtd);
@@ -1831,7 +1831,9 @@ async function modalPrep(item){
        produção sim, quanto rendeu sim, e o custo por unidade OU por quilo conforme
        o que colocamos ali em cima". Só as 4 linhas que importam, na unidade escolhida. */
     (function(){
-      const temPorc=!!numPorcoes2;
+      /* 21/07: porção-que-divide só vale pro rendimento a granel; com rendimento em
+         UN a porcao_qtd descreve a unidade (120 g / 4 un de 40 g) e NÃO divide nada. */
+      const temPorc=!!numPorcoes2&&['g','ml','kg','L'].includes(f.rendimento_un);
       const unPorc=f.porcao_un||f.rendimento_un||'g';
       let h2='<div class="fl_ jb mb3"><span>Custo da produção</span><strong class="tv">'+R(ct)+'</strong></div>';
       if(temPorc){
@@ -1839,7 +1841,16 @@ async function modalPrep(item){
           +'<div class="fl_ jb mb3"><span>Custo por unidade</span><strong class="tv">'+R(custoPorcao2)+'</strong></div>'
           +'<div class="fl_ jb"><span>Preço por unidade com margem ('+m+'% CMV)</span><strong>'+R(custoPorcao2/(m/100))+'</strong></div>';
       } else {
-        h2+='<div class="fl_ jb mb3"><span>Rendeu</span><strong>'+N(qtd,0)+' '+f.rendimento_un+'</strong></div>'
+        let cadaUma='';
+        if(f.rendimento_un==='un'&&parseFloat(f.porcao_qtd)>0){
+          if(f.porcao_un==='un'){
+            const pg=parseFloat(f.peso_unidade_g)||0;
+            cadaUma=' <small style="font-weight:600;color:var(--ts)">· cada uma com '+N(f.porcao_qtd,0)+' un'+(pg?(' de '+N(pg,0)+' g'+((parseFloat(f.porcao_qtd)*pg)>0?' ('+N(parseFloat(f.porcao_qtd)*pg,0)+' g/un)':'')):'')+'</small>';
+          } else {
+            cadaUma=' <small style="font-weight:600;color:var(--ts)">· cada uma com '+N(f.porcao_qtd,0)+' '+(f.porcao_un||'g')+'</small>';
+          }
+        }
+        h2+='<div class="fl_ jb mb3"><span>Rendeu</span><strong>'+N(qtd,0)+' '+f.rendimento_un+cadaUma+'</strong></div>'
           +'<div class="fl_ jb mb3"><span>Custo por '+unBase+'</span><strong class="tv">'+R(f.custo_por_unidade)+'</strong></div>'
           +'<div class="fl_ jb"><span>Preço do '+unBase+' com margem ('+m+'% CMV)</span><strong>'+R(f.valor_venda_central)+'</strong></div>';
       }
@@ -1995,8 +2006,22 @@ async function modalPrep(item){
   })();
   const vendWidget=(function(){
     const w=document.createElement('div');
+    /* 21/07 (Bianca): rendimento em UN (fatias/porções) não tem "a granel × por
+       unidade" — o que falta é dizer O QUE É cada unidade: "16 fatias de 120 g"
+       (porcao_qtd+porcao_un) ou "20 porções de 4 un de 40 g cada" (porcao_un='un'
+       + peso_unidade_g). Pro rendimento a granel, continua o toggle de antes. */
+    const unRow=document.createElement('div'); unRow.style.cssText='display:none;gap:8px;align-items:center;flex-wrap:wrap';
+    unRow.appendChild(el('span',null,'cada unidade tem',{style:'font-size:12.5px;color:var(--ts);font-weight:600;white-space:nowrap'}));
+    const uQtd=finp('',f.porcao_qtd||'',v=>{f.porcao_qtd=v;calcTotais();},'number'); uQtd.placeholder='ex.: 120'; uQtd.style.cssText='width:90px';
+    const uSel=fsel('',['g','ml','un'],(['g','ml','un'].includes(f.porcao_un)?f.porcao_un:'g'),v=>{f.porcao_un=v;_vendPaint();calcTotais();});
+    uSel.style.cssText='flex:0 0 76px;width:76px';
+    const pesoWrap=document.createElement('span'); pesoWrap.style.cssText='display:none;gap:8px;align-items:center';
+    pesoWrap.appendChild(el('span',null,'de',{style:'font-size:12.5px;color:var(--ts);font-weight:600'}));
+    const uPeso=finp('',f.peso_unidade_g||'',v=>{f.peso_unidade_g=v;calcTotais();},'number'); uPeso.placeholder='ex.: 40'; uPeso.style.cssText='width:90px';
+    pesoWrap.appendChild(uPeso); pesoWrap.appendChild(el('span',null,'g cada',{style:'font-size:12.5px;font-weight:800;color:var(--tx)'}));
+    unRow.appendChild(uQtd); unRow.appendChild(uSel); unRow.appendChild(pesoWrap);
     const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
-    let vendUn=parseFloat(f.porcao_qtd)>0;
+    let vendUn=parseFloat(f.porcao_qtd)>0&&['g','ml','kg','L'].includes(f.rendimento_un);
     const bG=document.createElement('button'); bG.type='button';
     const bU=document.createElement('button'); bU.type='button';
     const porcWrap=document.createElement('div'); porcWrap.style.cssText='display:none;gap:8px;align-items:center';
@@ -2009,6 +2034,15 @@ async function modalPrep(item){
       const on='padding:8px 16px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;background:#A82A2A;color:#fff;border:1.5px solid #A82A2A';
       const off='padding:8px 16px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12.5px;font-weight:800;cursor:pointer;background:#fff;color:#5A463E;border:1.5px solid var(--border)';
       const u=(f.rendimento_un==='porção'?'un':(f.rendimento_un||'g'));
+      const ehUn=(u==='un');
+      row.style.display=ehUn?'none':'flex';
+      unRow.style.display=ehUn?'flex':'none';
+      if(ehUn){
+        if(!['g','ml','un'].includes(f.porcao_un)) f.porcao_un=uSel.value||'g';
+        uSel.value=f.porcao_un;
+        pesoWrap.style.display=(f.porcao_un==='un')?'inline-flex':'none';
+        return;
+      }
       bG.style.cssText=vendUn?off:on; bU.style.cssText=vendUn?on:off;
       bG.textContent=(vendUn?'':'✓ ')+'A granel (por '+(u==='g'?'kg':u==='ml'?'L':u)+')';
       bU.textContent=(vendUn?'✓ ':'')+'Por unidade';
@@ -2019,7 +2053,7 @@ async function modalPrep(item){
     bU.onclick=function(){ vendUn=true; f.porcao_un=(f.rendimento_un==='porção'?'un':f.rendimento_un); paint(); calcTotais(); setTimeout(function(){porcInp.focus();},50); };
     _vendPaint=paint; paint();
     row.appendChild(bG); row.appendChild(bU); row.appendChild(porcWrap);
-    w.appendChild(row);
+    w.appendChild(row); w.appendChild(unRow);
     return w;
   })();
   const margWidget=el('div',null,[
@@ -2058,7 +2092,7 @@ async function modalPrep(item){
     const qtd=parseFloat(f.rendimento_qtd)||1;
     f.custo_por_unidade=(['g','ml'].includes(f.rendimento_un))?(f.custo_total/qtd)*1000:f.custo_total/qtd;
     if(!f.valor_venda_central||f.valor_venda_central===0)f.valor_venda_central=f.custo_por_unidade*1.7;
-    const p={nome:f.nome,categoria:f.categoria,cat_custo:f.cat_custo||null,destinos:[..._selDestsPP],e_preparo:_isPre,rendimento_qtd:parseFloat(f.rendimento_qtd),rendimento_un:f.rendimento_un,porcao_qtd:parseFloat(f.porcao_qtd)||null,porcao_un:f.porcao_un||null,custo_total:f.custo_total,custo_por_unidade:f.custo_por_unidade,valor_venda_central:parseFloat(f.valor_venda_central),margem_venda:parseFloat(f.margem_venda)||70,modo_preparo:f.modo_preparo||null,observacoes:f.observacoes||null,editado_por:_autorPP.v||null,editado_em:new Date().toISOString()};
+    const p={nome:f.nome,categoria:f.categoria,cat_custo:f.cat_custo||null,destinos:[..._selDestsPP],e_preparo:_isPre,rendimento_qtd:parseFloat(f.rendimento_qtd),rendimento_un:f.rendimento_un,porcao_qtd:parseFloat(f.porcao_qtd)||null,porcao_un:f.porcao_un||null,peso_unidade_g:parseFloat(f.peso_unidade_g)||null,custo_total:f.custo_total,custo_por_unidade:f.custo_por_unidade,valor_venda_central:parseFloat(f.valor_venda_central),margem_venda:parseFloat(f.margem_venda)||70,modo_preparo:f.modo_preparo||null,observacoes:f.observacoes||null,editado_por:_autorPP.v||null,editado_em:new Date().toISOString()};
     /* QUEM FAZ: nova nasce na cozinha do app (a Central abre com ?unidade=central).
        Editando, respeita o que já está — não sequestra a receita de outra cozinha. */
     p.cozinha = (ed && item && item.cozinha) ? item.cozinha : APP_COZ[0];
