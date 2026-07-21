@@ -1211,6 +1211,10 @@ async function portalLogin(){
     if(data.error||!data.id){err.textContent=data.error||'Usuário ou senha incorretos.';btn.disabled=false;btn.textContent='Entrar';return;}
     window.__portalUser=data;
     localStorage.setItem('lola_session',JSON.stringify(data));
+    /* 20/07 (Bianca): "não precisa mais pedir essa senha já que a gente coloca antes
+       de entrar" — se é admin, guarda o hash do login (é a MESMA senha que o
+       RH/Usuários pediam de novo) e esses módulos abrem direto. */
+    try{ if(data.role==='admin') localStorage.setItem('lola_admhash',hash); else localStorage.removeItem('lola_admhash'); }catch(_){}
     startPortal();
   }catch(e){err.textContent='Erro de conexão.';btn.disabled=false;btn.textContent='Entrar';}
 }
@@ -1227,7 +1231,7 @@ async function loadLoginNames(){
     }
   }catch(e){}
 }
-function portalLogout(){localStorage.removeItem('lola_session');window.__portalUser=null;location.reload();}
+function portalLogout(){localStorage.removeItem('lola_session');try{localStorage.removeItem('lola_admhash');}catch(_){}window.__portalUser=null;location.reload();}
 function userCan(r){return(ROLE_LEVEL[window.__portalUser?.role]||0)>=(ROLE_LEVEL[r]||0);}
 
 function applyCollapse(on){ var sb=document.getElementById('sidebar'); if(!sb)return; sb.classList.toggle('collapsed',!!on); var b=document.getElementById('sbToggle'); if(b) b.title=on?'Expandir menu':'Encolher menu'; }
@@ -1465,7 +1469,7 @@ async function loadDashMargem(){
 }
 
 // ═══ ADMIN: USUÁRIOS ═══
-let __adminHash = null;
+let __adminHash = (function(){ try{ return localStorage.getItem('lola_admhash')||null; }catch(_){ return null; } })();
 async function adminRpc(fn, args){
   const res = await fetch(`${PORTAL_URL}/rest/v1/rpc/${fn}`,{
     method:'POST',
@@ -1563,7 +1567,7 @@ async function renderUsuarios(){
   panel.innerHTML='<div style="padding:24px 26px;color:var(--muted)">Carregando usuários…</div>';
   let users;
   try{ users=await adminRpc('portal_admin_list_users',{p_admin_name:u.name,p_admin_hash:__adminHash}); }
-  catch(e){ __adminHash=null; renderUsuarios(); return; }
+  catch(e){ __adminHash=null; try{localStorage.removeItem('lola_admhash');}catch(_){} renderUsuarios(); return; }
   const RL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Compras',funcionario:'Funcionário'};
   let html='<div style="padding:22px 26px;max-width:780px">';
   html+='<h2 style="font-family:\'Playfair Display\',serif;color:var(--vinho);font-style:italic;font-size:1.5rem;margin-bottom:4px">Usuários</h2>';
@@ -1595,7 +1599,7 @@ async function renderUsuarios(){
 async function confirmAdmin(){
   const el=document.getElementById('admPass'); if(!el||!el.value) return;
   const h=await sha256hex(el.value);
-  try{ await adminRpc('portal_admin_list_users',{p_admin_name:window.__portalUser.name,p_admin_hash:h}); __adminHash=h; renderUsuarios(); }
+  try{ await adminRpc('portal_admin_list_users',{p_admin_name:window.__portalUser.name,p_admin_hash:h}); __adminHash=h; try{localStorage.setItem('lola_admhash',h);}catch(_){} renderUsuarios(); }
   catch(e){ const er=document.getElementById('admErr'); if(er) er.textContent='Senha incorreta.'; }
 }
 async function admSetRole(id, role){
@@ -1671,13 +1675,13 @@ async function renderRH(){
   }
   panel.innerHTML='<div style="padding:24px 26px;color:var(--muted)">Carregando RH…</div>';
   try{ __rhFuncs=await adminRpc('rh_func_list',{p_admin_name:u.name,p_admin_hash:__adminHash})||[]; }
-  catch(e){ __adminHash=null; renderRH(); return; }
+  catch(e){ __adminHash=null; try{localStorage.removeItem('lola_admhash');}catch(_){} renderRH(); return; }
   rhRenderFuncList();
 }
 async function confirmAdminRH(){
   var el=document.getElementById('rhPass'); if(!el||!el.value) return;
   var h=await sha256hex(el.value);
-  try{ await adminRpc('rh_func_list',{p_admin_name:window.__portalUser.name,p_admin_hash:h}); __adminHash=h; renderRH(); }
+  try{ await adminRpc('rh_func_list',{p_admin_name:window.__portalUser.name,p_admin_hash:h}); __adminHash=h; try{localStorage.setItem('lola_admhash',h);}catch(_){} renderRH(); }
   catch(e){ var er=document.getElementById('rhErr'); if(er) er.textContent='Senha incorreta.'; }
 }
 function rhTabs(active){
