@@ -61,6 +61,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--vinho)}
 .ov.show{display:flex}
 .sheet{background:var(--cream);border:1px solid var(--border);border-radius:18px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;padding:14px 16px 20px}
 .sh-hd{display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--fio);padding-bottom:10px;margin-bottom:12px}
+/* 21/07 (Bianca: "não tem botão de salvar") — em tela baixa o rodapé do formulário
+   ficava escondido no fim da rolagem. Agora só os CAMPOS rolam; o Salvar fica fixo. */
+#formBody{display:flex;flex-direction:column;overflow:hidden}
+#formBody .sh-scroll{overflow-y:auto;min-height:0;flex:1}
+#formBody .sh-ft{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--fio);flex-shrink:0}
 .sh-tit{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem;flex:1;min-width:0;line-height:1.2}
 .lab{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--rotulo);font-weight:600;margin:12px 0 5px}
 .foto-big{width:100%;height:180px;border-radius:13px;background:#F7EFE6;display:flex;align-items:center;justify-content:center;color:var(--rotulo);flex-direction:column;gap:5px;overflow:hidden;cursor:pointer;border:1px solid var(--border)}
@@ -385,6 +390,7 @@ function abrirManut(){try{var pp=window.parent;if(pp&&pp!==window&&typeof pp.ope
 function abrirForm(id){
   var i=id?ITENS.find(function(x){return x.id===id;}):null;
   var h='<div class="sh-hd"><div class="sh-tit">'+(i?'Editar item':'Novo item')+'</div><button class="hdr-ic" onclick="fecharOv(\'ovForm\')"><i class="ph-duotone ph-x"></i></button></div>'
+    +'<div class="sh-scroll">'
     +'<div class="lab">Categoria</div><select id="fCat" onchange="formCampos()">'+CATS.map(function(c){return '<option value="'+c.k+'"'+((i?i.categoria:'louca')===c.k?' selected':'')+'>'+c.nome.replace(/s$/,'')+'</option>';}).join('')+'</select>'
     +'<div class="lab">Nome</div><input type="text" id="fNome" value="'+esc(i?i.nome:'')+'" placeholder="Ex.: Prato raso Ø27 branco">'
     +'<div class="grid2"><div><div class="lab">Unidade</div><select id="fUni">'+UNIDADES.map(function(u){return '<option'+((i?i.unidade:'Lola CCMQ')===u?' selected':'')+'>'+u+'</option>';}).join('')+'</select></div>'
@@ -394,7 +400,8 @@ function abrirForm(id){
     +'<div class="grid2"><div><div class="lab">Marca</div><input type="text" id="fMarca" value="'+esc(i?i.marca:'')+'"></div><div><div class="lab">Modelo</div><input type="text" id="fModelo" value="'+esc(i?i.modelo:'')+'"></div></div>'
     +'<div class="grid2"><div><div class="lab">Tipo (subcategoria)</div><input type="text" id="fSub" value="'+esc(i?i.subcategoria:'')+'" placeholder="Ex.: Copos e taças"></div><div><div class="lab">Nº da nota fiscal</div><input type="text" id="fNF" value="'+esc(i?i.nf_num:'')+'"></div></div>'
     +'<div class="lab">Observações</div><textarea id="fObs" rows="2">'+esc(i?i.obs:'')+'</textarea>'
-    +'<div style="display:flex;gap:8px;margin-top:16px;justify-content:'+(i?'space-between':'flex-end')+'">'
+    +'</div>'
+    +'<div class="sh-ft" style="justify-content:'+(i?'space-between':'flex-end')+'">'
     +(i?'<button class="btn btn-sm" style="color:var(--alerta)" onclick="excluirItem('+i.id+')"><i class="ph-duotone ph-trash"></i> Excluir</button>':'')
     +'<span style="display:flex;gap:8px"><button class="btn btn-sm" onclick="fecharOv(\'ovForm\')">Cancelar</button><button class="btn btn-primary btn-sm" onclick="salvarForm('+(i?i.id:'null')+',this)"><i class="ph-duotone ph-check"></i> Salvar</button></span></div>';
   document.getElementById('formBody').innerHTML=h;
