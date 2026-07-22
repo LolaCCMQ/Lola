@@ -1594,7 +1594,8 @@ const ENV_DEST={ccmq:'CCMQ', mac:'MAC', eventos:'Evento'};
 function envDestTag(d){ d=d||'ccmq'; return `<span class="utag ${esc(d)}">${ENV_DEST[d]||d}</span>`; }
 function viewEnvio(){
   let h=`<div class="note">Tudo que <b>sai da Central</b> pra outra unidade: insumos (a custo), produções (valor de venda central) e itens do inventário. Marcar <b>enviado</b> baixa o estoque. Os do CCMQ continuam aparecendo no Pedidos à Central.</div>`;
-  h+=`<button class="btn" id="btnNovoEnvio" style="margin-bottom:12px"><i class="ph-duotone ph-paper-plane-tilt"></i> Enviar produtos</button>`;
+  /* 22/07 (Bianca): "pode ser renomeado - Criar novo envio - e pode ser bem mais discreto" */
+  h+=`<button class="btn sec" id="btnNovoEnvio" style="margin-bottom:12px;width:auto;display:inline-flex;padding:9px 18px;font-size:13px"><i class="ph-duotone ph-paper-plane-tilt"></i> Criar novo envio</button>`;
   const d=ST.envios;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
   const fd=ST.envDestFiltro||'todos';
@@ -1675,7 +1676,7 @@ function _envValTxt(it,q){
 function openEnvio(){
   const _s=lolaSession()||{}; const quem=_s.nome||_s.email||''; const hoje=new Date().toISOString().slice(0,10);
   ENV_SEL=null; ENV_DEST_SEL='ccmq'; ENV_GRP='prod';
-  $('#shTitle').textContent='Enviar produtos';
+  $('#shTitle').textContent='Criar novo envio';
   $('#shBody').innerHTML=`<div class="note">Escolha <b>pra onde vai</b> e <b>o que vai</b>. Insumo sai a custo, produção com o valor de venda central, equipamentos do inventário sem preço. Equipamentos: só os que <b>estão na Cozinha Central</b>.</div>
     <label class="iml">Pra onde vai · o que vai</label>
     <div class="envdest">${['ccmq','mac','eventos'].map(d=>`<button data-d="${d}" class="${d} ${d===ENV_DEST_SEL?'on':''}">${ENV_DEST[d]}</button>`).join('')}<span class="sep"></span><span id="envGrps" style="display:contents">
