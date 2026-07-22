@@ -6942,7 +6942,28 @@ function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico
     mBody.textContent=modoPreparo;
     modoEl.appendChild(mTitle); modoEl.appendChild(mBody);
   }
-  mkModal(titulo,[resumo,...(fotosEl?[fotosEl]:[]),scrollWrap,...(modoEl?[modoEl]:[]),...(histEl?[histEl]:[])],null,'mo moxl');
+  /* 22/07 (Bianca): "nas receitas da central, temos que poder imprimir" — impressão
+     limpa pra bancada: ingredientes com quantidade (e o bruto quando tem FC) + modo
+     de preparo. SEM custos. Vale pra PP e pra ficha (é o mesmo visualizador). */
+  const btnImpRec=btn('btn bo bsm','🖨️ Imprimir receita',function(){
+    const w2=window.open('','_blank');
+    const temFC=(itens||[]).some(function(it){ return (parseFloat(it.fc)||1)!==1; });
+    let hh='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:24px;max-width:680px;margin:0 auto}h1{color:#AA2B2B;border-bottom:2px solid #AA2B2B;padding-bottom:8px;font-size:22px}.info{background:#f8f8f8;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#AA2B2B;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase}td{padding:7px 10px;border-bottom:1px solid #eee;font-size:13px}.modo{margin-top:18px;font-size:13px;line-height:1.7;white-space:pre-wrap;background:#f8f8f8;border-radius:8px;padding:12px 14px}.footer{margin-top:24px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}</style></head><body>';
+    hh+='<h1>'+_IFE(String(titulo||'Receita').replace('📋','').trim())+'</h1>';
+    hh+='<div class="info"><strong>Rendimento:</strong> '+N(rendQtd,0)+' '+_IFE(rendUn||'')+'</div>';
+    hh+='<table><tr><th>Ingrediente</th><th>UN</th><th style="text-align:right">Qtd</th>'+(temFC?'<th style="text-align:right">Pegar bruto (FC)</th>':'')+'</tr>';
+    (itens||[]).forEach(function(it){
+      const nome=it.lola_insumos?.nome||it.lola_preproducoes?.nome||it.lola_preproducoes_sub?.nome||it.nome_manual||'—';
+      const qb=parseFloat(it.qtd_bruta)||0, fc2=parseFloat(it.fc)||1, bruto=qb*fc2;
+      hh+='<tr><td><strong>'+_IFE(nome)+'</strong></td><td>'+_IFE(it.unidade||'g')+'</td><td style="text-align:right;font-weight:700">'+N(qb,2)+'</td>'+(temFC?('<td style="text-align:right">'+(fc2!==1?(N(bruto,2)+' <small>(FC '+N(fc2,2)+')</small>'):'—')+'</td>'):'')+'</tr>';
+    });
+    hh+='</table>';
+    if(modoPreparo) hh+='<div class="modo"><strong>📖 Modo de preparo</strong><br>'+_IFE(modoPreparo)+'</div>';
+    hh+='<div class="footer">Impresso em '+new Date().toLocaleString('pt-BR')+' · Lola</div></body></html>';
+    w2.document.write(hh); w2.print();
+  });
+  const impWrap=div('fl_ mb3',[btnImpRec]);
+  mkModal(titulo,[resumo,impWrap,...(fotosEl?[fotosEl]:[]),scrollWrap,...(modoEl?[modoEl]:[]),...(histEl?[histEl]:[])],null,'mo moxl');
 }
 
 
