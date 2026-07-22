@@ -5466,12 +5466,44 @@ async function pgEntradaNotas(c){
     desenhaNotas();
   }catch(e){c.innerHTML='<div style="padding:20px;color:red;font-weight:700">❌ Erro ao carregar.<br><small>'+_envEsc(e.message)+'</small></div>';}
 }
+/* 22/07 (Bianca): "quando eu estou digitando já deveria aparecer os itens parecidos,
+   mas ele está mostrando todos os insumos" — o datalist nativo abre a lista inteira.
+   Autocomplete de verdade: filtra por pedaço do nome (sem acento), até 12 opções. */
+function _enAutoComplete(inp){
+  inp.removeAttribute('list');
+  inp.setAttribute('autocomplete','off');
+  const box=document.createElement('div');
+  box.style.cssText='position:fixed;z-index:900;background:#fff;border:1.5px solid var(--rb);border-radius:12px;box-shadow:0 8px 24px rgba(42,26,23,.15);max-height:240px;overflow-y:auto;display:none';
+  document.body.appendChild(box);
+  let _skip=false;
+  function fechar(){ box.style.display='none'; }
+  function render(){
+    if(_skip){ _skip=false; fechar(); return; }
+    const q=_jnorm(inp.value||'');
+    if(q.length<2||!EN||!EN.insumos){ fechar(); return; }
+    const hits=EN.insumos.filter(i=>_jnorm(i.nome).includes(q)).slice(0,12);
+    if(!hits.length){ fechar(); return; }
+    box.innerHTML='';
+    hits.forEach(i=>{
+      const it=document.createElement('div');
+      it.textContent=i.nome;
+      it.style.cssText='padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid #F3EBE2';
+      it.onmouseenter=()=>{it.style.background='var(--rf)';};
+      it.onmouseleave=()=>{it.style.background='#fff';};
+      it.onmousedown=(e)=>{ e.preventDefault(); _skip=true; inp.value=i.nome; inp.dispatchEvent(new Event('input',{bubbles:false})); fechar(); };
+      box.appendChild(it);
+    });
+    const r=inp.getBoundingClientRect();
+    box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.width=Math.max(r.width,240)+'px';
+    box.style.display='block';
+  }
+  inp.addEventListener('input',render);
+  inp.addEventListener('focus',render);
+  inp.addEventListener('blur',()=>setTimeout(fechar,150));
+}
 function abrirNotaEN(n){
   const itens=Array.isArray(n.itens)?n.itens:[];
   const wrap=div(null);const rows=[];
-  const dl=el('datalist',null,null,{id:'enInsList'});
-  EN.insumos.forEach(i=>dl.appendChild(el('option',null,null,{value:i.nome})));
-  wrap.appendChild(dl);
   if(!itens.length)wrap.appendChild(div('tss',['Essa nota não tem itens.']));
   itens.forEach(it=>{
     const desc=it.desc||'';const q=+it.qtd||0;const un=String(it.un||'').toUpperCase();const ct=+it.vtotal||0;
@@ -5488,7 +5520,8 @@ function abrirNotaEN(n){
               : (_sug&&_sug.forte) ? '<span style="background:#FBF0DD;color:#9A6B1E;'+_sl+'">sugestão — confira</span>'
               : '<span style="background:#F3EEE9;color:#8A7A72;'+_sl+'">não sei o que é</span>';
     rw.innerHTML='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-weight:700;font-size:13px;color:var(--tx)">'+_envEsc(desc)+'</span>'+selo+'</div><div style="font-size:11px;color:var(--ts);margin-bottom:6px">nota: '+_enQ(q)+' '+_envEsc(un)+' · '+R(ct)+'</div>';
-    const insInp=el('input','fi',null,{list:'enInsList',placeholder:'Insumo (busque ou crie novo)',value:insNome,autocomplete:'off'});insInp.style.cssText='width:100%;margin-bottom:6px;font-size:13px';
+    const insInp=el('input','fi',null,{placeholder:'Insumo (busque ou crie novo)',value:insNome,autocomplete:'off'});insInp.style.cssText='width:100%;margin-bottom:6px;font-size:13px';
+    _enAutoComplete(insInp);
     if(_sug && !_sug.forte){   // palpite fraco: dica, não preenchimento
       const dica=el('div',null,null,{style:'font-size:11px;color:#9A6B1E;margin:-2px 0 6px'});
       const lk=el('span',null,_sug.ins.nome,{style:'text-decoration:underline;cursor:pointer;font-weight:700'});
@@ -5669,10 +5702,8 @@ async function modalFecharPrecosEN(mes){
 function modalEntradaManualEN(){
   if(!EN||!EN.insumos){ alert('Abra a tela de Entrada de Notas primeiro.'); return; }
   const wrap=div(null);
-  const dl=el('datalist',null,null,{id:'enInsListMan'});
-  EN.insumos.forEach(i=>dl.appendChild(el('option',null,null,{value:i.nome})));
-  wrap.appendChild(dl);
-  const insInp=el('input','fi',null,{list:'enInsListMan',placeholder:'Insumo (busque ou crie novo)',autocomplete:'off'});
+  const insInp=el('input','fi',null,{placeholder:'Insumo (busque ou crie novo)',autocomplete:'off'});
+  _enAutoComplete(insInp);
   const novoBox=div(null);novoBox.style.cssText='display:none;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center';
   const catSel=el('select','fi',null,{style:'flex:1;min-width:130px;font-size:12px'});EN_CATS.forEach(cc=>catSel.appendChild(el('option',null,cc,{value:cc})));
   const unInp=el('input','fi',null,{placeholder:'un. uso (kg, L, un…)',value:'kg'});unInp.style.cssText='width:130px;font-size:12px';
