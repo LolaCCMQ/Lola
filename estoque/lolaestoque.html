@@ -2497,6 +2497,11 @@ async function pgReceitas(c){
     const tEl=mkTabs(['todas','pp','ft'],_recTab,t=>{_recTab=t;drawREC($('#rec-t'));},['Tudo','Pré-produções','Fichas técnicas'],true);
     const esq=div(null);esq.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
     esq.appendChild(tEl);esq.appendChild(sEl);
+    /* 22/07 (Bianca): "preciso poder filtrar por CCMQ, MAC ou eventos" — chips de
+       destino de venda. PP filtra pelos selos (_destinosDeVenda); fichas técnicas
+       são pratos do CCMQ (aparecem em Todos e CCMQ). */
+    const dEl=mkTabs(['todos','ccmq','mac','eventos','central'],window._recDest||'todos',t=>{window._recDest=t;drawREC($('#rec-t'));},['Todos','CCMQ','MAC','Eventos','Central'],true);
+    esq.appendChild(dEl);
     const bar=div('abar no-print'); bar.appendChild(esq);
     if(podeMexerAqui()){
       const bb=div(null);bb.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
@@ -2535,6 +2540,14 @@ function drawREC(w){
   let rows=[];
   if(_recTab!=='ft') _pp.filter(_daMinhaCozinha).forEach(p=>rows.push({t:'pp',o:p}));
   if(_recTab!=='pp') _ft.filter(_daMinhaCozinha).forEach(x=>rows.push({t:'ft',o:x}));
+  /* 22/07: filtro por destino de venda (chips CCMQ/MAC/Eventos/Central) */
+  const _rd=window._recDest||'todos';
+  if(_rd!=='todos'){
+    rows=rows.filter(r=>{
+      if(r.t==='pp') return _destinosDeVenda(r.o).indexOf(_rd)>=0;
+      return _rd==='ccmq'; /* fichas técnicas = pratos do CCMQ */
+    });
+  }
   if(_recBusca){ const b=_recBusca.toLowerCase(); rows=rows.filter(r=>r.o.nome.toLowerCase().includes(b)); }
   rows.sort((a,b)=>a.o.nome.localeCompare(b.o.nome,'pt'));
   if(!rows.length){w.appendChild(em('pp',_recBusca?'Nenhuma receita encontrada':'Nenhuma receita aqui'));return;}
