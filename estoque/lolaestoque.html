@@ -5423,11 +5423,14 @@ async function pgEntradaNotas(c){
       }catch(e){}
     })();
     const meses=[...new Set(notas.map(n=>String(n.data_emissao||'').slice(0,7)).filter(Boolean))].sort().reverse();
-    if((!_enComp||meses.indexOf(_enComp)<0)&&meses.length)_enComp=meses[0];
+    if((!_enComp||(_enComp!=='todas'&&meses.indexOf(_enComp)<0))&&meses.length)_enComp=meses[0];
     const sel=el('select','fi',null,{style:'max-width:220px'});
+    sel.appendChild(el('option',null,'Todos os meses',{value:'todas'}));
+    if(_enComp==='todas')sel.value='todas';
     meses.forEach(m=>{const o=el('option',null,_enMesLbl(m),{value:m});if(m===_enComp)o.selected=true;sel.appendChild(o);});
-    /* 22/07 (Bianca): "aqui temos que poder fazer busca por fornecedor" — com texto
-       na busca, procura em TODOS os meses (emitente ou nº da nota). */
+    /* 22/07 (Bianca): busca por fornecedor (emitente ou nº). Ajuste do mesmo dia:
+       "to na competência julho e está aparecendo notas de abril, maio" — a busca
+       agora RESPEITA a competência; pra procurar em tudo, escolha "Todos os meses". */
     const buscaEN=el('input','fi',null,{type:'search',placeholder:'Buscar fornecedor…',autocomplete:'off'});
     buscaEN.style.cssText='min-width:230px';
     const topoEN=div(null,null,{style:'display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px'});
@@ -5455,10 +5458,10 @@ async function pgEntradaNotas(c){
     const listBox=div(null); c.appendChild(listBox);
     function desenhaNotas(){
       const q=_jnorm(buscaEN.value||'');
-      let list=q?notas.filter(n=>_jnorm(n.emitente||'').includes(q)||String(n.numero||'').includes(q))
-                :notas.filter(n=>String(n.data_emissao||'').slice(0,7)===_enComp);
+      let list=(_enComp==='todas')?notas.slice():notas.filter(n=>String(n.data_emissao||'').slice(0,7)===_enComp);
+      if(q) list=list.filter(n=>_jnorm(n.emitente||'').includes(q)||String(n.numero||'').includes(q));
       const pend=list.filter(n=>!lanSet.has(n.chave)).length;
-      infoEN.innerHTML=pend+' nota'+(pend!==1?'s':'')+' a lançar · '+list.length+(q?' encontrada'+(list.length!==1?'s':'')+' (todos os meses)':' no mês');
+      infoEN.innerHTML=pend+' nota'+(pend!==1?'s':'')+' a lançar · '+list.length+(_enComp==='todas'?' em todos os meses':' no mês')+(q?' · fornecedor "'+_envEsc(buscaEN.value)+'"':'');
       if(_enSt==='pend') list=list.filter(n=>!lanSet.has(n.chave));
       else if(_enSt==='ok') list=list.filter(n=>lanSet.has(n.chave));
       listBox.innerHTML='';
