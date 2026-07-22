@@ -1029,6 +1029,16 @@ function mkInsTable(itens){
         window._drawIns&&window._drawIns(document.getElementById('ins-t'));
       },'del');
       acts.appendChild(menu);
+      /* 22/07 (Bianca): "as opções estão cortadas" — o .ins-tbl tem overflow:hidden
+         e cortava o menu nas últimas linhas. Menu vira FIXED (fora do clip) e abre
+         pra CIMA quando não há espaço embaixo. */
+      const rb=mb.getBoundingClientRect();
+      menu.style.position='fixed';
+      menu.style.right='auto';
+      menu.style.left=Math.max(8,rb.right-184)+'px';
+      const hMenu=menu.offsetHeight||200;
+      if(rb.bottom+hMenu+8>window.innerHeight){ menu.style.top=Math.max(8,rb.top-hMenu-6)+'px'; }
+      else { menu.style.top=(rb.bottom+6)+'px'; }
     };
     acts.appendChild(mb);
     row.appendChild(acts);
