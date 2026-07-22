@@ -1472,13 +1472,35 @@ function viewReceitasAntiga(){
   if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-notebook"></i>Nenhuma receita.</div>`; return h; }
   h+=`<div class="lbl">Produções da Central (${list.length})</div>`;
   list.forEach(x=>{
-    h+=`<div class="ritem" data-id="${x.id}"><div class="srow srow-c"><div class="t"><b>${esc(x.nome)}</b><span>toque p/ ver ingredientes</span></div><div class="r"><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div></div><div class="usos ringr"></div></div>`; });
+    h+=`<div class="ritem" data-id="${x.id}"><div class="srow srow-c"><div class="t"><b>${esc(x.nome)}</b><span class="rusos" data-rid="${x.id}">toque p/ ver ingredientes</span></div><div class="r"><i class="ph-duotone ph-caret-down" style="color:var(--lbl)"></i></div></div><div class="usos ringr"></div></div>`; });
   return h;
+}
+/* 22/07 (Bianca): "a separação retirou a conexão do que é usado em que prato" —
+   cada receita da Central mostra em que PRATOS (fichas técnicas do Lola) ela entra,
+   direto ou via outro preparo (1 nível). Cache em USOS_PP. */
+let USOS_PP=null;
+async function carregarUsosPP(){
+  if(USOS_PP) return USOS_PP;
+  try{
+    const [fti,fts,ppi]=await Promise.all([
+      api('lola_fichas_tecnicas_itens?select=ficha_id,preproducao_id&preproducao_id=not.is.null&limit=10000'),
+      api('lola_fichas_tecnicas?select=id,nome&ativo=eq.true&limit=3000'),
+      api('lola_preproducoes_itens?select=preproducao_id,sub_preproducao_id&sub_preproducao_id=not.is.null&limit=10000')
+    ]);
+    const nm={}; (fts||[]).forEach(f=>{ nm[f.id]=f.nome; });
+    const direto={};
+    (fti||[]).forEach(r=>{ const n=nm[r.ficha_id]; if(!n)return; (direto[r.preproducao_id]=direto[r.preproducao_id]||new Set()).add(n); });
+    const u={}; Object.keys(direto).forEach(k=>{ u[k]=[...direto[k]]; });
+    (ppi||[]).forEach(r=>{ const pai=direto[r.preproducao_id]; if(!pai)return; const a=(u[r.sub_preproducao_id]=u[r.sub_preproducao_id]||[]); pai.forEach(n=>{ if(!a.includes(n)) a.push(n); }); });
+    USOS_PP=u;
+  }catch(e){ USOS_PP={}; }
+  return USOS_PP;
 }
 function wireReceitas(){
   const bq=$('#bqr'); if(bq){ bq.oninput=()=>{ST.buscaR=bq.value;const p=bq.selectionStart;render();const n=$('#bqr');if(n){n.focus();n.setSelectionRange(p,p);}}; }
   $('#btnNovaRec')&&($('#btnNovaRec').onclick=openNovaReceita);
   $$('#app .ritem').forEach(el=>{ el.querySelector('.srow-c').onclick=()=>toggleReceita(el); });
+  carregarUsosPP().then(u=>{ $$('#app .rusos').forEach(s=>{ const us=u[s.dataset.rid]; if(us&&us.length){ s.textContent='🍽️ vai em: '+us.slice(0,3).join(', ')+(us.length>3?(' +'+(us.length-3)):''); s.title='Vai nos pratos: '+us.join(', '); } }); });
 }
 async function toggleReceita(el){
   const box=el.querySelector('.ringr'), id=el.dataset.id;
