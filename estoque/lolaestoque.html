@@ -5379,29 +5379,69 @@ async function pgEntradaNotas(c){
     EN={notas,lanSet,mapByKey,insByName,insById,insumos};
     c.innerHTML='';
     const note=div(null);note.style.cssText='background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5';
-    note.innerHTML='<i class="ph-duotone ph-info" style="color:var(--v)"></i> As notas vêm do <b>Financeiro</b> — você não digita de novo. Abra cada nota e confirme a qual <b>insumo</b> cada item corresponde (ou crie um novo). O sistema lança a entrada, converte pela unidade (fator) e atualiza o preço do insumo. Feito uma vez, o item já é reconhecido nas próximas notas.';
+    note.innerHTML='<i class="ph-duotone ph-info" style="color:var(--v)"></i> As notas vêm do <b>Financeiro</b> — você não digita de novo. Abra cada nota e confirme a qual <b>insumo</b> cada item corresponde (ou crie um novo). O sistema lança a entrada e converte pela unidade (fator); o preço pago fica <b>guardado pro fechamento do mês</b> (regra 22/07: preço de insumo só muda na virada, pela média). Feito uma vez, o item já é reconhecido nas próximas notas.';
     c.appendChild(note);
     /* 22/07 (Bianca): "precisamos poder fazer lançamentos manuais também no ccmq" */
     const bManual=btn('btn bo bsm','➕ Entrada manual (sem nota)',()=>modalEntradaManualEN());
-    bManual.style.cssText='margin-bottom:12px;font-weight:700';
+    bManual.style.cssText='margin-bottom:12px;font-weight:700;margin-right:8px';
     c.appendChild(bManual);
+    /* 22/07 (Bianca): fechamento mensal — média ponderada das compras vira o preço */
+    const bFech=btn('btn bo bsm','📅 Fechar preços do mês',()=>modalFecharPrecosEN());
+    bFech.style.cssText='margin-bottom:12px;font-weight:700;margin-right:8px';
+    c.appendChild(bFech);
+    /* 22/07 (Bianca): "precisamos de um atalho para ir para os INSUMOS — fica ruim
+       ter que sair daqui pra editar/excluir insumo em outro aplicativo" */
+    const bIns=btn('btn bo bsm','🧂 Insumos',()=>nav('insumos'));
+    bIns.style.cssText='margin-bottom:12px;font-weight:700';
+    bIns.title='Abrir o cadastro de insumos (editar / excluir)';
+    c.appendChild(bIns);
+    (async function(){
+      try{
+        const d=new Date(); const mA=new Date(d.getFullYear(),d.getMonth()-1,1);
+        const mes=mA.getFullYear()+'-'+String(mA.getMonth()+1).padStart(2,'0');
+        const r=await db('lola_precos_fechamento','GET',null,'?mes=eq.'+mes+'&select=mes');
+        if(!r.length){
+          const av=div(null,null,{style:'background:#FBF0DD;border:1.5px solid #F1DFB8;border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:#9A6B1E;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap'});
+          av.innerHTML='<span>🔔 Os preços de <b>'+_enMesLbl(mes)+'</b> ainda não foram fechados — aplicar a média das compras nos insumos.</span>';
+          av.appendChild(btn('btn bp bsm','Fechar agora',()=>modalFecharPrecosEN(mes)));
+          c.insertBefore(av, c.firstChild);
+        }
+      }catch(e){}
+    })();
     const meses=[...new Set(notas.map(n=>String(n.data_emissao||'').slice(0,7)).filter(Boolean))].sort().reverse();
     if((!_enComp||meses.indexOf(_enComp)<0)&&meses.length)_enComp=meses[0];
-    const sel=el('select','fi',null,{style:'max-width:220px;margin-bottom:12px'});
+    const sel=el('select','fi',null,{style:'max-width:220px'});
     meses.forEach(m=>{const o=el('option',null,_enMesLbl(m),{value:m});if(m===_enComp)o.selected=true;sel.appendChild(o);});
-    sel.onchange=e=>{_enComp=e.target.value;renderPage();};
-    c.appendChild(el('div',null,[el('div','lbl',['Competência']),sel]));
-    const list=notas.filter(n=>String(n.data_emissao||'').slice(0,7)===_enComp);
-    const pend=list.filter(n=>!lanSet.has(n.chave)).length;
-    c.appendChild(el('div',null,null,{html:pend+' nota'+(pend!==1?'s':'')+' a lançar · '+list.length+' no mês',style:'font-size:12px;font-weight:800;color:var(--v);margin:2px 0 10px;text-transform:uppercase;letter-spacing:.5px'}));
-    if(!list.length){c.appendChild(div('tss',null,{style:'padding:16px',html:'Sem notas nessa competência.'}));return;}
-    list.forEach(n=>{
-      const done=lanSet.has(n.chave);const nit=Array.isArray(n.itens)?n.itens.length:0;
-      const card=div(null);card.style.cssText='background:#fff;border:1.5px solid var(--rb);border-radius:14px;padding:13px 15px;margin-bottom:9px'+(done?';opacity:.72':'');
-      card.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--tx);flex:1;min-width:0">'+_envEsc(n.emitente||('Nota '+(n.numero||'')))+'</b>'+(done?'<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">lançada</span>':'<span style="background:#FBF0DD;color:#9A6B1E;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">a lançar</span>')+'</div><div style="font-size:11.5px;color:var(--ts);margin-top:3px">'+DBR(n.data_emissao)+' · '+nit+' itens · '+R(n.valor_total)+'</div>';
-      const b=btn('btn '+(done?'bo':'bp')+' bsm',done?'Ver / relançar':'Lançar itens',()=>abrirNotaEN(n));
-      b.style.cssText='margin-top:10px;font-size:12px;font-weight:700';card.appendChild(b);c.appendChild(card);
-    });
+    /* 22/07 (Bianca): "aqui temos que poder fazer busca por fornecedor" — com texto
+       na busca, procura em TODOS os meses (emitente ou nº da nota). */
+    const buscaEN=el('input','fi',null,{type:'search',placeholder:'Buscar fornecedor…',autocomplete:'off'});
+    buscaEN.style.cssText='min-width:230px';
+    const topoEN=div(null,null,{style:'display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px'});
+    topoEN.appendChild(el('div',null,[el('div','lbl',['Competência']),sel]));
+    topoEN.appendChild(el('div',null,[el('div','lbl',['Fornecedor']),buscaEN]));
+    c.appendChild(topoEN);
+    const infoEN=el('div',null,null,{style:'font-size:12px;font-weight:800;color:var(--v);margin:2px 0 10px;text-transform:uppercase;letter-spacing:.5px'});
+    c.appendChild(infoEN);
+    const listBox=div(null); c.appendChild(listBox);
+    function desenhaNotas(){
+      const q=_jnorm(buscaEN.value||'');
+      const list=q?notas.filter(n=>_jnorm(n.emitente||'').includes(q)||String(n.numero||'').includes(q))
+                  :notas.filter(n=>String(n.data_emissao||'').slice(0,7)===_enComp);
+      const pend=list.filter(n=>!lanSet.has(n.chave)).length;
+      infoEN.innerHTML=pend+' nota'+(pend!==1?'s':'')+' a lançar · '+list.length+(q?' encontrada'+(list.length!==1?'s':'')+' (todos os meses)':' no mês');
+      listBox.innerHTML='';
+      if(!list.length){listBox.appendChild(div('tss',null,{style:'padding:16px',html:q?'Nenhuma nota desse fornecedor.':'Sem notas nessa competência.'}));return;}
+      list.forEach(n=>{
+        const done=lanSet.has(n.chave);const nit=Array.isArray(n.itens)?n.itens.length:0;
+        const card=div(null);card.style.cssText='background:#fff;border:1.5px solid var(--rb);border-radius:14px;padding:13px 15px;margin-bottom:9px'+(done?';opacity:.72':'');
+        card.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--tx);flex:1;min-width:0">'+_envEsc(n.emitente||('Nota '+(n.numero||'')))+'</b>'+(done?'<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">lançada</span>':'<span style="background:#FBF0DD;color:#9A6B1E;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">a lançar</span>')+'</div><div style="font-size:11.5px;color:var(--ts);margin-top:3px">'+DBR(n.data_emissao)+' · '+nit+' itens · '+R(n.valor_total)+'</div>';
+        const b=btn('btn '+(done?'bo':'bp')+' bsm',done?'Ver / relançar':'Lançar itens',()=>abrirNotaEN(n));
+        b.style.cssText='margin-top:10px;font-size:12px;font-weight:700';card.appendChild(b);listBox.appendChild(card);
+      });
+    }
+    buscaEN.oninput=desenhaNotas;
+    sel.onchange=e=>{_enComp=e.target.value;desenhaNotas();};
+    desenhaNotas();
   }catch(e){c.innerHTML='<div style="padding:20px;color:red;font-weight:700">❌ Erro ao carregar.<br><small>'+_envEsc(e.message)+'</small></div>';}
 }
 function abrirNotaEN(n){
@@ -5413,15 +5453,16 @@ function abrirNotaEN(n){
   if(!itens.length)wrap.appendChild(div('tss',['Essa nota não tem itens.']));
   itens.forEach(it=>{
     const desc=it.desc||'';const q=+it.qtd||0;const un=String(it.un||'').toUpperCase();const ct=+it.vtotal||0;
-    const mp=EN.mapByKey[_jnorm(desc)];let insNome='',fator=1,_sug=null;
-    if(mp&&EN.insById[mp.insumo_id]){insNome=EN.insById[mp.insumo_id].nome;fator=+mp.fator||1;}
+    const mp=EN.mapByKey[_jnorm(desc)];let insNome='',fator=1,_sug=null,_ign=!!(mp&&mp.ignorar);
+    if(mp&&!mp.ignorar&&EN.insById[mp.insumo_id]){insNome=EN.insById[mp.insumo_id].nome;fator=+mp.fator||1;}
     /* Propõe, mas só PRÉ-PREENCHE o palpite forte. O fraco fica como dica clicável:
        "CHOPEIRA ELET AMSTEL" sugeria "Amstel Ultra" (errado) — pré-preenchido, alguém
        salvaria no automático. Palpite fraco tem que exigir um clique consciente. */
-    else{ _sug=_enSugere(desc); if(_sug && _sug.forte) insNome=_sug.ins.nome; }
+    else if(!_ign){ _sug=_enSugere(desc); if(_sug && _sug.forte) insNome=_sug.ins.nome; }
     const rw=div(null);rw.style.cssText='border:1px solid var(--rb);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:'+(_sug?'#FFFBF3':'var(--rf)')+(_sug?';border-color:#F1DFB8':'');
     const _sl='font-size:9px;font-weight:800;padding:1px 6px;border-radius:5px;text-transform:uppercase;letter-spacing:.4px';
-    const selo = mp ? '<span style="background:#DCFCE7;color:#166534;'+_sl+'">já conhecido</span>'
+    const selo = _ign ? '<span style="background:#FBEAE7;color:#B5302E;'+_sl+'">não entra no estoque</span>'
+              : mp ? '<span style="background:#DCFCE7;color:#166534;'+_sl+'">já conhecido</span>'
               : (_sug&&_sug.forte) ? '<span style="background:#FBF0DD;color:#9A6B1E;'+_sl+'">sugestão — confira</span>'
               : '<span style="background:#F3EEE9;color:#8A7A72;'+_sl+'">não sei o que é</span>';
     rw.innerHTML='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-weight:700;font-size:13px;color:var(--tx)">'+_envEsc(desc)+'</span>'+selo+'</div><div style="font-size:11px;color:var(--ts);margin-bottom:6px">nota: '+_enQ(q)+' '+_envEsc(un)+' · '+R(ct)+'</div>';
@@ -5435,6 +5476,12 @@ function abrirNotaEN(n){
       rw.appendChild(dica);
     }
     const fatInp=el('input','fi',null,{type:'number',step:'0.0001',value:fator,inputmode:'decimal'});fatInp.style.cssText='width:88px;text-align:center';
+    /* 22/07 (Bianca): unidade de medida editável na linha ("o papel toalha está em
+       pacote") — corrigir aqui também corrige o cadastro do insumo ao lançar. */
+    const UNS_EN=['kg','g','L','ml','un','pct','cx','fd','dz'];
+    const unSelEN=el('select','fi',null,{style:'width:80px;padding:6px 2px;font-size:12px'});
+    UNS_EN.forEach(u=>unSelEN.appendChild(el('option',null,u,{value:u})));
+    let _unTocada=false;
     const calc=el('span','tss');
     const novoBox=div(null);novoBox.style.cssText='display:none;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center';
     const catSel=el('select','fi',null,{style:'flex:1;min-width:130px;font-size:12px'});EN_CATS.forEach(cc=>catSel.appendChild(el('option',null,cc,{value:cc})));
@@ -5443,14 +5490,30 @@ function abrirNotaEN(n){
     function upd(){
       const m=EN.insByName[_jnorm(insInp.value)];const isNew=insInp.value.trim()&&!m;
       novoBox.style.display=isNew?'flex':'none';
-      const f=+fatInp.value||0,qu=q*f;const unUso=m?(m.unidade_custo||un):(unInp.value||un);
-      calc.innerHTML=qu>0?('→ entra <b style="color:var(--v)">'+_enQ(qu)+' '+_envEsc(unUso)+'</b> · '+R(ct/qu)+'/'+_envEsc(unUso)):'—';
+      if(!_unTocada){ let alvo=String(m?(m.unidade_custo||'un'):(unInp.value||un||'un')).trim().toLowerCase(); if(alvo==='l')alvo='L'; if(UNS_EN.includes(alvo)) unSelEN.value=alvo; }
+      const f=+fatInp.value||0,qu=q*f;const unUso=unSelEN.value||(m?(m.unidade_custo||un):(unInp.value||un));
+      calc.innerHTML=_ign?'<b style="color:#B5302E">não entra no estoque</b>':(qu>0?('→ entra <b style="color:var(--v)">'+_enQ(qu)+' '+_envEsc(unUso)+'</b> · '+R(ct/qu)+'/'+_envEsc(unUso)):'—');
     }
     insInp.oninput=upd;fatInp.oninput=upd;
+    unSelEN.onchange=()=>{_unTocada=true;upd();};
+    /* 22/07 (Bianca): "temos que ter a opção de clicar NÃO É INSUMO" — gás, taxa,
+       equipamento: marca, não entra no estoque e o sistema LEMBRA (mapa ignorar). */
+    const bIgn=document.createElement('button'); bIgn.type='button';
+    function paintIgn(){
+      bIgn.style.cssText='padding:5px 12px;border-radius:50px;font-size:11px;font-weight:800;cursor:pointer;border:1.5px solid '+(_ign?'#B5302E':'var(--rb)')+';background:'+(_ign?'#B5302E':'#fff')+';color:'+(_ign?'#fff':'#8A7A72')+';margin-left:auto';
+      bIgn.textContent=_ign?'🚫 não é insumo':'não é insumo?';
+      insInp.disabled=_ign; fatInp.disabled=_ign; unSelEN.disabled=_ign;
+      rw.style.opacity=_ign?'.55':'1';
+      upd();
+    }
+    bIgn.onclick=()=>{_ign=!_ign;paintIgn();};
     const fl=div(null);fl.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap';
-    fl.appendChild(el('span','tss',['Fator']));fl.appendChild(fatInp);fl.appendChild(calc);
+    fl.appendChild(el('span','tss',['Fator']));fl.appendChild(fatInp);
+    fl.appendChild(el('span','tss',['entra em']));fl.appendChild(unSelEN);
+    fl.appendChild(calc);fl.appendChild(bIgn);
     rw.appendChild(insInp);rw.appendChild(fl);rw.appendChild(novoBox);wrap.appendChild(rw);
-    rows.push({desc,q,un,ct,insInp,fatInp,catSel,unInp});setTimeout(upd,0);
+    rows.push({desc,q,un,ct,insInp,fatInp,catSel,unInp,unSelEN,ign:()=>_ign,unTocada:()=>_unTocada});
+    paintIgn();
   });
   const bSave=btn('btn bp','✓ Lançar entrada da nota',()=>lancarNotaEN(n,rows,bSave));
   bSave.style.cssText='width:100%;margin-top:4px;padding:13px;font-weight:800;font-size:14px';
@@ -5458,23 +5521,38 @@ function abrirNotaEN(n){
   mkModal('Lançar: '+_envEsc(n.emitente||('Nota '+(n.numero||''))),[wrap],null,'mo moxl');
 }
 async function lancarNotaEN(n,rows,bSave){
-  for(const r of rows){ if(!r.insInp.value.trim()){alert('Falta o insumo de: '+r.desc);r.insInp.focus();return;} if(!(+r.fatInp.value>0)){alert('Fator inválido em: '+r.desc);return;} }
-  if(!confirm('Lançar '+rows.length+' itens no estoque do CCMQ?\n\nDá entrada, converte pela unidade e atualiza o preço dos insumos.'))return;
+  const ativos=rows.filter(r=>!(r.ign&&r.ign()));
+  for(const r of ativos){ if(!r.insInp.value.trim()){alert('Falta o insumo de: '+r.desc);r.insInp.focus();return;} if(!(+r.fatInp.value>0)){alert('Fator inválido em: '+r.desc);return;} }
+  const nIgn=rows.length-ativos.length;
+  if(!confirm('Lançar '+ativos.length+' itens no estoque do CCMQ'+(nIgn?(' ('+nIgn+' marcado'+(nIgn>1?'s':'')+' como não-insumo, fica fora)'):'')+'?\n\nDá entrada e converte pela unidade. O preço pago fica guardado pro fechamento do mês (o preço dos insumos NÃO muda agora).'))return;
   bSave.textContent='Lançando...';bSave.disabled=true;
   const H={'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'};
   try{
     const hoje=TD(),quem=ME||null;
     await db('lola_ccmq_estoque_mov','DELETE',null,'?origem_tipo=eq.nota&origem_ref=eq.'+encodeURIComponent(n.chave));
     for(const r of rows){
+      if(r.ign&&r.ign()){
+        /* "não é insumo": grava no mapa (ignorar) — nas próximas notas já vem marcado */
+        await fetch(SB+'/rest/v1/lola_nota_insumo_map?on_conflict=desc_norm',{method:'POST',headers:H,body:JSON.stringify({desc_norm:_jnorm(r.desc),desc_orig:r.desc,insumo_id:null,fator:null,ignorar:true,origem:'ccmq',criado_por:ME||null,updated_at:new Date().toISOString()})});
+        continue;
+      }
       let ins=EN.insByName[_jnorm(r.insInp.value)];
       if(!ins){
         const novo=await db('lola_insumos','POST',{nome:r.insInp.value.trim(),categoria:r.catSel.value,unidade_compra:r.un||null,unidade_custo:(r.unInp.value||r.un||'un'),custo_por_unidade:0,destinos:['ccmq'],ativo:true});
         ins=Array.isArray(novo)?novo[0]:novo;EN.insByName[_jnorm(ins.nome)]=ins;EN.insById[ins.id]=ins;
       }
-      const f=+r.fatInp.value||1,qu=r.q*f,cu=qu>0?r.ct/qu:0,unUso=ins.unidade_custo||r.unInp.value||r.un||'un';
+      const f=+r.fatInp.value||1,qu=r.q*f,cu=qu>0?r.ct/qu:0;
+      const unUso=(r.unSelEN&&r.unSelEN.value)||ins.unidade_custo||r.unInp.value||r.un||'un';
+      /* 22/07: unidade corrigida na linha vira a unidade de uso do CADASTRO do insumo */
+      if(r.unTocada&&r.unTocada()&&r.unSelEN&&r.unSelEN.value&&ins.unidade_custo!==r.unSelEN.value){
+        await db('lola_insumos','PATCH',{unidade_custo:r.unSelEN.value},'?id=eq.'+ins.id);
+        ins.unidade_custo=r.unSelEN.value;
+      }
       await db('lola_ccmq_estoque_mov','POST',{insumo_id:ins.id,tipo:'entrada',qtd:qu,unidade:unUso,custo_unit:cu,custo_total:r.ct,origem_tipo:'nota',origem_ref:n.chave,data:hoje,criado_por:quem});
-      await fetch(SB+'/rest/v1/lola_nota_insumo_map?on_conflict=desc_norm',{method:'POST',headers:H,body:JSON.stringify({desc_norm:_jnorm(r.desc),desc_orig:r.desc,insumo_id:ins.id,fator:f,origem:'ccmq',criado_por:ME||null,updated_at:new Date().toISOString()})});
-      if(cu>0)await db('lola_insumos','PATCH',{custo_por_unidade:cu},'?id=eq.'+ins.id);
+      await fetch(SB+'/rest/v1/lola_nota_insumo_map?on_conflict=desc_norm',{method:'POST',headers:H,body:JSON.stringify({desc_norm:_jnorm(r.desc),desc_orig:r.desc,insumo_id:ins.id,fator:f,ignorar:false,origem:'ccmq',criado_por:ME||null,updated_at:new Date().toISOString()})});
+      /* 22/07 (Bianca): "os insumos são atualizados o preço sempre no limite do mês,
+         e não a cada entrada de nota pra não bugar tudo" — o PATCH do preço saiu daqui.
+         O preço pago fica no movimento (custo_unit) e vira MÉDIA no fechamento do mês. */
     }
     await fetch(SB+'/rest/v1/lola_ccmq_estoque_nota?on_conflict=chave',{method:'POST',headers:H,body:JSON.stringify({chave:n.chave})});
     document.querySelectorAll('.ov').forEach(o=>o.remove());
@@ -5486,6 +5564,86 @@ async function lancarNotaEN(n,rows,bSave){
    lola_ccmq_estoque_mov tipo 'entrada', origem_tipo 'manual' (fornecedor/obs vai no
    origem_ref). Se informar o valor pago, o preço do insumo é atualizado (igual à
    nota). Regra da casa: o que TEM nota entra pela nota — manual é só o sem-nota. */
+/* 22/07 (Bianca): FECHAMENTO MENSAL DE PREÇOS — "todo dia 1º me dá um aviso; pega a
+   média do preço de cada insumo no mês, e daí sim a gente atualiza nas receitas e
+   nos pedidos". Média PONDERADA (Σ gasto ÷ Σ qtd) das ENTRADAS do mês nas duas
+   pontas (CCMQ + Central — o cadastro lola_insumos é um só). Aplicação com REVISÃO
+   (checkboxes; variação ≥50% destacada). Grava lola_insumos_historico (origem
+   'fechamento') e marca o mês em lola_precos_fechamento (alimenta o aviso do dia 1º). */
+async function modalFecharPrecosEN(mes){
+  const _hj=new Date();
+  const mesDef=(function(){ const d=new Date(_hj.getFullYear(),_hj.getMonth()-1,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); })();
+  let MES=mes||mesDef;
+  const wrap=div(null); const body=div(null);
+  const mesInp=el('input','fi',null,{type:'month',value:MES,style:'max-width:200px'});
+  mesInp.onchange=()=>{ MES=mesInp.value; carrega(); };
+  let LINHAS=[];
+  const bAplicar=btn('btn bp','✓ Aplicar preços marcados',aplicar);
+  bAplicar.style.cssText='width:100%;margin-top:12px;padding:13px;font-weight:800;font-size:14px';
+  async function carrega(){
+    body.innerHTML=''; body.appendChild(ld()); LINHAS=[];
+    try{
+      const ini=MES+'-01';
+      const fimD=new Date(+MES.slice(0,4), +MES.slice(5,7), 0).getDate();
+      const fim=MES+'-'+String(fimD).padStart(2,'0');
+      const [mc,mm,jaFechado]=await Promise.all([
+        db('lola_ccmq_estoque_mov','GET',null,'?tipo=eq.entrada&data=gte.'+ini+'&data=lte.'+fim+'&select=insumo_id,qtd,custo_total&limit=10000'),
+        db('lola_central_estoque_mov','GET',null,'?tipo=eq.entrada&data=gte.'+ini+'&data=lte.'+fim+'&select=insumo_id,qtd,custo_total&limit=10000'),
+        db('lola_precos_fechamento','GET',null,'?mes=eq.'+MES).catch(()=>[])
+      ]);
+      const agg={};
+      [].concat(mc,mm).forEach(m=>{ const q=+m.qtd||0, v=+m.custo_total||0; if(!(q>0&&v>0)||!m.insumo_id) return; const a=(agg[m.insumo_id]=agg[m.insumo_id]||{q:0,v:0,n:0}); a.q+=q; a.v+=v; a.n++; });
+      body.innerHTML='';
+      if(jaFechado.length){ body.appendChild(div('al alw mb3',['✓ Este mês já foi aplicado em '+new Date(jaFechado[0].aplicado_em).toLocaleDateString('pt-BR')+' por '+(jaFechado[0].aplicado_por||'—')+'. Aplicar de novo recalcula a mesma média.'])); }
+      const ids=Object.keys(agg);
+      if(!ids.length){ body.appendChild(em('📅','Nenhuma compra com valor nesse mês')); return; }
+      const insumos=(typeof _ins!=='undefined'&&_ins&&_ins.length)?_ins:await db('lola_insumos','GET',null,'?select=id,nome,unidade_custo,custo_por_unidade&ativo=eq.true&limit=4000');
+      const byId={}; insumos.forEach(i=>{ byId[i.id]=i; });
+      const tbl=div(null);
+      ids.map(id=>{ const i=byId[id]; if(!i) return null; const media=agg[id].v/agg[id].q; const atual=+i.custo_por_unidade||0; const dif=atual>0?((media-atual)/atual*100):null; return {id,i,media,atual,dif,n:agg[id].n}; })
+        .filter(Boolean)
+        .sort((a,b)=>Math.abs(b.dif==null?999:b.dif)-Math.abs(a.dif==null?999:a.dif))
+        .forEach(l=>{
+          const suspeito=l.dif!=null&&Math.abs(l.dif)>=50;
+          const row=div(null,null,{style:'display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--rb);border-radius:10px;margin-bottom:6px;background:'+(suspeito?'#FDF0E0':'#fff')});
+          const ck=el('input',null,null,{type:'checkbox'}); ck.checked=true; ck.style.cssText='width:17px;height:17px;flex-shrink:0;accent-color:var(--v)';
+          const info=div(null,null,{style:'flex:1;min-width:0'});
+          info.innerHTML='<div style="font-weight:700;font-size:13px">'+_envEsc(l.i.nome)+'</div><div style="font-size:11px;color:var(--ts)">'+l.n+' compra'+(l.n>1?'s':'')+' no mês</div>';
+          const nums=div(null,null,{style:'text-align:right;flex-shrink:0'});
+          nums.innerHTML='<div style="font-size:12.5px"><span style="color:var(--ts)">'+R(l.atual)+'</span> → <b style="color:var(--v)">'+R(l.media)+'</b> <small>/'+_envEsc(l.i.unidade_custo||'un')+'</small></div>'
+            +'<div style="font-size:11px;font-weight:700;color:'+(l.dif==null?'#8A7A72':(l.dif>0?'#c47700':'#166534'))+'">'+(l.dif==null?'sem preço atual':((l.dif>0?'+':'')+l.dif.toFixed(1)+'%'))+(suspeito?' ⚠️ confira':'')+'</div>';
+          row.appendChild(ck); row.appendChild(info); row.appendChild(nums);
+          tbl.appendChild(row);
+          LINHAS.push({ck,dado:l});
+        });
+      body.appendChild(tbl);
+    }catch(e){ body.innerHTML='<p style="color:#B5302E;padding:10px">Erro: '+_envEsc(e.message)+'</p>'; }
+  }
+  async function aplicar(){
+    const sel=LINHAS.filter(x=>x.ck.checked);
+    if(!sel.length){ alert('Nenhum insumo marcado.'); return; }
+    if(!confirm('Aplicar o preço médio de '+_enMesLbl(MES)+' em '+sel.length+' insumo'+(sel.length>1?'s':'')+'?\n\nIsso atualiza o cadastro — receitas e pedidos passam a usar os preços novos daqui pra frente.'))return;
+    bAplicar.disabled=true; bAplicar.textContent='Aplicando…';
+    try{
+      for(const x of sel){
+        const l=x.dado;
+        await db('lola_insumos_historico','POST',{insumo_id:l.id,custo_anterior:l.atual,custo_novo:l.media,alterado_por:ME||null,origem:'fechamento',observacao:'média ponderada de '+MES});
+        await db('lola_insumos','PATCH',{custo_por_unidade:l.media,preco_atualizado_em:new Date().toISOString(),preco_atualizado_por:ME||null},'?id=eq.'+l.id);
+        if(typeof _ins!=='undefined'&&_ins){ const li=_ins.find(i=>i.id===l.id); if(li) li.custo_por_unidade=l.media; }
+      }
+      await fetch(SB+'/rest/v1/lola_precos_fechamento?on_conflict=mes',{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({mes:MES,aplicado_em:new Date().toISOString(),aplicado_por:ME||null,n_itens:sel.length})});
+      document.querySelectorAll('.ov').forEach(o=>o.remove());
+      alert('✓ Preços de '+sel.length+' insumos atualizados pela média de '+_enMesLbl(MES)+'.\n\nLembrete: as RECEITAS recalculam na Conferência de Preços.');
+      renderPage();
+    }catch(e){ alert('Erro: '+e.message); bAplicar.disabled=false; bAplicar.textContent='✓ Aplicar preços marcados'; }
+  }
+  wrap.appendChild(fgrp('Mês (média das compras dele)',mesInp));
+  wrap.appendChild(el('div',null,null,{style:'height:10px'}));
+  wrap.appendChild(body);
+  wrap.appendChild(bAplicar);
+  mkModal('📅 Fechamento de preços do mês',[wrap],null,'mo mol');
+  carrega();
+}
 function modalEntradaManualEN(){
   if(!EN||!EN.insumos){ alert('Abra a tela de Entrada de Notas primeiro.'); return; }
   const wrap=div(null);
@@ -5510,7 +5668,7 @@ function modalEntradaManualEN(){
     const unUso=m?(m.unidade_custo||'un'):(unInp.value||'un');
     unLbl.textContent=unUso;
     const q=+qtdInp.value||0, v=+valInp.value||0;
-    calc.innerHTML=(q>0)?('→ entra <b style="color:var(--v)">'+_enQ(q)+' '+_envEsc(unUso)+'</b>'+(v>0?(' · '+R(v/q)+'/'+_envEsc(unUso)+' <small>(vira o preço novo do insumo)</small>'):' · sem valor — o preço do insumo não muda')):'—';
+    calc.innerHTML=(q>0)?('→ entra <b style="color:var(--v)">'+_enQ(q)+' '+_envEsc(unUso)+'</b>'+(v>0?(' · '+R(v/q)+'/'+_envEsc(unUso)+' <small>(guardado pro fechamento do mês)</small>'):' · sem valor informado')):'—';
   }
   insInp.oninput=upd;qtdInp.oninput=upd;valInp.oninput=upd;unInp.oninput=upd;
   upd();
@@ -5531,7 +5689,7 @@ function modalEntradaManualEN(){
       const unUso=ins.unidade_custo||unInp.value||'un';
       const cu=v>0?v/q:0;
       await db('lola_ccmq_estoque_mov','POST',{insumo_id:ins.id,tipo:'entrada',qtd:q,unidade:unUso,custo_unit:cu,custo_total:(v||null),origem_tipo:'manual',origem_ref:(obsInp.value.trim()||null),data:(dataInp.value||TD()),criado_por:ME||null});
-      if(cu>0) await db('lola_insumos','PATCH',{custo_por_unidade:cu},'?id=eq.'+ins.id);
+      /* 22/07: preço do insumo NÃO muda na entrada — só no fechamento do mês (média). */
       document.querySelectorAll('.ov').forEach(o=>o.remove());
       alert('✓ Entrada lançada no estoque do CCMQ.');
     }catch(e){ alert('Erro: '+e.message); bSave.disabled=false; bSave.textContent='✓ Lançar entrada manual'; }
