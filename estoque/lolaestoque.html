@@ -2495,8 +2495,29 @@ async function pgReceitas(c){
     drawREC(w);
   }catch(e){c.innerHTML='<p style="color:red;padding:20px">'+e.message+'</p>';}
 }
+/* 22/07 (Bianca): "a separação retirou a conexão do que é usado em que prato" —
+   mapa PP → pratos (fichas técnicas), com 1 nível de PP dentro de PP. Usado na
+   lista de Receitas ("🍽️ vai em ..."). */
+async function _carregaUsosPP(){
+  if(window._ppUsos) return window._ppUsos;
+  try{
+    const [fti,ppi]=await Promise.all([
+      db('lola_fichas_tecnicas_itens','GET',null,'?select=ficha_id,preproducao_id&preproducao_id=not.is.null&limit=10000'),
+      db('lola_preproducoes_itens','GET',null,'?select=preproducao_id,sub_preproducao_id&sub_preproducao_id=not.is.null&limit=10000')
+    ]);
+    const ftNome={}; (_ft||[]).forEach(f2=>{ ftNome[f2.id]=f2.nome; });
+    const direto={};
+    fti.forEach(r2=>{ const n=ftNome[r2.ficha_id]; if(!n) return; (direto[r2.preproducao_id]=direto[r2.preproducao_id]||new Set()).add(n); });
+    const usos={};
+    Object.keys(direto).forEach(k=>{ usos[k]=[...direto[k]]; });
+    ppi.forEach(r2=>{ const viaPai=direto[r2.preproducao_id]; if(!viaPai) return; const arr=(usos[r2.sub_preproducao_id]=usos[r2.sub_preproducao_id]||[]); viaPai.forEach(n=>{ if(!arr.includes(n)) arr.push(n); }); });
+    window._ppUsos=usos;
+  }catch(e){ window._ppUsos={}; }
+  return window._ppUsos;
+}
 function drawREC(w){
   w.innerHTML='';
+  if(!window._ppUsos){ _carregaUsosPP().then(()=>{ try{ drawREC(w); }catch(e){} }); }
   let rows=[];
   if(_recTab!=='ft') _pp.filter(_daMinhaCozinha).forEach(p=>rows.push({t:'pp',o:p}));
   if(_recTab!=='pp') _ft.filter(_daMinhaCozinha).forEach(x=>rows.push({t:'ft',o:x}));
@@ -2528,6 +2549,15 @@ function drawREC(w){
        PP continua com os selos (o destino dela alimenta os Pedidos). */
     if(ehPP){ _destinosDeVenda(x).forEach(d=>{ const s=span('ft-sel',DEST_LBL[d]||d); s.style.background=DEST_COR[d]||'#888'; s.title='Vendida para '+(DEST_LBL[d]||d); nome.appendChild(s); }); }
     else if(x.no_menu===false){ const s=span('ft-sel','INATIVO'); s.style.background='#8A7A72'; s.title='Fora do menu atual'; nome.appendChild(s); row.classList.add('inat'); }
+    /* 22/07: PP mostra em que PRATOS entra (direto ou via outro preparo) */
+    if(ehPP&&window._ppUsos){
+      const us=window._ppUsos[x.id];
+      if(us&&us.length){
+        const t=us.slice(0,2).join(' · ')+(us.length>2?(' +'+(us.length-2)):'');
+        const uEl=el('div',null,'🍽️ '+t,{style:'font-size:10px;color:#8A7A72;font-weight:600;margin-top:2px;width:100%',title:'Vai nos pratos: '+us.join(', ')});
+        nome.appendChild(uEl);
+      }
+    }
     if(x.revisar){ const rv=span('ft-rev'); rv.innerHTML='<i class="ph-duotone ph-warning"></i> revisar'; rv.title=x.revisar_motivo||''; rv.addEventListener('click',()=>modalRevisarFicha(ehPP?'pp':'ft',x)); nome.appendChild(rv); }
     if(!ehPP&&x.produto_pronto){ const pr=span('ft-pronto'); pr.innerHTML='<i class="ph-duotone ph-package"></i> produto pronto'; pr.title='Comprado feito — limite de CMV 50%'; nome.appendChild(pr); }
     row.appendChild(nome);
@@ -4999,7 +5029,7 @@ async function verDivergencias(p,divs,data,resp){
 function _ppBulk(x){ return ['g','ml','kg','L'].includes(x.rendimento_un||'un'); }
 function _ppPorcao(x){
   /* 20/07: modelo novo "Vendido em → Por unidade" grava porcao_un IGUAL ao rendimento,
-     e dados antigos vêm com porcao_un null — a regra antiga (exigia unidade DIFERENTE)
+     e dados antigos vêm com porcao_un null — a regra velha (exigia unidade DIFERENTE)
      escondia o preço por unidade desses PPs. Agora: rendimento a granel + porção > 0
      = vende por unidade. Porção em g/ml com rendimento em kg/L é convertida; porção
      MAIOR que o rendimento = dado inválido, cai pro preço a granel. */
@@ -5678,6 +5708,10 @@ async function pgPed(c){
     linha1.style.cssText='display:flex;align-items:center;gap:8px;width:100%';
     linha1.appendChild(mesDropWrap);
     const _sp=div(null); _sp.style.cssText='flex:1'; linha1.appendChild(_sp);
+    /* 22/07 (Bianca): relatórios por período/produto/categoria */
+    const bRel=el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-chart-bar"></i>',title:'Relatório de pedidos',onclick:()=>relatorioPed()});
+    bRel.style.cssText='width:40px;height:40px;padding:0;justify-content:center;flex-shrink:0;font-size:16px';
+    linha1.appendChild(bRel);
     const bAtualizar=el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-arrows-clockwise"></i>',title:'Atualizar',onclick:recarregarPedidos});
     bAtualizar.id='btn-refresh-ped';
     bAtualizar.style.cssText='width:40px;height:40px;padding:0;justify-content:center;flex-shrink:0;font-size:16px';
@@ -6504,6 +6538,93 @@ async function imprimirPed(ped){
   document.body.appendChild(ov);
 }
 
+/* 22/07 (Bianca): "nos PEDIDOS A CENTRAL precisa ter uma forma de fazermos
+   relatórios, por período, por produto, por categoria, etc". Modal com filtros
+   (período / destino / status / agrupamento), tabela com totais e impressão.
+   Valor = quantidade × preço unitário dos ITENS dos pedidos do período. */
+async function relatorioPed(){
+  const hoje=new Date();
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const f={de:iso(new Date(hoje.getFullYear(),hoje.getMonth(),1)),ate:iso(hoje),dest:'todos',st:'validos',grupo:'produto'};
+  const mkSel=(opts,cur,cb)=>{const s=el('select','fi');opts.forEach(o=>{const op=el('option',null,o[1],{value:o[0]});if(o[0]===cur)op.selected=true;s.appendChild(op);});s.addEventListener('change',e=>cb(e.target.value));return s;};
+  const deI=el('input','fi',null,{type:'date',value:f.de}); deI.addEventListener('change',e=>{f.de=e.target.value;});
+  const ateI=el('input','fi',null,{type:'date',value:f.ate}); ateI.addEventListener('change',e=>{f.ate=e.target.value;});
+  const destS=mkSel([['todos','Todos os destinos'],['ccmq','CCMQ'],['mac','Mac'],['terceiro','Terceiros']],f.dest,v=>f.dest=v);
+  const stS=mkSel([['validos','Todos (menos cancelados)'],['recebidos','Só recebidos']],f.st,v=>f.st=v);
+  const grpS=mkSel([['produto','Por produto'],['categoria','Por categoria'],['destino','Por destino'],['pedido','Por pedido']],f.grupo,v=>f.grupo=v);
+  const res=div(null); let _dados=null;
+  async function gerar(){
+    res.innerHTML=''; res.appendChild(ld());
+    try{
+      let q='?select=nome_item,quantidade,unidade,preco_unitario,lola_pedidos!inner(numero_pedido,data_pedido,unidade,destinatario,status)'
+        +'&lola_pedidos.data_pedido=gte.'+f.de+'&lola_pedidos.data_pedido=lte.'+f.ate
+        +(f.dest!=='todos'?('&lola_pedidos.unidade=eq.'+f.dest):'')
+        +(f.st==='recebidos'?'&lola_pedidos.status=in.(recebido_completo,recebido_divergencia)':'&lola_pedidos.status=not.in.(cancelado,rascunho)')
+        +'&limit=10000';
+      const its=await db('lola_pedidos_itens','GET',null,q);
+      if(!window._relCatMap){
+        const [pps,inss]=await Promise.all([
+          db('lola_preproducoes','GET',null,'?select=nome,cat_custo&limit=3000'),
+          db('lola_insumos','GET',null,'?select=nome,categoria&limit=4000')
+        ]);
+        const m={};
+        inss.forEach(i2=>{ m[String(i2.nome||'').trim().toLowerCase()]=INS_TO_COST[i2.categoria]||'Temperos e Outros'; });
+        pps.forEach(p2=>{ const k=String(p2.nome||'').trim().toLowerCase(); m[k]=p2.cat_custo||m[k]||'Sem categoria'; });
+        window._relCatMap=m;
+      }
+      const DL={ccmq:'CCMQ',mac:'Mac',terceiro:'Terceiro'};
+      const g={}; let totV=0;
+      its.forEach(it=>{
+        const ped=it.lola_pedidos||{};
+        const v=(parseFloat(it.quantidade)||0)*(parseFloat(it.preco_unitario)||0);
+        totV+=v;
+        let key;
+        if(f.grupo==='produto'){ key=(it.nome_item||'—')+''+(it.unidade||''); }
+        else if(f.grupo==='categoria'){ key=window._relCatMap[String(it.nome_item||'').trim().toLowerCase()]||'Sem categoria'; }
+        else if(f.grupo==='destino'){ key=DL[ped.unidade]||ped.destinatario||ped.unidade||'—'; }
+        else { key='#'+ped.numero_pedido+''+(ped.data_pedido||'')+''+(DL[ped.unidade]||ped.destinatario||ped.unidade||''); }
+        const o=(g[key]=g[key]||{qtd:0,itens:0,valor:0});
+        o.qtd+=(parseFloat(it.quantidade)||0); o.itens++; o.valor+=v;
+      });
+      _dados={f:{...f},linhas:[],totV,nItens:its.length};
+      Object.entries(g).sort((a,b)=>b[1].valor-a[1].valor).forEach(([k,o])=>{
+        let nome=k,qtdLbl;
+        if(f.grupo==='produto'){ const p=k.split(''); nome=p[0]; qtdLbl=N(o.qtd,1)+' '+(p[1]||''); }
+        else if(f.grupo==='pedido'){ const p=k.split(''); nome=p[0]+' · '+DBR(p[1])+' · '+p[2]; qtdLbl=o.itens+' itens'; }
+        else { if(f.grupo==='categoria') nome=costCatLabel(k); qtdLbl=o.itens+' itens'; }
+        _dados.linhas.push({nome,qtdLbl,valor:o.valor});
+      });
+      res.innerHTML='';
+      if(!_dados.linhas.length){ res.appendChild(em('📊','Nada nesse período com esses filtros')); return; }
+      res.appendChild(div('tw mb3',mkTable(
+        [f.grupo==='produto'?'Produto':f.grupo==='categoria'?'Categoria':f.grupo==='destino'?'Destino':'Pedido','Qtd','Valor'],
+        _dados.linhas.map(l=>[el('strong',null,l.nome),l.qtdLbl,el('span','bold tv',R(l.valor))]),
+        [null,'tr','tr']
+      )));
+      res.appendChild(div('fl_ jb aic',[el('strong',null,'TOTAL ('+_dados.nItens+' itens de pedido)'),el('strong','tv',R(totV),{style:'font-size:18px'})]));
+    }catch(e){ res.innerHTML='<p style="color:#B5302E;padding:10px">Erro: '+e.message+'</p>'; }
+  }
+  function imprimir(){
+    if(!_dados||!_dados.linhas.length){ alert('Gere o relatório primeiro.'); return; }
+    const w2=window.open('','_blank');
+    const GL={produto:'por produto',categoria:'por categoria',destino:'por destino',pedido:'por pedido'};
+    let hh='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:24px;max-width:720px;margin:0 auto}h1{color:#AA2B2B;border-bottom:2px solid #AA2B2B;padding-bottom:8px}.info{background:#f8f8f8;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#AA2B2B;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase}td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px}.tot td{border-top:2px solid #AA2B2B;border-bottom:none;font-size:15px;font-weight:800;padding-top:12px}.footer{margin-top:24px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}</style></head><body>';
+    hh+='<h1>📊 Relatório de Pedidos — '+GL[_dados.f.grupo]+'</h1><div class="info"><strong>Período:</strong> '+DBR(_dados.f.de)+' a '+DBR(_dados.f.ate)+' &nbsp;&nbsp;<strong>Destino:</strong> '+(_dados.f.dest==='todos'?'todos':_dados.f.dest)+' &nbsp;&nbsp;<strong>Status:</strong> '+(_dados.f.st==='recebidos'?'só recebidos':'todos menos cancelados')+'</div>';
+    hh+='<table><tr><th>'+(GL[_dados.f.grupo].replace('por ',''))+'</th><th style="text-align:right">Qtd</th><th style="text-align:right">Valor</th></tr>';
+    _dados.linhas.forEach(l=>{ hh+='<tr><td><strong>'+l.nome+'</strong></td><td style="text-align:right">'+l.qtdLbl+'</td><td style="text-align:right;font-weight:700">'+R(l.valor)+'</td></tr>'; });
+    hh+='<tr class="tot"><td colspan="2" style="text-align:right">TOTAL</td><td style="text-align:right;color:#AA2B2B">'+R(_dados.totV)+'</td></tr>';
+    hh+='</table><div class="footer">Gerado em '+new Date().toLocaleString('pt-BR')+' · Lola Bar CCMQ</div></body></html>';
+    w2.document.write(hh); w2.print();
+  }
+  mkModal('📊 Relatório de pedidos',[
+    div('fg2 mb3',[fgrp('De',deI),fgrp('Até',ateI)]),
+    div('fg3 mb3',[fgrp('Destino',destS),fgrp('Status',stS),fgrp('Agrupar',grpS)]),
+    div('fl_ gap2 mb3',[btn('btn bp','Gerar relatório',gerar),btn('btn bo','🖨️ Imprimir',imprimir)]),
+    res
+  ],null,'mo mol');
+  gerar();
+}
+
 /* ══════════════════════════════════
    HELPERS
 ══════════════════════════════════ */
@@ -6611,12 +6732,17 @@ function _renderFichaInsumo(mb, d, ov){
   if(!usos.length){ h+='<div style="background:#fff;border:1px solid var(--rb);border-radius:12px;padding:12px;font-size:11px;color:#B79A8E;margin-bottom:14px">Não entra em nenhuma receita.</div>'; }
   else{
     h+='<div style="background:#fff;border:1px solid var(--rb);border-radius:12px;overflow:hidden;margin-bottom:14px">';
+    /* 22/07 (Bianca): a separação escondia a cadeia insumo→preparo→prato. A RPC
+       agora manda também os pratos INDIRETOS (u.via = nome do preparo). */
     usos.forEach((u,i)=>{
       h+='<div style="display:flex;align-items:center;gap:8px;padding:9px 13px'+(i?';border-top:1px solid #F3EBE2':'')+'">'
         +'<span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:50px;background:'+(u.tipo==='preparo'?'#7A4FA3':'#C0392B')+';color:#fff;flex-shrink:0">'+(u.tipo==='preparo'?'PREPARO':'PRATO')+'</span>'
         +'<div style="flex:1;min-width:0;font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_IFE(u.nome)+'</div>'
-        +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700">'+_ifNum(u.qtd)+' '+_IFE(u.unidade||'')+'</div>'
-        +'<div style="font-size:10px;color:#8A7A72">'+R(u.custo)+(u.fc&&+u.fc!==1?(' · FC '+_ifNum(u.fc,2)):'')+'</div></div></div>';
+        +'<div style="text-align:right;flex-shrink:0">'
+        +(u.via
+          ?('<div style="font-size:10px;color:#8A7A72">entra pelo preparo</div><div style="font-size:11px;font-weight:700;color:#7A4FA3">'+_IFE(u.via)+'</div>')
+          :('<div style="font-size:12px;font-weight:700">'+_ifNum(u.qtd)+' '+_IFE(u.unidade||'')+'</div><div style="font-size:10px;color:#8A7A72">'+R(u.custo)+(u.fc&&+u.fc!==1?(' · FC '+_ifNum(u.fc,2)):'')+'</div>'))
+        +'</div></div>';
     });
     h+='</div>';
   }
