@@ -1915,7 +1915,13 @@ async function modalPrep(item){
       fcI.style.cssText='width:54px;flex-shrink:0;text-align:center;padding:6px 4px';fcI.placeholder='FC';fcI.title='Fator de correção';
       sel.style.cssText='flex:1 1 120px;min-width:100px';
       const ctEl=span('bold tv',R(ig.custo_total||0));
-      ctEl.style.cssText='white-space:nowrap;text-align:right;font-weight:800;color:var(--v);min-width:64px;flex-shrink:0;font-size:14px';
+      ctEl.style.cssText='white-space:nowrap;text-align:right;font-weight:800;color:var(--v);font-size:14px';
+      /* 21/07 (Bianca): mostrar também o PREÇO DO INSUMO (por kg/L/un), não só
+         o custo proporcional da quantidade usada na receita. */
+      const puEl=span(null,'');
+      puEl.style.cssText='white-space:nowrap;text-align:right;font-size:10.5px;font-weight:600;color:var(--ts)';
+      const ctWrap=div(null,[ctEl,puEl],{style:'display:flex;flex-direction:column;align-items:flex-end;min-width:64px;flex-shrink:0'});
+      (function(){ if(!ig.id) return; const s0=ig.tipo==='insumo'?_ins.find(x=>x.id===ig.id):_pp.find(x=>x.id===ig.id); let u0; if(ig.tipo==='insumo'){u0=s0?.unidade_custo||'kg';} else {const r0=s0?.rendimento_un||'g';u0=r0==='g'?'kg':r0==='ml'?'L':r0;} puEl.textContent=R(parseFloat(ig.custo_unitario)||0)+'/'+u0; })();
 
       function calcItem(i){
         const src=ings[i];
@@ -1931,11 +1937,12 @@ async function modalPrep(item){
         }
         src.custo_total=calcCustoItem(src.qtd_bruta,src.fc,src.unidade||'g',src.custo_unitario,unCusto);
         ctEl.textContent=R(src.custo_total);
+        puEl.textContent=src.id?(R(parseFloat(src.custo_unitario)||0)+'/'+unCusto):'';
         calcTotais();
       }
 
       const rm=btn('btn bd bxs','✕',()=>{ings.splice(idx,1);rebuildI();calcTotais();});
-      iw.appendChild(div('ir',[tipoBadge,sel,qbI,unSel2,fcI,ctEl,rm]));
+      iw.appendChild(div('ir',[tipoBadge,sel,qbI,unSel2,fcI,ctWrap,rm]));
     });
   }
   rebuildI();
@@ -2800,7 +2807,13 @@ async function modalFicha(item){
       sel.style.cssText='flex:1 1 120px;min-width:100px';
 
       const ctEl=span('bold tv',R(ig.custo_total||0));
-      ctEl.style.cssText='white-space:nowrap;text-align:right;font-weight:800;color:var(--v);min-width:64px;flex-shrink:0;font-size:14px';
+      ctEl.style.cssText='white-space:nowrap;text-align:right;font-weight:800;color:var(--v);font-size:14px';
+      /* 21/07 (Bianca): mostrar também o PREÇO DO INSUMO (por kg/L/un), não só
+         o custo proporcional da quantidade usada na ficha. */
+      const puEl=span(null,'');
+      puEl.style.cssText='white-space:nowrap;text-align:right;font-size:10.5px;font-weight:600;color:var(--ts)';
+      const ctWrap=div(null,[ctEl,puEl],{style:'display:flex;flex-direction:column;align-items:flex-end;min-width:64px;flex-shrink:0'});
+      (function(){ if(!ig.id) return; const s0=ig.tipo==='insumo'?_ins.find(x=>x.id===ig.id):_pp.find(x=>x.id===ig.id); let u0; if(ig.tipo==='insumo'){u0=s0?.unidade_custo||'kg';} else {const r0=s0?.rendimento_un||'g';u0=r0==='g'?'kg':r0==='ml'?'L':r0;} puEl.textContent=R(parseFloat(ig.custo_unitario)||0)+'/'+u0; })();
 
       // Atualizar também o unSel quando seleciona um ingrediente
       sel.addEventListener('change',()=>{
@@ -2819,11 +2832,12 @@ async function modalFicha(item){
         else{const ru=srcObj?.rendimento_un||'g';unCusto=ru==='g'?'kg':ru==='ml'?'L':ru;}
         src.custo_total=calcCustoItem(src.qtd_bruta,src.fc,src.unidade||'g',src.custo_unitario,unCusto);
         ctEl.textContent=R(src.custo_total);
+        puEl.textContent=src.id?(R(parseFloat(src.custo_unitario)||0)+'/'+unCusto):'';
         calcTotais();
       }
 
       const rm=btn('btn bd bxs','✕',()=>{ings.splice(idx,1);rebuildI();calcTotais();});
-      iw.appendChild(div('ir',[tipoBadge,sel,qbI,unSel,fcI,ctEl,rm]));
+      iw.appendChild(div('ir',[tipoBadge,sel,qbI,unSel,fcI,ctWrap,rm]));
     });
   }
   rebuildI();calcTotais();
