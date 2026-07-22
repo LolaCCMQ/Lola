@@ -704,9 +704,13 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
 const TITLES={dashboard:'Cozinha',insumos:'Insumos',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos',envios:'Envios da Central',entnotas:'Entrada de Notas'};
 const SUBS={dashboard:'Visão geral das operações',insumos:'Ingredientes e matérias-primas com custo real',conferencia:'Suba a planilha do mês e confira preço por preço antes de aplicar',preproducoes:'Fichas técnicas dos preparos da cozinha',fichas:'Composição e custo dos pratos do cardápio',producao:'O que a Cozinha Central produziu hoje',contagem:'Registro de estoque do CCMQ e Mac',saidas:'Registro de saídas de insumos do estoque',fornecedores:'Cadastro e gestão de fornecedores',pedidos:'Pedidos entre unidades e Cozinha Central',envios:'Ingredientes e produções que a Central mandou pra cá',entnotas:'Puxa as notas do Financeiro e lança no estoque'};
 
-function nav(p){PAGE=p;document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.page===p));renderPage();}
+function nav(p){window._navBack=null;PAGE=p;document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.page===p));renderPage();}
 
-function voltarMenu(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({lola:'voltar-menu'},'*');return;}}catch(e){}try{history.back();}catch(e2){}}
+function voltarMenu(){
+  /* 22/07 (Bianca): quem entra numa tela por ATALHO interno (ex.: Insumos a partir da
+     Entrada de Notas) volta pra tela de ORIGEM — não pro menu inicial do portal. */
+  if(window._navBack){ const p=window._navBack; window._navBack=null; nav(p); return; }
+  try{if(window.parent&&window.parent!==window){window.parent.postMessage({lola:'voltar-menu'},'*');return;}}catch(e){}try{history.back();}catch(e2){}}
 function estBusca(){var s=document.querySelector('#main input[type=search],#main input[placeholder*="Buscar"],#main input[placeholder*="buscar"],#main .sb input');if(s){try{s.scrollIntoView({block:'center'});}catch(e){}setTimeout(function(){try{s.focus();}catch(e2){}},100);}}
 function brandHead(title,sub){
   var bh=div('bhead');
@@ -5391,7 +5395,7 @@ async function pgEntradaNotas(c){
     c.appendChild(bFech);
     /* 22/07 (Bianca): "precisamos de um atalho para ir para os INSUMOS — fica ruim
        ter que sair daqui pra editar/excluir insumo em outro aplicativo" */
-    const bIns=btn('btn bo bsm','🧂 Insumos',()=>nav('insumos'));
+    const bIns=btn('btn bo bsm','🧂 Insumos',()=>{nav('insumos');window._navBack='entnotas';});
     bIns.style.cssText='margin-bottom:12px;font-weight:700';
     bIns.title='Abrir o cadastro de insumos (editar / excluir)';
     c.appendChild(bIns);
@@ -5420,15 +5424,33 @@ async function pgEntradaNotas(c){
     topoEN.appendChild(el('div',null,[el('div','lbl',['Competência']),sel]));
     topoEN.appendChild(el('div',null,[el('div','lbl',['Fornecedor']),buscaEN]));
     c.appendChild(topoEN);
+    /* 22/07 (Bianca): chips A lançar × Lançadas ("tem que selecionar as que já foram
+       lançadas e as que ainda faltam"). Padrão: A lançar — é o trabalho do dia. */
+    let _enSt='pend';
+    const stWrap=div(null,null,{style:'display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap'});
+    function paintSt(){
+      stWrap.innerHTML='';
+      [['pend','A lançar'],['ok','Lançadas'],['todas','Todas']].forEach(s=>{
+        const on=_enSt===s[0];
+        const b=document.createElement('button'); b.type='button'; b.textContent=s[1];
+        b.style.cssText='padding:7px 16px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12px;font-weight:800;cursor:pointer;border:2px solid '+(on?'var(--v)':'var(--rb)')+';background:'+(on?'var(--v)':'#fff')+';color:'+(on?'#fff':'var(--tx)');
+        b.onclick=()=>{_enSt=s[0];paintSt();desenhaNotas();};
+        stWrap.appendChild(b);
+      });
+    }
+    paintSt();
+    c.appendChild(stWrap);
     const infoEN=el('div',null,null,{style:'font-size:12px;font-weight:800;color:var(--v);margin:2px 0 10px;text-transform:uppercase;letter-spacing:.5px'});
     c.appendChild(infoEN);
     const listBox=div(null); c.appendChild(listBox);
     function desenhaNotas(){
       const q=_jnorm(buscaEN.value||'');
-      const list=q?notas.filter(n=>_jnorm(n.emitente||'').includes(q)||String(n.numero||'').includes(q))
-                  :notas.filter(n=>String(n.data_emissao||'').slice(0,7)===_enComp);
+      let list=q?notas.filter(n=>_jnorm(n.emitente||'').includes(q)||String(n.numero||'').includes(q))
+                :notas.filter(n=>String(n.data_emissao||'').slice(0,7)===_enComp);
       const pend=list.filter(n=>!lanSet.has(n.chave)).length;
       infoEN.innerHTML=pend+' nota'+(pend!==1?'s':'')+' a lançar · '+list.length+(q?' encontrada'+(list.length!==1?'s':'')+' (todos os meses)':' no mês');
+      if(_enSt==='pend') list=list.filter(n=>!lanSet.has(n.chave));
+      else if(_enSt==='ok') list=list.filter(n=>lanSet.has(n.chave));
       listBox.innerHTML='';
       if(!list.length){listBox.appendChild(div('tss',null,{style:'padding:16px',html:q?'Nenhuma nota desse fornecedor.':'Sem notas nessa competência.'}));return;}
       list.forEach(n=>{
