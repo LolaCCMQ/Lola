@@ -2092,13 +2092,10 @@ async function modalPrep(item){
   /* 17/07: o Pré-preparo virou etiqueta na linha do "Onde é utilizado" (a Bianca:
      "podia ter uma etiqueta de pré-preparo do lado do CCMQ MAC Central e Eventos").
      A Categoria de custo saiu da tela — o valor gravado continua intacto. */
+  /* 23/07 (Bianca): "pode tirar a etiqueta de Pré-preparo, não serve mais pra nada."
+     O botão saiu do editor; _isPre continua gravado (e_preparo) com o valor que a
+     produção já tinha, pra não perder o dado de quem depende dele internamente. */
   let _isPre=!!(item?.e_preparo);
-  const preBtn=document.createElement('button'); preBtn.type='button';
-  preBtn.title='Ingrediente usado dentro de outras produções';
-  const paintPre=()=>{ preBtn.style.cssText='padding:7px 16px;border-radius:50px;font-size:12.5px;font-weight:800;cursor:pointer;border:1.5px solid #7A4FA3;background:'+(_isPre?'#7A4FA3':'#fff')+';color:'+(_isPre?'#fff':'#7A4FA3'); preBtn.textContent=(_isPre?'✓ ':'')+'Pré-preparo'; };
-  preBtn.onclick=()=>{ _isPre=!_isPre; paintPre(); };
-  paintPre();
-  destBtnsWrap.appendChild(preBtn);
 
   /* 20/07 (Bianca): "o rendimento total deveria ser um campo bem menor com a unidade
      do ladinho; daí dizer se o produto é vendido em grama ou em UNIDADE; se for
