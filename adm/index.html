@@ -119,6 +119,16 @@ a.app .t span.lock i{font-size:13px;line-height:1}
     <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
   </a>
 
+  <a class="app" href="emprestimos/" id="cardEmp" style="display:none">
+    <span class="ico"><i class="ph-duotone ph-hand-coins"></i></span>
+    <span class="t">
+      <b>Empréstimos</b>
+      <span>Adiantamentos e empréstimos à equipe — quem deve e quanto falta</span>
+      <span class="lock"><i class="ph-duotone ph-lock-key"></i> acesso restrito</span>
+    </span>
+    <span class="go"><i class="ph-duotone ph-caret-right"></i></span>
+  </a>
+
   <!-- 19/07 (Bianca): Usuários e RH SAÍRAM do menu do portal e moram aqui — SÓ ADMIN.
        Os módulos continuam dentro do portal; os cards abrem por deep-link ?mod=. -->
   <a class="app" href="https://equipelola.net/?mod=usuarios" id="cardUsu" style="display:none">
@@ -162,7 +172,7 @@ const $=s=>document.querySelector(s);
 (async()=>{
   const sess=await lolaGate({titulo:'Área administrativa'});
   $('#quem').innerHTML=`Você é <b>${sess.nome||sess.email}</b> · ${PAPEL_NOME[sess.papel]||sess.papel}`;
-  if(sess.papel==='admin'||sess.papel==='financeiro'){ $('#cardFin').style.display='flex'; $('#cardVendas').style.display='flex'; }
+  if(sess.papel==='admin'||sess.papel==='financeiro'){ $('#cardFin').style.display='flex'; $('#cardVendas').style.display='flex'; $('#cardEmp').style.display='flex'; }
   if(sess.papel==='admin'||sess.papel==='gerente') $('#cardEvf').style.display='flex';
   /* Usuários e RH: SÓ ADMIN (decisão da Bianca, 19/07) */
   if(sess.papel==='admin'){ $('#cardUsu').style.display='flex'; $('#cardRH').style.display='flex'; }
