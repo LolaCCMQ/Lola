@@ -2670,8 +2670,10 @@ function drawREC(w){
        PP continua com os selos (o destino dela alimenta os Pedidos). */
     if(ehPP){ _destinosDeVenda(x).forEach(d=>{ const s=span('ft-sel',DEST_LBL[d]||d); s.style.background=DEST_COR[d]||'#888'; s.title='Vendida para '+(DEST_LBL[d]||d); nome.appendChild(s); }); }
     else if(x.no_menu===false){ const s=span('ft-sel','INATIVO'); s.style.background='#8A7A72'; s.title='Fora do menu atual'; nome.appendChild(s); row.classList.add('inat'); }
-    /* 22/07: PP mostra em que PRATOS entra (direto ou via outro preparo) */
-    if(ehPP&&window._ppUsos){
+    /* 22/07: PP mostra em que PRATOS entra (direto ou via outro preparo).
+       23/07 (Bianca): na CENTRAL não mostra "onde é usado" — a Central só lista o preparo
+       com a etiqueta de destino; que prato usa é assunto do CCMQ/MAC. */
+    if(ehPP&&!APP_EH_CENTRAL&&window._ppUsos){
       const us=window._ppUsos[x.id];
       if(us&&us.length){
         const t=us.slice(0,2).join(' · ')+(us.length>2?(' +'+(us.length-2)):'');
