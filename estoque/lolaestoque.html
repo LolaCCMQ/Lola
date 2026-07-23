@@ -2588,19 +2588,22 @@ async function pgReceitas(c){
     if(!_ins.length)_ins=await db('lola_insumos','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
     c.innerHTML=''; _recBusca='';
     const sEl=mkSearch(q=>{_recBusca=q;drawREC($('#rec-t'));},'Buscar receita...');
-    const tEl=mkTabs(['todas','pp','ft'],_recTab,t=>{_recTab=t;drawREC($('#rec-t'));},['Tudo','Pré-produções','Fichas técnicas'],true);
+    _recTab='todas'; /* 23/07 (Bianca): lista ÚNICA e contínua — sem separar Pré-produções × Fichas */
     const esq=div(null);esq.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
-    esq.appendChild(tEl);esq.appendChild(sEl);
-    /* 22/07 (Bianca): "preciso poder filtrar por CCMQ, MAC ou eventos" — chips de
-       destino de venda. PP filtra pelos selos (_destinosDeVenda); fichas técnicas
-       são pratos do CCMQ (aparecem em Todos e CCMQ). */
-    const dEl=mkTabs(['todos','ccmq','mac','eventos','central'],window._recDest||'todos',t=>{window._recDest=t;drawREC($('#rec-t'));},['Todos','CCMQ','MAC','Eventos','Central'],true);
-    esq.appendChild(dEl);
+    esq.appendChild(sEl);
+    /* 23/07 (Bianca): filtro por destino em chips COLORIDOS (como o Início da Central);
+       sem "Central" — a lista já é a da própria cozinha. */
+    const _rdCor={todos:'#A82A2A',ccmq:'#C0392B',mac:'#2C7A4B',eventos:'#9A6B1E'};
+    const _rdBg={todos:'#F5E9E6',ccmq:'#FBE4E0',mac:'#E6F3EA',eventos:'#FBF0DD'};
+    const _rdKeys=['todos','ccmq','mac','eventos'];
+    let dEl;
+    function _paintRD(){ if(!dEl)return; dEl.querySelectorAll('.tp').forEach((tp,i)=>{ const k=_rdKeys[i]; const cor=_rdCor[k]; const bg=_rdBg[k]; const on=tp.classList.contains('active'); tp.style.background=on?cor:bg; tp.style.color=on?'#fff':cor; tp.style.borderColor=on?cor:bg; tp.style.fontWeight='800'; }); }
+    dEl=mkTabs(_rdKeys,window._recDest||'todos',t=>{window._recDest=t;drawREC($('#rec-t'));_paintRD();},['Todos','CCMQ','MAC','Eventos'],true);
+    esq.appendChild(dEl); _paintRD();
     const bar=div('abar no-print'); bar.appendChild(esq);
     if(podeMexerAqui()){
       const bb=div(null);bb.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
-      bb.appendChild(btn('btn bp bsm','+ Pré-produção',()=>modalPrep()));
-      bb.appendChild(btn('btn bp bsm','+ Ficha',()=>modalFicha()));
+      bb.appendChild(btn('btn bp bsm','+ Nova receita',()=>modalPrep()));
       bar.appendChild(bb);
     } else bar.appendChild(mkSoLeitura());
     c.appendChild(bar);
