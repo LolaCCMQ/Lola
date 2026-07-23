@@ -2186,7 +2186,9 @@ async function modalPrep(item){
        etiqueta. Voltou o seletor de DESTINO (= a etiqueta da listagem, campo `destinos`) +
        o Pré-preparo. A `categoria` antiga continua gravada com o valor que já tinha. */
     fgrp('🏷️ Etiqueta — pra quem essa produção vai (pode marcar mais de um)',
-      (()=>{ const w=div(null,null,{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'}); w.appendChild(destBtnsWrap); w.appendChild(preBtn); return w; })()),
+      (()=>{ const w=div(null,null,{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'}); w.appendChild(destBtnsWrap); return w; })()),
+      /* 23/07 (Bianca): etiqueta "Pré-preparo" saiu do editor — não serve mais.
+         e_preparo continua gravado com o valor que já tinha (não zera nada). */
     div('fg2',[
       fgrp('Rendimento total',rendWidget),
       fgrp('Margem venda central',margWidget),
