@@ -2696,7 +2696,7 @@ function drawREC(w){
     const _pq=ehPP?_ppPorcao(x):0;
     const _numU=_pq>0?((parseFloat(x.rendimento_qtd)||1)/_pq):0;
     const _custoPP=(_pq>0&&_numU>0)?(parseFloat(x.custo_total||0)/_numU):x.custo_por_unidade;
-    const _vendaPP=_pq>0?ppPreco(x):x.valor_venda_central;
+    const _vendaPP=ehPP?ppPreco(x):x.valor_venda_central;
     const _unLbl=ehPP?(_pq>0?'por unidade':('por '+unBase)):'por porção';
     const custoCell=div('ft-num',[ehPP?R(_custoPP):R(x.custo_por_porcao)]);
     custoCell.appendChild(subEl(_unLbl));
@@ -5183,6 +5183,13 @@ function ppPreco(x){
     const numP=(parseFloat(x.rendimento_qtd)||1)/pq;
     if(numP>0) return (parseFloat(x.custo_total||0)/numP)/((parseFloat(x.margem_venda)||70)/100);
   }
+  /* 23/07: preço central AO VIVO a partir do custo atual (= custo/(margem/100)),
+     igual ao que o editor grava. Antes lia valor_venda_central, que congelava e
+     ficava defasado quando o custo mudava por cascata (ex.: Schnitzel 13,88 → 7,28).
+     Só cai no campo gravado se por algum motivo não der pra calcular. */
+  const cpu=parseFloat(x.custo_por_unidade)||0;
+  const mg=(parseFloat(x.margem_venda)||70)/100;
+  if(cpu>0&&mg>0) return cpu/mg;
   return parseFloat(x.valor_venda_central)||0;
 }
 function ppUnidade(x){
