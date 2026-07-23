@@ -11,7 +11,10 @@
 <style>
 :root{
   --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
-  --vinho:#A82A2A; --vinhoH:#7E1E1F;
+  /* 23/07 (Bianca): a Central usa AZUL como identidade (Lola=vermelho, Mac=verde,
+     Central=azul) pra diferenciar bem os dois apps. Trocado o vermelho por azul aqui;
+     os vermelhos semânticos (perdas, alertas, excluir) continuam nos seus próprios tons. */
+  --vinho:#2C5AA0; --vinhoH:#1F4076;
   --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
   --okBg:#E6F3EA; --okFg:#2C7A4B; --pendBg:#FBF0DD; --pendFg:#9A6B1E; --urgBg:#FBEAE7; --urgFg:#B5302E;
   --r-pill:9px; --r-btn:13px; --r-card:15px;
@@ -36,7 +39,7 @@ header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:poin
 .tabs button.on .cnt{background:rgba(255,255,255,.24);color:#fff}
 /* 20/07 (Bianca): "esse menu ficou ruim, nada intuitivo - tem que ser mais colorido" —
    cada aba tem a SUA cor: fundo pastel + ícone colorido no repouso, cor sólida quando ativa. */
-#tabIni{--tc:#A82A2A;--tb:#FBEDEC} #tabEnt{--tc:#2C5AA0;--tb:#E6EEF8} #tabPed{--tc:#C4622D;--tb:#FBEDE3}
+#tabIni{--tc:#2C5AA0;--tb:#E6EEF8} #tabEnt{--tc:#2C6FA0;--tb:#E4EFF6} #tabPed{--tc:#C4622D;--tb:#FBEDE3}
 #tabSal{--tc:#2C7A4B;--tb:#E6F3EA} #tabCmp{--tc:#1F7A6B;--tb:#E2F0EC} #tabProd{--tc:#7A4FA3;--tb:#EFE7F6}
 #tabPz{--tc:#B8862B;--tb:#F7F0DD} #tabPerd{--tc:#B5302E;--tb:#FBEAE7} #tabRec{--tc:#9A3B6B;--tb:#F6E7EF}
 #tabEnv{--tc:#9A6B1E;--tb:#FBF0DD} #tabAl{--tc:#E07B00;--tb:#FDF0E0}
