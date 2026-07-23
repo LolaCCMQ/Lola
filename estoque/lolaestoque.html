@@ -2666,8 +2666,10 @@ function drawREC(w){
     const row=div('ft-row'+((cmv!=null&&cmv>lim)?' alerta':''));
     const nome=div('ft-nome');
     nome.appendChild(span('ft-nome-t',x.nome));
-    const tb=span('ft-sel',ehPP?'PP':'FICHA'); tb.style.background=ehPP?'#7A4FA3':'#A82A2A';
-    tb.title=ehPP?'Pré-produção':'Ficha técnica'; nome.appendChild(tb);
+    /* 23/07 (Bianca): na CENTRAL tudo é preparo — o selo "PP" vira ruído, então some.
+       No Lola convivem PP e FICHA, então lá o selo continua. */
+    if(!APP_EH_CENTRAL){ const tb=span('ft-sel',ehPP?'PP':'FICHA'); tb.style.background=ehPP?'#7A4FA3':'#A82A2A';
+      tb.title=ehPP?'Pré-produção':'Ficha técnica'; nome.appendChild(tb); }
     /* 17/07: clicar na receita abre o EDITAR (quem só vê, abre a visualização) */
     nome.style.cursor='pointer'; nome.title='Abrir no editor';
     nome.addEventListener('click',()=>{ if(podeMexerAqui()){ ehPP?modalPrep(x):modalFicha(x); } else { ehPP?verFichaPrep(x):verFichaFT(x); } });
