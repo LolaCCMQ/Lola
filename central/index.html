@@ -468,9 +468,8 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
     <button id="tabIni" class="on"><i class="ph-duotone ph-house"></i> Início</button>
     <button id="tabEnt"><i class="ph-duotone ph-file-arrow-down"></i> Notas <span class="cnt" id="cntPend" style="display:none">0</span></button>
     <button id="tabPed"><i class="ph-duotone ph-shopping-cart"></i> Pedidos <span class="cnt" id="cntPed" style="display:none">0</span></button>
-    <button id="tabSal"><i class="ph-duotone ph-stack"></i> Insumos</button>
+    <button id="tabSal"><i class="ph-duotone ph-stack"></i> Estoque</button>
     <button id="tabCmp"><i class="ph-duotone ph-shopping-bag-open"></i> Compras</button>
-    <button id="tabProd"><i class="ph-duotone ph-cooking-pot"></i> Produções</button>
     <button id="tabPz"><i class="ph-duotone ph-package"></i> Produzidos</button>
     <button id="tabPerd"><i class="ph-duotone ph-trash"></i> Perdas</button>
     <button id="tabRec"><i class="ph-duotone ph-book-open"></i> Receitas</button>
@@ -555,13 +554,13 @@ async function carregar(){
     const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo, perdas, inv] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
-      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,preco_atualizado_em,preco_atualizado_por&order=categoria,nome'),
+      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total,origem_tipo,origem_ref'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
-      api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un,valor_venda_central&order=nome').catch(()=>null),
+      api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un,valor_venda_central,local&order=nome').catch(()=>null),
       api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[]),
       api('lola_central_perdas?ativo=neq.false&select=*&order=data.desc,criado_em.desc&limit=500').catch(()=>[]),
       api('lola_inv_itens?ativo=neq.false&select=id,nome,categoria,unidade,qtd,medida,cor,foto_url&order=nome').catch(()=>[])
@@ -631,7 +630,6 @@ function render(){
   $('#tabSal').classList.toggle('on',ST.tab==='sal');
   $('#tabPed').classList.toggle('on',ST.tab==='ped');
   $('#tabCmp').classList.toggle('on',ST.tab==='cmp');
-  $('#tabProd').classList.toggle('on',ST.tab==='prod');
   $('#tabPz').classList.toggle('on',ST.tab==='pz');
   $('#tabPerd').classList.toggle('on',ST.tab==='perd');
   $('#tabRec').classList.toggle('on',ST.tab==='rec');
@@ -641,8 +639,8 @@ function render(){
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ini:viewInicio, ent:viewEntrada, ped:viewPedidos, sal:viewSaldo, cmp:viewCompras, prod:viewProd, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, env:viewEnvio, al:viewAlertas};
-  const W={ini:wireInicio, ent:wireEntrada, ped:wirePedidos, sal:wireSaldo, cmp:wireCompras, prod:wireProd, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, env:wireEnvio, al:wireAlertas};
+  const V={ini:viewInicio, ent:viewEntrada, ped:viewPedidos, sal:viewEstoque, cmp:viewCompras, prod:viewEstoque, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, env:viewEnvio, al:viewAlertas};
+  const W={ini:wireInicio, ent:wireEntrada, ped:wirePedidos, sal:wireEstoque, cmp:wireCompras, prod:wireEstoque, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, env:wireEnvio, al:wireAlertas};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -834,6 +832,181 @@ function rendInfo(r){ // interpreta o rendimento da receita (já em kg/L)
   const c=conv(rq,run); return {ehPorcao:false, base:c.q, un:c.u||'un', totalRend:c.q, rendUn:c.u};
 }
 function prodUn(r){ const s=(ST.saldo||{})[r.id]; if(s&&s.unidade) return s.unidade; const ri=rendInfo(r); return ri.ehPorcao?'un':convUn(r.rendimento_un||r.porcao_un||'un'); }
+/* ═══════════════════════════════════════════════════════════════════
+   ESTOQUE CENTRAL — tela ÚNICA (insumos + produções), organizada por
+   LOCAL de armazenamento. É daqui que saem as contagens semanais.
+   Pedido da Bianca (23/07): "insumos e produções precisam ser unificados
+   e virar ESTOQUE CENTRAL; categorizar cada um pelo espaço onde ficam
+   armazenados (secos, câmara fria, congelamento, horti, descartáveis,
+   limpeza)". Baixas automáticas (produzir→insumos, enviar→produção) já
+   existem no app — aqui a contagem também passa a corrigir o saldo dos
+   insumos (lança AJUSTE no ledger), não só o das produções.
+   ═══════════════════════════════════════════════════════════════════ */
+const LOCAIS=[
+  {k:'secos',        lbl:'Secos',        ic:'package',          cor:'#C99A33', bg:'#FBF1DD'},
+  {k:'camara_fria',  lbl:'Câmara fria',  ic:'thermometer-cold', cor:'#2C5AA0', bg:'#E6F1FB'},
+  {k:'congelamento', lbl:'Congelamento', ic:'snowflake',        cor:'#1F7A6B', bg:'#E2F0EC'},
+  {k:'horti',        lbl:'Horti',        ic:'carrot',           cor:'#2C7A4B', bg:'#E6F3EA'},
+  {k:'descartaveis', lbl:'Descartáveis', ic:'shopping-bag-open',cor:'#7E5BA6', bg:'#EFE7F6'},
+  {k:'limpeza',      lbl:'Limpeza',      ic:'spray-bottle',     cor:'#B23A6B', bg:'#F9E6EF'},
+];
+const LOCByK={}; LOCAIS.forEach(l=>LOCByK[l.k]=l);
+function localLbl(k){ return (LOCByK[k]||{}).lbl||'Sem local'; }
+function localCor(k){ return (LOCByK[k]||{}).cor||'#B79A8E'; }
+let EST_LOCAL='todos', EST_TIPO='tudo';
+function _estItems(){
+  const salIns={}; (ST.movs||[]).forEach(m=>{ if(!m.insumo_id)return; const s=salIns[m.insumo_id]||(salIns[m.insumo_id]={q:0,v:0}); s.q+=(+m.qtd||0); s.v+=(+m.custo_total||0); });
+  const items=[];
+  (ST.insumos||[]).forEach(i=>{ if(i.ativo===false)return; const s=salIns[i.id]||{q:0,v:0};
+    items.push({tipo:'insumo', id:i.id, nome:i.nome||'?', un:i.unidade_custo||'', saldo:s.q, valor:s.v, custo:(+i.custo_por_unidade||0), custoUn:i.unidade_custo||'un', local:i.local||'', cat:i.categoria||'', evento:!!i.evento}); });
+  (ST.receitas&&ST.receitas!=='loading'?ST.receitas:[]).forEach(r=>{ const s=(ST.saldo||{})[r.id];
+    items.push({tipo:'producao', id:r.id, nome:r.nome||'?', un:prodUn(r), saldo:s?(+s.saldo):null, saldoData:s?s.saldo_data:null, valor:null, custo:(+r.valor_venda_central||0), custoUn:prodUn(r), local:r.local||''}); });
+  return items;
+}
+function viewEstoque(){
+  if(ST.receitas==='loading'){ return '<div class="spin"></div>'; }
+  const all=_estItems();
+  const totIns=all.filter(x=>x.tipo==='insumo').length, totProd=all.filter(x=>x.tipo==='producao').length;
+  let list=all.slice();
+  if(EST_TIPO==='insumo') list=list.filter(x=>x.tipo==='insumo');
+  else if(EST_TIPO==='producao') list=list.filter(x=>x.tipo==='producao');
+  if(EST_LOCAL==='sem') list=list.filter(x=>!x.local);
+  else if(EST_LOCAL!=='todos') list=list.filter(x=>x.local===EST_LOCAL);
+  if(ST.busca){ const b=norm(ST.busca); list=list.filter(x=>norm(x.nome).includes(b)); }
+  let h=`<div class="note">Estoque único da Central — <b>insumos</b> e <b>produções</b> juntos, separados pelo <b>local</b> onde ficam guardados. É daqui que saem as contagens semanais.</div>`;
+  h+=`<div class="btn2"><button class="btn" id="btnContEst"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem${EST_LOCAL!=='todos'&&EST_LOCAL!=='sem'?' ('+localLbl(EST_LOCAL)+')':''}</button><button class="btn sec" id="btnHistEst"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
+  h+=`<div class="btn2" style="margin-top:8px"><button class="btn sec" id="btnNovaProdEst"><i class="ph-duotone ph-plus-circle"></i> Nova produção</button></div>`;
+  // chips de LOCAL
+  h+=`<div class="toolbar" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="chip ${EST_LOCAL==='todos'?'on':''}" data-loc="todos">Todos</button>`;
+  LOCAIS.forEach(l=>{ const n=all.filter(x=>x.local===l.k).length; h+=`<button class="chip ${EST_LOCAL===l.k?'on':''}" data-loc="${l.k}">${esc(l.lbl)}${n?` (${n})`:''}</button>`; });
+  const semN=all.filter(x=>!x.local).length; if(semN) h+=`<button class="chip ${EST_LOCAL==='sem'?'on':''}" data-loc="sem"><i class="ph-duotone ph-warning"></i> Sem local (${semN})</button>`;
+  h+=`</div>`;
+  // chips de TIPO + busca
+  h+=`<div class="toolbar" style="flex-wrap:wrap;gap:6px">
+    <button class="chip ${EST_TIPO==='tudo'?'on':''}" data-tp="tudo">Tudo</button>
+    <button class="chip ${EST_TIPO==='insumo'?'on':''}" data-tp="insumo">Insumos (${totIns})</button>
+    <button class="chip ${EST_TIPO==='producao'?'on':''}" data-tp="producao">Produções (${totProd})</button>
+    <input type="search" id="bqe" placeholder="Buscar…" value="${esc(ST.busca||'')}" style="flex:1;min-width:140px"></div>`;
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-stack"></i>Nada por aqui.</div>`; return h; }
+  // agrupa por local (ordem fixa; 'sem local' por último)
+  const order=[...LOCAIS.map(l=>l.k),'sem']; const groups={};
+  list.forEach(x=>{ const k=x.local||'sem'; (groups[k]=groups[k]||[]).push(x); });
+  order.forEach(k=>{ const g=groups[k]; if(!g||!g.length)return;
+    g.sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
+    const cor=localCor(k);
+    h+=`<div style="display:flex;align-items:center;gap:8px;margin:18px 0 8px"><span style="width:10px;height:10px;border-radius:99px;background:${cor}"></span><b style="font-size:13px;color:var(--tx)">${k==='sem'?'Sem local':esc(localLbl(k))}</b><span style="font-size:11px;color:var(--mut)">${g.length}</span></div>`;
+    g.forEach(x=>{
+      const isP=x.tipo==='producao';
+      const tag=isP?`<span style="font-size:9px;font-weight:800;letter-spacing:.5px;color:#7A4FA3;background:#EFE7F6;padding:2px 6px;border-radius:20px">PROD</span>`:`<span style="font-size:9px;font-weight:800;letter-spacing:.5px;color:#2C7A4B;background:#E6F3EA;padding:2px 6px;border-radius:20px">INS</span>`;
+      const sub=isP?(x.saldoData?('atualizado '+fmtData(String(x.saldoData).slice(0,10))):'sem contagem'):(x.valor>0?('em estoque '+brl(x.valor)):(x.evento?'evento':''));
+      const saldoTxt=(x.saldo==null)?'—':num(x.saldo);
+      const custoTxt=x.custo>0?`${brl(x.custo)} <small style="color:var(--mut)">/${esc(x.custoUn||'un')}</small>`:'<small style="color:var(--mut)">sem preço</small>';
+      h+=`<div class="estcard" data-id="${x.id}" data-tp="${x.tipo}" style="border:1px solid var(--rb);border-radius:12px;margin-bottom:8px;overflow:hidden;background:#fff">
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 12px">
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${tag}<b class="estname" style="font-size:13.5px;cursor:pointer">${esc(x.nome)}</b></div>
+            <div style="font-size:11px;color:var(--mut);margin-top:3px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button class="locchip" style="border:1px solid ${cor};color:${cor};background:#fff;border-radius:20px;padding:1px 8px;font-size:10.5px;font-weight:700;cursor:pointer">${k==='sem'?'+ local':esc(localLbl(k))}</button>${sub?`<span>${esc(sub)}</span>`:''}</div>
+          </div>
+          <div style="text-align:right">${isP?`<button class="eststock" style="background:none;border:none;text-align:right;cursor:pointer;padding:0"><b style="font-size:15px;color:var(--vinho)">${saldoTxt}</b> <small style="color:var(--mut)">${esc(x.un||'')}</small></button>`:`<b style="font-size:15px">${saldoTxt}</b> <small style="color:var(--mut)">${esc(x.un||'')}</small>`}</div>
+          <div style="text-align:right;white-space:nowrap;display:flex;align-items:center;gap:8px">
+            <div style="font-size:12px">${custoTxt}</div>
+            ${isP?`<button class="estprod" title="Produzir" style="background:none;border:1px solid var(--rb);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--vinho)"><i class="ph-duotone ph-plus-circle"></i></button>`:''}
+            <button class="estmore" title="Ações" style="background:none;border:none;cursor:pointer;color:var(--mut);font-size:18px"><i class="ph-duotone ph-dots-three-vertical"></i></button>
+          </div>
+        </div>
+        ${isP?'<div class="usos ringr" style="padding:0 12px"></div>':''}
+      </div>`;
+    });
+  });
+  return h;
+}
+function wireEstoque(){
+  const bq=$('#bqe'); if(bq){ bq.oninput=()=>{ST.busca=bq.value; const p=bq.selectionStart; render(); const n=$('#bqe'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
+  $$('#app [data-loc]').forEach(b=>b.onclick=()=>{ EST_LOCAL=b.dataset.loc; render(); });
+  $$('#app [data-tp]').forEach(b=>{ if(b.classList.contains('chip')) b.onclick=()=>{ EST_TIPO=b.dataset.tp; render(); }; });
+  $('#btnContEst')&&($('#btnContEst').onclick=()=>openContagemEstoque(EST_LOCAL));
+  $('#btnHistEst')&&($('#btnHistEst').onclick=()=>openContagensHist('estoque'));
+  $('#btnNovaProdEst')&&($('#btnNovaProdEst').onclick=openNovaReceita);
+  $$('#app .estcard').forEach(card=>{
+    const id=card.dataset.id, tp=card.dataset.tp;
+    const nm=card.querySelector('.estname'); if(nm) nm.onclick=()=>{ tp==='insumo'?abrirFichaInsumo(id,nm.textContent||''):toggleProdIngr(card); };
+    const lc=card.querySelector('.locchip'); if(lc) lc.onclick=(e)=>{ e.stopPropagation(); openSetLocal(tp,id); };
+    const stk=card.querySelector('.eststock'); if(stk) stk.onclick=(e)=>{ e.stopPropagation(); openEstoque(id); };
+    const pb=card.querySelector('.estprod'); if(pb) pb.onclick=(e)=>{ e.stopPropagation(); openProduzir(id); };
+    const mb=card.querySelector('.estmore'); if(mb) mb.onclick=(e)=>{ e.stopPropagation();
+      const ex=card.querySelector('.estmenu'); fecharInsMenu(); if(ex){ex.remove();return;}
+      const menu=document.createElement('div'); menu.className='estmenu insmenu';
+      const add=(ic,lb,fn,cls)=>{ const b=document.createElement('button'); if(cls)b.className=cls; b.innerHTML='<i class="ph-duotone ph-'+ic+'"></i> '+lb; b.onclick=(e2)=>{e2.stopPropagation();fecharInsMenu();fn();}; menu.appendChild(b); };
+      add('map-pin','Trocar local',()=>openSetLocal(tp,id));
+      if(tp==='insumo'){ add('identification-card','Ver ficha',()=>abrirFichaInsumo(id,(nm||{}).textContent||'')); add('pencil-simple','Editar',()=>openEditInsumo(id)); }
+      else { add('package','Atualizar estoque',()=>openEstoque(id)); add('plus-circle','Produzir',()=>openProduzir(id)); }
+      const cell=mb.parentElement; cell.style.position='relative'; cell.appendChild(menu);
+    };
+  });
+}
+function openSetLocal(tipo,id){
+  const rec = tipo==='insumo' ? (ST.byId[id]||{}) : ((ST.receitas||[]).find(r=>r.id===id)||{});
+  const cur=rec.local||'';
+  $('#shTitle').textContent='Local — '+(rec.nome||'');
+  const foot=$('.sh-foot'); if(foot) foot.style.display='none';
+  $('#shBody').innerHTML=`<div class="note">Onde <b>${esc(rec.nome||'')}</b> fica guardado na Central? Serve pra organizar a contagem semanal.</div>`
+   +LOCAIS.map(l=>`<button class="locbtn" data-k="${l.k}" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;margin-bottom:8px;border:2px solid ${cur===l.k?l.cor:'var(--rb)'};background:${cur===l.k?l.bg:'#fff'};color:${l.cor};border-radius:12px;font-weight:700;font-size:14px;cursor:pointer"><i class="ph-duotone ph-${l.ic}"></i> ${esc(l.lbl)}${cur===l.k?' <i class="ph-duotone ph-check" style="margin-left:auto"></i>':''}</button>`).join('')
+   +`<button class="locbtn" data-k="" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:2px solid ${!cur?'#8A7A72':'var(--rb)'};background:${!cur?'#F1ECE6':'#fff'};color:#8A7A72;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer"><i class="ph-duotone ph-minus"></i> Sem local</button>`;
+  openSheet();
+  $$('#shBody .locbtn').forEach(b=>b.onclick=async()=>{
+    const k=b.dataset.k;
+    try{ await lolaEnsure();
+      const tbl = tipo==='insumo'?'lola_insumos':'lola_preproducoes';
+      await fetch(SB_URL+'/rest/v1/'+tbl+'?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({local:k||null})});
+      rec.local=k||''; toast('Local salvo ✓'); closeSheet(); render();
+    }catch(e){ toast('Erro: '+e.message); }
+  });
+}
+let CONT_EST=[];
+function openContagemEstoque(loc){
+  let its=_estItems();
+  if(loc==='sem') its=its.filter(x=>!x.local);
+  else if(loc&&loc!=='todos') its=its.filter(x=>x.local===loc);
+  its.sort((a,b)=>{ const la=a.local||'zzz', lb=b.local||'zzz'; return la.localeCompare(lb)||a.nome.localeCompare(b.nome,'pt'); });
+  CONT_EST=its.map(x=>({tipo:x.tipo, ref_id:x.id, nome:x.nome, unidade:x.un, sistema:(+x.saldo||0), local:x.local||''}));
+  const hoje=new Date().toISOString().slice(0,10);
+  $('#shTitle').textContent='Contagem'+(loc&&loc!=='todos'&&loc!=='sem'?' — '+localLbl(loc):' — Estoque');
+  let h=`<div class="note">Conte o que está fisicamente na Central e escreva a quantidade <b>contada</b> — insumos e produções juntos, por local. Deixe em branco o que não contar. O saldo passa a valer o que você contou.</div>
+    <div class="mf"><label>Data da contagem</label><input type="date" id="contData" value="${hoje}"></div>`;
+  if(!CONT_EST.length) h+='<div class="empty">Nada pra contar aqui.</div>';
+  let lastLoc='__';
+  CONT_EST.forEach((it,ix)=>{ const lk=it.local||'sem';
+    if(lk!==lastLoc){ lastLoc=lk; h+=`<div class="lbl" style="margin-top:14px"><span style="display:inline-block;width:8px;height:8px;border-radius:99px;background:${localCor(lk)};margin-right:6px"></span>${lk==='sem'?'Sem local':esc(localLbl(lk))}</div>`; }
+    const tg=it.tipo==='insumo'?'<span style="font-size:9px;font-weight:800;color:#2C7A4B">INS</span>':'<span style="font-size:9px;font-weight:800;color:#7A4FA3">PROD</span>';
+    h+=`<div class="citem"><div class="ct"><b>${esc(it.nome)}</b><span>${tg} · sistema: ${num(it.sistema)} ${esc(it.unidade||'')}</span></div>
+      <input type="number" class="ccont" data-ix="${ix}" step="0.001" placeholder="qtd" inputmode="decimal"><span class="cu">${esc(it.unidade||'')}</span></div>`;
+  });
+  $('#shBody').innerHTML=h;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar contagem';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarContagemEstoque; openSheet();
+}
+async function salvarContagemEstoque(){
+  const data=$('#contData').value||new Date().toISOString().slice(0,10);
+  const linhas=[]; $$('#shBody .ccont').forEach(inp=>{ const v=(inp.value||'').trim(); if(v==='')return; const it=CONT_EST[+inp.dataset.ix]; if(!it)return; linhas.push(Object.assign({}, it, {contada:+v||0})); });
+  if(!linhas.length){ toast('Preencha ao menos um item contado.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    const rows=await post('lola_central_contagem',[{tipo:'estoque', data, criado_por:quem}],'return=representation');
+    const cid=(Array.isArray(rows)&&rows[0])?rows[0].id:null; if(!cid) throw new Error('sem retorno do banco');
+    await post('lola_central_contagem_item', linhas.map(i=>({contagem_id:cid, ref_id:i.ref_id, nome:i.nome, unidade:i.unidade, qtd_sistema:i.sistema, qtd_contada:i.contada})),'return=minimal');
+    const prods=linhas.filter(i=>i.tipo==='producao');
+    if(prods.length){
+      await post('lola_central_saldo?on_conflict=preproducao_id', prods.map(i=>({preproducao_id:i.ref_id, saldo:i.contada, unidade:i.unidade, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()})),'resolution=merge-duplicates,return=minimal');
+      try{ await post('lola_central_saldo_log', prods.map(i=>({preproducao_id:i.ref_id, data, saldo_novo:i.contada, por:quem})),'return=minimal'); }catch(_){}
+      ST.saldo=ST.saldo||{}; prods.forEach(i=>{ ST.saldo[i.ref_id]={preproducao_id:i.ref_id, saldo:i.contada, unidade:i.unidade, saldo_data:data, atualizado_por:quem}; });
+    }
+    const ajustes=linhas.filter(i=>i.tipo==='insumo').map(i=>({insumo_id:i.ref_id, tipo:'ajuste', qtd:+((i.contada-i.sistema).toFixed(5)), unidade:i.unidade||null, origem_tipo:'contagem', origem_ref:'contagem:'+cid, data, obs:'Contagem de estoque', criado_por:quem})).filter(a=>Math.abs(a.qtd)>1e-9);
+    if(ajustes.length){ await post('lola_central_estoque_mov', ajustes,'return=minimal'); ST.movs=ST.movs||[]; ajustes.forEach(a=>ST.movs.push(a)); }
+    toast('Contagem salva ✓ ('+linhas.length+' itens, '+fmtData(data)+')'); closeSheet(); render();
+  }catch(e){ toast('Erro ao salvar: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
 function viewProd(){
   const R=ST.receitas;
   let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
@@ -1357,7 +1530,7 @@ async function salvarNovaReceita(){
     const novo=(Array.isArray(rows)&&rows[0])?rows[0]:null; if(!novo) throw new Error('sem retorno do banco');
     if(ings.length) await post('lola_preproducoes_itens', ings.map(i=>({preproducao_id:novo.id, ...i})),'return=minimal');
     ST.receitas=ST.receitas||[]; ST.receitas.push({id:novo.id, nome, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un}); ST.receitas.sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
-    toast('Receita criada ✓'); closeSheet(); ST.tab='prod'; render();
+    toast('Receita criada ✓'); closeSheet(); ST.tab='sal'; render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
 /* ===== CONTAGEM semanal (insumos e produções) ===== */
@@ -2679,7 +2852,6 @@ function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classLi
 /* ============ eventos base ============ */
 $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
 $('#tabSal').onclick=()=>{ST.tab='sal';render();};
-$('#tabProd').onclick=()=>{ST.tab='prod';render();};
 /* As duas abrem o editor do Estoque em modo Central (iframe) — não precisam
    carregar dado aqui, a tela de dentro se vira sozinha. */
 $('#tabRec').onclick=()=>{ ST.tab='rec'; render(); }; /* 17/07: aba única Receitas (PP + fichas, page=receitas) */
