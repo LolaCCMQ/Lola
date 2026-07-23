@@ -907,7 +907,7 @@ function viewEstoque(){
       const sub=isP?(x.saldoData?('atualizado '+fmtData(String(x.saldoData).slice(0,10))):'sem contagem'):(x.valor>0?('em estoque '+brl(x.valor)):(x.evento?'evento':''));
       const saldoTxt=(x.saldo==null)?'—':num(x.saldo);
       const custoTxt=x.custo>0?`${brl(x.custo)} <small style="color:var(--mut)">/${esc(x.custoUn||'un')}</small>`:'<small style="color:var(--mut)">sem preço</small>';
-      h+=`<div class="estcard" data-id="${x.id}" data-tp="${x.tipo}" style="border:1px solid var(--rb);border-radius:12px;margin-bottom:8px;overflow:hidden;background:#fff">
+      h+=`<div class="estcard" data-id="${x.id}" data-tp="${x.tipo}" style="border:1px solid var(--rb);border-radius:12px;margin-bottom:8px;overflow:visible;background:#fff">
         <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 12px">
           <div style="min-width:0">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${tag}<b class="estname" style="font-size:13.5px;cursor:pointer">${esc(x.nome)}</b></div>
