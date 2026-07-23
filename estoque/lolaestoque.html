@@ -1874,7 +1874,7 @@ async function verFichaPrep(pp){
     itens=await db('lola_preproducoes_itens','GET',null,
       '?select=*,lola_insumos(nome,custo_por_unidade,unidade_custo),lola_preproducoes_sub:sub_preproducao_id(nome,custo_por_unidade,rendimento_un)&preproducao_id=eq.'+pp.id);
   }catch(e){console.error('verFichaPrep erro:',e);}
-  fichaTable(itens,pp.rendimento_qtd,pp.rendimento_un,pp.custo_total,pp.custo_por_unidade,'📋 '+pp.nome,null,null,pp.modo_preparo);
+  fichaTable(itens,pp.rendimento_qtd,pp.rendimento_un,pp.custo_total,pp.custo_por_unidade,'📋 '+pp.nome,null,null,pp.modo_preparo,pp);
 }
 
 
@@ -2754,7 +2754,7 @@ async function verFichaFT(ft){
     '?ficha_id=eq.'+ft.id+'&order=editado_em.desc&limit=10');}catch(e){}
   let _fotos=[];
   try{ const _fr=await db('lola_fichas_fotos','GET',null,'?ficha_id=eq.'+ft.id+'&order=created_at.asc'); _fotos=(_fr||[]).map(function(x){return x.foto;}); }catch(e){}
-  fichaTable(itens,ft.rendimento_qtd,ft.rendimento_un,ft.custo_total,ft.custo_por_porcao,'📋 '+ft.nome,hist,_fotos,ft.modo_preparo);
+  fichaTable(itens,ft.rendimento_qtd,ft.rendimento_un,ft.custo_total,ft.custo_por_porcao,'📋 '+ft.nome,hist,_fotos,ft.modo_preparo,null);
 }
 
 
@@ -7213,7 +7213,32 @@ function _renderFichaInsumo(mb, d, ov){
   };
 }
 
-function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico,fotos,modoPreparo){
+/* 23/07 (Bianca): "tudo que tem no editar tem que ter na prancheta" — mesmo bloco de
+   totais do editor (Rendeu por unidade, unidade de medida, custo/un e preço com margem),
+   pra visualizar e imprimir. Recebe o registro cru da produção. */
+function _ppTotais(r){
+  if(!r) return null;
+  const ct=parseFloat(r.custo_total)||0, qtd=parseFloat(r.rendimento_qtd)||1, run=r.rendimento_un||'un';
+  const unBase=run==='g'?'kg':run==='ml'?'L':run;
+  const m=parseFloat(r.margem_venda)||70;
+  const cpu=(r.custo_por_unidade!=null&&r.custo_por_unidade!=='')?parseFloat(r.custo_por_unidade):(['g','ml'].includes(run)?(ct/qtd)*1000:ct/qtd);
+  const numP=parseFloat(r.porcao_qtd)>0?(qtd/parseFloat(r.porcao_qtd)):null;
+  const custoP=numP?ct/numP:null;
+  const temPorc=!!numP&&['g','ml','kg','L'].includes(run);
+  const L=[['Custo da produção',R(ct)]];
+  if(temPorc){
+    const unPorc=r.porcao_un||run||'g';
+    L.push(['Rendeu',numP.toFixed(1)+' unidade'+(numP>=2?'s':'')+' de '+N(r.porcao_qtd,0)+' '+unPorc+' ('+N(qtd,0)+' '+run+' no total)']);
+    L.push(['Custo por unidade',R(custoP)]);
+    L.push(['Preço por unidade com margem ('+m+'% CMV)',R(custoP/(m/100))]);
+  } else {
+    L.push(['Rendeu',N(qtd,0)+' '+run]);
+    L.push(['Custo por '+unBase,R(cpu)]);
+    L.push(['Preço do '+unBase+' com margem ('+m+'% CMV)',R(r.valor_venda_central!=null?r.valor_venda_central:cpu/(m/100))]);
+  }
+  return L;
+}
+function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico,fotos,modoPreparo,rec){
   // Construção imperativa para evitar bugs com null/string em children
   function td(txt,style,children){
     const t=document.createElement('td');
@@ -7306,12 +7331,26 @@ function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico
   tfoot.appendChild(r1);tfoot.appendChild(r2);
   tbl.appendChild(tfoot);
 
-  // Resumo cards
-  const resumo=div('g3 mb3',[
-    div('custo-box',[span('scl','Rendimento'),div('bold tv mt2',N(rendQtd,0)+' '+rendUn)]),
-    div('custo-box',[span('scl','Custo total'),div('bold tv mt2',R(custoTotal))]),
-    div('custo-box',[span('scl','Custo/'+(rendUn==='g'?'kg':rendUn==='ml'?'L':rendUn)),div('bold tv mt2',R(custoPorcao))]),
-  ]);
+  // Resumo — pra produção (PP), espelha o bloco de totais do editor; pra ficha, os 3 cards.
+  let resumo;
+  const _linTot=(rec&&rec.valor_venda_central!==undefined)?_ppTotais(rec):null;
+  if(_linTot){
+    resumo=div('custo-box mb3');
+    resumo.style.cssText='display:flex;flex-direction:column;gap:8px;padding:14px 16px';
+    _linTot.forEach(function(l,i){
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:12px'+(i?';border-top:1px solid var(--rb);padding-top:8px':'');
+      const a=document.createElement('span'); a.style.cssText='font-size:12.5px;color:var(--ts)'; a.textContent=l[0];
+      const b=document.createElement('strong'); b.style.cssText='font-size:14px;color:var(--v);text-align:right;white-space:nowrap'; b.textContent=l[1];
+      row.appendChild(a); row.appendChild(b); resumo.appendChild(row);
+    });
+  } else {
+    resumo=div('g3 mb3',[
+      div('custo-box',[span('scl','Rendimento'),div('bold tv mt2',N(rendQtd,0)+' '+rendUn)]),
+      div('custo-box',[span('scl','Custo total'),div('bold tv mt2',R(custoTotal))]),
+      div('custo-box',[span('scl','Custo/'+(rendUn==='g'?'kg':rendUn==='ml'?'L':rendUn)),div('bold tv mt2',R(custoPorcao))]),
+    ]);
+  }
 
   const scrollWrap=document.createElement('div');
   scrollWrap.style.overflowX='auto';
@@ -7376,7 +7415,14 @@ function fichaTable(itens,rendQtd,rendUn,custoTotal,custoPorcao,titulo,historico
     const temFC=(itens||[]).some(function(it){ return (parseFloat(it.fc)||1)!==1; });
     let hh='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:24px;max-width:680px;margin:0 auto}h1{color:#AA2B2B;border-bottom:2px solid #AA2B2B;padding-bottom:8px;font-size:22px}.info{background:#f8f8f8;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#AA2B2B;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase}td{padding:7px 10px;border-bottom:1px solid #eee;font-size:13px}.modo{margin-top:18px;font-size:13px;line-height:1.7;white-space:pre-wrap;background:#f8f8f8;border-radius:8px;padding:12px 14px}.footer{margin-top:24px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}</style></head><body>';
     hh+='<h1>'+_IFE(String(titulo||'Receita').replace('📋','').trim())+'</h1>';
-    hh+='<div class="info"><strong>Rendimento:</strong> '+N(rendQtd,0)+' '+_IFE(rendUn||'')+'</div>';
+    /* 23/07 (Bianca): a prancheta agora imprime os mesmos totais do editor. */
+    if(rec&&rec.valor_venda_central!==undefined){
+      hh+='<div class="info">';
+      _ppTotais(rec).forEach(function(l){ hh+='<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0"><span>'+_IFE(l[0])+'</span><strong>'+_IFE(l[1])+'</strong></div>'; });
+      hh+='</div>';
+    } else {
+      hh+='<div class="info"><strong>Rendimento:</strong> '+N(rendQtd,0)+' '+_IFE(rendUn||'')+'</div>';
+    }
     hh+='<table><tr><th>Ingrediente</th><th>UN</th><th style="text-align:right">Qtd</th>'+(temFC?'<th style="text-align:right">Pegar bruto (FC)</th>':'')+'</tr>';
     (itens||[]).forEach(function(it){
       const nome=it.lola_insumos?.nome||it.lola_preproducoes?.nome||it.lola_preproducoes_sub?.nome||it.nome_manual||'—';
