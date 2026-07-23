@@ -857,8 +857,11 @@ let EST_LOCAL='todos', EST_TIPO='tudo';
 function _estItems(){
   const salIns={}; (ST.movs||[]).forEach(m=>{ if(!m.insumo_id)return; const s=salIns[m.insumo_id]||(salIns[m.insumo_id]={q:0,v:0}); s.q+=(+m.qtd||0); s.v+=(+m.custo_total||0); });
   const items=[];
-  (ST.insumos||[]).forEach(i=>{ if(i.ativo===false)return; const s=salIns[i.id]||{q:0,v:0};
-    items.push({tipo:'insumo', id:i.id, nome:i.nome||'?', un:i.unidade_custo||'', saldo:s.q, valor:s.v, custo:(+i.custo_por_unidade||0), custoUn:i.unidade_custo||'un', local:i.local||'', cat:i.categoria||'', evento:!!i.evento}); });
+  /* 23/07 (Bianca): lola_insumos é COMPARTILHADA (Lola + Central). Aqui entra SÓ o que
+     tem movimento de estoque na Central — senão apareciam vinhos/bebidas do bar, que a
+     Central não estoca. Mesmo recorte da tela antiga de Insumos. */
+  Object.keys(salIns).forEach(id=>{ const i=ST.byId[id]; if(!i||i.ativo===false)return; const s=salIns[id];
+    items.push({tipo:'insumo', id:id, nome:i.nome||'?', un:i.unidade_custo||'', saldo:s.q, valor:s.v, custo:(+i.custo_por_unidade||0), custoUn:i.unidade_custo||'un', local:i.local||'', cat:i.categoria||'', evento:!!i.evento}); });
   (ST.receitas&&ST.receitas!=='loading'?ST.receitas:[]).forEach(r=>{ const s=(ST.saldo||{})[r.id];
     items.push({tipo:'producao', id:r.id, nome:r.nome||'?', un:prodUn(r), saldo:s?(+s.saldo):null, saldoData:s?s.saldo_data:null, valor:null, custo:(+r.valor_venda_central||0), custoUn:prodUn(r), local:r.local||''}); });
   return items;
