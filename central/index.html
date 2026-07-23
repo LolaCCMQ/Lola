@@ -874,8 +874,11 @@ function viewEstoque(){
   else if(EST_LOCAL!=='todos') list=list.filter(x=>x.local===EST_LOCAL);
   if(ST.busca){ const b=norm(ST.busca); list=list.filter(x=>norm(x.nome).includes(b)); }
   let h=`<div class="note">Estoque único da Central — <b>insumos</b> e <b>produções</b> juntos, separados pelo <b>local</b> onde ficam guardados. É daqui que saem as contagens semanais.</div>`;
-  h+=`<div class="btn2"><button class="btn" id="btnContEst"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem${EST_LOCAL!=='todos'&&EST_LOCAL!=='sem'?' ('+localLbl(EST_LOCAL)+')':''}</button><button class="btn sec" id="btnHistEst"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
-  h+=`<div class="btn2" style="margin-top:8px"><button class="btn sec" id="btnNovaProdEst"><i class="ph-duotone ph-plus-circle"></i> Nova produção</button></div>`;
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <button id="btnContEst" style="flex:1 1 auto;min-height:42px;padding:0 16px;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem${EST_LOCAL!=='todos'&&EST_LOCAL!=='sem'?' · '+localLbl(EST_LOCAL):''}</button>
+    <button id="btnHistEst" style="flex:0 1 auto;min-height:42px;padding:0 14px;background:#FBF1DD;color:#9A6B1E;border:1.5px solid #9A6B1E;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
+    <button id="btnNovaProdEst" style="flex:0 1 auto;min-height:42px;padding:0 14px;background:#EFE7F6;color:#7A4FA3;border:1.5px solid #7A4FA3;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-plus-circle"></i> Nova produção</button>
+  </div>`;
   // chips de LOCAL
   h+=`<div class="toolbar" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="chip ${EST_LOCAL==='todos'?'on':''}" data-loc="todos">Todos</button>`;
   LOCAIS.forEach(l=>{ const n=all.filter(x=>x.local===l.k).length; h+=`<button class="chip ${EST_LOCAL===l.k?'on':''}" data-loc="${l.k}">${esc(l.lbl)}${n?` (${n})`:''}</button>`; });
