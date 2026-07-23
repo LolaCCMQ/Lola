@@ -2073,7 +2073,6 @@ async function modalPrep(item){
   const DESTS_PP_OPT=[
     {k:'ccmq',label:'CCMQ',cor:'#AA2B2B'},
     {k:'mac',label:'MAC',cor:'#166634'},
-    {k:'central',label:'Central',cor:'#1d4ed8'},
     {k:'eventos',label:'Eventos',cor:'#c47700'},
   ];
   const _selDestsPP=new Set(item?.destinos||[]);
@@ -2179,14 +2178,15 @@ async function modalPrep(item){
     (()=>{margInp=finp('',f.margem_venda,v=>{f.margem_venda=parseFloat(v)||70;calcTotais();},'number');margInp.placeholder='% personalizado';margInp.style.display=['30','40','50','60','70'].includes(String(f.margem_venda))?'none':'block';margInp.style.marginTop='6px';return margInp;})()
   ]);
   mkModal((ed?'Editar':'Nova')+' pré-produção',[
-    div('fg3',[
+    div('fg2',[
       fgrp('Nome',finp('',f.nome,v=>f.nome=v)),
-      fgrp('Categoria',fsel('',['central','mac','ccmq'],f.categoria,v=>f.categoria=v)),
       fgrp('✍️ Editado por',nomeEdit),
     ]),
-    /* 20/07 (Bianca): "essa informação de ONDE é UTILIZADO podemos excluir" —
-       a linha de chips (CCMQ/MAC/Central/Eventos + Pré-preparo) saiu da tela.
-       destinos e e_preparo continuam sendo gravados com o valor que já tinham. */
+    /* 23/07 (Bianca): a "Categoria" (Central/Mac/CCMQ) era campo LEGADO e confundia com a
+       etiqueta. Voltou o seletor de DESTINO (= a etiqueta da listagem, campo `destinos`) +
+       o Pré-preparo. A `categoria` antiga continua gravada com o valor que já tinha. */
+    fgrp('🏷️ Etiqueta — pra quem essa produção vai (pode marcar mais de um)',
+      (()=>{ const w=div(null,null,{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'}); w.appendChild(destBtnsWrap); w.appendChild(preBtn); return w; })()),
     div('fg2',[
       fgrp('Rendimento total',rendWidget),
       fgrp('Margem venda central',margWidget),
