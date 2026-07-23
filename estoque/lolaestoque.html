@@ -448,6 +448,17 @@ td .sub{font-size:10px;color:var(--ts);margin-top:2px;}
   .mol .mb{overflow-y:auto;overflow-x:hidden}
   .mol [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;gap:24px!important}
 }
+/* Estoque Lola — saldo na linha do insumo (unificação 23/07) */
+.ins-saldo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px}
+.ins-saldo .isd-v{font-weight:800;font-size:14px;color:var(--tx);letter-spacing:.2px}
+.ins-saldo .isd-st{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800}
+.ins-saldo .isd-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.ins-saldo .isd-st.ok{color:var(--vd)}
+.ins-saldo .isd-st.lo{color:#B5302E}
+.ins-saldo .isd-st.am{color:var(--am)}
+.ins-saldo .isd-st.nc{color:var(--rm)}
+.ins-saldo .isd-min{font-size:11px;color:var(--rm);font-weight:600}
+.ins-saldo .isd-none{font-size:11.5px;color:var(--rm);font-weight:600}
 </style>
 </head>
 <body>
@@ -669,14 +680,13 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
   const menus=[
     {s:'Geral',items:[{id:'dashboard',ic:'ph-squares-four',lb:'Cozinha'}]},
     {s:'Cardápio & Custos',items:[
-      {id:'insumos',ic:'ph-jar',lb:'Insumos'},
+      {id:'insumos',ic:'ph-package',lb:'Estoque Lola'},
       {id:'conferencia',ic:'ph-scales',lb:'Conferência de Preços'},
       {id:'preproducoes',ic:'ph-cooking-pot',lb:'Pré-produções'},
       {id:'fichas',ic:'ph-book-open',lb:'Fichas Técnicas'},
     ]},
     {s:'Operações',items:[
       {id:'entnotas',ic:'ph-receipt',lb:'Entrada de Notas'},
-      {id:'contagem',ic:'ph-package',lb:'Contagem Estoque'},
       {id:'saidas',ic:'ph-arrow-square-out',lb:'Saída de Estoque'},
       {id:'fornecedores',ic:'ph-storefront',lb:'Fornecedores'},
       {id:'pedidos',ic:'ph-shopping-cart',lb:'Pedidos'},
@@ -701,7 +711,7 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
 
 /* 19/07 (Bianca): "Pedidos à Central" virou PEDIDOS — página única com Pedidos à
    Central + Enviar pra outras unidades + Recebimentos (a antiga Envios da Central). */
-const TITLES={dashboard:'Cozinha',insumos:'Insumos',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos',envios:'Envios da Central',entnotas:'Entrada de Notas'};
+const TITLES={dashboard:'Cozinha',insumos:'Estoque Lola',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos',envios:'Envios da Central',entnotas:'Entrada de Notas'};
 const SUBS={dashboard:'Visão geral das operações',insumos:'Ingredientes e matérias-primas com custo real',conferencia:'Suba a planilha do mês e confira preço por preço antes de aplicar',preproducoes:'Fichas técnicas dos preparos da cozinha',fichas:'Composição e custo dos pratos do cardápio',producao:'O que a Cozinha Central produziu hoje',contagem:'Registro de estoque do CCMQ e Mac',saidas:'Registro de saídas de insumos do estoque',fornecedores:'Cadastro e gestão de fornecedores',pedidos:'Pedidos entre unidades e Cozinha Central',envios:'Ingredientes e produções que a Central mandou pra cá',entnotas:'Puxa as notas do Financeiro e lança no estoque'};
 
 function nav(p){window._navBack=null;PAGE=p;document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.page===p));renderPage();}
@@ -730,7 +740,7 @@ async function renderPage(){
   main.innerHTML='';
   main.appendChild(brandHead(TITLES[PAGE],SUBS[PAGE]));
   const body=div(null,null,{id:'pb'});main.appendChild(body);
-  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgCont2,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPedU,envios:pgEnvios,entnotas:pgEntradaNotas};
+  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgIns,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPedU,envios:pgEnvios,entnotas:pgEntradaNotas};
   if(map[PAGE])await map[PAGE](body);
 }
 
@@ -874,10 +884,73 @@ function mkStat(ic,lb,val,sub,col){
 /* ══════════════════════════════════
    INSUMOS — colunas exatas da planilha
 ══════════════════════════════════ */
+/* ══════════════════════════════════
+   ESTOQUE LOLA — saldo por insumo (unificação Insumos+Contagem, 23/07)
+   saldo = última contagem + entradas das notas depois dela.
+   Fase 2 (a construir): descontar as vendas do Bitbar.
+══════════════════════════════════ */
+var _saldoMap={};
+var _cozUso=null;
+/* separa o cadastro (que é um só) por cozinha: esconde da LISTA os insumos que
+   pertencem só à outra cozinha. Regra de ouro: filtrar só na lista, nunca o _ins global. */
+function _insDaCozinha(i){
+  if(!_cozUso) return true;
+  const u=_cozUso[i.id]; if(!u) return true;
+  if(typeof APP_COZ_ID!=='undefined' && APP_COZ_ID==='central') return !(u.c && !u.ce); // esconde os só-do-CCMQ
+  return !(u.ce && !u.c);                                                                 // esconde os só-da-Central
+}
+function _convUnid(q,from,to){
+  if(q==null) return null;
+  const f=String(from||'').toLowerCase().trim(), t=String(to||'').toLowerCase().trim();
+  if(f===t) return q;
+  if(f==='g'&&t==='kg') return q/1000;
+  if(f==='kg'&&t==='g') return q*1000;
+  if(f==='ml'&&(t==='l'||t==='litro')) return q/1000;
+  if((f==='l'||f==='litro')&&t==='ml') return q*1000;
+  return null; // não sabe converter → não chuta (REGRAS #9/#11)
+}
+async function carregarSaldoInsumos(){
+  const map={};
+  try{
+    // última contagem por insumo (mais recente primeiro)
+    const ci=await db('lola_contagem_itens','GET',null,
+      '?insumo_id=not.is.null&select=insumo_id,qtd_contada,lola_contagens!contagem_id(data_contagem)&order=lola_contagens(data_contagem).desc&limit=3000');
+    const ult={};
+    (ci||[]).forEach(r=>{ const id=r.insumo_id; if(!id||ult[id])return;
+      ult[id]={qtd:parseFloat(r.qtd_contada)||0, data:(r.lola_contagens&&r.lola_contagens.data_contagem)||null}; });
+    // entradas das notas (todas; filtramos por data depois)
+    const mv=await db('lola_ccmq_estoque_mov','GET',null,
+      '?tipo=eq.entrada&select=insumo_id,qtd,unidade,data&limit=20000');
+    const ent={};
+    (mv||[]).forEach(r=>{ const id=r.insumo_id; if(!id)return;
+      (ent[id]=ent[id]||[]).push({q:parseFloat(r.qtd)||0,un:r.unidade,data:r.data}); });
+    (_ins||[]).forEach(i=>{
+      const un=i.unidade_custo||'kg';
+      const uc=ult[i.id];
+      const baseQ = uc? uc.qtd : null;
+      const desde = uc? uc.data : null;
+      let somaEnt=0, temEnt=false, pulou=false;
+      (ent[i.id]||[]).forEach(e=>{
+        if(desde && e.data && e.data < desde) return; // só o que entrou depois da contagem
+        const c=_convUnid(e.q, e.un, un);
+        if(c!=null){ somaEnt+=c; temEnt=true; } else { pulou=true; }
+      });
+      let saldo=null, semBase=false;
+      if(baseQ!=null){ saldo = baseQ + somaEnt; }
+      else if(temEnt){ saldo = somaEnt; semBase=true; }
+      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, entr: somaEnt, semBase, aprox: pulou };
+    });
+  }catch(e){ /* saldo é informativo — nunca derruba a tela */ }
+  return map;
+}
+
 async function pgIns(c){
   c.appendChild(ld());
   try{
     _ins=await db('lola_insumos','GET',null,'?select=*&ativo=eq.true&order=categoria.asc,nome.asc');
+    window._ins=_ins;
+    try{ const cu=await db('rpc/insumo_cozinha_uso','POST',{}); _cozUso={}; (cu||[]).forEach(r=>{_cozUso[r.insumo_id]={c:!!r.usa_ccmq,ce:!!r.usa_central};}); }catch(e){ _cozUso=null; }
+    _saldoMap=await carregarSaldoInsumos();
     // quais insumos entram em alguma pré-produção ou ficha (mesma função que a Central usa)
     try{ const uu=await db('rpc/central_insumos_usados','POST',{});
          _insUsados=new Set((uu||[]).map(x=>(x&&typeof x==='object')?Object.values(x)[0]:x)); }
@@ -887,7 +960,7 @@ async function pgIns(c){
     const CATS_ORDER=['Bebidas Alcoólicas','Bebidas Não Alcoólicas','Cervejas','Vinhos','Carnes e Pescados','Hortifruti','Insumos Alimentos','Limpeza','Pães'];
     const CAT_COR={'Bebidas Alcoólicas':'#534AB7','Bebidas Não Alcoólicas':'#185FA5','Cervejas':'#9A6B1E','Vinhos':'#993556','Carnes e Pescados':'#A32D2D','Hortifruti':'#3B6D11','Insumos Alimentos':'#854F0B','Limpeza':'#0F6E56','Pães':'#993C1D'};
     function mkSecH(cat,n){const cor=CAT_COR[cat]||'#A82A2A';const sh=div('ins-sech');sh.innerHTML='<span class="sq" style="background:'+cor+'"></span><span class="nm" style="color:'+cor+'">'+cat+'</span><span class="ct">'+n+' '+(n===1?'item':'itens')+'</span>';return sh;}
-    const cats=CATS_ORDER.filter(c=>_ins.some(i=>i.categoria===c));
+    const cats=CATS_ORDER.filter(c=>_ins.some(i=>i.categoria===c && _insDaCozinha(i)));
     let filtCat='Todos';let filtBusca='';
     const tabW=div('tabs');
     function mkCatTabs(){
@@ -904,6 +977,7 @@ async function pgIns(c){
     c.appendChild(div('abar no-print',[
       mkSearch(q=>{filtBusca=q;drawIns($('#ins-t'));},'Buscar insumo...'),
       div('fl_ gap2',[
+        el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-clipboard-text"></i> Nova contagem',onclick:()=>modalNovaContagem()}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-download-simple"></i> Baixar planilha',onclick:()=>exportInsumosXlsx()}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-upload-simple"></i> Conferir preços',onclick:()=>nav('conferencia')}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-currency-dollar"></i> Atualizar preços',onclick:()=>modalPrecos()}),
@@ -914,7 +988,7 @@ async function pgIns(c){
     const w=div(null,null,{id:'ins-t'});c.appendChild(w);
     function drawIns(w){
       w.innerHTML='';
-      let f=_ins;
+      let f=_ins.filter(_insDaCozinha);
       if(filtCat!=='Todos')f=f.filter(i=>i.categoria===filtCat);
       if(filtBusca)f=f.filter(i=>i.nome.toLowerCase().includes(filtBusca.toLowerCase()));
       if(!f.length){w.appendChild(em('🧂','Nenhum insumo encontrado'));return;}
@@ -1003,6 +1077,26 @@ function mkInsTable(itens){
       meta.textContent=d+(i.preco_atualizado_por?(' \u00B7 '+i.preco_atualizado_por):'');
     }else{ meta.classList.add('none'); meta.textContent='Sem registro'; }
     nw.appendChild(meta);
+    // saldo em estoque (contagem + entradas das notas)
+    const sd=_saldoMap&&_saldoMap[i.id];
+    const sline=div('ins-saldo');
+    if(sd && sd.saldo!=null){
+      const min=(i.qtd_minima!=null&&i.qtd_minima!=='')?parseFloat(i.qtd_minima):null;
+      let cls='ok',lab='OK';
+      if(sd.semBase){cls='nc';lab='sem base';}
+      else if(sd.saldo<=0){cls='lo';lab='Zerado';}
+      else if(min!=null&&sd.saldo<=min){cls='lo';lab='Abaixo';}
+      else if(min!=null&&sd.saldo<=min*1.5){cls='am';lab='Atenção';}
+      const apx=sd.aprox?'≈ ':'';
+      sline.innerHTML='<span class="isd-v">'+apx+_nbr(sd.saldo,1)+' '+sd.un+'</span>'
+        +'<span class="isd-st '+cls+'"><span class="isd-dot"></span>'+lab+'</span>'
+        +(min!=null?'<span class="isd-min">mín '+_nbr(min,0)+'</span>':'');
+      sline.title=(sd.contData?('contagem '+DBR(sd.contData)+': '+_nbr(sd.contQtd||0,1)+' '+sd.un):'sem contagem')
+        +(sd.entr?(' + '+_nbr(sd.entr,1)+' '+sd.un+' de notas'):'');
+    }else{
+      sline.innerHTML='<span class="isd-none">sem contagem</span>';
+    }
+    nw.appendChild(sline);
     nome.appendChild(nw);
     nome.title='Abrir a ficha completa \u2014 pre\u00E7o, de qual nota veio, fornecedor, saldo, onde \u00E9 usado';
     nome.style.cursor='pointer';
@@ -4572,13 +4666,16 @@ async function verContagem(ct){
 }
 
 async function modalNovaContagem(c){
-  const todosItens=await db('lola_estoque_itens','GET',null,'?ativo=eq.true&order=categoria.asc,ordem.asc');
+  // Estoque Lola: a contagem agora usa o cadastro único de Insumos (grava por insumo_id)
+  const baseIns=(window._ins&&window._ins.length)?window._ins
+    :await db('lola_insumos','GET',null,'?ativo=eq.true&select=id,nome,categoria,unidade_custo,qtd_minima&order=categoria.asc,nome.asc');
+  const todosItens=baseIns.map(i=>({id:i.id,nome:i.nome,categoria:i.categoria||'Outros',unidade:i.unidade_custo||'kg',qtd_minima:i.qtd_minima}));
   const grupos={};
   todosItens.forEach(it=>{if(!grupos[it.categoria])grupos[it.categoria]=[];grupos[it.categoria].push(it);});
   const qtds={};todosItens.forEach(it=>{qtds[it.id]={qtd:'',pedido:''};});
   const _autorCont={v:''};
   const _dataCont={v:new Date().toISOString().split('T')[0]};
-  const catsDisponiveis=Object.entries(CONT_CATS).filter(([cat])=>(grupos[cat]||[]).length>0);
+  const catsDisponiveis=Object.keys(grupos).sort((a,b)=>a.localeCompare(b)).map(cat=>[cat,cat]);
   const catsSelecionadas=new Set();
   const ov=div('ov');const mo=div('mo mol');
   mo.style.cssText+='display:flex;flex-direction:column;overflow:hidden';
@@ -4598,7 +4695,7 @@ async function modalNovaContagem(c){
   const dropLbl2=document.createElement('span');
   const dropArr2=document.createElement('span');dropArr2.textContent='\u{25BC}';dropArr2.style.cssText='font-size:10px;transition:transform .2s;flex-shrink:0';
   dropBtn2.appendChild(dropLbl2);dropBtn2.appendChild(dropArr2);
-  function setLbl2(){const n=catsSelecionadas.size,tot=catsDisponiveis.length;if(n===0)dropLbl2.textContent='Selecionar o que vai contar...';else if(n===tot)dropLbl2.textContent='\u{2713} Todas as categorias';else if(n===1){const[cat]=[...catsSelecionadas];dropLbl2.textContent=CONT_CATS[cat]||cat;}else dropLbl2.textContent=n+' categorias selecionadas';}setLbl2();
+  function setLbl2(){const n=catsSelecionadas.size,tot=catsDisponiveis.length;if(n===0)dropLbl2.textContent='Selecionar o que vai contar...';else if(n===tot)dropLbl2.textContent='\u{2713} Todas as categorias';else if(n===1){const[cat]=[...catsSelecionadas];dropLbl2.textContent=cat;}else dropLbl2.textContent=n+' categorias selecionadas';}setLbl2();
   const dropPanel2=document.createElement('div');
   dropPanel2.style.cssText='display:none;border-top:2px solid var(--v);max-height:220px;overflow-y:auto;background:#fff;-webkit-overflow-scrolling:touch';
   let dp2Open=false;
@@ -4640,9 +4737,9 @@ async function modalNovaContagem(c){
     btn('btn bp','Salvar contagem',async()=>{
       const[ct]=await db('lola_contagens','POST',{data_contagem:_dataCont.v,responsavel:_autorCont.v||'N\u{00E3}o informado',unidade:'ccmq',status:'rascunho'});
       const promises=[];
-      todosItens.forEach(it=>{const q=qtds[it.id];if(q.qtd!=='')promises.push(db('lola_contagem_itens','POST',{contagem_id:ct.id,estoque_item_id:it.id,qtd_contada:parseFloat(q.qtd)||0,pedido:q.pedido?parseFloat(q.pedido):null}));});
+      todosItens.forEach(it=>{const q=qtds[it.id];if(q.qtd!=='')promises.push(db('lola_contagem_itens','POST',{contagem_id:ct.id,insumo_id:it.id,qtd_contada:parseFloat(q.qtd)||0,pedido:q.pedido?parseFloat(q.pedido):null}));});
       await Promise.all(promises);
-      ov.remove();mostrarListaPedidosFornecedor(ct.id,_dataCont.v);renderContArea();
+      ov.remove();mostrarListaPedidosFornecedor(ct.id,_dataCont.v);renderPage();
     })
   ]));
   ov.appendChild(mo);document.body.appendChild(ov);
@@ -4704,7 +4801,11 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
 
   try{
     const itens=await db('lola_contagem_itens','GET',null,
-      '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
+      '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
+    const _cnome=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'—';
+    const _cun=it=>(it.lola_insumos&&it.lola_insumos.unidade_custo)||(it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'';
+    const _ccat=it=>(it.lola_insumos&&it.lola_insumos.categoria)||CONT_CATS[it.lola_estoque_itens&&it.lola_estoque_itens.categoria]||(it.lola_estoque_itens&&it.lola_estoque_itens.categoria)||'—';
+    const _cforn=it=>(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||'Sem fornecedor';
     mb2.innerHTML='';
 
     if(!itens.length){
@@ -4716,7 +4817,7 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
     // Agrupar por FORNECEDOR
     const porFornecedor={};
     itens.forEach(it=>{
-      const forn=it.lola_estoque_itens?.fornecedor||'Sem fornecedor';
+      const forn=_cforn(it);
       if(!porFornecedor[forn])porFornecedor[forn]=[];
       porFornecedor[forn].push(it);
     });
@@ -4756,7 +4857,7 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
         btnWp.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Enviar';
         btnWp.addEventListener('click',()=>{
           const dataStr=new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
-          let msg='🛒 *Pedido Lola Bar — '+dataStr+'*\n\n';fItens.forEach(it=>{msg+='\u2022 '+it.lola_estoque_itens?.nome+': *'+N(it.pedido,1)+' '+it.lola_estoque_itens?.unidade+'*\n';});msg+='\n_Enviado pelo app de estoque Lola_ 🍷';
+          let msg='🛒 *Pedido Lola Bar — '+dataStr+'*\n\n';fItens.forEach(it=>{msg+='\u2022 '+_cnome(it)+': *'+N(it.pedido,1)+' '+_cun(it)+'*\n';});msg+='\n_Enviado pelo app de estoque Lola_ 🍷';
           window.open('https://wa.me/'+wp+'?text='+encodeURIComponent(msg),'_blank');
         });
         secH.appendChild(btnWp);
@@ -4766,10 +4867,10 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
       mb2.appendChild(div('tw mb2',mkTable(
         ['Produto','Categoria','Qtd a pedir','Un'],
         fItens.map(it=>[
-          el('strong',null,it.lola_estoque_itens?.nome||'—'),
-          el('span','tss',CONT_CATS[it.lola_estoque_itens?.categoria]||it.lola_estoque_itens?.categoria||'—'),
+          el('strong',null,_cnome(it)),
+          el('span','tss',_ccat(it)),
           el('span','bold tv',N(it.pedido,1)),
-          it.lola_estoque_itens?.unidade||'—',
+          _cun(it)||'—',
         ]),
         [null,null,'tr','tr']
       )));
@@ -4783,13 +4884,15 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
   // Imprimir
   const btnImp=btn('btn bo bsm','🖨️ Imprimir',()=>{
     const w=window.open('','_blank');
-    db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)').then(allItens=>{
-      const grps={};allItens.forEach(it=>{const fn2=it.lola_estoque_itens?.fornecedor||'Sem fornecedor';if(!grps[fn2])grps[fn2]=[];grps[fn2].push(it);});
+    db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)').then(allItens=>{
+      const _pn=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'';
+      const _pu=it=>(it.lola_insumos&&it.lola_insumos.unidade_custo)||(it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'';
+      const grps={};allItens.forEach(it=>{const fn2=(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||'Sem fornecedor';if(!grps[fn2])grps[fn2]=[];grps[fn2].push(it);});
       let h2='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#AA2B2B}h2{background:#fdf3f3;padding:8px;border-left:4px solid #AA2B2B}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#AA2B2B;color:#fff;padding:6px 10px;text-align:left}td{padding:6px 10px;border-bottom:1px solid #eee}</style></head><body>';
       h2+='<h1>📋 Lista de Pedidos — '+dataFmt+'</h1>';
       Object.entries(grps).sort(([a],[b])=>a.localeCompare(b,'pt')).forEach(([fn3,fi])=>{
         h2+='<h2>🏪 '+fn3+'</h2><table><tr><th>Produto</th><th>Qtd</th><th>Un</th></tr>';
-        fi.forEach(it=>{ h2+='<tr><td><strong>'+it.lola_estoque_itens?.nome+'</strong></td><td><strong>'+N(it.pedido,1)+'</strong></td><td>'+it.lola_estoque_itens?.unidade+'</td></tr>'; });
+        fi.forEach(it=>{ h2+='<tr><td><strong>'+_pn(it)+'</strong></td><td><strong>'+N(it.pedido,1)+'</strong></td><td>'+_pu(it)+'</td></tr>'; });
         h2+='</table>';
       });
       h2+='</body></html>';w.document.write(h2);w.print();
@@ -4806,7 +4909,7 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
     bWp.style.cssText='display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:50px;border:none;background:#25D366;color:#fff;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0';
     bWp.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> '+lbl;
     bWp.addEventListener('click',()=>{
-      const linhas=fItens.map(it=>(it.lola_estoque_itens?.nome||'')+': '+N(it.pedido,1)+' '+(it.lola_estoque_itens?.unidade||'')).join('\n');
+      const linhas=fItens.map(it=>_cnome(it)+': '+N(it.pedido,1)+' '+_cun(it)).join('\n');
       const msg='Ola! Lola Bar CCMQ.\nPedido de '+dataFmt+':\n\n'+linhas+'\n\nObrigada!';
       window.open('https://wa.me/'+wp+'?text='+encodeURIComponent(msg),'_blank');
     });
@@ -6087,16 +6190,9 @@ async function pgPed(c){
         el('span','bold tv',R(totGeral),{style:'font-size:22px;font-family:Fraunces,serif'}),
       ]);
       tot.style.cursor='pointer';
-      tot.title='Relatório do período — o que foi de fato entregue, produto a produto';
-      infoEl.appendChild(el('span','tss',' · 📊 clique para ver o relatório do período',{style:'font-size:11px;margin-left:6px;color:var(--v);font-weight:700'}));
-      tot.addEventListener('click',()=>{
-        /* 23/07 (Bianca): o resumo por categoria "não diz muita coisa" — abre o
-           RELATÓRIO (calendário De/Até), já no período visível, só recebidos, por
-           produto: a qtd dos itens já é a ENTREGUE de fato; divergências destacadas. */
-        let de,ate;
-        if(_pedMes){ const p=_pedMes.split('-'); de=_pedMes+'-01'; ate=_pedMes+'-'+String(new Date(+p[0],+p[1],0).getDate()).padStart(2,'0'); }
-        relatorioPed({de:de,ate:ate,st:'recebidos',grupo:'produto'});
-      });
+      tot.title='Clique para ver o resumo por categoria';
+      infoEl.appendChild(el('span','tss',' · 🔎 clique para ver por categoria',{style:'font-size:11px;margin-left:6px;color:var(--v);font-weight:700'}));
+      tot.addEventListener('click',()=>verResumoCategorias(label,entregues));
       resumoEl.appendChild(g);
       resumoEl.appendChild(tot);
     }
@@ -6859,11 +6955,10 @@ async function imprimirPed(ped){
    relatórios, por período, por produto, por categoria, etc". Modal com filtros
    (período / destino / status / agrupamento), tabela com totais e impressão.
    Valor = quantidade × preço unitário dos ITENS dos pedidos do período. */
-async function relatorioPed(preset){
+async function relatorioPed(){
   const hoje=new Date();
   const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const f={de:iso(new Date(hoje.getFullYear(),hoje.getMonth(),1)),ate:iso(hoje),dest:'todos',st:'validos',grupo:'produto'};
-  if(preset){ ['de','ate','dest','st','grupo'].forEach(k=>{ if(preset[k]) f[k]=preset[k]; }); }
   const mkSel=(opts,cur,cb)=>{const s=el('select','fi');opts.forEach(o=>{const op=el('option',null,o[1],{value:o[0]});if(o[0]===cur)op.selected=true;s.appendChild(op);});s.addEventListener('change',e=>cb(e.target.value));return s;};
   const deI=el('input','fi',null,{type:'date',value:f.de}); deI.addEventListener('change',e=>{f.de=e.target.value;});
   const ateI=el('input','fi',null,{type:'date',value:f.ate}); ateI.addEventListener('change',e=>{f.ate=e.target.value;});
@@ -6880,20 +6975,6 @@ async function relatorioPed(preset){
         +(f.st==='recebidos'?'&lola_pedidos.status=in.(recebido_completo,recebido_divergencia)':'&lola_pedidos.status=not.in.(cancelado,rascunho)')
         +'&limit=10000';
       const its=await db('lola_pedidos_itens','GET',null,q);
-      /* 23/07 (Bianca): "precisa ter a listagem das produções e quanto foi de fato
-         entregue — e deve entrar o das divergências". No agrupamento POR PRODUTO,
-         soma pedido × entregue dos RECEBIMENTOS do período e destaca diferenças. */
-      let divMap=null;
-      if(f.grupo==='produto'){
-        try{
-          const rIt=await db('lola_pedidos_recebimentos_itens','GET',null,
-            '?select=nome_item,qtd_solicitada,qtd_recebida,unidade,lola_pedidos_recebimentos!inner(data_recebimento)'
-            +'&lola_pedidos_recebimentos.data_recebimento=gte.'+f.de
-            +'&lola_pedidos_recebimentos.data_recebimento=lte.'+f.ate+'&limit=10000');
-          divMap={};
-          rIt.forEach(x2=>{ const k2=(x2.nome_item||'—')+''+(x2.unidade||''); const o2=(divMap[k2]=divMap[k2]||{sol:0,rec:0}); o2.sol+=(+x2.qtd_solicitada||0); o2.rec+=(+x2.qtd_recebida||0); });
-        }catch(e2){ divMap=null; }
-      }
       if(!window._relCatMap){
         const [pps,inss]=await Promise.all([
           db('lola_preproducoes','GET',null,'?select=nome,cat_custo&limit=3000'),
@@ -6921,11 +7002,7 @@ async function relatorioPed(preset){
       _dados={f:{...f},linhas:[],totV,nItens:its.length};
       Object.entries(g).sort((a,b)=>b[1].valor-a[1].valor).forEach(([k,o])=>{
         let nome=k,qtdLbl;
-        if(f.grupo==='produto'){
-          const p=k.split(''); nome=p[0]; qtdLbl=N(o.qtd,1)+' '+(p[1]||'');
-          const dv=divMap&&divMap[k];
-          if(dv&&Math.abs(dv.sol-dv.rec)>0.001){ qtdLbl='pedido '+N(dv.sol,1)+' → entregue '+N(dv.rec,1)+' '+(p[1]||'')+' ⚠️'; }
-        }
+        if(f.grupo==='produto'){ const p=k.split(''); nome=p[0]; qtdLbl=N(o.qtd,1)+' '+(p[1]||''); }
         else if(f.grupo==='pedido'){ const p=k.split(''); nome=p[0]+' · '+DBR(p[1])+' · '+p[2]; qtdLbl=o.itens+' itens'; }
         else { if(f.grupo==='categoria') nome=costCatLabel(k); qtdLbl=o.itens+' itens'; }
         _dados.linhas.push({nome,qtdLbl,valor:o.valor});
@@ -6984,7 +7061,7 @@ async function abrirFichaInsumo(insumoId, nomeFallback){
   const mb=div('mb'); mb.appendChild(div('ld',[div('sp'),document.createTextNode('Buscando...')]));
   mo.appendChild(mb); ov.appendChild(mo); document.body.appendChild(ov);
   try{
-    const r=await db('rpc/insumo_ficha','POST',{iid:insumoId});
+    const r=await db('rpc/insumo_ficha','POST',{iid:insumoId,coz:(typeof APP_COZ_ID!=='undefined'?APP_COZ_ID:'central')});
     const d=Array.isArray(r)?r[0]:r;
     if(!d||!d.cadastro){ mb.innerHTML='<p class="tss">Não encontrei os dados deste insumo.</p>'; return; }
     _renderFichaInsumo(mb, d, ov);
