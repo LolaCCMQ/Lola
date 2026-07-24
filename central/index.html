@@ -948,7 +948,12 @@ function wireEstoque(){
       const menu=document.createElement('div'); menu.className='estmenu insmenu';
       const add=(ic,lb,fn,cls)=>{ const b=document.createElement('button'); if(cls)b.className=cls; b.innerHTML='<i class="ph-duotone ph-'+ic+'"></i> '+lb; b.onclick=(e2)=>{e2.stopPropagation();fecharInsMenu();fn();}; menu.appendChild(b); };
       add('map-pin','Trocar local',()=>openSetLocal(tp,id));
-      if(tp==='insumo'){ add('identification-card','Ver ficha',()=>abrirFichaInsumo(id,(nm||{}).textContent||'')); add('pencil-simple','Editar',()=>openEditInsumo(id)); }
+      if(tp==='insumo'){ add('identification-card','Ver ficha',()=>abrirFichaInsumo(id,(nm||{}).textContent||'')); add('pencil-simple','Editar',()=>openEditInsumo(id));
+        add('trash','Excluir',async()=>{ const i=ST.byId[id]||{};
+          if(!confirm('Excluir "'+(i.nome||'insumo')+'"?\n\nEle é só DESATIVADO (some da lista, mas dá pra recuperar). Como o insumo é compartilhado, sai do Lola e da Central.')) return;
+          try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({ativo:false})});
+            toast('Insumo excluído ✓'); await carregar(); }catch(e){ toast('Erro: '+e.message); }
+        },'del'); }
       else { add('package','Atualizar estoque',()=>openEstoque(id)); add('plus-circle','Produzir',()=>openProduzir(id)); }
       const cell=mb.parentElement; cell.style.position='relative'; cell.appendChild(menu);
     };
@@ -2445,7 +2450,7 @@ async function abrirFichaInsumo(insumoId, nomeFallback){
   mo.querySelector('#ifX').onclick=()=>bg.remove();
   const _ifEd=mo.querySelector('#ifEd'); if(_ifEd) _ifEd.onclick=()=>{ bg.remove(); openEditInsumo(insumoId); }; /* 17/07: "falta botão de editar" */
   try{
-    const r=await post('rpc/insumo_ficha',{iid:insumoId});
+    const r=await post('rpc/insumo_ficha',{iid:insumoId, coz:'central'});
     const d=Array.isArray(r)?r[0]:r;
     if(!d||!d.cadastro){ mo.querySelector('#ifBody').innerHTML='<div class="uinfo">Não encontrei os dados deste insumo.</div>'; return; }
     mo.querySelector('#ifTit').textContent=d.cadastro.nome||nomeFallback||'Insumo';
