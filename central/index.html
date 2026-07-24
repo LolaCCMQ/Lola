@@ -917,9 +917,15 @@ function viewEstoque(){
             <div style="font-size:11px;color:var(--mut);margin-top:3px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <button class="locchip" style="border:1px solid ${cor};color:${cor};background:#fff;border-radius:20px;padding:1px 8px;font-size:10.5px;font-weight:700;cursor:pointer">${k==='sem'?'+ local':esc(localLbl(k))}</button>${sub?`<span>${esc(sub)}</span>`:''}</div>
           </div>
-          <div style="text-align:right">${isP?`<button class="eststock" style="background:none;border:none;text-align:right;cursor:pointer;padding:0"><b style="font-size:15px;color:var(--vinho)">${saldoTxt}</b> <small style="color:var(--mut)">${esc(x.un||'')}</small></button>`:`<b style="font-size:15px">${saldoTxt}</b> <small style="color:var(--mut)">${esc(x.un||'')}</small>`}</div>
-          <div style="text-align:right;white-space:nowrap;display:flex;align-items:center;gap:8px">
-            <div style="font-size:12px">${custoTxt}</div>
+          <div style="text-align:right">
+            <div style="font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:800;line-height:1;margin-bottom:3px">estoque</div>
+            ${isP?`<button class="eststock" style="background:none;border:none;text-align:right;cursor:pointer;padding:0"><b style="font-size:15px;color:var(--vinho)">${saldoTxt}</b> <small style="color:var(--mut)">${esc(x.un||'')}</small></button>`:`<b style="font-size:15px">${saldoTxt}</b> <small style="color:var(--mut)">${esc(x.un||'')}</small>`}
+          </div>
+          <div style="white-space:nowrap;display:flex;align-items:center;gap:8px">
+            <div style="text-align:right">
+              <div style="font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:800;line-height:1;margin-bottom:3px">preço</div>
+              <div style="font-size:12px">${custoTxt}</div>
+            </div>
             ${isP?`<button class="estprod" title="Produzir" style="background:none;border:1px solid var(--rb);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--vinho)"><i class="ph-duotone ph-plus-circle"></i></button>`:''}
             <button class="estmore" title="Ações" style="background:none;border:none;cursor:pointer;color:var(--mut);font-size:18px"><i class="ph-duotone ph-dots-three-vertical"></i></button>
           </div>
@@ -2073,15 +2079,46 @@ function openPedido(id){
   $('#pedVolta')&&($('#pedVolta').onclick=()=>setPedidoStatus(id,'novo'));
   $('#pedVolta2')&&($('#pedVolta2').onclick=()=>setPedidoStatus(id,'aceito'));
 }
+/* ===== Baixa automática ao marcar o pedido "pronto pra enviar" (sai da Central) ===== */
+function _matchProducao(nome){ const n=norm(nome); if(!n)return null; return (ST.receitas&&ST.receitas.find?ST.receitas.find(x=>norm(x.nome)===n):null)||null; }
+function _matchInsumo(nome){ const n=norm(nome); if(!n)return null; return (ST.insumos||[]).find(i=>i&&i.ativo!==false && norm(i.nome)===n)||null; }
+async function baixaEnvioPedido(p, reverter){
+  const its=p.lola_pedidos_itens||[]; const sinal=reverter?1:-1;
+  const dest=({ccmq:'Lola',mac:'Mac',central:'Central'})[p.unidade]||p.unidade||'';
+  const hoje=new Date().toISOString().slice(0,10); const naoCasou=[];
+  for(const it of its){ const q=+it.quantidade||0; if(!(q>0)) continue;
+    const r=_matchProducao(it.nome_item);
+    if(r){ const un=prodUn(r);
+      if(it.unidade && norm(it.unidade)!==norm(un)){ naoCasou.push((it.nome_item||'?')+' ('+it.unidade+'≠'+un+')'); continue; }
+      const s=(ST.saldo||{})[r.id]; const base=(s&&+s.saldo)||0; let novo=base+sinal*q; if(novo<0)novo=0;
+      try{ await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+r.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString(), atualizado_por:'Pedido #'+(p.numero_pedido||'')})});
+        if(s)s.saldo=novo; else (ST.saldo=ST.saldo||{})[r.id]={preproducao_id:r.id,saldo:novo,unidade:un};
+        await post('lola_central_saldo_log',[{preproducao_id:r.id, data:hoje, saldo_novo:novo, por:(reverter?'Estorno':'Baixa')+' pedido #'+(p.numero_pedido||'')+' → '+dest}],'return=minimal');
+      }catch(e){ naoCasou.push((it.nome_item||'?')+' (erro)'); }
+      continue; }
+    const ins=_matchInsumo(it.nome_item);
+    if(ins){ const cu=(ins.custo_por_unidade!=null)?+ins.custo_por_unidade:null;
+      try{ await post('lola_central_estoque_mov',[{insumo_id:ins.id, tipo:reverter?'entrada':'baixa', qtd:sinal*q, unidade:it.unidade||'', custo_unit:cu, custo_total:cu!=null?+(sinal*cu*q).toFixed(2):null, origem_tipo:'envio', origem_ref:'pedido:'+p.id, data:hoje, obs:(reverter?'Estorno ':'Envio ')+'pedido #'+(p.numero_pedido||'')+' '+dest, criado_por:'portal'}],'return=minimal');
+        ST.movs&&ST.movs.push({insumo_id:ins.id, qtd:sinal*q, custo_total:cu!=null?+(sinal*cu*q).toFixed(2):0, _pedido:p.id});
+      }catch(e){ naoCasou.push((it.nome_item||'?')+' (erro)'); }
+      continue; }
+    naoCasou.push(it.nome_item||'?');
+  }
+  return naoCasou;
+}
 async function setPedidoStatus(id, cs){
   const p=(ST.pedidos||[]).find(x=>x.id===id); if(!p)return;
+  const era=p.central_status||'novo';
   const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
   const body={central_status:cs};
   if(cs==='aceito'){ body.central_aceito_por=quem; body.central_aceito_em=new Date().toISOString(); }
   if(cs==='pronto'){ body.central_pronto_em=new Date().toISOString(); }
   try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_pedidos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(body)});
     p.central_status=cs; if(body.central_aceito_por)p.central_aceito_por=body.central_aceito_por;
-    toast(cs==='aceito'?'Pedido aceito ✓':cs==='pronto'?'Pronto pra enviar ✓':'Reaberto'); closeSheet(); atualizaBadgePed(); render();
+    let extra='';
+    if(cs==='pronto' && era!=='pronto'){ const nc=await baixaEnvioPedido(p,false); extra=nc.length?(' · sem baixa: '+nc.join(', ')):' · estoque baixado ✓'; }
+    else if(era==='pronto' && cs!=='pronto'){ await baixaEnvioPedido(p,true); extra=' · estoque devolvido'; }
+    toast((cs==='aceito'?'Pedido aceito ✓':cs==='pronto'?'Pronto pra enviar ✓':'Reaberto')+extra); closeSheet(); atualizaBadgePed(); render();
   }catch(e){ toast('Erro: '+e.message); }
 }
 let RES_AL=null;
