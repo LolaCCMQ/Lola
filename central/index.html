@@ -847,6 +847,7 @@ function prodUn(r){ const s=(ST.saldo||{})[r.id]; if(s&&s.unidade) return s.unid
    ═══════════════════════════════════════════════════════════════════ */
 const LOCAIS=[
   {k:'secos',        lbl:'Secos',        ic:'package',          cor:'#C99A33', bg:'#FBF1DD'},
+  {k:'deposito',     lbl:'Depósito',     ic:'archive',          cor:'#8A5A2B', bg:'#F3E9DE'},
   {k:'camara_fria',  lbl:'Câmara fria',  ic:'thermometer-cold', cor:'#2C5AA0', bg:'#E6F1FB'},
   {k:'congelamento', lbl:'Congelamento', ic:'snowflake',        cor:'#1F7A6B', bg:'#E2F0EC'},
   {k:'horti',        lbl:'Horti',        ic:'carrot',           cor:'#2C7A4B', bg:'#E6F3EA'},
@@ -2016,7 +2017,7 @@ function atualizaBadgePed(){ const d=ST.pedidos; const nn=(d&&d!=='loading')?d.f
 function pedUniTag(u){ return u==='ccmq'?'<span class="utag ccmq">CCMQ</span>':u==='mac'?'<span class="utag mac">MAC</span>':''; }
 function pedPill(cs){ cs=cs||'novo'; return cs==='pronto'?'<span class="stpill ok">pronto</span>':cs==='aceito'?'<span class="stpill az">aceito</span>':'<span class="stpill pend">novo</span>'; }
 function viewPedidos(){
-  const uni=ST.pedUni||'todas', filtro=ST.pedFiltro||'abertos';
+  const uni=ST.pedUni||'todas', filtro=ST.pedFiltro||'todos';
   let h=`<div class="note">Pedidos que o <b>CCMQ</b> e o <b>MAC</b> fazem pra Central. Aceite e marque quando estiver <b>pronto pra enviar</b>. (Eles continuam criando os pedidos do lado deles.)</div>`;
   h+=`<div class="tabs chips" style="margin-bottom:8px">
      <button class="chip ${uni==='todas'?'on':''}" data-pu="todas">Todas</button>
