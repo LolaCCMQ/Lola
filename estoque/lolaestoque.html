@@ -2582,6 +2582,22 @@ var _recTab='todas', _recBusca='';
 async function pgReceitas(c){
   c.appendChild(ld());
   try{
+    /* 24/07 (Bianca): lixeira — ver e RESTAURAR receitas desativadas, pra nada mais
+       sumir sem volta. Como o excluir já é soft (ativo=false), aqui só religa. */
+    if(window._recLixo){
+      const ppL=await db('lola_preproducoes','GET',null,'?select=*&ativo=eq.false&order=nome.asc');
+      const ftL=await db('lola_fichas_tecnicas','GET',null,'?select=*&ativo=eq.false&order=nome.asc');
+      c.innerHTML='';
+      const bar=div('abar no-print');
+      bar.appendChild(btn('btn bg bsm','← Voltar às ativas',()=>{window._recLixo=false;pgReceitas(c);}));
+      c.appendChild(bar);
+      const nt=div(null); nt.style.cssText='background:var(--rf,#FBF7F1);border-left:3px solid #8A7A72;border-radius:8px;padding:10px 13px;font-size:12.5px;color:var(--ts,#5A463E);margin-bottom:12px';
+      nt.innerHTML='🗑️ <b>Desativados</b> — receitas excluídas ficam guardadas aqui. Toque em <b>Restaurar</b> pra trazer de volta.';
+      c.appendChild(nt);
+      const w=div(null,null,{id:'rec-lixo'}); c.appendChild(w);
+      drawLixo(w, ppL, ftL, c);
+      return;
+    }
     _ft=await db('lola_fichas_tecnicas','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
     _pp=await db('lola_preproducoes','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
     if(!_ins.length)_ins=await db('lola_insumos','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
@@ -2603,6 +2619,7 @@ async function pgReceitas(c){
     if(podeMexerAqui()){
       const bb=div(null);bb.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
       bb.appendChild(btn('btn bp bsm','+ Nova receita',()=>modalPrep()));
+      bb.appendChild(btn('btn bg bsm','🗑️ Desativados',()=>{window._recLixo=true;pgReceitas(c);}));
       bar.appendChild(bb);
     } else bar.appendChild(mkSoLeitura());
     c.appendChild(bar);
@@ -2629,6 +2646,37 @@ async function _carregaUsosPP(){
     window._ppUsos=usos;
   }catch(e){ window._ppUsos={}; }
   return window._ppUsos;
+}
+function drawLixo(w, ppL, ftL, c){
+  w.innerHTML='';
+  let rows=[];
+  (ppL||[]).filter(_daMinhaCozinha).forEach(p=>rows.push({t:'pp',o:p}));
+  (ftL||[]).filter(_daMinhaCozinha).forEach(x=>rows.push({t:'ft',o:x}));
+  rows.sort((a,b)=>a.o.nome.localeCompare(b.o.nome,'pt'));
+  if(!rows.length){ w.appendChild(em('pp','Nada desativado por aqui — tudo no lugar. 🎉')); return; }
+  const tbl=div('ins-tbl');
+  rows.forEach(r=>{
+    const x=r.o, ehPP=r.t==='pp';
+    const row=div('ft-row'); row.style.cssText='opacity:.85';
+    const nome=div('ft-nome');
+    nome.appendChild(span('ft-nome-t',x.nome));
+    const tag=span('ft-sel',ehPP?'PP':'FICHA'); tag.style.background=ehPP?'#7A4FA3':'#A82A2A'; tag.title=ehPP?'Pré-produção':'Ficha técnica'; nome.appendChild(tag);
+    row.appendChild(nome);
+    const acts=div('ft-acts');
+    if(podeMexerAqui()){
+      acts.appendChild(btn('btn bp bsm','↩ Restaurar',async()=>{
+        try{
+          const tab=ehPP?'lola_preproducoes':'lola_fichas_tecnicas';
+          await db(tab,'PATCH',{ativo:true},'?id=eq.'+x.id);
+          if(typeof toast==='function') toast('"'+x.nome+'" restaurada ✓');
+          pgReceitas(c);
+        }catch(e){ alert('Erro ao restaurar: '+e.message); }
+      }));
+    } else acts.appendChild(span('tss','—'));
+    row.appendChild(acts);
+    tbl.appendChild(row);
+  });
+  w.appendChild(tbl);
 }
 function drawREC(w){
   w.innerHTML='';
