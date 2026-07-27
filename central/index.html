@@ -884,7 +884,7 @@ function viewEstoque(){
   h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
     <button id="btnContEst" style="flex:1 1 auto;min-height:42px;padding:0 16px;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem${EST_LOCAL!=='todos'&&EST_LOCAL!=='sem'?' · '+localLbl(EST_LOCAL):''}</button>
     <button id="btnHistEst" style="flex:0 1 auto;min-height:42px;padding:0 14px;background:#FBF1DD;color:#9A6B1E;border:1.5px solid #9A6B1E;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
-    <button id="btnNovaProdEst" style="flex:0 1 auto;min-height:42px;padding:0 14px;background:#EFE7F6;color:#7A4FA3;border:1.5px solid #7A4FA3;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-plus-circle"></i> Nova produção</button>
+    <button id="btnNovaProdEst" style="flex:0 1 auto;min-height:42px;padding:0 14px;background:#EFE7F6;color:#7A4FA3;border:1.5px solid #7A4FA3;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-plus-circle"></i> Nova receita</button>
   </div>`;
   // chips de LOCAL
   h+=`<div class="toolbar" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="chip ${EST_LOCAL==='todos'?'on':''}" data-loc="todos">Todos</button>`;
@@ -928,7 +928,7 @@ function viewEstoque(){
               <div style="font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:${precoLbl};font-weight:800;line-height:1;margin-bottom:3px">preço</div>
               <div style="font-size:12px">${custoTxt}</div>
             </div>
-            ${isP?`<button class="estprod" title="Produzir" style="background:none;border:1px solid var(--rb);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--vinho)"><i class="ph-duotone ph-plus-circle"></i></button>`:''}
+            ${isP?`<button class="estprod" title="Produzir" style="background:none;border:1px solid var(--vinho);border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--vinho);font:inherit;font-weight:700;font-size:11px;display:flex;align-items:center;gap:4px"><i class="ph-duotone ph-plus-circle"></i> Produzir</button>`:''}
             <button class="estmore" title="Ações" style="background:none;border:none;cursor:pointer;color:var(--mut);font-size:18px"><i class="ph-duotone ph-dots-three-vertical"></i></button>
           </div>
         </div>
@@ -1034,7 +1034,7 @@ function viewProd(){
   let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
   /* 17/07: "colocar esses quatro botoes em uma unica linha" */
   h+=`<div class="toolbar" style="flex-wrap:wrap">
-    <button class="btn" id="btnNovaProd" style="flex:0 0 auto;width:auto;padding:0 16px"><i class="ph-duotone ph-plus-circle"></i> Nova produção</button>
+    <button class="btn" id="btnNovaProd" style="flex:0 0 auto;width:auto;padding:0 16px"><i class="ph-duotone ph-plus-circle"></i> Nova receita</button>
     <button class="chip" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button>
     <button class="chip" id="btnHistProd"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
     <input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}" style="flex:1;min-width:160px"></div>`;
@@ -1551,7 +1551,7 @@ async function carregarBaseReceita(id){
 function wireNovaIngr(){ $$('#nrIngr .nrx').forEach(b=>b.onclick=()=>{ const rows=$$('#nrIngr .nrow'); if(rows.length>1) b.closest('.nrow').remove(); else { b.closest('.nrow').querySelectorAll('input').forEach(i=>i.value=''); } }); }
 function openNovaReceita(){
   NR_BASE=null;
-  $('#shTitle').textContent='Nova produção / receita';
+  $('#shTitle').textContent='Nova receita';
   const baseOpts=(ST.receitas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(r=>`<option value="${r.id}">${esc(r.nome||'')}</option>`).join('');
   $('#shBody').innerHTML=`<div class="note">Isso cria uma <b>nova receita</b> da Central — fica salva pra todos verem (aqui e no portal). Preencha o preparo e os ingredientes.</div>
     <div class="mf"><label>Puxar de uma receita que já existe <span style="color:var(--mut);font-weight:400">(opcional — traz os ingredientes prontos pra ajustar)</span></label><select id="nrBase" class="nru" style="width:100%"><option value="">— começar do zero —</option>${baseOpts}</select></div>
