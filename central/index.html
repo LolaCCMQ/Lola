@@ -174,7 +174,7 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .pstock.on b{color:var(--okFg)}
 .nrow{display:flex;gap:6px;margin-bottom:7px;align-items:center}
 .nrow .nrn{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:42px}
-.nrow .nrq{width:64px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;text-align:right;min-height:42px}
+.nrow .nrq{width:104px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;text-align:right;min-height:42px}
 .nrow .nru{width:52px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:42px}
 .nrow .nrx{flex-shrink:0;background:none;border:1px solid var(--border);border-radius:10px;color:var(--lbl);font-size:15px;cursor:pointer;padding:0 10px;min-height:42px}
 #shBody textarea{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px;font:inherit;font-size:15px;resize:vertical}
@@ -1544,10 +1544,31 @@ async function carregarBaseReceita(id){
       return novaIngrRow(nm, it.qtd_bruta!=null?(+it.qtd_bruta):'', it.unidade||'', ix);
     });
     $('#nrIngr').innerHTML=rows.join('')||novaIngrRow();
-    wireNovaIngr();
+    wireNovaIngr(); wireNovaScale();
+    const _hh=$('#nrScaleHint'); if(_hh) _hh.style.display='';
     toast('Ingredientes puxados de "'+(r.nome||'receita')+'" ✓');
   }catch(e){ toast('Erro ao puxar: '+e.message); }
 }
+/* escala proporcional + conversão de unidade na Nova receita (só linhas puxadas, com data-bi) */
+function _escCanon(v,un){ un=(un||'').toString().trim().toLowerCase(); v=+v||0;
+  if(un==='kg')return v*1000; if(un==='mg')return v/1000; if(un==='g')return v;
+  if(un==='l'||un==='lt'||un==='litro')return v*1000; if(un==='ml')return v; return v; }
+function _escDim(un){ un=(un||'').toString().trim().toLowerCase();
+  if(['kg','g','mg'].indexOf(un)>=0)return 'm'; if(['l','lt','litro','ml'].indexOf(un)>=0)return 'v'; return un||'x'; }
+function _fmtQ(v){ if(!isFinite(v))return ''; return String(+(+v).toFixed(4)); }
+function _nrScaleFrom(row){
+  if(!NR_BASE) return; const bi=row.getAttribute('data-bi'); if(bi==null) return;
+  const base=NR_BASE.itens[+bi]; if(!base) return;
+  const editUn=(row.querySelector('.nru').value||'').trim(); const editVal=+row.querySelector('.nrq').value||0;
+  const baseUn=base.unidade||''; const baseQ=+base.qtd_bruta||0; if(!(baseQ>0)||!(editVal>0)) return;
+  let ratio;
+  if(_escDim(editUn)===_escDim(baseUn)) ratio=_escCanon(editVal,editUn)/_escCanon(baseQ,baseUn);
+  else ratio=editVal/baseQ;
+  if(!(isFinite(ratio)&&ratio>0)) return;
+  $$('#nrIngr .nrow[data-bi]').forEach(o=>{ if(o===row) return; const j=+o.getAttribute('data-bi'); const b=NR_BASE.itens[j]; if(!b) return;
+    o.querySelector('.nrq').value=_fmtQ((+b.qtd_bruta||0)*ratio); o.querySelector('.nru').value=b.unidade||''; });
+}
+function wireNovaScale(){ $$('#nrIngr .nrow[data-bi]').forEach(row=>{ const q=row.querySelector('.nrq'); if(q) q.addEventListener('input',()=>_nrScaleFrom(row)); }); }
 function wireNovaIngr(){ $$('#nrIngr .nrx').forEach(b=>b.onclick=()=>{ const rows=$$('#nrIngr .nrow'); if(rows.length>1) b.closest('.nrow').remove(); else { b.closest('.nrow').querySelectorAll('input').forEach(i=>i.value=''); } }); }
 function openNovaReceita(){
   NR_BASE=null;
@@ -1561,6 +1582,7 @@ function openNovaReceita(){
     <div class="mf"><label>Tamanho da porção <span style="color:var(--mut);font-weight:400">(opcional — pra contar em porções)</span></label><input type="number" id="nrPorcao" step="0.001" placeholder="ex.: 45 (g por unidade)" inputmode="decimal"></div>
     <div class="mf"><label>Modo de preparo</label><textarea id="nrPrep" rows="3" placeholder="Escreva como se faz…"></textarea></div>
     <div class="lbl">Ingredientes</div>
+    <div id="nrScaleHint" style="display:none;font-size:11.5px;color:var(--ts,#5A463E);background:#F7F0E4;border-radius:8px;padding:7px 10px;margin-bottom:7px">Ajuste <b>um</b> ingrediente (pode trocar a unidade, ex.: g→kg) que o <b>resto se converte na mesma proporção</b>.</div>
     <div id="nrIngr">${novaIngrRow()}${novaIngrRow()}</div>
     <button class="btn sec" id="nrAdd" style="margin-top:2px"><i class="ph-duotone ph-plus"></i> mais um ingrediente</button>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar receita';
