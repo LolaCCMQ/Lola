@@ -884,7 +884,8 @@ function viewEstoque(){
   h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
     <button id="btnContEst" style="flex:1 1 auto;min-height:42px;padding:0 16px;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem${EST_LOCAL!=='todos'&&EST_LOCAL!=='sem'?' · '+localLbl(EST_LOCAL):''}</button>
     <button id="btnHistEst" style="flex:0 1 auto;min-height:42px;padding:0 14px;background:#FBF1DD;color:#9A6B1E;border:1.5px solid #9A6B1E;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
-    <button id="btnNovaProdEst" style="flex:0 1 auto;min-height:42px;padding:0 14px;background:#EFE7F6;color:#7A4FA3;border:1.5px solid #7A4FA3;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-plus-circle"></i> Nova receita</button>
+    <button id="btnNovaProducaoEst" style="flex:0 1 auto;min-height:42px;padding:0 14px;background:#EFE7F6;color:#7A4FA3;border:1.5px solid #7A4FA3;border-radius:var(--r-btn);font:inherit;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-cooking-pot"></i> Nova produção</button>
+    <button id="btnNovaProdEst" style="flex:0 1 auto;min-height:42px;padding:0 12px;background:#fff;color:#7A4FA3;border:1px solid #D9CBE8;border-radius:var(--r-btn);font:inherit;font-weight:600;font-size:12px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;white-space:nowrap"><i class="ph-duotone ph-plus"></i> Nova receita</button>
   </div>`;
   // chips de LOCAL
   h+=`<div class="toolbar" style="flex-wrap:wrap;gap:6px;margin-top:10px"><button class="chip ${EST_LOCAL==='todos'?'on':''}" data-loc="todos">Todos</button>`;
@@ -944,6 +945,7 @@ function wireEstoque(){
   $$('#app [data-tp]').forEach(b=>{ if(b.classList.contains('chip')) b.onclick=()=>{ EST_TIPO=b.dataset.tp; render(); }; });
   $('#btnContEst')&&($('#btnContEst').onclick=()=>openContagemEstoque(EST_LOCAL));
   $('#btnHistEst')&&($('#btnHistEst').onclick=()=>openContagensHist('estoque'));
+  $('#btnNovaProducaoEst')&&($('#btnNovaProducaoEst').onclick=openNovaProducao);
   $('#btnNovaProdEst')&&($('#btnNovaProdEst').onclick=openNovaReceita);
   $$('#app .estcard').forEach(card=>{
     const id=card.dataset.id, tp=card.dataset.tp;
@@ -1034,7 +1036,8 @@ function viewProd(){
   let h=`<div class="note">Estoque das <b>produções da Central</b> — é a mesma lista das receitas. Diga quanto tem de cada uma (com data) e toque em <b>Produzir</b> quando fizer mais. Toque no nome pra ver os ingredientes.</div>`;
   /* 17/07: "colocar esses quatro botoes em uma unica linha" */
   h+=`<div class="toolbar" style="flex-wrap:wrap">
-    <button class="btn" id="btnNovaProd" style="flex:0 0 auto;width:auto;padding:0 16px"><i class="ph-duotone ph-plus-circle"></i> Nova receita</button>
+    <button class="btn" id="btnNovaProducao" style="flex:0 0 auto;width:auto;padding:0 16px"><i class="ph-duotone ph-cooking-pot"></i> Nova produção</button>
+    <button class="chip" id="btnNovaProd"><i class="ph-duotone ph-plus"></i> Nova receita</button>
     <button class="chip" id="btnContProd"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button>
     <button class="chip" id="btnHistProd"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
     <input type="search" id="bqp" placeholder="Buscar produção…" value="${esc(ST.buscaP||'')}" style="flex:1;min-width:160px"></div>`;
@@ -1061,6 +1064,7 @@ function viewProd(){
 }
 function wireProd(){
   const bq=$('#bqp'); if(bq){ bq.oninput=()=>{ST.buscaP=bq.value; const pos=bq.selectionStart; render(); const n=$('#bqp'); if(n){n.focus();n.setSelectionRange(pos,pos);} }; }
+  $('#btnNovaProducao')&&($('#btnNovaProducao').onclick=openNovaProducao);
   $('#btnNovaProd')&&($('#btnNovaProd').onclick=openNovaReceita);
   $('#btnContProd')&&($('#btnContProd').onclick=()=>openContagem('producao'));
   $('#btnHistProd')&&($('#btnHistProd').onclick=()=>openContagensHist('producao'));
@@ -1570,6 +1574,19 @@ function _nrScaleFrom(row){
 }
 function wireNovaScale(){ $$('#nrIngr .nrow[data-bi]').forEach(row=>{ const q=row.querySelector('.nrq'); if(q) q.addEventListener('input',()=>_nrScaleFrom(row)); }); }
 function wireNovaIngr(){ $$('#nrIngr .nrx').forEach(b=>b.onclick=()=>{ const rows=$$('#nrIngr .nrow'); if(rows.length>1) b.closest('.nrow').remove(); else { b.closest('.nrow').querySelectorAll('input').forEach(i=>i.value=''); } }); }
+function openNovaProducao(){
+  $('#shTitle').textContent='Nova produção';
+  const opts=(ST.receitas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(r=>`<option value="${r.id}">${esc(r.nome||'')}</option>`).join('');
+  $('#shBody').innerHTML=`<div class="note">Escolha a receita que vai <b>produzir</b>. No passo seguinte você ajusta a quantidade (a proporção se converte sozinha), <b>imprime</b> pra cozinha e, no fim, registra <b>quanto rendeu</b>.</div>
+    <div class="mf"><label>Qual receita vai produzir?</label><select id="npSel" style="width:100%;min-height:44px;border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:14px;background:var(--card)"><option value="">— escolher receita —</option>${opts}</select></div>
+    <div class="uinfo" style="margin-top:4px">Não achou? Crie primeiro em <b>Nova receita</b>.</div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-arrow-right"></i> Continuar';
+  $('#shSave').setAttribute('disabled','');
+  onSave=()=>{ const id=$('#npSel')&&$('#npSel').value; if(id) openProduzir(id); };
+  openSheet();
+  $('#npSel').onchange=()=>{ const id=$('#npSel').value; if(id){ $('#shSave')&&$('#shSave').removeAttribute('disabled'); openProduzir(id); } };
+  setTimeout(()=>{ const s=$('#npSel'); if(s) s.focus(); },60);
+}
 function openNovaReceita(){
   NR_BASE=null;
   $('#shTitle').textContent='Nova receita';
