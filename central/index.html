@@ -910,21 +910,22 @@ function viewEstoque(){
       const tag=isP?`<span style="font-size:9px;font-weight:800;letter-spacing:.5px;color:#7A4FA3;background:#EFE7F6;padding:2px 6px;border-radius:20px">PROD</span>`:`<span style="font-size:9px;font-weight:800;letter-spacing:.5px;color:#2C7A4B;background:#E6F3EA;padding:2px 6px;border-radius:20px">INS</span>`;
       const sub=isP?(x.saldoData?('atualizado '+fmtData(String(x.saldoData).slice(0,10))):'sem contagem'):(x.valor>0?('em estoque '+brl(x.valor)):(x.evento?'evento':''));
       const saldoTxt=(x.saldo==null)?'—':num(x.saldo);
-      const custoTxt=x.custo>0?`${brl(x.custo)} <small style="color:var(--mut)">/${esc(x.custoUn||'un')}</small>`:'<small style="color:var(--mut)">sem preço</small>';
+      const custoTxt=x.custo>0?`<b style="color:#2C7A4B;font-weight:800">${brl(x.custo)}</b> <small style="color:#6FA588">/${esc(x.custoUn||'un')}</small>`:'<small style="color:var(--mut)">sem preço</small>';
+      const precoBg=x.custo>0?'#E9F3EC':'#F3F0EB', precoLbl=x.custo>0?'#5A9A72':'#B0A196';
       h+=`<div class="estcard" data-id="${x.id}" data-tp="${x.tipo}" style="border:1px solid var(--rb);border-radius:12px;margin-bottom:8px;overflow:visible;background:#fff">
-        <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 12px">
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:16px;align-items:center;padding:10px 12px">
           <div style="min-width:0">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${tag}<b class="estname" style="font-size:13.5px;cursor:pointer">${esc(x.nome)}</b></div>
             <div style="font-size:11px;color:var(--mut);margin-top:3px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <button class="locchip" style="border:1px solid ${cor};color:${cor};background:#fff;border-radius:20px;padding:1px 8px;font-size:10.5px;font-weight:700;cursor:pointer">${k==='sem'?'+ local':esc(localLbl(k))}</button>${sub?`<span>${esc(sub)}</span>`:''}</div>
           </div>
-          <div style="text-align:right">
-            <div style="font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:800;line-height:1;margin-bottom:3px">estoque</div>
-            ${isP?`<button class="eststock" style="background:none;border:none;text-align:right;cursor:pointer;padding:0"><b style="font-size:15px;color:var(--vinho)">${saldoTxt}</b> <small style="color:var(--mut)">${esc(x.un||'')}</small></button>`:`<b style="font-size:15px">${saldoTxt}</b> <small style="color:var(--mut)">${esc(x.un||'')}</small>`}
+          <div style="background:#EAF1FB;border-radius:10px;padding:5px 10px;text-align:right">
+            <div style="font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:#6B8FC0;font-weight:800;line-height:1;margin-bottom:3px">estoque</div>
+            ${isP?`<button class="eststock" style="background:none;border:none;text-align:right;cursor:pointer;padding:0"><b style="font-size:15px;color:#2C5AA0">${saldoTxt}</b> <small style="color:#7D9AC4">${esc(x.un||'')}</small></button>`:`<b style="font-size:15px;color:#2C5AA0">${saldoTxt}</b> <small style="color:#7D9AC4">${esc(x.un||'')}</small>`}
           </div>
           <div style="white-space:nowrap;display:flex;align-items:center;gap:8px">
-            <div style="text-align:right">
-              <div style="font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:800;line-height:1;margin-bottom:3px">preço</div>
+            <div style="background:${precoBg};border-radius:10px;padding:5px 10px;text-align:right">
+              <div style="font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:${precoLbl};font-weight:800;line-height:1;margin-bottom:3px">preço</div>
               <div style="font-size:12px">${custoTxt}</div>
             </div>
             ${isP?`<button class="estprod" title="Produzir" style="background:none;border:1px solid var(--rb);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--vinho)"><i class="ph-duotone ph-plus-circle"></i></button>`:''}
@@ -1521,11 +1522,39 @@ async function printEtiquetas(){
   setTimeout(()=>{ try{w.focus();w.print();}catch(e){} }, 400);
 }
 /* ---- adicionar nova produção = nova receita ---- */
-function novaIngrRow(){ return `<div class="nrow"><input type="text" class="nrn" placeholder="ingrediente"><input type="number" class="nrq" step="0.001" placeholder="qtd" inputmode="decimal"><input type="text" class="nru" placeholder="un"><button class="nrx" title="remover"><i class="ph-duotone ph-x"></i></button></div>`; }
+function novaIngrRow(nome,qtd,un,bi){ const b=(bi!=null)?` data-bi="${bi}"`:''; return `<div class="nrow"${b}><input type="text" class="nrn" placeholder="ingrediente" value="${nome?esc(nome):''}"><input type="number" class="nrq" step="0.001" placeholder="qtd" inputmode="decimal" value="${(qtd!=null&&qtd!=='')?qtd:''}"><input type="text" class="nru" placeholder="un" value="${un?esc(un):''}"><button class="nrx" title="remover"><i class="ph-duotone ph-x"></i></button></div>`; }
+let NR_BASE=null;
+async function carregarBaseReceita(id){
+  NR_BASE=null;
+  if(!id) return;
+  try{
+    const [its, recRows]=await Promise.all([
+      api('lola_preproducoes_itens?select=insumo_id,sub_preproducao_id,nome_manual,unidade,qtd_bruta,qtd_liquida,fc&preproducao_id=eq.'+id),
+      api('lola_preproducoes?select=nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un,modo_preparo&id=eq.'+id)
+    ]);
+    const r=(Array.isArray(recRows)&&recRows[0])||{};
+    if(r.rendimento_qtd!=null) $('#nrRend').value=r.rendimento_qtd;
+    if(r.rendimento_un) $('#nrRendUn').value=r.rendimento_un;
+    if(r.porcao_qtd!=null) $('#nrPorcao').value=r.porcao_qtd;
+    const s=(ST.saldo||{})[id]; if(s&&s.unidade) $('#nrUn').value=s.unidade;
+    if(r.modo_preparo) $('#nrPrep').value=r.modo_preparo;
+    NR_BASE={id, itens:its||[]};
+    const rows=(its||[]).map((it,ix)=>{
+      const nm=it.nome_manual || (it.insumo_id&&(ST.byId[it.insumo_id]||{}).nome) || (it.sub_preproducao_id&&((ST.receitas||[]).find(z=>z.id===it.sub_preproducao_id)||{}).nome) || '';
+      return novaIngrRow(nm, it.qtd_bruta!=null?(+it.qtd_bruta):'', it.unidade||'', ix);
+    });
+    $('#nrIngr').innerHTML=rows.join('')||novaIngrRow();
+    wireNovaIngr();
+    toast('Ingredientes puxados de "'+(r.nome||'receita')+'" ✓');
+  }catch(e){ toast('Erro ao puxar: '+e.message); }
+}
 function wireNovaIngr(){ $$('#nrIngr .nrx').forEach(b=>b.onclick=()=>{ const rows=$$('#nrIngr .nrow'); if(rows.length>1) b.closest('.nrow').remove(); else { b.closest('.nrow').querySelectorAll('input').forEach(i=>i.value=''); } }); }
 function openNovaReceita(){
+  NR_BASE=null;
   $('#shTitle').textContent='Nova produção / receita';
+  const baseOpts=(ST.receitas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(r=>`<option value="${r.id}">${esc(r.nome||'')}</option>`).join('');
   $('#shBody').innerHTML=`<div class="note">Isso cria uma <b>nova receita</b> da Central — fica salva pra todos verem (aqui e no portal). Preencha o preparo e os ingredientes.</div>
+    <div class="mf"><label>Puxar de uma receita que já existe <span style="color:var(--mut);font-weight:400">(opcional — traz os ingredientes prontos pra ajustar)</span></label><select id="nrBase" class="nru" style="width:100%"><option value="">— começar do zero —</option>${baseOpts}</select></div>
     <div class="mf"><label>Nome da produção</label><input type="text" id="nrNome" placeholder="ex.: Molho de queijo"></div>
     <div class="mf"><label>Unidade do estoque</label><input type="text" id="nrUn" placeholder="kg, un, balde, pote…" value="kg"></div>
     <div class="mf"><label>Rendimento da receita cheia</label><div class="rendrow"><input type="number" id="nrRend" step="0.001" placeholder="quanto rende" inputmode="decimal"><input type="text" id="nrRendUn" placeholder="un/g/kg" value="g"></div></div>
@@ -1537,6 +1566,7 @@ function openNovaReceita(){
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar receita';
   $('#shSave').removeAttribute('disabled'); onSave=salvarNovaReceita; openSheet();
   $('#nrAdd').onclick=()=>{ $('#nrIngr').insertAdjacentHTML('beforeend', novaIngrRow()); wireNovaIngr(); };
+  $('#nrBase').onchange=e=>carregarBaseReceita(e.target.value);
   wireNovaIngr(); setTimeout(()=>$('#nrNome').focus(),60);
 }
 async function salvarNovaReceita(){
@@ -1544,14 +1574,18 @@ async function salvarNovaReceita(){
   const un=($('#nrUn').value||'').trim()||'un', modo=($('#nrPrep').value||'').trim();
   const rend=+$('#nrRend').value||0, rendUn=($('#nrRendUn').value||'').trim()||un, porcao=+$('#nrPorcao').value||0;
   const ings=[]; $$('#nrIngr .nrow').forEach(el=>{ const n=(el.querySelector('.nrn').value||'').trim(); if(!n)return;
-    const q=+el.querySelector('.nrq').value||0, u=(el.querySelector('.nru').value||'').trim()||un; ings.push({nome_manual:n, unidade:u, qtd_bruta:q, qtd_liquida:q}); });
+    const q=+el.querySelector('.nrq').value||0, u=(el.querySelector('.nru').value||'').trim()||un;
+    const bi=el.getAttribute('data-bi'); const base=(bi!=null&&NR_BASE&&NR_BASE.itens[+bi])?NR_BASE.itens[+bi]:null;
+    if(base && (base.insumo_id||base.sub_preproducao_id)){ const fc=+base.fc||1;
+      ings.push({insumo_id:base.insumo_id||null, sub_preproducao_id:base.sub_preproducao_id||null, nome_manual:base.insumo_id||base.sub_preproducao_id?null:n, unidade:u, qtd_bruta:q, qtd_liquida:+(q/(fc||1)).toFixed(4), fc});
+    } else { ings.push({nome_manual:n, unidade:u, qtd_bruta:q, qtd_liquida:q}); } });
   $('#shSave').setAttribute('disabled','');
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
     const rows=await post('lola_preproducoes',[{nome, categoria:'central', e_preparo:true, ativo:true, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un, modo_preparo:modo||null, editado_por:quem, editado_em:new Date().toISOString()}],'return=representation');
     const novo=(Array.isArray(rows)&&rows[0])?rows[0]:null; if(!novo) throw new Error('sem retorno do banco');
     if(ings.length) await post('lola_preproducoes_itens', ings.map(i=>({preproducao_id:novo.id, ...i})),'return=minimal');
     ST.receitas=ST.receitas||[]; ST.receitas.push({id:novo.id, nome, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un}); ST.receitas.sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
-    toast('Receita criada ✓'); closeSheet(); ST.tab='sal'; render();
+    NR_BASE=null; toast('Receita criada ✓'); closeSheet(); ST.tab='sal'; render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
 /* ===== CONTAGEM semanal (insumos e produções) ===== */
