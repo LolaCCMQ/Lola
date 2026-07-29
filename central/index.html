@@ -262,6 +262,18 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .okcount{background:var(--okBg);color:var(--okFg);border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:8px;margin-top:6px}
 .okcount i{font-size:16px}
 .notebtn{margin-top:12px;width:100%;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);min-height:44px;font:inherit;font-weight:800;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
+/* valor recebido por período */
+.pertot{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px 18px;margin-bottom:14px}
+.pertot .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:800}
+.pertot .big{font-family:Fraunces,serif;font-weight:600;font-size:32px;line-height:1;margin:6px 0 2px;color:var(--vinho)}
+.pertot .s{font-size:12px;color:var(--mut);font-weight:600}
+.persplit{display:flex;gap:8px;margin-top:14px}
+.persplit .col{flex:1;background:var(--cremeDark);border-radius:11px;padding:9px 11px}
+.persplit .col .u{font-size:10px;font-weight:800;letter-spacing:.03em;padding:2px 7px;border-radius:6px;display:inline-block}
+.persplit .col .u.ccmq{background:#FBE4E0;color:#C0392B}
+.persplit .col .u.mac{background:#E6F3EA;color:#2C7A4B}
+.persplit .col .v{font-family:Fraunces,serif;font-weight:600;font-size:17px;margin-top:6px}
+.persplit .col .n{font-size:11px;color:var(--mut);margin-top:1px}
 .pedc{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;cursor:pointer}
 .pedc .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
 .pedc .fh b{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px}
@@ -2178,26 +2190,55 @@ function notaRecebimento(p, rec){
 function atualizaBadgePed(){ const d=ST.pedidos; const nn=(d&&d!=='loading')?d.filter(p=>p.status==='solicitado' && (!p.central_status||p.central_status==='novo')).length:0; const cp=$('#cntPed'); if(cp){ if(nn){cp.style.display='';cp.textContent=nn;}else cp.style.display='none'; } }
 function pedUniTag(u){ return u==='ccmq'?'<span class="utag ccmq">CCMQ</span>':u==='mac'?'<span class="utag mac">MAC</span>':''; }
 function pedPill(cs){ cs=cs||'novo'; return cs==='pronto'?'<span class="stpill ok">pronto</span>':cs==='aceito'?'<span class="stpill az">aceito</span>':'<span class="stpill pend">novo</span>'; }
+/* 29/07 (Bianca): valor recebido por período. O que conta é o RECEBIDO — nos pedidos com
+   divergência o valor_total já está gravado pelo recebido (o CCMQ recalcula na baixa). */
+const PED_MESES_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function pedMesLabel(m){ if(!m) return 'Todos os meses'; const[a,mm]=m.split('-'); return PED_MESES_PT[(+mm)-1]+' / '+String(a).slice(2); }
+function pedMesesDisp(list){ const s=new Set(); (list||[]).forEach(p=>{ const d=String(p.data_pedido||'').slice(0,7); if(/^\d{4}-\d{2}$/.test(d)) s.add(d); }); return [...s].sort().reverse(); }
+function pedEhRecebido(p){ return p.status==='recebido_completo'||p.status==='recebido_divergencia'; }
+function pedResumoPeriodo(list, mes){
+  const base = mes ? list.filter(p=>String(p.data_pedido||'').startsWith(mes)) : list;
+  const rec = base.filter(pedEhRecebido);
+  const val=u=>rec.filter(p=>p.unidade===u).reduce((t,p)=>t+(+p.valor_total||0),0);
+  const cnt=u=>rec.filter(p=>p.unidade===u).length;
+  return {vCcmq:val('ccmq'), vMac:val('mac'), nCcmq:cnt('ccmq'), nMac:cnt('mac'), total:val('ccmq')+val('mac'), nTotal:rec.length};
+}
 function viewPedidos(){
   const uni=ST.pedUni||'todas', filtro=ST.pedFiltro||'todos';
-  let h=`<div class="note">Pedidos que o <b>CCMQ</b> e o <b>MAC</b> fazem pra Central. Aceite e marque quando estiver <b>pronto pra enviar</b>. Depois você vê o <b>resultado do recebimento</b> — e o que veio em divergência.</div>`;
+  let h=`<div class="note">Pedidos que o <b>CCMQ</b> e o <b>MAC</b> fazem pra Central. Aceite e marque quando estiver <b>pronto pra enviar</b>. Depois você vê o <b>resultado do recebimento</b>, as divergências e o <b>valor recebido no período</b>.</div>`;
+  const d=ST.pedidos;
+  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
+  /* seletor de mês (padrão: mês mais recente com pedidos) + card de valor recebido */
+  const meses=pedMesesDisp(d);
+  if(ST.pedMes===undefined) ST.pedMes = meses[0]||'';
+  const mes=ST.pedMes;
+  h+=`<div class="monthsel"><span>Mês</span><select id="pedMesSel">
+     ${meses.map(m=>`<option value="${m}"${m===mes?' selected':''}>${pedMesLabel(m)}</option>`).join('')}
+     <option value=""${mes===''?' selected':''}>Todos os meses</option></select></div>`;
+  const r=pedResumoPeriodo(d, mes);
+  h+=`<div class="pertot">
+     <div class="k">Recebido — ${pedMesLabel(mes)}</div>
+     <div class="big">${brl(r.total)}</div>
+     <div class="s">${r.nTotal} pedido${r.nTotal!==1?'s':''} recebido${r.nTotal!==1?'s':''}</div>
+     <div class="persplit">
+       <div class="col"><span class="u ccmq">CCMQ</span><div class="v">${brl(r.vCcmq)}</div><div class="n">${r.nCcmq} recebido${r.nCcmq!==1?'s':''}</div></div>
+       <div class="col"><span class="u mac">MAC</span><div class="v">${brl(r.vMac)}</div><div class="n">${r.nMac} recebido${r.nMac!==1?'s':''}</div></div>
+     </div></div>`;
   h+=`<div class="tabs chips" style="margin-bottom:8px">
      <button class="chip ${uni==='todas'?'on':''}" data-pu="todas">Todas</button>
      <button class="chip ${uni==='ccmq'?'on':''}" data-pu="ccmq">CCMQ</button>
      <button class="chip ${uni==='mac'?'on':''}" data-pu="mac">MAC</button></div>`;
-  const _pd=ST.pedidos;
-  const nDiv=(_pd&&_pd!=='loading')?_pd.filter(p=>p.status==='recebido_divergencia').length:0;
+  const nDiv=d.filter(p=>p.status==='recebido_divergencia' && (!mes||String(p.data_pedido||'').startsWith(mes))).length;
   h+=`<div class="tabs chips" style="margin-bottom:12px">
      <button class="chip ${filtro==='abertos'?'on':''}" data-pf="abertos">A fazer</button>
      <button class="chip ${filtro==='todos'?'on':''}" data-pf="todos">Todos</button>
      <button class="chip divg ${filtro==='diverg'?'on':''}" data-pf="diverg"><i class="ph-duotone ph-warning-circle"></i> Divergências${nDiv?` <span class="divg-dot">${nDiv}</span>`:''}</button></div>`;
-  const d=ST.pedidos;
-  if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
   let list=d.slice();
+  if(mes) list=list.filter(p=>String(p.data_pedido||'').startsWith(mes));
   if(uni!=='todas') list=list.filter(p=>p.unidade===uni);
   if(filtro==='abertos') list=list.filter(p=>p.status==='solicitado');
   else if(filtro==='diverg') list=list.filter(p=>p.status==='recebido_divergencia');
-  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-cart"></i>Nenhum pedido${filtro==='abertos'?' a fazer':filtro==='diverg'?' em divergência':''}.</div>`; return h; }
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-cart"></i>Nenhum pedido${filtro==='abertos'?' a fazer':filtro==='diverg'?' em divergência':''} nesse período.</div>`; return h; }
   h+=list.map(p=>{
     const its=p.lola_pedidos_itens||[];
     const cs=p.central_status||'novo';
@@ -2212,6 +2253,7 @@ function viewPedidos(){
   return h;
 }
 function wirePedidos(){
+  const ms=$('#pedMesSel'); if(ms) ms.onchange=()=>{ ST.pedMes=ms.value; render(); };
   $$('#app .tabs .chip[data-pu]').forEach(b=>b.onclick=()=>{ST.pedUni=b.dataset.pu;render();});
   $$('#app .tabs .chip[data-pf]').forEach(b=>b.onclick=()=>{ST.pedFiltro=b.dataset.pf;render();});
   $$('#app .pedc').forEach(el=>{ const id=el.dataset.id;
