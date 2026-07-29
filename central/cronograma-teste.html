@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Produção da Semana · Central (TESTE)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#2C5AA0; --vinhoH:#1F4076;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --okBg:#E6F3EA; --okFg:#2C7A4B; --pendBg:#FBF0DD; --pendFg:#9A6B1E; --urgBg:#FBEAE7; --urgFg:#B5302E;
+  --r-btn:13px; --r-card:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px 96px}
+header{display:flex;align-items:center;gap:12px;padding:16px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:14px}
+header h1{font-family:Fraunces,serif;font-weight:600;font-size:20px;color:var(--vinho);line-height:1.1}
+header .sub{font-size:11px;font-weight:700;color:var(--mut);letter-spacing:.02em;margin-top:2px}
+.tst{background:var(--pendBg);color:var(--pendFg);font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.05em}
+.spacer{flex:1}
+.note{background:var(--cremeDark);border-radius:12px;padding:11px 13px;font-size:12.5px;color:var(--sec);margin-bottom:14px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tabs button{flex:1;min-height:42px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);font:inherit;font-weight:800;font-size:13px;color:var(--sec);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.tabs button.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
+.tabs button i{font-size:17px}
+
+/* week strip */
+.wkstrip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none}
+.wkstrip::-webkit-scrollbar{display:none}
+.wkday{flex:0 0 auto;min-width:62px;background:var(--card);border:1.5px solid var(--border);border-radius:13px;padding:9px 6px;text-align:center;cursor:pointer}
+.wkday.on{border-color:var(--vinho);background:#EEF3FA}
+.wkday .d{font-size:11px;font-weight:800;color:var(--sec);text-transform:uppercase;letter-spacing:.04em}
+.wkday.on .d{color:var(--vinho)}
+.wkday .n{font-family:Fraunces,serif;font-weight:600;font-size:20px;line-height:1.1;margin-top:2px}
+.wkday .ct{font-size:10px;color:var(--mut);font-weight:700;margin-top:1px}
+.wkday .allok{color:var(--okFg)}
+
+.perlbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:800;margin:16px 0 8px;display:flex;align-items:center;gap:7px}
+.perlbl i{font-size:14px}
+.empty{text-align:center;color:var(--mut);font-size:13px;padding:34px 10px}
+.empty i{font-size:38px;color:var(--lbl);display:block;margin-bottom:10px}
+
+/* task card */
+.tk{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);border-left:4px solid var(--tkc,var(--vinho));padding:12px 14px;margin-bottom:9px;cursor:pointer}
+.tk.done{border-left-color:var(--okFg);background:#FaFcFa}
+.tk .r1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tk .nm{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px}
+.tk .nm .pl{font-size:11px;color:var(--mut);font-weight:600}
+.tk .q{font-family:Fraunces,serif;font-weight:600;font-size:15px;color:var(--vinho);white-space:nowrap}
+.tk.done .q{color:var(--okFg)}
+.tk .r2{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.bdg{font-size:10.5px;font-weight:800;letter-spacing:.02em;padding:3px 8px;border-radius:7px;display:inline-flex;align-items:center;gap:4px}
+.bdg.cong{background:#E7EFF8;color:#2C5AA0}
+.bdg.refr{background:#EAF4EE;color:#2C7A4B}
+.bdg.resf{background:#F0ECF7;color:#6B4FA8}
+.bdg.amb{background:#FBF0DD;color:#9A6B1E}
+.bdg.val{background:var(--cremeDark);color:var(--sec)}
+.tk .prog{margin-left:auto;font-size:11px;font-weight:800;color:var(--mut);display:flex;align-items:center;gap:5px}
+.tk.done .prog{color:var(--okFg)}
+.prog .bar{width:52px;height:6px;background:var(--fio);border-radius:4px;overflow:hidden}
+.prog .bar i{display:block;height:100%;background:var(--vinho);border-radius:4px}
+.tk.done .prog .bar i{background:var(--okFg)}
+
+/* produções list */
+.pl-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.pl-card .r1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pl-card .nm{font-size:14px;font-weight:800}
+.pl-card .dp{font-size:11.5px;color:var(--mut);margin-top:2px}
+.pl-card .dp b{color:var(--sec);font-weight:700}
+.pl-card .r2{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.arrow{color:var(--lbl);font-size:18px}
+
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(42,26,23,.34);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.ov.on{display:flex}
+.sheet{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:16px 16px 26px}
+@media(min-width:560px){.ov{align-items:center}.sheet{border-radius:20px}}
+.sh-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px}
+.sh-h .t{font-family:Fraunces,serif;font-weight:600;font-size:18px;color:var(--vinho);line-height:1.15}
+.sh-h .pl{font-size:11.5px;color:var(--mut);font-weight:600;margin-top:2px}
+.sh-h .x{background:var(--cremeDark);border:0;width:34px;height:34px;border-radius:50%;color:var(--sec);font-size:16px;flex-shrink:0;cursor:pointer}
+.qbig{font-family:Fraunces,serif;font-weight:600;font-size:28px;color:var(--vinho);margin:8px 0 2px}
+.qsub{font-size:11.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.mbadges{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.slbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:800;margin:16px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--cremeDark);color:var(--sec);font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px}
+.rev{background:var(--pendBg);border-radius:11px;padding:9px 12px;font-size:12px;color:var(--pendFg);margin-bottom:7px;display:flex;gap:8px;align-items:flex-start}
+.rev i{font-size:14px;margin-top:1px;flex-shrink:0}
+/* steps */
+.step{display:flex;gap:11px;align-items:center;padding:11px 12px;background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:7px;cursor:pointer}
+.step.done{background:#F7FBF8;border-color:#D6EADD}
+.step .ck{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px}
+.step.done .ck{background:var(--okFg);border-color:var(--okFg)}
+.step .tx{flex:1;font-size:13.5px;font-weight:700}
+.step.done .tx{color:var(--mut);text-decoration:line-through}
+.step .fichatag{font-size:10px;font-weight:800;color:var(--vinho);background:#EEF3FA;padding:2px 7px;border-radius:6px}
+.fichabtn{width:100%;margin-top:6px;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);min-height:48px;font:inherit;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.fichabtn.done{background:var(--okBg);color:var(--okFg)}
+.donebar{margin-top:12px;padding:11px;border-radius:12px;text-align:center;font-weight:800;font-size:13px;background:var(--okBg);color:var(--okFg);display:none}
+.donebar.on{display:block}
+#toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);background:#2A1A17;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:700;z-index:200;transition:.25s;max-width:92vw;text-align:center}
+#toast.on{transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Produção da Semana</h1>
+      <div class="sub">Cozinha Central</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="tst">TESTE</span>
+  </header>
+
+  <div class="note" id="topnote">Protótipo. Cada produção tem <b>quantidade</b>, <b>passo a passo pra marcar</b> e um botão que abre a <b>ficha de produção</b> já com a quantidade — ao registrar a ficha, a tarefa fica <b>feita</b>. Toque numa produção pra ver.</div>
+
+  <div class="tabs">
+    <button class="on" data-v="semana"><i class="ph-duotone ph-calendar-dots"></i> Semana</button>
+    <button data-v="prods"><i class="ph-duotone ph-list-checks"></i> Produções (23)</button>
+  </div>
+
+  <div id="vSemana">
+    <div class="wkstrip" id="wkstrip"></div>
+    <div id="dayBody"></div>
+  </div>
+
+  <div id="vProds" style="display:none">
+    <div class="note" style="background:#EEF3FA;color:var(--vinhoH)"><b>De-para conferido:</b> os nomes da planilha (cinza) ligados às produções reais do sistema (azul). Todas as 23 bateram — confira se concorda.</div>
+    <div id="prodsBody"></div>
+  </div>
+</div>
+
+<div class="ov" id="ov"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+const PRODS=[{"planilha": "Calda de frutas vermelhas", "nome": "PP Geléia de Frutas Vermelhas", "id": "2d7eb0b5-4368-4ff1-ab79-151fb4cae9ff", "arm": "Resfriado", "val": "15 dias", "pedT": "16Kg confirmar", "pedS": "-", "qtd": "6kg TOTAL | Segunda manhã | 6kg TOTAL", "pratos": ["Waffle Frutas Vermelhas Para Dividir", "Waffle Frutas Vermelhas Individual", "Bramble", "Cheesecake No Potinho"], "notas": ["Revisar receita para essa quantidade", "Embalagem de que tamanho? Qual embalagem?", "Tempo preparo - 30 min", "Tempo embalagem - 30min", "Pode ser congelado?"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Resfriado · val. 15 dias"}]}, {"planilha": "Caldo de camarão", "nome": "PP Caldo de Camarão", "id": "65ae9649-ad9f-4c20-8c45-340338240238", "arm": "Congelado", "val": "30 dias", "pedT": "4 litros", "pedS": "-", "qtd": "4 litros", "pratos": ["Camarão Cabotiá"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Camarão temperado", "nome": "PP Camarão Temperado Porção", "id": "2d31f68c-b659-439b-bb94-cb3bdb32ea9b", "arm": "Congelado", "val": "30 dias", "pedT": "50 porções", "pedS": "60 porções", "qtd": "140 porções", "pratos": ["Camarão Cabotiá"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Chips", "nome": "PP Chips", "id": "fd44961d-66d0-4d68-890c-734439f67acc", "arm": "Temp. Ambiente", "val": "5 dias", "pedT": "5Kg", "pedS": "QUINTA: 8 a 10Kg / SÁBADO: 6 a 8Kg", "qtd": "15kg | Segunda manhã 5kg | Quinta manhã 10kg", "pratos": ["Tabua Clube do Queijo Gaucho", "Chips E Pastinhas", "Chips Extra"], "notas": ["2x na semana para manter frescor"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Temp. Ambiente · val. 5 dias"}]}, {"planilha": "Costela desfiada", "nome": "PP Costela Desfiada UN", "id": "3ddc2663-f94b-448d-8628-34c9a128026b", "arm": "Congelado", "val": "30 dias", "pedT": "120 porções", "pedS": "50 porções", "qtd": "120 porções", "pratos": ["Arroz de Costela - Costelao", "Sanduiche de Costela"], "notas": ["Ajustar ficha para 250 porções", "65kg de costela ou ajustar com o mix de carnes", "Ajuste da ficha para 250 porções por vez - mix de carnes"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Creme cheesecake", "nome": "PP Creme Cheesecake", "id": "3d10880d-70f2-4774-85ac-e474d99c3840", "arm": "Refrigerado", "val": "3 dias", "pedT": "2Kg", "pedS": "3Kg", "qtd": "Segunda tarde 3kg Quinta tarde 3kg", "pratos": ["Cheesecake No Potinho"], "notas": ["Preparo e embalagem 30 min", "Revisar a quantidade que rende cada bag e se é prático para montar direto da bag - 50gr. por porção - BAGS 1kg", "Creamcheese pode ser em balde?"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Refrigerado · val. 3 dias"}]}, {"planilha": "Creme de moranga", "nome": "PP Creme de Moranga", "id": "7f611176-337a-4109-b5ba-ca9b591d821f", "arm": "Congelado", "val": "30 dias", "pedT": "10Kg", "pedS": "10Kg", "qtd": "40kg | 15kg", "pratos": ["Camarão Cabotiá", "Entrecot"], "notas": ["Revisar ficha não pode ir 150 gr. no cabotiá", "Definir embalagens", "Revisar fichas estão com couve flor ainda"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Croqueta de moqueca", "nome": "PP Croqueta de Moqueca UN", "id": "eea8987b-37c2-426c-bc0a-839df7e709e9", "arm": "Congelado", "val": "30 dias", "pedT": "-", "pedS": "40 porções", "qtd": "20 porções por vez", "pratos": ["Croqueta de Moqueca"], "notas": ["Revisar ficha e tempo", "Limpeza do camarão precisa estar junto do caldo"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Demi glace", "nome": "PP Demi Glace", "id": "a1a8b73d-c4ac-4691-bde1-a3a9e94afbfb", "arm": "Congelado", "val": "30 dias", "pedT": "-", "pedS": "9Kg", "qtd": "-", "pratos": ["Arroz de Costela - Costelao"], "notas": ["Revisar ficha, tempo e uso"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Farofa cheesecake", "nome": "PP Farofa Cheesecake", "id": "d0a724e0-bfb2-4cf4-827e-688fefd04a54", "arm": "Refrigerado", "val": "5 dias", "pedT": "1Kg", "pedS": "2Kg", "qtd": "Segunda tarde 3kg Quinta tarde 3kg", "pratos": ["Cheesecake No Potinho"], "notas": ["Vem em bag mas pode ser pote? Revisar"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Refrigerado · val. 5 dias"}]}, {"planilha": "Frango empanado", "nome": "PP Franguinho Empanado UN", "id": "371f80b4-bce4-4e51-af8a-37bdd895127c", "arm": "Congelado", "val": "30 dias", "pedT": "60 und", "pedS": "60 a 80 und", "qtd": "60 und", "pratos": ["Crocantíssimo Sanduba", "Rigatoni Crocante"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Ganache", "nome": "PP Ganache", "id": "cf72b4e4-8bf2-4ac1-be2a-d06bf4860e3c", "arm": "Refrigerado", "val": "5 dias", "pedT": "1,5Kg", "pedS": "1,5Kg", "qtd": "Segunda tarde 3kg Quinta tarde 3kg", "pratos": ["Brownie", "Churros Doble", "Choco Churros"], "notas": ["6kg total"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Refrigerado · val. 5 dias"}]}, {"planilha": "Molho de queijo", "nome": "PP Molho de Queijo", "id": "133f8517-0fc5-48cd-8e2e-12998468115a", "arm": "Congelado", "val": "30 dias", "pedT": "10Kg", "pedS": "15Kg", "qtd": "10Kg", "pratos": ["Rigatoni Crocante"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Molho romesco", "nome": "PP Molho Romesco", "id": "7f3c614b-61ec-4e76-aea5-293038648f66", "arm": "Congelado", "val": "30 dias", "pedT": "5Kg", "pedS": "5Kg", "qtd": "5Kg", "pratos": ["Chips E Pastinhas", "Tabua de Montaditos", "Montadito Cogu"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Pasta brie", "nome": "PP Pasta de Brie", "id": "8322b112-ef6d-4666-a43e-9d137c45f949", "arm": "Congelado", "val": "30 dias", "pedT": "4Kg", "pedS": "4Kg", "qtd": "4Kg", "pratos": ["Chips E Pastinhas", "Croissandwich SEM COPA", "Croissandwich COM COPA"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Pasta gorgonzola", "nome": "PP Pasta de Gorgonzola", "id": "7247f884-5dd2-466d-b057-8141ca105f05", "arm": "Congelado", "val": "30 dias", "pedT": "6Kg", "pedS": "6Kg", "qtd": "6Kg", "pratos": ["Tabua de Montaditos", "Crocantíssimo Sanduba"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Peixe empanado", "nome": "PP Filé de Peixe Empanado UN", "id": "9e5ef19f-321c-49e2-8139-76195838264b", "arm": "Congelado", "val": "30 dias", "pedT": "40 und", "pedS": "60 und", "qtd": "40 und", "pratos": ["Peixe e Vinagrete"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Pudim montado", "nome": "PP Pudim de Pote UN", "id": "b13bd1ae-e08d-4bc0-ab00-31558e9f2874", "arm": "Refrigerado", "val": "5 dias", "pedT": "25 und", "pedS": "25 und", "qtd": "25 und", "pratos": ["Pudim de Pote"], "notas": ["Revisar o rendimento de cada unidade - 100gr. pudim pra 20gr de calda"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Refrigerado · val. 5 dias"}]}, {"planilha": "Requeijão", "nome": "PP Requeijão", "id": "c7e68eb7-c8e3-4904-950f-178c99820df4", "arm": "Resfriado", "val": "3 dias", "pedT": "5 kg", "pedS": "6Kg", "qtd": "Segunda de manhã produção - 3kg | Quinta de manhã produção - 4kg", "pratos": ["Chips E Pastinhas", "Camarão Cabotiá", "Waffle Frutas Vermelhas Para Dividir", "Waffle Frutas Vermelhas Individual", "Montadito Cogu", "Tabua de Montaditos"], "notas": ["Tá vindo em bag mas é melhor pote pode mudar a embalagem", "Embalagem - potes de 500gr.", "Verificar quantidade +1kg total ficou 7 arredondando pra cima", "Verificar quantidade"], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Resfriado · val. 3 dias"}]}, {"planilha": "Schnitzel", "nome": "PP Schnitzel UN", "id": "e42c0bfa-ba63-4750-8e8c-c69f0979fccf", "arm": "Congelado", "val": "30 dias", "pedT": "40 und", "pedS": "30 und", "qtd": "40 und", "pratos": ["Milanesa", "Schnitzel", "Adicional Schnitzel"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Tomate confit", "nome": "PP Tomate Confit", "id": "8e5ef042-bc30-4823-9b01-afa63782f920", "arm": "Refrigerado", "val": "7 dias", "pedT": "5Kg", "pedS": "-", "qtd": "5Kg", "pratos": ["Croissandwich SEM COPA", "Croissandwich COM COPA", "Tabua Clube do Queijo Gaucho"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Refrigerado · val. 7 dias"}]}, {"planilha": "Waffle", "nome": "PP Waffle UN", "id": "dadc9f3e-ebe1-4174-a038-b52eb28e6635", "arm": "Congelado", "val": "30 dias", "pedT": "30 und", "pedS": "40 und", "qtd": "30 und", "pratos": ["Waffle Frutas Vermelhas Para Dividir", "Waffle Frutas Vermelhas Individual", "Waffle Banoffee Individual", "Waffle Banoffee Pra Dividir"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}, {"planilha": "Pesto", "nome": "PP Molho Pesto", "id": "51408a4e-5eff-4155-a63b-2219a3d6cb25", "arm": "Congelado", "val": "30 dias", "pedT": "", "pedS": "", "qtd": "", "pratos": ["Croissandwich", "Chips e Patinhas", "Tábua de queijos", "Pomo Pesto", "Pomo Pesto Vegano", "Crocantíssimo (Aioli com pesto (PP)"], "notas": [], "passos": [{"t": "Conferir ficha e separar ingredientes"}, {"t": "Produzir", "ficha": true}, {"t": "Embalar"}, {"t": "Etiquetar e guardar — Congelado · val. 30 dias"}]}];
+const SCHEDULE={"seg": [{"p": "Costela desfiada", "per": "manhã", "q": "assar (ficha 250 porções)"}, {"p": "Chips", "per": "manhã", "q": "5 kg"}, {"p": "Calda de frutas vermelhas", "per": "manhã", "q": "6 kg"}, {"p": "Requeijão", "per": "manhã", "q": "3 kg"}, {"p": "Ganache", "per": "tarde", "q": "3 kg"}, {"p": "Creme cheesecake", "per": "tarde", "q": "3 kg"}, {"p": "Farofa cheesecake", "per": "tarde", "q": "—"}, {"p": "Pudim montado", "per": "tarde", "q": "25 un"}], "ter": [{"p": "Camarão temperado", "per": "manhã", "q": "50 porções"}], "qua": [], "qui": [{"p": "Requeijão", "per": "manhã", "q": "4 kg"}, {"p": "Chips", "per": "manhã", "q": "10 kg"}, {"p": "Ganache", "per": "tarde", "q": "3 kg"}, {"p": "Creme cheesecake", "per": "tarde", "q": "3 kg"}, {"p": "Farofa cheesecake", "per": "tarde", "q": "—"}, {"p": "Pudim montado", "per": "tarde", "q": "25 un"}], "sex": [], "sab": [{"p": "Costela desfiada", "per": "manhã", "q": "descongelar (p/ segunda)"}], "dom": []};
+const DIAS=[['seg','Seg'],['ter','Ter'],['qua','Qua'],['qui','Qui'],['sex','Sex'],['sab','Sáb'],['dom','Dom']];
+const byPlan={}; PRODS.forEach(p=>byPlan[p.planilha]=p);
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2400);}
+
+// estado em memória: por "chave de tarefa" (dia+idx) guarda passos marcados
+const ST={dia:'seg', view:'semana', taskState:{}};
+function armClass(a){a=(a||'').toLowerCase(); if(a.includes('congel'))return'cong'; if(a.includes('refrig'))return'refr'; if(a.includes('resf'))return'resf'; return'amb';}
+function tkKey(dia,i){return dia+':'+i;}
+function taskObj(dia,i){ return (SCHEDULE[dia]||[])[i]; }
+function stepsFor(dia,i){ const t=taskObj(dia,i); const p=byPlan[t.p]||{}; const key=tkKey(dia,i);
+  const base=(p.passos||[]).map((s,si)=>({...s, done: !!(ST.taskState[key]&&ST.taskState[key][si])}));
+  return base;
+}
+function taskDone(dia,i){ const st=stepsFor(dia,i); return st.length && st.every(s=>s.done); }
+function taskProg(dia,i){ const st=stepsFor(dia,i); return [st.filter(s=>s.done).length, st.length]; }
+
+/* ---------- SEMANA ---------- */
+function renderWeek(){
+  const strip=$('#wkstrip'); strip.innerHTML='';
+  DIAS.forEach(([k,lbl])=>{
+    const tasks=SCHEDULE[k]||[]; const n=tasks.length;
+    let doneN=0; tasks.forEach((_,i)=>{ if(taskDone(k,i)) doneN++; });
+    const allok=n>0&&doneN===n;
+    const el=document.createElement('div'); el.className='wkday'+(ST.dia===k?' on':'');
+    el.innerHTML='<div class="d">'+lbl+'</div><div class="n">'+(n||'·')+'</div><div class="ct '+(allok?'allok':'')+'">'+(n? (allok?'tudo ✓':doneN+'/'+n):'—')+'</div>';
+    el.onclick=()=>{ST.dia=k; render();};
+    strip.appendChild(el);
+  });
+  const body=$('#dayBody'); const tasks=SCHEDULE[ST.dia]||[];
+  if(!tasks.length){ body.innerHTML='<div class="empty"><i class="ph-duotone ph-coffee"></i>Sem produção marcada nesse dia.</div>'; return; }
+  let h='';
+  ['manhã','tarde'].forEach(per=>{
+    const items=tasks.map((t,i)=>({t,i})).filter(x=>x.t.per===per);
+    if(!items.length) return;
+    h+='<div class="perlbl"><i class="ph-duotone ph-'+(per==='manhã'?'sun':'moon-stars')+'"></i> '+per+'</div>';
+    items.forEach(({t,i})=>{
+      const p=byPlan[t.p]||{}; const [d,tot]=taskProg(ST.dia,i); const done=taskDone(ST.dia,i);
+      const ac=armClass(p.arm);
+      h+='<div class="tk'+(done?' done':'')+'" style="--tkc:var(--vinho)" onclick="openTask(\''+ST.dia+'\','+i+')">'
+        +'<div class="r1"><div class="nm">'+esc(p.nome||t.p)+'</div><div class="q">'+esc(t.q)+'</div></div>'
+        +'<div class="r2">'
+        +'<span class="bdg '+ac+'">'+esc(p.arm||'')+'</span>'
+        +(p.val?'<span class="bdg val">val. '+esc(p.val)+'</span>':'')
+        +'<span class="prog">'+(done?'<i class="ph-duotone ph-check-circle"></i> feito':'<span class="bar"><i style="width:'+(tot?Math.round(d/tot*100):0)+'%"></i></span> '+d+'/'+tot)+'</span>'
+        +'</div></div>';
+    });
+  });
+  body.innerHTML=h;
+}
+
+/* ---------- PRODUÇÕES / DE-PARA ---------- */
+function renderProds(){
+  const box=$('#prodsBody');
+  box.innerHTML=PRODS.map((p,idx)=>{
+    const ac=armClass(p.arm);
+    return '<div class="pl-card" onclick="openProd('+idx+')"><div class="r1"><div><div class="nm">'+esc(p.nome)+'</div>'
+      +'<div class="dp">planilha: <b>'+esc(p.planilha)+'</b></div></div><span class="arrow">›</span></div>'
+      +'<div class="r2"><span class="bdg '+ac+'">'+esc(p.arm||'')+'</span>'
+      +(p.val?'<span class="bdg val">val. '+esc(p.val)+'</span>':'')
+      +(p.pedT?'<span class="bdg val">terça: '+esc(p.pedT)+'</span>':'')
+      +(p.pedS&&p.pedS!=='-'?'<span class="bdg val">sexta: '+esc(p.pedS)+'</span>':'')
+      +'</div></div>';
+  }).join('');
+}
+
+/* ---------- DETALHE ---------- */
+function detailHTML(p, dia, i){
+  const ac=armClass(p.arm);
+  const qtd = (dia!=null) ? taskObj(dia,i).q : (p.qtd||p.pedT||'—');
+  let h='<div class="sh-h"><div><div class="t">'+esc(p.nome)+'</div><div class="pl">na planilha: '+esc(p.planilha)+'</div></div>'
+    +'<button class="x" onclick="closeSheet()"><i class="ph-duotone ph-x"></i></button></div>';
+  h+='<div class="qsub">Quantidade '+(dia!=null?'do dia':'de referência')+'</div><div class="qbig">'+esc(qtd)+'</div>';
+  h+='<div class="mbadges"><span class="bdg '+ac+'"><i class="ph-duotone ph-snowflake"></i> '+esc(p.arm||'')+'</span>'
+    +(p.val?'<span class="bdg val"><i class="ph-duotone ph-clock"></i> validade '+esc(p.val)+'</span>':'')
+    +(p.pedT?'<span class="bdg val">pedido terça: '+esc(p.pedT)+'</span>':'')
+    +(p.pedS&&p.pedS!=='-'?'<span class="bdg val">pedido sexta: '+esc(p.pedS)+'</span>':'')+'</div>';
+  if(p.pratos&&p.pratos.length){ h+='<div class="slbl">Usado nos pratos</div><div class="chips">'+p.pratos.map(x=>'<span class="chip">'+esc(x)+'</span>').join('')+'</div>'; }
+  if(p.notas&&p.notas.length){ h+='<div class="slbl">Pontos a revisar / definir</div>'+p.notas.map(x=>'<div class="rev"><i class="ph-duotone ph-warning"></i>'+esc(x)+'</div>').join(''); }
+
+  if(dia!=null){
+    const steps=stepsFor(dia,i); const key=tkKey(dia,i);
+    h+='<div class="slbl">Passo a passo</div>';
+    steps.forEach((s,si)=>{
+      h+='<div class="step'+(s.done?' done':'')+'" onclick="toggleStep(\''+key+'\','+si+')"><div class="ck">'+(s.done?'✓':'')+'</div>'
+        +'<div class="tx">'+esc(s.t)+(s.q?' — '+esc(s.q):'')+'</div>'+(s.ficha?'<span class="fichatag">ficha</span>':'')+'</div>';
+    });
+    const fichaStep=steps.findIndex(s=>s.ficha); const fdone=fichaStep>=0&&steps[fichaStep].done;
+    h+='<button class="fichabtn'+(fdone?' done':'')+'" onclick="abrirFicha(\''+key+'\','+fichaStep+',\''+esc(p.nome)+'\',\''+esc(qtd)+'\')">'
+      +'<i class="ph-duotone ph-'+(fdone?'check-circle':'clipboard-text')+'"></i> '+(fdone?'Produção registrada ✓':'Abrir ficha de produção — '+esc(qtd))+'</button>';
+    h+='<div class="donebar'+(taskDone(dia,i)?' on':'')+'" id="donebar"><i class="ph-duotone ph-check-circle"></i> Tarefa concluída</div>';
+  } else {
+    h+='<div class="slbl">Passo a passo (modelo)</div>'+ (p.passos||[]).map(s=>'<div class="step"><div class="ck"></div><div class="tx">'+esc(s.t)+'</div>'+(s.ficha?'<span class="fichatag">ficha</span>':'')+'</div>').join('');
+  }
+  return h;
+}
+let CUR=null;
+function openTask(dia,i){ CUR={dia,i}; const p=byPlan[taskObj(dia,i).p]; $('#sheet').innerHTML=detailHTML(p,dia,i); $('#ov').classList.add('on'); }
+function openProd(idx){ CUR=null; $('#sheet').innerHTML=detailHTML(PRODS[idx],null,null); $('#ov').classList.add('on'); }
+function closeSheet(){ $('#ov').classList.remove('on'); }
+$('#ov').onclick=e=>{ if(e.target.id==='ov') closeSheet(); };
+
+function toggleStep(key,si){ ST.taskState[key]=ST.taskState[key]||{}; ST.taskState[key][si]=!ST.taskState[key][si];
+  if(CUR){ const p=byPlan[taskObj(CUR.dia,CUR.i).p]; $('#sheet').innerHTML=detailHTML(p,CUR.dia,CUR.i); } renderWeek(); }
+function abrirFicha(key,si,nome,qtd){
+  ST.taskState[key]=ST.taskState[key]||{}; ST.taskState[key][si]=true;
+  toast('No app real: abre a ficha de '+nome+' com '+qtd+' → ao salvar, marca feito');
+  if(CUR){ const p=byPlan[taskObj(CUR.dia,CUR.i).p]; $('#sheet').innerHTML=detailHTML(p,CUR.dia,CUR.i); } renderWeek();
+}
+
+/* ---------- NAV ---------- */
+$$('.tabs button').forEach(b=>b.onclick=()=>{ $$('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  ST.view=b.dataset.v; $('#vSemana').style.display=ST.view==='semana'?'':'none'; $('#vProds').style.display=ST.view==='prods'?'':'none'; });
+function render(){ renderWeek(); }
+renderProds(); render();
+</script>
+</body>
+</html>
