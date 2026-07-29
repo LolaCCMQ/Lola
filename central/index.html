@@ -234,6 +234,34 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .stpill.ok{background:var(--okBg);color:var(--okFg)}
 .stpill.pend{background:var(--pendBg,#FBF0DD);color:var(--pendFg,#9A6B1E)}
 .stpill.az{background:#E6EEF8;color:#2C5AA0}
+/* 29/07 (Bianca): recebimento + divergências vindos do CCMQ/MAC, visíveis na Central */
+.stpill.recok,.stpill.divp,.stpill.wait{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;letter-spacing:.03em;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.stpill.recok{background:var(--okBg);color:var(--okFg)}
+.stpill.divp{background:var(--pendBg);color:var(--pendFg)}
+.stpill.wait{background:var(--cremeDark);color:var(--mut)}
+.stpill.recok i,.stpill.divp i,.stpill.wait i{font-size:12px}
+.pillrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.divg-dot{background:var(--pendBg);color:var(--pendFg);font-weight:800;border-radius:999px;padding:0 6px;font-size:11px;margin-left:2px}
+.chip.divg.on{background:var(--pendFg);border-color:var(--pendFg)}
+.chip.divg.on .divg-dot{background:rgba(255,255,255,.26);color:#fff}
+.recnote{background:var(--pendBg);border-radius:12px;padding:11px 13px;font-size:12.5px;color:var(--pendFg);margin:0 0 14px;line-height:1.5}
+.recnote.ok{background:var(--okBg);color:var(--okFg)}
+.recnote b{font-weight:800}
+.divbanner{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;color:var(--pendFg);margin:14px 0 10px}
+.divbanner i{font-size:16px}
+.divitem{background:#fff;border:1px solid var(--border);border-left:4px solid var(--pendFg);border-radius:12px;padding:11px 13px;margin-bottom:8px}
+.divitem.zero{border-left-color:var(--urgFg)}
+.divitem .nm{font-size:13.5px;font-weight:700;margin-bottom:8px}
+.divitem .dun{color:var(--mut);font-weight:600;font-size:11px}
+.difgrid{display:flex;gap:8px}
+.difcell{flex:1;background:var(--cremeDark);border-radius:9px;padding:7px 8px;text-align:center}
+.difcell .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--lbl);font-weight:800}
+.difcell .v{font-family:Fraunces,serif;font-weight:600;font-size:16px;margin-top:2px}
+.difcell.dif{background:#FBEFDD}.difcell.dif.neg{background:var(--urgBg)}
+.difcell.dif .v{color:var(--pendFg)}.difcell.dif.neg .v{color:var(--urgFg)}
+.okcount{background:var(--okBg);color:var(--okFg);border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:8px;margin-top:6px}
+.okcount i{font-size:16px}
+.notebtn{margin-top:12px;width:100%;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);min-height:44px;font:inherit;font-weight:800;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
 .pedc{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;margin-bottom:8px;cursor:pointer}
 .pedc .fh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
 .pedc .fh b{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px}
@@ -2088,37 +2116,97 @@ async function delEnvio(id, nome){
 /* ===== PEDIDOS À CENTRAL (o Arthur aceita/pronto por aqui) ===== */
 async function carregarPedidos(){
   ST.pedidos='loading'; if(ST.tab==='ped'||ST.tab==='ini') render();
-  try{ ST.pedidos=await api('lola_pedidos?select=id,numero_pedido,unidade,status,central_status,central_aceito_por,data_pedido,responsavel,valor_total,observacoes,lola_pedidos_itens(nome_item,quantidade,unidade,subtotal)&order=data_pedido.desc,numero_pedido.desc&limit=80'); }
+  try{
+    ST.pedidos=await api('lola_pedidos?select=id,numero_pedido,unidade,status,central_status,central_aceito_por,data_pedido,responsavel,valor_total,observacoes,lola_pedidos_itens(nome_item,quantidade,unidade,subtotal)&order=data_pedido.desc,numero_pedido.desc&limit=80');
+    await carregarRecebimentos();
+  }
   catch(e){ ST.pedidos=[]; }
   atualizaBadgePed();
   if(ST.tab==='ped'||ST.tab==='ini') render();
+}
+/* 29/07 (Bianca): recebimento do CCMQ/MAC — resultado + divergências, só leitura.
+   lola_pedidos_recebimentos_itens guarda o SOLICITADO original (o item do pedido é
+   sobrescrito pela qtd recebida no lado do CCMQ). Pega o recebimento mais recente de
+   cada pedido. As duas tabelas têm policy public (chave anônima lê). */
+async function carregarRecebimentos(){
+  ST.recebMap={};
+  const ids=(ST.pedidos||[]).filter(p=>p&&p.id).map(p=>p.id);
+  if(!ids.length) return;
+  let recs=[];
+  try{ recs=await api('lola_pedidos_recebimentos?select=id,pedido_id,recebido_por,data_recebimento,status,observacoes,created_at,lola_pedidos_recebimentos_itens(nome_item,qtd_solicitada,qtd_recebida,unidade)&pedido_id=in.('+ids.join(',')+')&order=created_at.desc'); }
+  catch(e){ recs=[]; }
+  recs.forEach(r=>{ if(r&&!ST.recebMap[r.pedido_id]) ST.recebMap[r.pedido_id]=r; });
+}
+/* etiqueta do resultado do recebimento (p.status vem de lola_pedidos) */
+function pedRecebInfo(p){
+  const st=p&&p.status;
+  const rec=(ST.recebMap||{})[p&&p.id]||null;
+  if(st==='recebido_divergencia') return {label:'Recebido c/ divergência', cls:'divp', ic:'ph-warning', rec};
+  if(st==='recebido_completo') return {label:'Recebido completo', cls:'recok', ic:'ph-check-circle', rec};
+  if((p&&p.central_status)==='pronto') return {label:'aguardando recebimento', cls:'wait', ic:'ph-clock', rec:null};
+  return null;
+}
+/* itens que vieram diferentes do pedido */
+function pedDivs(rec){
+  const its=(rec&&rec.lola_pedidos_recebimentos_itens)||[];
+  return its.map(it=>({nome:it.nome_item, un:it.unidade||'', sol:+it.qtd_solicitada||0, rec:+it.qtd_recebida||0}))
+            .filter(x=>x.sol!==x.rec);
+}
+/* nota de recebimento imprimível (Pediu × Veio × Diferença) */
+function notaRecebimento(p, rec){
+  const its=((rec&&rec.lola_pedidos_recebimentos_itens)||[]).slice()
+    .sort((a,b)=>String(a.nome_item||'').localeCompare(String(b.nome_item||''),'pt'));
+  if(!its.length){ toast('Sem itens de recebimento.'); return; }
+  const w=window.open('','_blank'); if(!w){ toast('Libere o pop-up pra ver a nota.'); return; }
+  const dt=rec&&rec.data_recebimento?fmtData(String(rec.data_recebimento).slice(0,10)):'';
+  let hn='<html><head><meta charset="utf-8"><title>Nota de recebimento #'+(p.numero_pedido||'')+'</title>'+
+    '<style>body{font-family:Arial,sans-serif;padding:24px;max-width:720px;margin:0 auto;color:#2A1A17}'+
+    'h1{color:#2C5AA0;border-bottom:2px solid #2C5AA0;padding-bottom:8px;font-size:20px}'+
+    '.info{background:#f5f2ec;padding:10px 14px;border-radius:8px;margin:14px 0;font-size:13px}'+
+    'table{width:100%;border-collapse:collapse}th{background:#2C5AA0;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase}'+
+    'td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px}.footer{margin-top:24px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}</style></head><body>';
+  hn+='<h1>Nota de Recebimento</h1>';
+  hn+='<div class="info"><b>Pedido:</b> #'+(p.numero_pedido||'')+' — '+esc((p.unidade||'').toUpperCase())+' &nbsp;&nbsp; <b>Recebido:</b> '+esc(dt)+' &nbsp;&nbsp; <b>Por:</b> '+esc((rec&&rec.recebido_por)||'—')+'</div>';
+  hn+='<table><tr><th>Item</th><th>Un</th><th style="text-align:right">Pediu</th><th style="text-align:right">Veio</th><th style="text-align:right">Diferença</th></tr>';
+  its.forEach(it=>{ const sol=+it.qtd_solicitada||0, rc=+it.qtd_recebida||0, dif=rc-sol;
+    const col=dif===0?'#2C7A4B':dif<0?'#B5302E':'#9A6B1E';
+    hn+='<tr><td><b>'+esc(it.nome_item||'')+'</b></td><td>'+esc(it.unidade||'')+'</td><td style="text-align:right">'+num(sol)+'</td><td style="text-align:right;font-weight:700">'+num(rc)+'</td><td style="text-align:right;font-weight:700;color:'+col+'">'+(dif>0?'+':dif<0?'−':'')+num(Math.abs(dif))+'</td></tr>';
+  });
+  hn+='</table><div class="footer">Gerado em '+new Date().toLocaleString('pt-BR')+' · Cozinha Central</div></body></html>';
+  w.document.write(hn); w.document.close(); w.print();
 }
 function atualizaBadgePed(){ const d=ST.pedidos; const nn=(d&&d!=='loading')?d.filter(p=>p.status==='solicitado' && (!p.central_status||p.central_status==='novo')).length:0; const cp=$('#cntPed'); if(cp){ if(nn){cp.style.display='';cp.textContent=nn;}else cp.style.display='none'; } }
 function pedUniTag(u){ return u==='ccmq'?'<span class="utag ccmq">CCMQ</span>':u==='mac'?'<span class="utag mac">MAC</span>':''; }
 function pedPill(cs){ cs=cs||'novo'; return cs==='pronto'?'<span class="stpill ok">pronto</span>':cs==='aceito'?'<span class="stpill az">aceito</span>':'<span class="stpill pend">novo</span>'; }
 function viewPedidos(){
   const uni=ST.pedUni||'todas', filtro=ST.pedFiltro||'todos';
-  let h=`<div class="note">Pedidos que o <b>CCMQ</b> e o <b>MAC</b> fazem pra Central. Aceite e marque quando estiver <b>pronto pra enviar</b>. (Eles continuam criando os pedidos do lado deles.)</div>`;
+  let h=`<div class="note">Pedidos que o <b>CCMQ</b> e o <b>MAC</b> fazem pra Central. Aceite e marque quando estiver <b>pronto pra enviar</b>. Depois você vê o <b>resultado do recebimento</b> — e o que veio em divergência.</div>`;
   h+=`<div class="tabs chips" style="margin-bottom:8px">
      <button class="chip ${uni==='todas'?'on':''}" data-pu="todas">Todas</button>
      <button class="chip ${uni==='ccmq'?'on':''}" data-pu="ccmq">CCMQ</button>
      <button class="chip ${uni==='mac'?'on':''}" data-pu="mac">MAC</button></div>`;
+  const _pd=ST.pedidos;
+  const nDiv=(_pd&&_pd!=='loading')?_pd.filter(p=>p.status==='recebido_divergencia').length:0;
   h+=`<div class="tabs chips" style="margin-bottom:12px">
      <button class="chip ${filtro==='abertos'?'on':''}" data-pf="abertos">A fazer</button>
-     <button class="chip ${filtro==='todos'?'on':''}" data-pf="todos">Todos</button></div>`;
+     <button class="chip ${filtro==='todos'?'on':''}" data-pf="todos">Todos</button>
+     <button class="chip divg ${filtro==='diverg'?'on':''}" data-pf="diverg"><i class="ph-duotone ph-warning-circle"></i> Divergências${nDiv?` <span class="divg-dot">${nDiv}</span>`:''}</button></div>`;
   const d=ST.pedidos;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
   let list=d.slice();
   if(uni!=='todas') list=list.filter(p=>p.unidade===uni);
   if(filtro==='abertos') list=list.filter(p=>p.status==='solicitado');
-  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-cart"></i>Nenhum pedido${filtro==='abertos'?' a fazer':''}.</div>`; return h; }
+  else if(filtro==='diverg') list=list.filter(p=>p.status==='recebido_divergencia');
+  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-cart"></i>Nenhum pedido${filtro==='abertos'?' a fazer':filtro==='diverg'?' em divergência':''}.</div>`; return h; }
   h+=list.map(p=>{
     const its=p.lola_pedidos_itens||[];
     const cs=p.central_status||'novo';
+    const ri=pedRecebInfo(p);
     return `<div class="pedc" data-id="${p.id}">
       <div class="fh"><b>#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}</b><span class="pedstw" style="position:relative"><button class="pedst ${cs}" title="Trocar o status">${cs==='pronto'?'pronto ✓':cs}</button></span></div>
       <div class="frow"><span>Pedido</span><b>${fmtData(String(p.data_pedido).slice(0,10))}${p.responsavel?' · '+esc((p.responsavel||'').trim()):''}</b></div>
       <div class="frow"><span>Itens</span><b>${its.length} · ${brl(p.valor_total)}</b></div>
+      ${ri?`<div class="pillrow"><span class="stpill ${ri.cls}"><i class="ph-duotone ${ri.ic}"></i> ${ri.label}</span></div>`:''}
     </div>`;
   }).join('');
   return h;
@@ -2147,6 +2235,32 @@ function openPedido(id){
   $('#shTitle').textContent='Pedido #'+(p.numero_pedido||'')+' — '+(p.unidade||'').toUpperCase();
   const f=$('.sh-foot'); if(f) f.style.display='none';
   let h=`<div class="note">De <b>${p.responsavel?esc((p.responsavel||'').trim()):'—'}</b> · ${fmtData(String(p.data_pedido).slice(0,10))} · ${pedPill(cs)}${p.observacoes?'<br>Obs: '+esc(p.observacoes):''}</div>`;
+  const ri=pedRecebInfo(p);
+  if(ri){
+    h+=`<div class="recnote ${ri.cls==='recok'?'ok':''}"><b>${ri.label}</b>`;
+    if(ri.rec){ h+=`<br>Por <b>${esc((ri.rec.recebido_por||'—').trim())}</b>${ri.rec.data_recebimento?' · '+fmtData(String(ri.rec.data_recebimento).slice(0,10)):''}`; }
+    h+=`</div>`;
+    if(ri.rec){
+      const divs=pedDivs(ri.rec);
+      const totItens=((ri.rec.lola_pedidos_recebimentos_itens)||[]).length;
+      const nOk=totItens-divs.length;
+      if(divs.length){
+        h+=`<div class="divbanner"><i class="ph-duotone ph-warning"></i> Veio diferente do pedido (${divs.length})</div>`;
+        h+=divs.map(x=>{ const dif=x.rec-x.sol; const neg=dif<0; const zero=x.rec===0;
+          return `<div class="divitem${zero?' zero':''}"><div class="nm">${esc(x.nome)}${x.un?` <span class="dun">· ${esc(x.un)}</span>`:''}</div>`+
+            `<div class="difgrid">`+
+              `<div class="difcell"><div class="k">Pediu</div><div class="v">${num(x.sol)}</div></div>`+
+              `<div class="difcell rec"><div class="k">Veio</div><div class="v">${num(x.rec)}</div></div>`+
+              `<div class="difcell dif${neg?' neg':''}"><div class="k">Diferença</div><div class="v">${dif>0?'+':dif<0?'−':''}${num(Math.abs(dif))}</div></div>`+
+            `</div></div>`;
+        }).join('');
+        if(nOk>0) h+=`<div class="okcount"><i class="ph-duotone ph-check-circle"></i> ${nOk} ${nOk===1?'item conferido, veio certo':'itens conferidos, vieram certos'}</div>`;
+      } else {
+        h+=`<div class="okcount"><i class="ph-duotone ph-check-circle"></i> Todos os ${totItens} ${totItens===1?'item veio certo':'itens vieram certos'}</div>`;
+      }
+      h+=`<button class="notebtn" id="pedNota"><i class="ph-duotone ph-receipt"></i> Ver nota de recebimento</button>`;
+    }
+  }
   h+=`<div class="lbl">Itens (${its.length}) · ${brl(p.valor_total)}</div>`;
   h+=its.map(x=>`<div class="ring"><span>${esc(x.nome_item)}</span><b>${num(x.quantidade)} ${esc(x.unidade||'')}</b></div>`).join('')||'<div class="uinfo">Sem itens.</div>';
   h+=`<div class="pacts" style="margin-top:14px">`;
@@ -2155,6 +2269,7 @@ function openPedido(id){
   else h+=`<button class="btn sec" id="pedVolta2"><i class="ph-duotone ph-arrow-counter-clockwise"></i> Reabrir</button>`;
   h+=`</div>`;
   $('#shBody').innerHTML=h; openSheet();
+  $('#pedNota')&&($('#pedNota').onclick=()=>notaRecebimento(p, ri&&ri.rec));
   $('#pedAceitar')&&($('#pedAceitar').onclick=()=>setPedidoStatus(id,'aceito'));
   $('#pedPronto')&&($('#pedPronto').onclick=()=>setPedidoStatus(id,'pronto'));
   $('#pedVolta')&&($('#pedVolta').onclick=()=>setPedidoStatus(id,'novo'));
