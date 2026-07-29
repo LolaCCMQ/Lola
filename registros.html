@@ -935,7 +935,7 @@ try{updateMovBadge();}catch(e){}
 function hdrBusca(){var q=document.getElementById('q');if(q){try{q.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}setTimeout(function(){q.focus();},120);}}
 function hdrAvisos(){if(VIEW!=='lista')setView('lista');setF('ftt','aviso');}
 /* ===== BLOCOS FIXOS (estilo Keep) ===== */
-var BLOCOS=[{a:'RH',cor:'#8A6A2B'},{a:'Marketing',cor:'#B24A8A'}];
+var BLOCOS=[{a:'Alterações Menu',cor:'#2F7A52'},{a:'RH',cor:'#8A6A2B'},{a:'Marketing',cor:'#B24A8A'}];
 var __bcCounts={},__blocosAll=[];
 async function carregarBlocoCounts(){try{var r=await sb.from('lola_blocos_itens').select('id,assunto,tipo,texto,feito');__blocosAll=r.data||[];__bcCounts={};__blocosAll.forEach(function(i){var c=__bcCounts[i.assunto]=__bcCounts[i.assunto]||{notas:0,itens:0,feitos:0};if(i.tipo==='nota')c.notas++;else{c.itens++;if(i.feito)c.feitos++;}});renderFreqBar();try{render();}catch(e){}}catch(e){}}
 function renderFreqBar(){
