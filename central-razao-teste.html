@@ -134,7 +134,7 @@ async function carregar(){
   try{
     const {start,end}=mesRange(ST.mes);
     const [nomes, saldo, logs, prods] = await Promise.all([
-      api('lola_preproducoes?select=id,nome,cozinha&ativo=eq.true'),
+      api('lola_preproducoes?select=id,nome'),
       api('lola_central_saldo?select=preproducao_id,saldo,unidade'),
       api(`lola_central_saldo_log?select=preproducao_id,data,saldo_novo,por,criado_em&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00&order=preproducao_id.asc,criado_em.asc`),
       api(`lola_central_prod_hist?select=preproducao_id,qtd_produzida,data,criado_em&ativo=eq.true&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00`)
@@ -148,7 +148,10 @@ async function carregar(){
     // monta itens
     const itens=[];
     Object.keys(ev).forEach(id=>{
-      const lista=ev[id].sort((a,b)=> a.t<b.t?-1:a.t>b.t?1:0);
+      let lista=ev[id].sort((a,b)=> a.t<b.t?-1:a.t>b.t?1:0);
+      // ancora na 1ª contagem do mês (a contagem vira o marco zero); descarta o pré-contagem
+      const fi=lista.findIndex(e=>e.kind==='cont');
+      if(fi>0) lista=lista.slice(fi);
       let saldoRun=null, baseCont=null, produzido=0, enviado=0;
       const linha=[];
       lista.forEach(e=>{
