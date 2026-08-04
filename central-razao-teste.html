@@ -194,8 +194,8 @@ function render(){
   const nNeg=lista.filter(i=>i.atual<-1e-9).length;
   const kpis=`<div class="kpis">
     <div class="kpi"><div class="k">Preparados</div><div class="v">${lista.length}</div><div class="s">com movimento/saldo</div></div>
-    <div class="kpi"><div class="k">Produzido no mês</div><div class="v pos">${nb(totProd)}</div><div class="s">total de unidades produzidas</div></div>
-    <div class="kpi"><div class="k">Enviado ao Lola/Mac</div><div class="v neg">${nb(totEnv)}</div><div class="s">baixas por pedido</div></div>
+    <div class="kpi"><div class="k">Produzido no mês</div><div class="v pos">${nb(Math.round(totProd))}</div><div class="s">total produzido (un/kg somados)</div></div>
+    <div class="kpi"><div class="k">Enviado ao Lola/Mac</div><div class="v neg">${nb(Math.round(totEnv))}</div><div class="s">baixas por pedido</div></div>
     <div class="kpi"><div class="k">Saldo negativo</div><div class="v ${nNeg?'neg':'zero'}">${nNeg}</div><div class="s">itens abaixo de zero</div></div>
   </div>`;
   if(!lista.length){ $('#app').innerHTML=kpis+'<div class="empty">Nenhum preparado com movimento neste mês.</div>'; wire(); return; }
