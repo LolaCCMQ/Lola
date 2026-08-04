@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Razão de Estoque da Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#A82A2A; --vinhoH:#7E1E1F;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --okBg:#E6F3EA; --okFg:#2C7A4B; --pendBg:#FBF0DD; --pendFg:#9A6B1E; --urgBg:#FBEAE7; --urgFg:#B5302E;
+  --centralBg:#FBF0DD; --centralFg:#9A6B1E;
+  --r-pill:9px; --r-btn:13px; --r-card:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px 96px}
+header{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:14px}
+header .back{background:none;border:0;color:var(--vinho);font-size:22px;display:flex;align-items:center;cursor:pointer;padding:4px}
+header h1{font-family:Fraunces,serif;font-weight:600;font-size:19px;color:var(--vinho);line-height:1.15}
+header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em}
+header .spacer{flex:1}
+header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:pointer;padding:4px}
+
+.note{background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sec);margin-bottom:14px;overflow-wrap:anywhere}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar .grp{display:flex;align-items:center;gap:8px}
+.toolbar span.k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:700}
+select,input[type=search]{background:var(--card);border:1px solid var(--border);border-radius:var(--r-btn);padding:10px 12px;font:inherit;font-size:14px;color:var(--ink);min-height:44px}
+input[type=search]{min-width:190px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px}
+.kpi .k{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl);font-weight:700}
+.kpi .v{font-family:Fraunces,serif;font-weight:600;font-size:22px;margin-top:3px}
+.kpi .s{font-size:11px;color:var(--mut);margin-top:1px}
+@media(max-width:640px){.kpis{grid-template-columns:1fr 1fr}}
+
+table.raz{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden}
+.raz th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:var(--vinhoH);font-weight:700;padding:10px 8px;text-align:right;white-space:nowrap}
+.raz th:first-child{text-align:left}
+.raz td{padding:10px 8px;font-size:13px;text-align:right;border-bottom:1px solid var(--fio);white-space:nowrap}
+.raz td:first-child{text-align:left;font-weight:600;white-space:normal}
+.raz tr.item{cursor:pointer}
+.raz tr.item:hover{background:#FCF8F2}
+.raz tr.item td:first-child::before{content:'\25B8';color:var(--lbl);font-weight:700;margin-right:7px;display:inline-block;transition:transform .15s}
+.raz tr.item.open td:first-child::before{transform:rotate(90deg)}
+.pos{color:var(--okFg);font-weight:700}
+.neg{color:var(--urgFg);font-weight:700}
+.zero{color:var(--mut)}
+.saldo{font-weight:800}
+.saldo.warn{color:var(--urgFg)}
+
+/* linha de detalhe (timeline) */
+tr.detail td{padding:0;border-bottom:1px solid var(--fio);background:#FCF9F4}
+.tl{padding:6px 12px 12px}
+.tlrow{display:grid;grid-template-columns:96px 128px 1fr 96px 96px;gap:10px;align-items:center;padding:8px 6px;border-bottom:1px dashed #EADFD2;font-size:12.5px}
+.tlrow:last-child{border-bottom:0}
+.tlrow .d{color:var(--mut);font-weight:600}
+.tlrow .mov{text-align:right;font-weight:700}
+.tlrow .sd{text-align:right;font-weight:800}
+.tlrow .who{color:var(--mut);font-size:11.5px;white-space:normal}
+.chip{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:8px;display:inline-block;white-space:nowrap}
+.chip.cont{background:var(--centralBg);color:var(--centralFg)}
+.chip.prod{background:var(--okBg);color:var(--okFg)}
+.chip.env{background:var(--urgBg);color:var(--urgFg)}
+@media(max-width:640px){
+  .tlrow{grid-template-columns:62px 92px 1fr;grid-auto-rows:auto}
+  .tlrow .mov,.tlrow .sd{grid-column:2/4;text-align:left}
+}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140%);background:#2A1A17;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:.25s}
+#toast.on{transform:translate(-50%,0)}
+.spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--vinho);border-radius:50%;animation:sp .8s linear infinite;margin:60px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{text-align:center;color:var(--mut);padding:40px 10px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <button class="back" id="btnBack" title="Voltar"><i class="ph-duotone ph-caret-left"></i></button>
+    <div>
+      <h1>Razão de Estoque · Central</h1>
+      <div class="sub" id="hSub">Preparados — contagem, produção, envio e saldo por item</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="act" id="btnReload" title="Atualizar"><i class="ph-duotone ph-arrows-clockwise"></i></button>
+  </header>
+
+  <div class="note">A contagem <b>vira o saldo real</b> do dia. A partir dela: <b>produção soma (+)</b>, <b>envio ao Lola/Mac baixa (−)</b>. Toque num item pra ver a linha do tempo do mês. Saldo atual vem direto do banco.</div>
+
+  <div class="toolbar">
+    <div class="grp"><span class="k">Mês</span><select id="mesSel"></select></div>
+    <div class="grp"><span class="k">Buscar</span><input type="search" id="busca" placeholder="nome do preparado…"></div>
+    <div class="grp"><label style="font-size:12px;color:var(--sec);font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="soAtivos" checked style="min-height:auto;width:16px;height:16px"> só com movimento/saldo</label></div>
+  </div>
+
+  <div id="app"><div class="spin"></div></div>
+</div>
+<div id="toast"></div>
+
+<script src="/adm/auth.js"></script>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST={nomes:{}, saldoAtual:{}, itens:[], mes:null, open:{}};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600);}
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function nb(v){ if(v==null||isNaN(v)) return '—'; const n=+v; return (Math.abs(n%1)<1e-9? n.toLocaleString('pt-BR') : n.toLocaleString('pt-BR',{maximumFractionDigits:3})); }
+function ptData(iso){ const d=new Date(iso); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
+async function api(path){ await lolaEnsure(); const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:lolaHeaders()}); if(!r.ok)throw new Error(await r.text()); return r.json(); }
+
+const MESNOME=['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function mesLabel(m){ const [y,mm]=m.split('-'); return MESNOME[+mm]+' '+y; }
+function fillMeses(){
+  const now=new Date(); const opts=[];
+  for(let i=0;i<8;i++){ const d=new Date(now.getFullYear(), now.getMonth()-i, 1); opts.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+  ST.mes=ST.mes||opts[0];
+  $('#mesSel').innerHTML=opts.map(m=>`<option value="${m}" ${m===ST.mes?'selected':''}>${mesLabel(m)}</option>`).join('');
+}
+function mesRange(m){ const [y,mm]=m.split('-').map(Number); const start=`${y}-${String(mm).padStart(2,'0')}-01`;
+  const nx=new Date(y,mm,1); const end=`${nx.getFullYear()}-${String(nx.getMonth()+1).padStart(2,'0')}-01`; return {start,end}; }
+
+function classifica(por){ return /baixa|pedido|envio/i.test(por||'') ? 'env' : 'cont'; }
+
+async function carregar(){
+  $('#app').innerHTML='<div class="spin"></div>';
+  try{
+    const {start,end}=mesRange(ST.mes);
+    const [nomes, saldo, logs, prods] = await Promise.all([
+      api('lola_preproducoes?select=id,nome,cozinha&ativo=eq.true'),
+      api('lola_central_saldo?select=preproducao_id,saldo,unidade'),
+      api(`lola_central_saldo_log?select=preproducao_id,data,saldo_novo,por,criado_em&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00&order=preproducao_id.asc,criado_em.asc`),
+      api(`lola_central_prod_hist?select=preproducao_id,qtd_produzida,data,criado_em&ativo=eq.true&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00`)
+    ]);
+    ST.nomes={}; nomes.forEach(n=>ST.nomes[n.id]=n.nome);
+    ST.saldoAtual={}; saldo.forEach(s=>ST.saldoAtual[s.preproducao_id]={saldo:+s.saldo, un:s.unidade});
+    // eventos por preparado
+    const ev={};
+    logs.forEach(l=>{ (ev[l.preproducao_id]=ev[l.preproducao_id]||[]).push({t:l.criado_em, kind:classifica(l.por), abs:+l.saldo_novo, por:l.por}); });
+    prods.forEach(p=>{ (ev[p.preproducao_id]=ev[p.preproducao_id]||[]).push({t:p.criado_em, kind:'prod', qty:+p.qtd_produzida, por:'Produção'}); });
+    // monta itens
+    const itens=[];
+    Object.keys(ev).forEach(id=>{
+      const lista=ev[id].sort((a,b)=> a.t<b.t?-1:a.t>b.t?1:0);
+      let saldoRun=null, baseCont=null, produzido=0, enviado=0;
+      const linha=[];
+      lista.forEach(e=>{
+        let delta=null;
+        if(e.kind==='prod'){ delta=e.qty; saldoRun=(saldoRun==null?0:saldoRun)+e.qty; produzido+=e.qty; }
+        else { // cont ou env: valor absoluto
+          delta = (saldoRun==null)? null : (e.abs - saldoRun);
+          saldoRun = e.abs;
+          if(e.kind==='cont' && baseCont==null) baseCont=e.abs;
+          if(e.kind==='env' && delta!=null) enviado += Math.max(0,-delta);
+        }
+        linha.push({...e, delta, saldo:saldoRun});
+      });
+      if(baseCont==null) baseCont = linha.length? linha[0].saldo : null;
+      const atual = ST.saldoAtual[id]? ST.saldoAtual[id].saldo : (saldoRun!=null?saldoRun:0);
+      itens.push({id, nome:ST.nomes[id]||'(sem nome)', base:baseCont, produzido, enviado, atual, un:(ST.saldoAtual[id]&&ST.saldoAtual[id].un)||'', linha});
+    });
+    // inclui preparados com saldo atual != 0 mesmo sem evento no mês
+    Object.keys(ST.saldoAtual).forEach(id=>{
+      if(ev[id]) return; const s=ST.saldoAtual[id].saldo; if(!s) return;
+      itens.push({id, nome:ST.nomes[id]||'(sem nome)', base:null, produzido:0, enviado:0, atual:s, un:ST.saldoAtual[id].un||'', linha:[]});
+    });
+    itens.sort((a,b)=> a.nome.localeCompare(b.nome,'pt'));
+    ST.itens=itens;
+    render();
+  }catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
+}
+
+function render(){
+  const q=($('#busca').value||'').trim().toLowerCase();
+  const soAtivos=$('#soAtivos').checked;
+  let lista=ST.itens.filter(it=>{
+    if(q && !it.nome.toLowerCase().includes(q)) return false;
+    if(soAtivos){ const temMov = it.produzido || it.enviado || it.linha.length || Math.abs(it.atual)>1e-9; if(!temMov) return false; }
+    return true;
+  });
+  // KPIs
+  const totProd=lista.reduce((s,i)=>s+i.produzido,0);
+  const totEnv=lista.reduce((s,i)=>s+i.enviado,0);
+  const nNeg=lista.filter(i=>i.atual<-1e-9).length;
+  const kpis=`<div class="kpis">
+    <div class="kpi"><div class="k">Preparados</div><div class="v">${lista.length}</div><div class="s">com movimento/saldo</div></div>
+    <div class="kpi"><div class="k">Produzido no mês</div><div class="v pos">${nb(totProd)}</div><div class="s">total de unidades produzidas</div></div>
+    <div class="kpi"><div class="k">Enviado ao Lola/Mac</div><div class="v neg">${nb(totEnv)}</div><div class="s">baixas por pedido</div></div>
+    <div class="kpi"><div class="k">Saldo negativo</div><div class="v ${nNeg?'neg':'zero'}">${nNeg}</div><div class="s">itens abaixo de zero</div></div>
+  </div>`;
+  if(!lista.length){ $('#app').innerHTML=kpis+'<div class="empty">Nenhum preparado com movimento neste mês.</div>'; wire(); return; }
+  const linhas=lista.map(it=>{
+    const isOpen=ST.open[it.id];
+    const saldoCls = it.atual<-1e-9?'saldo warn':'saldo';
+    let html=`<tr class="item ${isOpen?'open':''}" data-id="${it.id}">
+      <td>${esc(it.nome)}</td>
+      <td>${it.base==null?'<span class=zero>—</span>':nb(it.base)}</td>
+      <td>${it.produzido?('<span class=pos>+'+nb(it.produzido)+'</span>'):'<span class=zero>—</span>'}</td>
+      <td>${it.enviado?('<span class=neg>−'+nb(it.enviado)+'</span>'):'<span class=zero>—</span>'}</td>
+      <td class="${saldoCls}">${nb(it.atual)}</td>
+    </tr>`;
+    if(isOpen){
+      const tl = it.linha.length? it.linha.map(e=>{
+        const chip = e.kind==='prod'?'<span class="chip prod">produção</span>': e.kind==='cont'?'<span class="chip cont">contagem</span>':'<span class="chip env">envio</span>';
+        const mov = e.delta==null?'<span class=zero>base</span>':(e.delta>1e-9?('<span class=pos>+'+nb(e.delta)+'</span>'):(e.delta<-1e-9?('<span class=neg>'+nb(e.delta)+'</span>'):'<span class=zero>0</span>'));
+        return `<div class="tlrow"><span class="d">${ptData(e.t)}</span>${chip}<span class="who">${esc(e.por||'')}</span><span class="mov">${mov}</span><span class="sd">${nb(e.saldo)}</span></div>`;
+      }).join('') : '<div class="tlrow"><span class="who">Sem eventos no mês — saldo atual vindo do banco.</span></div>';
+      html+=`<tr class="detail"><td colspan="5"><div class="tl">${tl}</div></td></tr>`;
+    }
+    return html;
+  }).join('');
+  $('#app').innerHTML=kpis+`<table class="raz">
+    <thead><tr><th>Preparado</th><th>Contagem base</th><th>Produção (+)</th><th>Envio (−)</th><th>Saldo atual</th></tr></thead>
+    <tbody>${linhas}</tbody></table>`;
+  wire();
+}
+function wire(){
+  $$('.raz tr.item').forEach(tr=>tr.onclick=()=>{ const id=tr.dataset.id; ST.open[id]=!ST.open[id]; render(); });
+}
+
+$('#btnBack').onclick=()=>{ location.href='/central/'; };
+$('#btnReload').onclick=()=>carregar();
+$('#mesSel')&&($('#mesSel').onchange=e=>{ST.mes=e.target.value;ST.open={};carregar();});
+$('#busca').oninput=()=>render();
+$('#soAtivos').onchange=()=>render();
+
+(async()=>{
+  try{
+    const sess=await lolaGate({papeis:['admin','financeiro','gerente'], titulo:'Razão de Estoque da Central'});
+    $('#hSub').textContent=`${sess.nome||sess.email} · ${(typeof PAPEL_NOME!=='undefined'&&PAPEL_NOME[sess.papel])||sess.papel}`;
+  }catch(e){ /* lolaGate cuida do bloqueio/login */ }
+  fillMeses();
+  carregar();
+})();
+</script>
+</body>
+</html>
