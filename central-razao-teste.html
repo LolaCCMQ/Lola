@@ -20,7 +20,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{overflow-x:hidden}
 body{background:var(--creme);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1040px;margin:0 auto;padding:0 16px 96px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px 96px}
 header{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:14px}
 header .back{background:none;border:0;color:var(--vinho);font-size:22px;display:flex;align-items:center;cursor:pointer;padding:4px}
 header h1{font-family:Fraunces,serif;font-weight:600;font-size:19px;color:var(--vinho);line-height:1.15}
@@ -29,6 +29,10 @@ header .spacer{flex:1}
 header .act{background:none;border:0;color:var(--sec);font-size:21px;cursor:pointer;padding:4px}
 
 .note{background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sec);margin-bottom:14px;overflow-wrap:anywhere}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tab{font:inherit;font-weight:700;font-size:14px;padding:9px 16px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--sec);cursor:pointer;min-height:44px}
+.tab.is-active{background:var(--vinho);border-color:var(--vinho);color:#fff}
+.alert{font-size:10px;font-weight:800;padding:2px 7px;border-radius:7px;background:var(--pendBg);color:var(--pendFg);margin-left:8px;white-space:nowrap;text-transform:uppercase;letter-spacing:.03em;vertical-align:middle}
 .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .toolbar .grp{display:flex;align-items:center;gap:8px}
 .toolbar span.k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:700}
@@ -42,39 +46,34 @@ input[type=search]{min-width:190px}
 .kpi .s{font-size:11px;color:var(--mut);margin-top:1px}
 @media(max-width:640px){.kpis{grid-template-columns:1fr 1fr}}
 
-table.raz{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden}
+.hint{font-size:11.5px;color:var(--mut);margin:2px 2px 8px}
+.tblwrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-card);-webkit-overflow-scrolling:touch}
+table.raz{width:100%;border-collapse:collapse;background:var(--card)}
 .raz th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:var(--vinhoH);font-weight:700;padding:10px 8px;text-align:right;white-space:nowrap}
 .raz th:first-child{text-align:left}
 .raz td{padding:10px 8px;font-size:13px;text-align:right;border-bottom:1px solid var(--fio);white-space:nowrap}
 .raz td:first-child{text-align:left;font-weight:600;white-space:normal}
 .raz tr.item{cursor:pointer}
 .raz tr.item:hover{background:#FCF8F2}
-.raz tr.item td:first-child::before{content:'\25B8';color:var(--lbl);font-weight:700;margin-right:7px;display:inline-block;transition:transform .15s}
-.raz tr.item.open td:first-child::before{transform:rotate(90deg)}
+.raz tr.item td.nm::before{content:'\25B8';color:var(--lbl);font-weight:700;margin-right:7px;display:inline-block;transition:transform .15s}
+.raz tr.item.open td.nm::before{transform:rotate(90deg)}
 .pos{color:var(--okFg);font-weight:700}
 .neg{color:var(--urgFg);font-weight:700}
 .zero{color:var(--mut)}
 .saldo{font-weight:800}
 .saldo.warn{color:var(--urgFg)}
-
-/* tabela larga (colunas por dia) */
-.hint{font-size:11.5px;color:var(--mut);margin:2px 2px 8px}
-.tblwrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-card);-webkit-overflow-scrolling:touch}
-table.raz.wide{min-width:100%;border:0;border-radius:0}
 .raz.wide th.dc,.raz.wide td.dc{text-align:center;min-width:96px;white-space:nowrap}
 .raz.wide td.dc{font-size:12px;line-height:1.32}
 .raz.wide td.dc .cs{display:block;font-weight:800;margin-top:2px}
 .raz.wide td.dc .cs.zero,.raz.wide td.dc .carry{color:var(--lbl);font-weight:600}
 .raz.wide td.dc .cs.neg{color:var(--urgFg)}
-.raz.wide td.dc .pos,.raz.wide td.dc .neg{font-weight:700}
 .raz.wide .bs{text-align:right;min-width:74px}
 .raz.wide th.at,.raz.wide td.saldo{min-width:82px}
-.raz.wide .nm{position:sticky;left:0;background:var(--card);z-index:2;min-width:176px;box-shadow:1px 0 0 var(--fio)}
+.raz.wide .nm{position:sticky;left:0;background:var(--card);z-index:2;min-width:190px;box-shadow:1px 0 0 var(--fio)}
 .raz.wide th.nm{background:var(--vinhoH);z-index:3}
 .raz.wide tr.item:hover .nm{background:#FCF8F2}
 .raz.wide tr.detail td{position:sticky;left:0}
 
-/* linha de detalhe (timeline) */
 tr.detail td{padding:0;border-bottom:1px solid var(--fio);background:#FCF9F4}
 .tl{padding:6px 12px 12px}
 .tlrow{display:grid;grid-template-columns:96px 128px 1fr 96px 96px;gap:10px;align-items:center;padding:8px 6px;border-bottom:1px dashed #EADFD2;font-size:12.5px}
@@ -87,10 +86,7 @@ tr.detail td{padding:0;border-bottom:1px solid var(--fio);background:#FCF9F4}
 .chip.cont{background:var(--centralBg);color:var(--centralFg)}
 .chip.prod{background:var(--okBg);color:var(--okFg)}
 .chip.env{background:var(--urgBg);color:var(--urgFg)}
-@media(max-width:640px){
-  .tlrow{grid-template-columns:62px 92px 1fr;grid-auto-rows:auto}
-  .tlrow .mov,.tlrow .sd{grid-column:2/4;text-align:left}
-}
+@media(max-width:640px){ .tlrow{grid-template-columns:62px 92px 1fr;grid-auto-rows:auto} .tlrow .mov,.tlrow .sd{grid-column:2/4;text-align:left} }
 
 #toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140%);background:#2A1A17;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:.25s}
 #toast.on{transform:translate(-50%,0)}
@@ -105,18 +101,23 @@ tr.detail td{padding:0;border-bottom:1px solid var(--fio);background:#FCF9F4}
     <button class="back" id="btnBack" title="Voltar"><i class="ph-duotone ph-caret-left"></i></button>
     <div>
       <h1>Razão de Estoque · Central</h1>
-      <div class="sub" id="hSub">Preparados — contagem, produção, envio e saldo por item</div>
+      <div class="sub" id="hSub">Produções e insumos — contagem, entrada, saída e saldo por item</div>
     </div>
     <div class="spacer"></div>
     <button class="act" id="btnReload" title="Atualizar"><i class="ph-duotone ph-arrows-clockwise"></i></button>
   </header>
 
-  <div class="note">A contagem <b>vira o saldo real</b> do dia. A partir dela: <b>produção soma (+)</b>, <b>envio ao Lola/Mac baixa (−)</b>. Toque num item pra ver a linha do tempo do mês. Saldo atual vem direto do banco.</div>
+  <div class="note">A contagem <b>vira o saldo real</b> do dia. A partir dela: <b>entra (+)</b> produção/nota, <b>sai (−)</b> envio/baixa. Toque num item pra ver quem fez cada movimento. Saldo atual vem direto do banco. Itens <b>sem contagem no mês</b> ficam marcados como alerta.</div>
+
+  <div class="tabs">
+    <button class="tab is-active" data-aba="prod">Produções</button>
+    <button class="tab" data-aba="ins">Insumos</button>
+  </div>
 
   <div class="toolbar">
     <div class="grp"><span class="k">Mês</span><select id="mesSel"></select></div>
-    <div class="grp"><span class="k">Buscar</span><input type="search" id="busca" placeholder="nome do preparado…"></div>
-    <div class="grp"><label style="font-size:12px;color:var(--sec);font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="soAtivos" checked style="min-height:auto;width:16px;height:16px"> só com movimento/saldo</label></div>
+    <div class="grp"><span class="k">Buscar</span><input type="search" id="busca" placeholder="nome do item…"></div>
+    <div class="grp"><label style="font-size:12px;color:var(--sec);font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="soAtivos" style="min-height:auto;width:16px;height:16px"> só com movimento/saldo</label></div>
   </div>
 
   <div id="app"><div class="spin"></div></div>
@@ -126,8 +127,7 @@ tr.detail td{padding:0;border-bottom:1px solid var(--fio);background:#FCF9F4}
 <script src="/adm/auth.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const ST={nomes:{}, saldoAtual:{}, itens:[], mes:null, open:{}};
-function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600);}
+const ST={aba:'prod', mes:null, open:{}, itens:[], days:[], baseLabel:'Contagem base'};
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function nb(v){ if(v==null||isNaN(v)) return '—'; const n=+v; return (Math.abs(n%1)<1e-9? n.toLocaleString('pt-BR') : n.toLocaleString('pt-BR',{maximumFractionDigits:3})); }
 function ptData(iso){ const d=new Date(iso); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -143,70 +143,97 @@ function fillMeses(){
 }
 function mesRange(m){ const [y,mm]=m.split('-').map(Number); const start=`${y}-${String(mm).padStart(2,'0')}-01`;
   const nx=new Date(y,mm,1); const end=`${nx.getFullYear()}-${String(nx.getMonth()+1).padStart(2,'0')}-01`; return {start,end}; }
-
 function classifica(por){ return /baixa|pedido|envio/i.test(por||'') ? 'env' : 'cont'; }
+function rotuloMov(m){ const o=(m.origem_tipo||m.tipo||'').toLowerCase();
+  const map={contagem:'Contagem',producao:'Produção (baixa)',nota:'Entrada (nota)',entrada:'Entrada',envio:'Envio ao Lola/Mac',perda:'Perda',compra:'Compra',ajuste:'Ajuste',correcao:'Correção'};
+  return map[o]||o||(m.tipo||'movimento'); }
+
+function finalize(itens, daysSet, baseLabel){
+  ST.days=[...daysSet].sort();
+  itens.forEach(it=>{ let carry=it.base; it.cols=ST.days.map(dk=>{ const d=it.dias[dk];
+    if(d){ carry=d.saldo; return {plus:d.plus,minus:d.minus,contagem:d.contagem,saldo:d.saldo,has:true}; }
+    return {plus:0,minus:0,contagem:false,saldo:carry,has:false}; }); });
+  itens.sort((a,b)=> a.nome.localeCompare(b.nome,'pt'));
+  ST.itens=itens; ST.baseLabel=baseLabel;
+}
+
+async function carregarProducoes(){
+  const {start,end}=mesRange(ST.mes);
+  const [preps, saldo, logs, prods] = await Promise.all([
+    api('lola_preproducoes?select=id,nome,cozinha,ativo'),
+    api('lola_central_saldo?select=preproducao_id,saldo,unidade'),
+    api(`lola_central_saldo_log?select=preproducao_id,saldo_novo,por,criado_em&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00&order=preproducao_id.asc,criado_em.asc`),
+    api(`lola_central_prod_hist?select=preproducao_id,qtd_produzida,criado_em&ativo=eq.true&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00`)
+  ]);
+  const nomes={},coz={},ativo={}; preps.forEach(p=>{nomes[p.id]=p.nome;coz[p.id]=(p.cozinha||'').toLowerCase();ativo[p.id]=p.ativo;});
+  const at={}; saldo.forEach(s=>at[s.preproducao_id]={saldo:+s.saldo,un:s.unidade});
+  const ev={};
+  logs.forEach(l=>{(ev[l.preproducao_id]=ev[l.preproducao_id]||[]).push({t:l.criado_em,kind:classifica(l.por),abs:+l.saldo_novo,por:l.por});});
+  prods.forEach(p=>{(ev[p.preproducao_id]=ev[p.preproducao_id]||[]).push({t:p.criado_em,kind:'prod',qty:+p.qtd_produzida,por:'Produção'});});
+  const ids=new Set();
+  Object.keys(nomes).forEach(id=>{ if(ativo[id] && coz[id]==='central') ids.add(id); });
+  Object.keys(ev).forEach(id=>ids.add(id));
+  Object.keys(at).forEach(id=>{ if(Math.abs(at[id].saldo)>1e-9) ids.add(id); });
+  const daysSet=new Set(); const itens=[];
+  ids.forEach(id=>{
+    let lista=(ev[id]||[]).sort((a,b)=> a.t<b.t?-1:a.t>b.t?1:0);
+    const fi=lista.findIndex(e=>e.kind==='cont'); if(fi>0) lista=lista.slice(fi);
+    let saldoRun=null, baseCont=null, temCont=false; const dias={}; const linha=[];
+    lista.forEach((e,ix)=>{
+      let delta=null;
+      if(e.kind==='prod'){ delta=e.qty; saldoRun=(saldoRun==null?0:saldoRun)+e.qty; }
+      else { delta=(saldoRun==null)?null:(e.abs-saldoRun); saldoRun=e.abs;
+        if(e.kind==='cont'){ temCont=true; if(baseCont==null) baseCont=e.abs; } }
+      linha.push({t:e.t,kind:e.kind,delta,saldo:saldoRun,por:e.por});
+      if(ix>0){ const dk=(e.t||'').slice(0,10); daysSet.add(dk);
+        const d=dias[dk]||(dias[dk]={plus:0,minus:0,contagem:false,saldo:saldoRun});
+        if(e.kind==='cont') d.contagem=true; else if(delta>0) d.plus+=delta; else if(delta<0) d.minus+=delta;
+        d.saldo=saldoRun; }
+    });
+    const atual = at[id]? at[id].saldo : (saldoRun!=null?saldoRun:0);
+    if(baseCont==null) baseCont = linha.length? linha[0].saldo : atual;
+    itens.push({id,nome:nomes[id]||'(sem nome)',base:baseCont,atual,semContagem:!temCont,linha,dias,un:(at[id]&&at[id].un)||''});
+  });
+  finalize(itens,daysSet,'Contagem base');
+}
+
+async function carregarInsumos(){
+  const {start,end}=mesRange(ST.mes);
+  const [saldos, movs] = await Promise.all([
+    api('lola_v_central_insumo_saldo?select=insumo_id,nome,unidade,saldo'),
+    api(`lola_central_estoque_mov?select=insumo_id,tipo,origem_tipo,qtd,criado_em&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00&order=insumo_id.asc,criado_em.asc`)
+  ]);
+  const nomes={},un={},at={}; saldos.forEach(s=>{nomes[s.insumo_id]=s.nome;un[s.insumo_id]=s.unidade;at[s.insumo_id]=+s.saldo;});
+  const byIns={}; movs.forEach(m=>{(byIns[m.insumo_id]=byIns[m.insumo_id]||[]).push(m);});
+  const ids=new Set();
+  Object.keys(at).forEach(id=>{ if(Math.abs(at[id])>1e-9) ids.add(id); });
+  Object.keys(byIns).forEach(id=>ids.add(id));
+  const daysSet=new Set(); const itens=[];
+  ids.forEach(id=>{
+    const list=(byIns[id]||[]);
+    const somaMes=list.reduce((s,m)=>s+(+m.qtd||0),0);
+    const atual = at[id]!=null? at[id] : somaMes;
+    const base = atual - somaMes;
+    let saldoRun=base, temCont=false; const dias={}; const linha=[];
+    list.forEach(m=>{
+      const q=+m.qtd||0; const dk=(m.criado_em||'').slice(0,10); daysSet.add(dk);
+      const isCont=(m.origem_tipo||'').toLowerCase()==='contagem';
+      if(isCont) temCont=true;
+      saldoRun+=q;
+      const d=dias[dk]||(dias[dk]={plus:0,minus:0,contagem:false,saldo:saldoRun});
+      if(isCont) d.contagem=true; else if(q>0) d.plus+=q; else if(q<0) d.minus+=q;
+      d.saldo=saldoRun;
+      linha.push({t:m.criado_em,kind:isCont?'cont':(q>=0?'prod':'env'),delta:q,saldo:saldoRun,por:rotuloMov(m)});
+    });
+    itens.push({id,nome:nomes[id]||'(insumo)',base,atual,semContagem:!temCont,linha,dias,un:un[id]||''});
+  });
+  finalize(itens,daysSet,'Saldo início');
+}
 
 async function carregar(){
   $('#app').innerHTML='<div class="spin"></div>';
-  try{
-    const {start,end}=mesRange(ST.mes);
-    const [nomes, saldo, logs, prods] = await Promise.all([
-      api('lola_preproducoes?select=id,nome'),
-      api('lola_central_saldo?select=preproducao_id,saldo,unidade'),
-      api(`lola_central_saldo_log?select=preproducao_id,data,saldo_novo,por,criado_em&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00&order=preproducao_id.asc,criado_em.asc`),
-      api(`lola_central_prod_hist?select=preproducao_id,qtd_produzida,data,criado_em&ativo=eq.true&criado_em=gte.${start}T00:00:00&criado_em=lt.${end}T00:00:00`)
-    ]);
-    ST.nomes={}; nomes.forEach(n=>ST.nomes[n.id]=n.nome);
-    ST.saldoAtual={}; saldo.forEach(s=>ST.saldoAtual[s.preproducao_id]={saldo:+s.saldo, un:s.unidade});
-    // eventos por preparado
-    const ev={};
-    logs.forEach(l=>{ (ev[l.preproducao_id]=ev[l.preproducao_id]||[]).push({t:l.criado_em, kind:classifica(l.por), abs:+l.saldo_novo, por:l.por}); });
-    prods.forEach(p=>{ (ev[p.preproducao_id]=ev[p.preproducao_id]||[]).push({t:p.criado_em, kind:'prod', qty:+p.qtd_produzida, por:'Produção'}); });
-    // monta itens
-    const itens=[]; const daysSet=new Set();
-    Object.keys(ev).forEach(id=>{
-      let lista=ev[id].sort((a,b)=> a.t<b.t?-1:a.t>b.t?1:0);
-      // ancora na 1ª contagem do mês (a contagem vira o marco zero); descarta o pré-contagem
-      const fi=lista.findIndex(e=>e.kind==='cont');
-      if(fi>0) lista=lista.slice(fi);
-      let saldoRun=null, baseCont=null, produzido=0, enviado=0;
-      const linha=[]; const dias={};
-      lista.forEach((e,ix)=>{
-        let delta=null;
-        if(e.kind==='prod'){ delta=e.qty; saldoRun=(saldoRun==null?0:saldoRun)+e.qty; produzido+=e.qty; }
-        else { // cont ou env: valor absoluto
-          delta = (saldoRun==null)? null : (e.abs - saldoRun);
-          saldoRun = e.abs;
-          if(e.kind==='cont' && baseCont==null) baseCont=e.abs;
-          if(e.kind==='env' && delta!=null) enviado += Math.max(0,-delta);
-        }
-        linha.push({...e, delta, saldo:saldoRun});
-        if(ix>0){ const dk=(e.t||'').slice(0,10); daysSet.add(dk);
-          const d=dias[dk]||(dias[dk]={prod:0,env:0,cont:0,saldo:saldoRun});
-          if(e.kind==='prod') d.prod+=e.qty;
-          else if(e.kind==='env'&&delta!=null) d.env+=delta;
-          else if(e.kind==='cont'&&delta!=null) d.cont+=delta;
-          d.saldo=saldoRun;
-        }
-      });
-      if(baseCont==null) baseCont = linha.length? linha[0].saldo : null;
-      const atual = ST.saldoAtual[id]? ST.saldoAtual[id].saldo : (saldoRun!=null?saldoRun:0);
-      itens.push({id, nome:ST.nomes[id]||'(sem nome)', base:baseCont, produzido, enviado, atual, un:(ST.saldoAtual[id]&&ST.saldoAtual[id].un)||'', linha, dias});
-    });
-    // inclui preparados com saldo atual != 0 mesmo sem evento no mês
-    Object.keys(ST.saldoAtual).forEach(id=>{
-      if(ev[id]) return; const s=ST.saldoAtual[id].saldo; if(!s) return;
-      itens.push({id, nome:ST.nomes[id]||'(sem nome)', base:null, produzido:0, enviado:0, atual:s, un:ST.saldoAtual[id].un||'', linha:[], dias:{}});
-    });
-    ST.days=[...daysSet].sort();
-    // cols alinhadas por dia — saldo "carrega" quando não houve evento no dia
-    itens.forEach(it=>{ let carry=it.base; it.cols=ST.days.map(dk=>{ const d=it.dias[dk];
-      if(d){ carry=d.saldo; return {prod:d.prod,env:d.env,cont:d.cont,saldo:d.saldo,has:true}; }
-      return {prod:0,env:0,cont:0,saldo:carry,has:false}; }); });
-    itens.sort((a,b)=> a.nome.localeCompare(b.nome,'pt'));
-    ST.itens=itens;
-    render();
-  }catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
+  try{ if(ST.aba==='ins') await carregarInsumos(); else await carregarProducoes(); render(); }
+  catch(e){ $('#app').innerHTML=`<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar: ${esc(e.message)}</div>`; }
 }
 
 function render(){
@@ -214,29 +241,31 @@ function render(){
   const soAtivos=$('#soAtivos').checked;
   let lista=ST.itens.filter(it=>{
     if(q && !it.nome.toLowerCase().includes(q)) return false;
-    if(soAtivos){ const temMov = it.produzido || it.enviado || it.linha.length || Math.abs(it.atual)>1e-9; if(!temMov) return false; }
+    if(soAtivos){ const temMov = it.linha.length || Math.abs(it.atual)>1e-9; if(!temMov) return false; }
     return true;
   });
-  // KPIs
-  const totProd=lista.reduce((s,i)=>s+i.produzido,0);
-  const totEnv=lista.reduce((s,i)=>s+i.enviado,0);
+  const totIn=lista.reduce((s,i)=>s+i.linha.filter(e=>e.kind==='prod').reduce((a,e)=>a+Math.max(0,e.delta||0),0),0);
+  const totOut=lista.reduce((s,i)=>s+i.linha.filter(e=>e.kind==='env').reduce((a,e)=>a+Math.max(0,-(e.delta||0)),0),0);
   const nNeg=lista.filter(i=>i.atual<-1e-9).length;
+  const nSemC=lista.filter(i=>i.semContagem).length;
+  const inLbl=ST.aba==='ins'?'Entradas no mês':'Produzido no mês';
+  const outLbl=ST.aba==='ins'?'Saídas no mês':'Enviado ao Lola/Mac';
   const kpis=`<div class="kpis">
-    <div class="kpi"><div class="k">Preparados</div><div class="v">${lista.length}</div><div class="s">com movimento/saldo</div></div>
-    <div class="kpi"><div class="k">Produzido no mês</div><div class="v pos">${nb(Math.round(totProd))}</div><div class="s">total produzido (un/kg somados)</div></div>
-    <div class="kpi"><div class="k">Enviado ao Lola/Mac</div><div class="v neg">${nb(Math.round(totEnv))}</div><div class="s">baixas por pedido</div></div>
-    <div class="kpi"><div class="k">Saldo negativo</div><div class="v ${nNeg?'neg':'zero'}">${nNeg}</div><div class="s">itens abaixo de zero</div></div>
+    <div class="kpi"><div class="k">${ST.aba==='ins'?'Insumos':'Preparados'}</div><div class="v">${lista.length}</div><div class="s">na lista</div></div>
+    <div class="kpi"><div class="k">${inLbl}</div><div class="v pos">${nb(Math.round(totIn))}</div><div class="s">total que entrou</div></div>
+    <div class="kpi"><div class="k">${outLbl}</div><div class="v neg">${nb(Math.round(totOut))}</div><div class="s">total que saiu</div></div>
+    <div class="kpi"><div class="k">Sem contagem</div><div class="v ${nSemC?'':'zero'}" style="${nSemC?'color:var(--pendFg)':''}">${nSemC}</div><div class="s">itens não contados no mês</div></div>
   </div>`;
-  if(!lista.length){ $('#app').innerHTML=kpis+'<div class="empty">Nenhum preparado com movimento neste mês.</div>'; return; }
+  if(!lista.length){ $('#app').innerHTML=kpis+'<div class="empty">Nada pra mostrar neste mês.</div>'; return; }
   const days=ST.days||[];
   const dLabel=dk=>{ const p=dk.split('-'); return p[2]+'/'+p[1]; };
   const dayHead=days.map(dk=>`<th class="dc">${dLabel(dk)}</th>`).join('');
   function cell(c){
     if(!c) return '<td class="dc"><span class="carry">·</span><span class="cs zero">—</span></td>';
     let mv='';
-    if(c.prod>1e-9) mv+=`<span class="pos">+${nb(c.prod)}</span>`;
-    if(c.env<-1e-9) mv+=`${mv?'<br>':''}<span class="neg">${nb(c.env)}</span>`;
-    if(!(c.prod>1e-9||c.env<-1e-9) && c.cont && Math.abs(c.cont)>1e-9) mv+=`<span class="chip cont" style="padding:1px 6px">contagem</span>`;
+    if(c.plus>1e-9) mv+=`<span class="pos">+${nb(c.plus)}</span>`;
+    if(c.minus<-1e-9) mv+=`${mv?'<br>':''}<span class="neg">${nb(c.minus)}</span>`;
+    if(!(c.plus>1e-9||c.minus<-1e-9) && c.contagem) mv+=`<span class="chip cont" style="padding:1px 6px">contagem</span>`;
     if(!c.has) mv='<span class="carry">·</span>';
     const scls = c.saldo<-1e-9?'cs neg':'cs';
     return `<td class="dc">${mv||'<span class="carry">·</span>'}<span class="${scls}">${nb(c.saldo)}</span></td>`;
@@ -245,14 +274,15 @@ function render(){
     const isOpen=ST.open[it.id];
     const cells=(it.cols||days.map(()=>null)).map(cell).join('');
     const atualCls=it.atual<-1e-9?'saldo warn':'saldo';
+    const badge=it.semContagem?'<span class="alert">sem contagem</span>':'';
     let html=`<tr class="item ${isOpen?'open':''}" data-id="${it.id}">
-      <td class="nm">${esc(it.nome)}</td>
+      <td class="nm">${esc(it.nome)}${badge}</td>
       <td class="bs">${it.base==null?'<span class=zero>—</span>':nb(it.base)}</td>
       ${cells}
       <td class="${atualCls}">${nb(it.atual)}</td></tr>`;
     if(isOpen){
       const tl = it.linha.length? it.linha.map(e=>{
-        const chip = e.kind==='prod'?'<span class="chip prod">produção</span>': e.kind==='cont'?'<span class="chip cont">contagem</span>':'<span class="chip env">envio</span>';
+        const chip = e.kind==='cont'?'<span class="chip cont">contagem</span>': (e.delta>=0?'<span class="chip prod">entrada</span>':'<span class="chip env">saída</span>');
         const mov = e.delta==null?'<span class=zero>base</span>':(e.delta>1e-9?('<span class=pos>+'+nb(e.delta)+'</span>'):(e.delta<-1e-9?('<span class=neg>'+nb(e.delta)+'</span>'):'<span class=zero>0</span>'));
         return `<div class="tlrow"><span class="d">${ptData(e.t)}</span>${chip}<span class="who">${esc(e.por||'')}</span><span class="mov">${mov}</span><span class="sd">${nb(e.saldo)}</span></div>`;
       }).join('') : '<div class="tlrow"><span class="who">Sem eventos no mês — saldo atual vindo do banco.</span></div>';
@@ -261,16 +291,16 @@ function render(){
     return html;
   }).join('');
   $('#app').innerHTML=kpis
-    +`<div class="hint">Cada dia mostra <b>o que entrou/saiu em cima</b> e o <b>saldo do dia embaixo</b>. Toque num preparado pra ver quem fez cada movimento.</div>`
+    +`<div class="hint">Cada dia mostra <b>o que entrou/saiu em cima</b> e o <b>saldo do dia embaixo</b>. Toque num item pra ver quem fez cada movimento. <span class="alert">sem contagem</span> = não foi contado neste mês.</div>`
     +`<div class="tblwrap"><table class="raz wide">
-      <thead><tr><th class="nm">Preparado</th><th class="bs">Contagem<br>base</th>${dayHead}<th class="at">Saldo<br>atual</th></tr></thead>
+      <thead><tr><th class="nm">${ST.aba==='ins'?'Insumo':'Preparado'}</th><th class="bs">${ST.baseLabel}</th>${dayHead}<th class="at">Saldo<br>atual</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   wire();
 }
-function wire(){
-  $$('.raz tr.item').forEach(tr=>tr.onclick=()=>{ const id=tr.dataset.id; ST.open[id]=!ST.open[id]; render(); });
-}
+function wire(){ $$('.raz tr.item').forEach(tr=>tr.onclick=()=>{ const id=tr.dataset.id; ST.open[id]=!ST.open[id]; render(); }); }
 
+$$('.tab').forEach(b=>b.onclick=()=>{ if(b.dataset.aba===ST.aba)return; ST.aba=b.dataset.aba; ST.open={};
+  $$('.tab').forEach(x=>x.classList.toggle('is-active', x===b)); carregar(); });
 $('#btnBack').onclick=()=>{ location.href='/central/'; };
 $('#btnReload').onclick=()=>carregar();
 $('#mesSel')&&($('#mesSel').onchange=e=>{ST.mes=e.target.value;ST.open={};carregar();});
@@ -281,7 +311,7 @@ $('#soAtivos').onchange=()=>render();
   try{
     const sess=await lolaGate({papeis:['admin','financeiro','gerente'], titulo:'Razão de Estoque da Central'});
     $('#hSub').textContent=`${sess.nome||sess.email} · ${(typeof PAPEL_NOME!=='undefined'&&PAPEL_NOME[sess.papel])||sess.papel}`;
-  }catch(e){ /* lolaGate cuida do bloqueio/login */ }
+  }catch(e){}
   fillMeses();
   carregar();
 })();
