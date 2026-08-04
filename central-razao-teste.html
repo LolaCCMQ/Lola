@@ -57,6 +57,23 @@ table.raz{width:100%;border-collapse:collapse;background:var(--card);border:1px 
 .saldo{font-weight:800}
 .saldo.warn{color:var(--urgFg)}
 
+/* tabela larga (colunas por dia) */
+.hint{font-size:11.5px;color:var(--mut);margin:2px 2px 8px}
+.tblwrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-card);-webkit-overflow-scrolling:touch}
+table.raz.wide{min-width:100%;border:0;border-radius:0}
+.raz.wide th.dc,.raz.wide td.dc{text-align:center;min-width:96px;white-space:nowrap}
+.raz.wide td.dc{font-size:12px;line-height:1.32}
+.raz.wide td.dc .cs{display:block;font-weight:800;margin-top:2px}
+.raz.wide td.dc .cs.zero,.raz.wide td.dc .carry{color:var(--lbl);font-weight:600}
+.raz.wide td.dc .cs.neg{color:var(--urgFg)}
+.raz.wide td.dc .pos,.raz.wide td.dc .neg{font-weight:700}
+.raz.wide .bs{text-align:right;min-width:74px}
+.raz.wide th.at,.raz.wide td.saldo{min-width:82px}
+.raz.wide .nm{position:sticky;left:0;background:var(--card);z-index:2;min-width:176px;box-shadow:1px 0 0 var(--fio)}
+.raz.wide th.nm{background:var(--vinhoH);z-index:3}
+.raz.wide tr.item:hover .nm{background:#FCF8F2}
+.raz.wide tr.detail td{position:sticky;left:0}
+
 /* linha de detalhe (timeline) */
 tr.detail td{padding:0;border-bottom:1px solid var(--fio);background:#FCF9F4}
 .tl{padding:6px 12px 12px}
@@ -146,15 +163,15 @@ async function carregar(){
     logs.forEach(l=>{ (ev[l.preproducao_id]=ev[l.preproducao_id]||[]).push({t:l.criado_em, kind:classifica(l.por), abs:+l.saldo_novo, por:l.por}); });
     prods.forEach(p=>{ (ev[p.preproducao_id]=ev[p.preproducao_id]||[]).push({t:p.criado_em, kind:'prod', qty:+p.qtd_produzida, por:'Produção'}); });
     // monta itens
-    const itens=[];
+    const itens=[]; const daysSet=new Set();
     Object.keys(ev).forEach(id=>{
       let lista=ev[id].sort((a,b)=> a.t<b.t?-1:a.t>b.t?1:0);
       // ancora na 1ª contagem do mês (a contagem vira o marco zero); descarta o pré-contagem
       const fi=lista.findIndex(e=>e.kind==='cont');
       if(fi>0) lista=lista.slice(fi);
       let saldoRun=null, baseCont=null, produzido=0, enviado=0;
-      const linha=[];
-      lista.forEach(e=>{
+      const linha=[]; const dias={};
+      lista.forEach((e,ix)=>{
         let delta=null;
         if(e.kind==='prod'){ delta=e.qty; saldoRun=(saldoRun==null?0:saldoRun)+e.qty; produzido+=e.qty; }
         else { // cont ou env: valor absoluto
@@ -164,16 +181,28 @@ async function carregar(){
           if(e.kind==='env' && delta!=null) enviado += Math.max(0,-delta);
         }
         linha.push({...e, delta, saldo:saldoRun});
+        if(ix>0){ const dk=(e.t||'').slice(0,10); daysSet.add(dk);
+          const d=dias[dk]||(dias[dk]={prod:0,env:0,cont:0,saldo:saldoRun});
+          if(e.kind==='prod') d.prod+=e.qty;
+          else if(e.kind==='env'&&delta!=null) d.env+=delta;
+          else if(e.kind==='cont'&&delta!=null) d.cont+=delta;
+          d.saldo=saldoRun;
+        }
       });
       if(baseCont==null) baseCont = linha.length? linha[0].saldo : null;
       const atual = ST.saldoAtual[id]? ST.saldoAtual[id].saldo : (saldoRun!=null?saldoRun:0);
-      itens.push({id, nome:ST.nomes[id]||'(sem nome)', base:baseCont, produzido, enviado, atual, un:(ST.saldoAtual[id]&&ST.saldoAtual[id].un)||'', linha});
+      itens.push({id, nome:ST.nomes[id]||'(sem nome)', base:baseCont, produzido, enviado, atual, un:(ST.saldoAtual[id]&&ST.saldoAtual[id].un)||'', linha, dias});
     });
     // inclui preparados com saldo atual != 0 mesmo sem evento no mês
     Object.keys(ST.saldoAtual).forEach(id=>{
       if(ev[id]) return; const s=ST.saldoAtual[id].saldo; if(!s) return;
-      itens.push({id, nome:ST.nomes[id]||'(sem nome)', base:null, produzido:0, enviado:0, atual:s, un:ST.saldoAtual[id].un||'', linha:[]});
+      itens.push({id, nome:ST.nomes[id]||'(sem nome)', base:null, produzido:0, enviado:0, atual:s, un:ST.saldoAtual[id].un||'', linha:[], dias:{}});
     });
+    ST.days=[...daysSet].sort();
+    // cols alinhadas por dia — saldo "carrega" quando não houve evento no dia
+    itens.forEach(it=>{ let carry=it.base; it.cols=ST.days.map(dk=>{ const d=it.dias[dk];
+      if(d){ carry=d.saldo; return {prod:d.prod,env:d.env,cont:d.cont,saldo:d.saldo,has:true}; }
+      return {prod:0,env:0,cont:0,saldo:carry,has:false}; }); });
     itens.sort((a,b)=> a.nome.localeCompare(b.nome,'pt'));
     ST.itens=itens;
     render();
@@ -198,30 +227,44 @@ function render(){
     <div class="kpi"><div class="k">Enviado ao Lola/Mac</div><div class="v neg">${nb(Math.round(totEnv))}</div><div class="s">baixas por pedido</div></div>
     <div class="kpi"><div class="k">Saldo negativo</div><div class="v ${nNeg?'neg':'zero'}">${nNeg}</div><div class="s">itens abaixo de zero</div></div>
   </div>`;
-  if(!lista.length){ $('#app').innerHTML=kpis+'<div class="empty">Nenhum preparado com movimento neste mês.</div>'; wire(); return; }
-  const linhas=lista.map(it=>{
+  if(!lista.length){ $('#app').innerHTML=kpis+'<div class="empty">Nenhum preparado com movimento neste mês.</div>'; return; }
+  const days=ST.days||[];
+  const dLabel=dk=>{ const p=dk.split('-'); return p[2]+'/'+p[1]; };
+  const dayHead=days.map(dk=>`<th class="dc">${dLabel(dk)}</th>`).join('');
+  function cell(c){
+    if(!c) return '<td class="dc"><span class="carry">·</span><span class="cs zero">—</span></td>';
+    let mv='';
+    if(c.prod>1e-9) mv+=`<span class="pos">+${nb(c.prod)}</span>`;
+    if(c.env<-1e-9) mv+=`${mv?'<br>':''}<span class="neg">${nb(c.env)}</span>`;
+    if(!(c.prod>1e-9||c.env<-1e-9) && c.cont && Math.abs(c.cont)>1e-9) mv+=`<span class="chip cont" style="padding:1px 6px">contagem</span>`;
+    if(!c.has) mv='<span class="carry">·</span>';
+    const scls = c.saldo<-1e-9?'cs neg':'cs';
+    return `<td class="dc">${mv||'<span class="carry">·</span>'}<span class="${scls}">${nb(c.saldo)}</span></td>`;
+  }
+  const rows=lista.map(it=>{
     const isOpen=ST.open[it.id];
-    const saldoCls = it.atual<-1e-9?'saldo warn':'saldo';
+    const cells=(it.cols||days.map(()=>null)).map(cell).join('');
+    const atualCls=it.atual<-1e-9?'saldo warn':'saldo';
     let html=`<tr class="item ${isOpen?'open':''}" data-id="${it.id}">
-      <td>${esc(it.nome)}</td>
-      <td>${it.base==null?'<span class=zero>—</span>':nb(it.base)}</td>
-      <td>${it.produzido?('<span class=pos>+'+nb(it.produzido)+'</span>'):'<span class=zero>—</span>'}</td>
-      <td>${it.enviado?('<span class=neg>−'+nb(it.enviado)+'</span>'):'<span class=zero>—</span>'}</td>
-      <td class="${saldoCls}">${nb(it.atual)}</td>
-    </tr>`;
+      <td class="nm">${esc(it.nome)}</td>
+      <td class="bs">${it.base==null?'<span class=zero>—</span>':nb(it.base)}</td>
+      ${cells}
+      <td class="${atualCls}">${nb(it.atual)}</td></tr>`;
     if(isOpen){
       const tl = it.linha.length? it.linha.map(e=>{
         const chip = e.kind==='prod'?'<span class="chip prod">produção</span>': e.kind==='cont'?'<span class="chip cont">contagem</span>':'<span class="chip env">envio</span>';
         const mov = e.delta==null?'<span class=zero>base</span>':(e.delta>1e-9?('<span class=pos>+'+nb(e.delta)+'</span>'):(e.delta<-1e-9?('<span class=neg>'+nb(e.delta)+'</span>'):'<span class=zero>0</span>'));
         return `<div class="tlrow"><span class="d">${ptData(e.t)}</span>${chip}<span class="who">${esc(e.por||'')}</span><span class="mov">${mov}</span><span class="sd">${nb(e.saldo)}</span></div>`;
       }).join('') : '<div class="tlrow"><span class="who">Sem eventos no mês — saldo atual vindo do banco.</span></div>';
-      html+=`<tr class="detail"><td colspan="5"><div class="tl">${tl}</div></td></tr>`;
+      html+=`<tr class="detail"><td colspan="${days.length+3}"><div class="tl">${tl}</div></td></tr>`;
     }
     return html;
   }).join('');
-  $('#app').innerHTML=kpis+`<table class="raz">
-    <thead><tr><th>Preparado</th><th>Contagem base</th><th>Produção (+)</th><th>Envio (−)</th><th>Saldo atual</th></tr></thead>
-    <tbody>${linhas}</tbody></table>`;
+  $('#app').innerHTML=kpis
+    +`<div class="hint">Cada dia mostra <b>o que entrou/saiu em cima</b> e o <b>saldo do dia embaixo</b>. Toque num preparado pra ver quem fez cada movimento.</div>`
+    +`<div class="tblwrap"><table class="raz wide">
+      <thead><tr><th class="nm">Preparado</th><th class="bs">Contagem<br>base</th>${dayHead}<th class="at">Saldo<br>atual</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
   wire();
 }
 function wire(){
