@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escala · Cozinha Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --azul:#2C5AA0; --azulH:#1F4076; --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --okBg:#E6F3EA; --okFg:#2C7A4B; --pendBg:#FBF0DD; --pendFg:#9A6B1E; --urgBg:#FBEAE7; --urgFg:#B5302E;
+  --azulBg:#EAF1FA;
+  --r-pill:9px; --r-btn:13px; --r-card:15px;
+  --shadow:0 1px 2px rgba(42,26,23,.04), 0 8px 24px rgba(42,26,23,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:'Manrope',system-ui,sans-serif; background:var(--creme); color:var(--ink);
+  -webkit-font-smoothing:antialiased; letter-spacing:.01em;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:18px 20px 90px}
+h1,h2,h3{font-family:'Fraunces',serif; font-weight:600; margin:0}
+button{font-family:inherit; cursor:pointer}
+.hidden{display:none !important}
+
+.topbar{display:flex; align-items:center; gap:12px; margin-bottom:18px}
+.back{display:inline-flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--border);
+  border-radius:var(--r-btn); padding:8px 14px; font-weight:700; font-size:13px; color:var(--sec); text-decoration:none}
+.back:hover{background:var(--cremeDark)}
+.crumb{font-weight:700; font-size:14px; color:var(--mut)}
+.sync{margin-left:auto; display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--mut)}
+.sync .dot{width:8px;height:8px;border-radius:50%;background:var(--okFg)}
+.sync.off .dot{background:var(--lbl)}
+.sync.saving .dot{background:var(--pendFg)}
+
+.head{display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:16px}
+.badge{width:56px; height:56px; border-radius:16px; background:linear-gradient(160deg,var(--azul),var(--azulH));
+  color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:700; font-size:22px;
+  box-shadow:var(--shadow); flex:0 0 auto}
+.head-txt{flex:1 1 260px; min-width:220px}
+.eyebrow{font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--lbl)}
+.head-txt h1{font-size:30px; line-height:1.1; margin-top:2px; color:var(--azul)}
+.head-txt p{margin:4px 0 0; color:var(--mut); font-size:14px; font-weight:500}
+.head-tools{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-left:auto}
+
+.chip{display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border);
+  border-radius:var(--r-btn); padding:9px 14px; box-shadow:var(--shadow)}
+.chip .ic{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff}
+.chip small{display:block; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--lbl)}
+.chip b{font-family:'Fraunces',serif; font-weight:600; font-size:17px}
+.chip.ok .ic{background:var(--okFg)} .chip.ok b{color:var(--okFg)}
+.chip.over .ic{background:var(--urgFg)} .chip.over b{color:var(--urgFg)}
+
+.weeknav{display:flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--border);
+  border-radius:var(--r-btn); padding:6px; box-shadow:var(--shadow)}
+.weeknav button{width:32px;height:32px;border:none;background:transparent;border-radius:9px;font-size:16px;color:var(--sec)}
+.weeknav button:hover{background:var(--cremeDark)}
+.weeknav .lbl{text-align:center; padding:0 8px; min-width:132px}
+.weeknav .lbl small{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lbl)}
+.weeknav .lbl b{font-family:'Fraunces',serif;font-weight:600;font-size:15px}
+
+.btn{display:inline-flex; align-items:center; gap:7px; border:1px solid var(--border); background:var(--card);
+  border-radius:var(--r-btn); padding:9px 14px; font-weight:700; font-size:13px; color:var(--sec); box-shadow:var(--shadow)}
+.btn:hover{background:var(--cremeDark)}
+.btn.primary{background:var(--azul); color:#fff; border-color:var(--azul)}
+.btn.primary:hover{background:var(--azulH)}
+.btn.ghost{box-shadow:none; background:transparent}
+
+.toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px}
+.toolbar .spacer{flex:1}
+.setting{display:flex; align-items:center; gap:7px; background:var(--card); border:1px solid var(--border);
+  border-radius:var(--r-btn); padding:6px 10px 6px 12px; font-size:12px; font-weight:700; color:var(--mut); box-shadow:var(--shadow)}
+.setting label{font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--lbl)}
+.setting input{width:74px; border:none; background:var(--cremeDark); border-radius:8px; padding:6px 8px; font:inherit; font-weight:700; font-size:13px; color:var(--ink)}
+.setting input:focus{outline:2px solid var(--azulBg)}
+
+.board{background:var(--card); border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--shadow); overflow:hidden; position:relative}
+table{width:100%; border-collapse:collapse; table-layout:fixed}
+th,td{border-bottom:1px solid var(--fio); vertical-align:top}
+thead th{background:var(--cremeDark); padding:12px 10px; text-align:center; position:relative}
+thead th.fn{text-align:left; width:180px; padding-left:18px}
+thead th .dw{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--mut)}
+thead th .dn{font-family:'Fraunces',serif; font-weight:600; font-size:20px; color:var(--ink); line-height:1.1}
+thead th.wknd{background:var(--urgBg)}
+thead th.wknd .dn{color:var(--urgFg)}
+thead th.today{box-shadow:inset 0 -3px 0 var(--azul)}
+thead th .sun{position:absolute; top:8px; right:10px; font-size:12px; opacity:.8}
+
+td.fn{padding:12px 12px 12px 14px; width:180px}
+.emp{display:flex; align-items:center; gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--azulBg);color:var(--azul);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:0 0 auto}
+.emp .nm{flex:1; min-width:0}
+.emp .nm input{width:100%; border:none; background:transparent; font:inherit; font-weight:700; font-size:14px; color:var(--ink); padding:2px 0}
+.emp .nm input:focus{outline:none; border-bottom:1px solid var(--azul)}
+.emp .tot{font-size:11px; color:var(--mut); font-weight:600; margin-top:1px; display:flex; gap:8px}
+.emp .tot .fr{color:var(--azul); font-weight:800}
+.emp .del{opacity:0; border:none; background:transparent; color:var(--mut); font-size:14px; padding:4px; border-radius:8px}
+tr:hover .emp .del{opacity:1}
+.emp .del:hover{background:var(--urgBg); color:var(--urgFg)}
+
+td.cell{padding:8px; text-align:center; cursor:pointer; transition:background .12s}
+td.cell:hover{background:var(--cremeDark)}
+td.cell.wknd{background:#FCF4F2}
+td.cell.wknd:hover{background:#FBEAE7}
+.slot{border-radius:11px; padding:8px 8px 7px; min-height:52px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; border:1px dashed transparent}
+.slot.empty{border-color:var(--fio); color:var(--lbl); font-size:12px; font-weight:600}
+.slot.empty::before{content:'+ turno'}
+.slot .who{font-weight:700; font-size:13px; color:var(--ink); display:flex; align-items:center; gap:5px}
+.slot .hr{font-size:12px; font-weight:600; color:var(--sec); display:flex; align-items:center; gap:4px}
+.slot .hh{font-size:10px; font-weight:700; color:var(--mut)}
+.slot .val{font-size:11px; font-weight:800; color:var(--azul)}
+.slot .pg{font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:1px 6px; border-radius:6px; margin-top:1px}
+.pg.pago{background:var(--okBg); color:var(--okFg)}
+.pg.apagar{background:var(--pendBg); color:var(--pendFg)}
+.tag{display:inline-block; font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:2px 6px; border-radius:6px}
+.slot.st-trabalha{background:var(--okBg)} .slot.st-trabalha .tag{background:#fff; color:var(--okFg)}
+.slot.st-freela{background:var(--azulBg)} .tag.freela{background:var(--azul); color:#fff}
+.slot.st-dobra{background:#F1E9F6} .tag.dobra{background:#7A5AA0; color:#fff}
+.slot.st-folga{background:var(--cremeDark); color:var(--mut)} .tag.folga{background:#fff;color:var(--mut)}
+.slot.st-falta{background:var(--urgBg)} .tag.falta{background:var(--urgFg); color:#fff}
+
+.addrow{padding:12px 14px; text-align:center}
+.addrow button{border:1px dashed var(--border); background:transparent; color:var(--azul); border-radius:var(--r-btn); padding:9px 16px; font-weight:800; font-size:13px}
+.addrow button:hover{background:var(--azulBg)}
+.addrow button:disabled{color:var(--lbl); cursor:not-allowed; opacity:.6}
+
+.boardMsg{padding:40px; text-align:center; color:var(--mut); font-weight:600; font-size:14px}
+
+.summary{display:flex; gap:12px; flex-wrap:wrap; margin-top:16px}
+.scard{flex:1 1 160px; background:var(--card); border:1px solid var(--border); border-radius:var(--r-card); padding:14px 16px; box-shadow:var(--shadow)}
+.scard small{font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--lbl)}
+.scard b{display:block; font-family:'Fraunces',serif; font-weight:600; font-size:26px; margin-top:4px}
+.scard .sub{font-size:12px; color:var(--mut); font-weight:600; margin-top:2px}
+.scard.money b{color:var(--azul)}
+
+.sheet-bg{position:fixed; inset:0; background:rgba(42,26,23,.34); backdrop-filter:blur(2px); display:flex; align-items:flex-end; justify-content:center; z-index:50}
+.sheet{background:var(--card); width:100%; max-width:460px; border-radius:20px 20px 0 0; padding:20px 20px 24px; box-shadow:0 -10px 40px rgba(42,26,23,.2); animation:up .22s ease}
+@media(min-width:560px){.sheet-bg{align-items:center} .sheet{border-radius:20px; margin-bottom:0}}
+@keyframes up{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.sheet .sh-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px}
+.sheet h3{font-size:20px}
+.sheet .sh-sub{color:var(--mut); font-size:13px; font-weight:600; margin:2px 0 16px}
+.sheet .x{border:none;background:var(--cremeDark);width:32px;height:32px;border-radius:50%;font-size:16px;color:var(--sec)}
+.field{margin-bottom:14px}
+.field > label{display:block; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--lbl); margin-bottom:7px}
+.statuses{display:flex; gap:8px; flex-wrap:wrap}
+.stbtn{border:1px solid var(--border); background:var(--card); border-radius:10px; padding:8px 12px; font-weight:700; font-size:13px; color:var(--sec)}
+.stbtn.on{border-color:var(--azul); background:var(--azulBg); color:var(--azulH)}
+.input{width:100%; border:1px solid var(--border); background:var(--cremeDark); border-radius:11px; padding:12px 14px; font:inherit; font-weight:700; font-size:15px; color:var(--ink)}
+.input:focus{outline:2px solid var(--azulBg); background:#fff}
+.hint{font-size:12px; color:var(--mut); font-weight:600; margin-top:6px}
+.hint b{color:var(--azul)}
+.sheet-actions{display:flex; gap:10px; margin-top:8px}
+.sheet-actions .btn{flex:1; justify-content:center; padding:13px}
+.sheet-actions .btn.primary{flex:2}
+.linkish{background:none;border:none;color:var(--urgFg);font-weight:700;font-size:13px;padding:8px}
+
+.foot{text-align:center; color:var(--lbl); font-size:12px; font-weight:600; margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="back" href="/central/">‹ Voltar</a>
+    <span class="crumb">Cozinha Central · Escala</span>
+    <span class="sync off" id="sync"><span class="dot"></span><span id="syncTxt">conectando…</span></span>
+  </div>
+
+  <div class="head">
+    <div class="badge">CC</div>
+    <div class="head-txt">
+      <div class="eyebrow">Cozinha Central · Operação</div>
+      <h1>Escala da semana</h1>
+      <p>Turnos da equipe e cálculo de freela</p>
+    </div>
+    <div class="head-tools">
+      <div class="chip ok" id="chipFreela">
+        <span class="ic">R$</span>
+        <div><small>Freela / Orçamento</small><b id="chipFreelaTxt">R$0 / R$0</b></div>
+      </div>
+      <div class="weeknav">
+        <button id="prevWk" title="Semana anterior">‹</button>
+        <div class="lbl"><small id="wkRange">semana</small><b id="wkMain">—</b></div>
+        <button id="nextWk" title="Próxima semana">›</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn ghost" id="todayBtn">Hoje</button>
+    <div class="spacer"></div>
+    <div class="setting">
+      <label>R$/hora freela</label>
+      <input type="number" id="rateInput" min="0" step="1" value="0">
+    </div>
+    <div class="setting">
+      <label>Orçamento semana</label>
+      <input type="number" id="orcInput" min="0" step="10" value="0">
+    </div>
+  </div>
+
+  <div class="board">
+    <table>
+      <thead><tr id="headRow"></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+    <div class="addrow">
+      <button id="addEmp">+ Adicionar funcionário</button>
+    </div>
+    <div class="boardMsg hidden" id="boardMsg">Carregando escala…</div>
+  </div>
+
+  <div class="summary">
+    <div class="scard"><small>Equipe</small><b id="sEquipe">0</b><div class="sub">funcionários na escala</div></div>
+    <div class="scard"><small>Horas na semana</small><b id="sHoras">0h</b><div class="sub">todos os turnos</div></div>
+    <div class="scard money"><small>Freela da semana</small><b id="sFreela">R$0</b><div class="sub" id="sFreelaSub">0 turnos de freela/dobra</div></div>
+  </div>
+
+  <div class="foot">Escala da Cozinha Central · sincronizada na nuvem para toda a equipe</div>
+</div>
+
+<div class="sheet-bg hidden" id="sheetBg">
+  <div class="sheet" id="sheet">
+    <div class="sh-top">
+      <h3 id="shTitle">Turno</h3>
+      <button class="x" id="shClose">×</button>
+    </div>
+    <div class="sh-sub" id="shSub">—</div>
+
+    <div class="field">
+      <label>Situação</label>
+      <div class="statuses" id="statuses">
+        <button class="stbtn" data-st="trabalha">Trabalha</button>
+        <button class="stbtn" data-st="freela">Freela</button>
+        <button class="stbtn" data-st="dobra">Dobra</button>
+        <button class="stbtn" data-st="folga">Folga</button>
+        <button class="stbtn" data-st="falta">Falta</button>
+      </div>
+    </div>
+
+    <div class="field" id="fldHorario">
+      <label>Horário do turno</label>
+      <input class="input" id="inHorario" placeholder="ex.: 10-18, 16h-0h, 10:30-18h" autocomplete="off">
+      <div class="hint" id="horasHint">Digite o horário para calcular as horas.</div>
+    </div>
+
+    <div class="field hidden" id="fldValor">
+      <label>Valor do freela (R$)</label>
+      <input class="input" id="inValor" type="number" min="0" step="1" placeholder="0">
+      <div class="hint" id="valorHint">É pelo horário que calculamos as horas a pagar.</div>
+    </div>
+
+    <div class="field hidden" id="fldPago">
+      <label>Pagamento</label>
+      <div class="statuses" id="pagoBtns">
+        <button class="stbtn" data-pago="0">A pagar</button>
+        <button class="stbtn" data-pago="1">Pago</button>
+      </div>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="linkish" id="shClear">Limpar</button>
+      <button class="btn primary" id="shSave">Salvar turno</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+"use strict";
+
+/* ================= horas: mesma lógica da escala do Lola ================= */
+function LOLA_HORAS(shift){
+  try{
+    var m = String(shift||'').match(/(\d{1,2})(?:[h:](\d{0,2}))?\s*(?:-|a|à|as|às)\s*(\d{1,2})(?:[h:](\d{0,2}))?/i);
+    if(!m) return null;
+    var a = parseInt(m[1],10) + (m[2]? parseInt(m[2],10)/60 : 0);
+    var b = parseInt(m[3],10) + (m[4]? parseInt(m[4],10)/60 : 0);
+    if(a>24 || b>24) return null;
+    var h = b - a; if(h<=0) h += 24;
+    if(h<=0 || h>24) return null;
+    return Math.round(h*100)/100;
+  }catch(e){ return null; }
+}
+function horasLabel(h){
+  if(h==null) return '';
+  var r = Math.round(h*100)/100;
+  if(Number.isInteger(r)) return r+'h';
+  var min = Math.round((r - Math.floor(r))*60);
+  return Math.floor(r)+'h'+(min<10?'0':'')+min;
+}
+function money(v){ v = Math.round((v||0)); return 'R$'+v.toLocaleString('pt-BR'); }
+
+/* ================= datas ================= */
+var DIAS = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+var DIAS_ABBR = ['SEG','TER','QUA','QUI','SEX','SÁB','DOM'];
+var MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function startOfWeek(d){ var x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); var wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
+function addDays(d,n){ var x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function isoDay(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function sameDay(a,b){ return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
+function isoWeek(d){
+  var t=new Date(d.getFullYear(),d.getMonth(),d.getDate()); var day=(t.getDay()+6)%7; t.setDate(t.getDate()-day+3);
+  var firstThu=new Date(t.getFullYear(),0,4);
+  return 1 + Math.round(((t-firstThu)/86400000 - 3 + ((firstThu.getDay()+6)%7))/7);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[m];}); }
+function escapeAttr(s){ return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+/* ================= Supabase ================= */
+var SB_URL = 'https://mvjbsdpfjhywhaonvpfl.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12amJzZHBmamh5d2hhb252cGZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDk2OTAsImV4cCI6MjA5NTM4NTY5MH0.i_3sqgQa6umsIYBmAwWz_NP6nYuT3GfIZid24zHXSEI';
+var sb = null;
+try{ sb = window.supabase.createClient(SB_URL, SB_KEY, {realtime:{params:{eventsPerSecond:5}}}); }catch(e){ console.error('supabase init', e); }
+
+function getUser(){
+  try{
+    var cands = [window.__LOLA_USER, window.LOLA_USER];
+    try{ if(window.parent && window.parent!==window){ cands.push(window.parent.__LOLA_USER, window.parent.LOLA_USER); } }catch(_){}
+    for(var i=0;i<cands.length;i++){ var c=cands[i]; if(c){ if(typeof c==='string') return c; if(c.nome) return c.nome; if(c.name) return c.name; } }
+    var keys=['lola_user','lola:user','usuario'];
+    for(var j=0;j<keys.length;j++){ var v=localStorage.getItem(keys[j]); if(v) return v; }
+  }catch(_){}
+  return 'central';
+}
+
+/* ================= estado ================= */
+var state = {
+  weekStart: startOfWeek(new Date()),
+  roster: [],            // [{id,nome,funcao,ordem}]
+  cfg: {rate:0, orcamento:0},
+  cells: {},             // cells[funcId][dayIdx] = {status,horario,valor}
+  ready: false
+};
+function weekIso(){ return isoDay(state.weekStart); }
+function getCell(fid, day){ return (state.cells[fid] && state.cells[fid][day]) || null; }
+
+function setSync(kind, txt){
+  var el=document.getElementById('sync'); el.className='sync '+(kind||'');
+  document.getElementById('syncTxt').textContent = txt || (kind==='ok'?'sincronizado':kind==='saving'?'salvando…':'offline');
+}
+
+/* ================= carregar ================= */
+async function loadCfg(){
+  if(!sb) return;
+  var r = await sb.from('lola_central_escala_cfg').select('rate,orcamento').eq('id',1).maybeSingle();
+  if(r.data){ state.cfg = {rate:Number(r.data.rate)||0, orcamento:Number(r.data.orcamento)||0}; }
+}
+async function loadRoster(){
+  if(!sb) return;
+  var r = await sb.from('lola_central_escala_pessoas').select('id,nome,funcao,ordem').eq('ativo',true).order('ordem',{ascending:true});
+  state.roster = (r.data||[]).map(function(p){ return {id:p.id, nome:p.nome, funcao:p.funcao, ordem:p.ordem}; });
+  if(state.roster.length===0){ await seedRoster(); }
+}
+async function seedRoster(){
+  var base=[{id:'cc1',nome:'Funcionário 1',ordem:1},{id:'cc2',nome:'Funcionário 2',ordem:2},{id:'cc3',nome:'Funcionário 3',ordem:3}];
+  try{ await sb.from('lola_central_escala_pessoas').upsert(base.map(function(p){return {id:p.id,nome:p.nome,ordem:p.ordem,ativo:true};}),{onConflict:'id'}); }catch(e){}
+  state.roster = base.map(function(p){return {id:p.id,nome:p.nome,funcao:null,ordem:p.ordem};});
+}
+async function loadWeek(){
+  state.cells = {};
+  if(!sb) return;
+  var r = await sb.from('lola_central_escala').select('dados').eq('semana', weekIso()).maybeSingle();
+  if(r.data && r.data.dados && r.data.dados.cells) state.cells = r.data.dados.cells;
+}
+async function loadAll(){
+  try{
+    await Promise.all([loadCfg(), loadRoster()]);
+    await loadWeek();
+    state.ready = true;
+    setSync('ok');
+  }catch(e){ console.error(e); setSync('off','erro ao conectar'); }
+  render();
+}
+
+/* ================= salvar ================= */
+async function saveWeek(){
+  if(!sb) return;
+  setSync('saving');
+  try{
+    await sb.from('lola_central_escala').upsert({semana:weekIso(), dados:{cells:state.cells}, atualizado_em:new Date().toISOString(), atualizado_por:getUser()},{onConflict:'semana'});
+    setSync('ok');
+  }catch(e){ console.error(e); setSync('off','erro ao salvar'); }
+}
+async function saveCfg(){
+  if(!sb) return;
+  setSync('saving');
+  try{
+    await sb.from('lola_central_escala_cfg').upsert({id:1, rate:state.cfg.rate, orcamento:state.cfg.orcamento, atualizado_em:new Date().toISOString(), atualizado_por:getUser()},{onConflict:'id'});
+    setSync('ok');
+  }catch(e){ console.error(e); setSync('off','erro ao salvar'); }
+}
+async function savePessoa(p){
+  if(!sb) return;
+  setSync('saving');
+  try{
+    await sb.from('lola_central_escala_pessoas').upsert({id:p.id, nome:p.nome, funcao:p.funcao||null, ordem:p.ordem, ativo:true, atualizado_em:new Date().toISOString(), atualizado_por:getUser()},{onConflict:'id'});
+    setSync('ok');
+  }catch(e){ console.error(e); setSync('off','erro ao salvar'); }
+}
+async function removePessoa(id){
+  if(!sb) return;
+  setSync('saving');
+  try{
+    await sb.from('lola_central_escala_pessoas').update({ativo:false, atualizado_em:new Date().toISOString(), atualizado_por:getUser()}).eq('id',id);
+    setSync('ok');
+  }catch(e){ console.error(e); setSync('off','erro ao salvar'); }
+}
+function setCell(fid, day, data){
+  if(!state.cells[fid]) state.cells[fid] = {};
+  if(data===null){ delete state.cells[fid][day]; }
+  else state.cells[fid][day] = data;
+  saveWeek();
+}
+
+/* ================= cálculos ================= */
+var PAGA = {freela:true, dobra:true};
+function cellHoras(c){ if(!c) return null; if(c.status==='folga'||c.status==='falta') return null; return LOLA_HORAS(c.horario); }
+function empTotals(fid){
+  var horas=0, freela=0, turnos=0, frTurnos=0, pago=0, apagar=0;
+  for(var d=0; d<7; d++){
+    var c=getCell(fid,d); if(!c) continue;
+    var h=cellHoras(c); if(h!=null){ horas+=h; turnos++; }
+    if(PAGA[c.status]){ var v=Number(c.valor)||0; freela+=v; frTurnos++; if(c.pago) pago+=v; else apagar+=v; }
+  }
+  return {horas:horas,freela:freela,turnos:turnos,frTurnos:frTurnos,pago:pago,apagar:apagar};
+}
+function weekTotals(){
+  var horas=0,freela=0,frTurnos=0,pago=0,apagar=0;
+  state.roster.forEach(function(e){ var t=empTotals(e.id); horas+=t.horas; freela+=t.freela; frTurnos+=t.frTurnos; pago+=t.pago; apagar+=t.apagar; });
+  return {horas:horas,freela:freela,frTurnos:frTurnos,pago:pago,apagar:apagar,equipe:state.roster.length};
+}
+
+/* ================= render ================= */
+function initial(nm){ nm=(nm||'').trim(); return nm? nm[0].toUpperCase():'?'; }
+function render(){
+  var ws=state.weekStart, we=addDays(ws,6);
+  document.getElementById('wkRange').textContent = ws.getDate()+' '+MES[ws.getMonth()]+' – '+we.getDate()+' '+MES[we.getMonth()];
+  document.getElementById('wkMain').textContent = 'Semana '+isoWeek(ws);
+
+  var head=document.getElementById('headRow');
+  head.innerHTML='<th class="fn">Funcionário</th>';
+  var today=new Date();
+  for(var d=0; d<7; d++){
+    var day=addDays(ws,d), wknd=d>=5, isToday=sameDay(day,today);
+    head.innerHTML += '<th class="'+(wknd?'wknd ':'')+(isToday?'today':'')+'">'
+      +(wknd?'<span class="sun">☀︎</span>':'')
+      +'<div class="dw">'+DIAS_ABBR[d]+'</div><div class="dn">'+day.getDate()+'</div></th>';
+  }
+
+  var body=document.getElementById('body');
+  body.innerHTML='';
+  state.roster.forEach(function(e){
+    var t=empTotals(e.id);
+    var tr=document.createElement('tr');
+    var td=document.createElement('td'); td.className='fn';
+    td.innerHTML='<div class="emp">'
+      +'<div class="avatar">'+initial(e.nome)+'</div>'
+      +'<div class="nm"><input value="'+escapeAttr(e.nome)+'" data-id="'+e.id+'" maxlength="24">'
+      +'<div class="tot"><span>'+horasLabel(t.horas||0)+' • '+t.turnos+' turno'+(t.turnos===1?'':'s')+'</span>'
+      +(t.freela>0?'<span class="fr">'+money(t.freela)+'</span>':'')+'</div></div>'
+      +'<button class="del" data-del="'+e.id+'" title="Remover">✕</button></div>';
+    tr.appendChild(td);
+    for(var d=0; d<7; d++){
+      var c=getCell(e.id,d);
+      var cell=document.createElement('td');
+      cell.className='cell'+(d>=5?' wknd':'');
+      cell.dataset.fid=e.id; cell.dataset.day=d;
+      cell.innerHTML=slotHTML(e,c);
+      tr.appendChild(cell);
+    }
+    body.appendChild(tr);
+  });
+
+  document.getElementById('addEmp').disabled = state.roster.length>=6;
+
+  var wt=weekTotals();
+  document.getElementById('sEquipe').textContent=wt.equipe;
+  document.getElementById('sHoras').textContent=horasLabel(wt.horas||0);
+  document.getElementById('sFreela').textContent=money(wt.freela);
+  document.getElementById('sFreelaSub').innerHTML= wt.frTurnos+' turno'+(wt.frTurnos===1?'':'s')+' · <b style="color:var(--okFg)">'+money(wt.pago)+' pago</b> · <b style="color:var(--pendFg)">'+money(wt.apagar)+' a pagar</b>';
+
+  var orc=Number(state.cfg.orcamento)||0;
+  document.getElementById('chipFreelaTxt').textContent=money(wt.freela)+' / '+money(orc);
+  document.getElementById('chipFreela').className='chip '+((orc>0 && wt.freela>orc)?'over':'ok');
+
+  if(document.activeElement!==document.getElementById('rateInput')) document.getElementById('rateInput').value=state.cfg.rate||0;
+  if(document.activeElement!==document.getElementById('orcInput')) document.getElementById('orcInput').value=state.cfg.orcamento||0;
+}
+function slotHTML(e,c){
+  if(!c) return '<div class="slot empty"></div>';
+  if(c.status==='folga') return '<div class="slot st-folga"><span class="tag folga">Folga</span></div>';
+  if(c.status==='falta') return '<div class="slot st-falta"><span class="tag falta">Falta</span></div>';
+  var h=LOLA_HORAS(c.horario), st=c.status||'trabalha';
+  var tag = st==='freela'?'<span class="tag freela">Freela</span>':st==='dobra'?'<span class="tag dobra">Dobra</span>':'';
+  return '<div class="slot st-'+st+'">'
+    +(tag?tag:'')
+    +'<div class="hr">'+(c.horario?escapeHtml(c.horario):'<span class="hh">sem horário</span>')+'</div>'
+    +(h!=null?'<div class="hh">'+horasLabel(h)+'</div>':'')
+    +(PAGA[st] && Number(c.valor)>0?'<div class="val">'+money(c.valor)+'</div>':'')
+    +(PAGA[st]?'<span class="pg '+(c.pago?'pago':'apagar')+'">'+(c.pago?'Pago':'A pagar')+'</span>':'')
+    +'</div>';
+}
+
+/* ================= editor ================= */
+var edit={fid:null,day:null,status:'trabalha',pago:false};
+var sheetOpen=false;
+function openSheet(fid,day){
+  var e=state.roster.find(function(x){return x.id===fid;}); if(!e) return;
+  var c=getCell(fid,day)||{status:'trabalha',horario:'',valor:''};
+  edit.fid=fid; edit.day=day; edit.status=c.status||'trabalha'; edit.pago=!!c.pago;
+  document.getElementById('shTitle').textContent=e.nome;
+  document.getElementById('shSub').textContent=DIAS[day]+' · '+addDays(state.weekStart,day).getDate()+' '+MES[state.weekStart.getMonth()];
+  document.getElementById('inHorario').value=c.horario||'';
+  document.getElementById('inValor').value=(c.valor===0||c.valor)?c.valor:'';
+  paintStatus(); updateHint();
+  sheetOpen=true;
+  document.getElementById('sheetBg').classList.remove('hidden');
+  setTimeout(function(){ if(edit.status!=='folga'&&edit.status!=='falta') document.getElementById('inHorario').focus(); },60);
+}
+function closeSheet(){ sheetOpen=false; document.getElementById('sheetBg').classList.add('hidden'); if(pendingReload) applyReload(); }
+function paintStatus(){
+  document.querySelectorAll('#statuses .stbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.st===edit.status); });
+  var noHor=(edit.status==='folga'||edit.status==='falta');
+  document.getElementById('fldHorario').classList.toggle('hidden', noHor);
+  document.getElementById('fldValor').classList.toggle('hidden', !PAGA[edit.status]);
+  document.getElementById('fldPago').classList.toggle('hidden', !PAGA[edit.status]);
+  document.querySelectorAll('#pagoBtns .stbtn').forEach(function(b){ b.classList.toggle('on', (b.dataset.pago==='1')===!!edit.pago); });
+}
+function updateHint(){
+  var hor=document.getElementById('inHorario').value, h=LOLA_HORAS(hor), hint=document.getElementById('horasHint');
+  if(h!=null){ hint.innerHTML='Horas do turno: <b>'+horasLabel(h)+'</b>'; }
+  else { hint.textContent = hor?'Horário não reconhecido — use formato como 10-18 ou 16h-0h.':'Digite o horário para calcular as horas.'; }
+  if(PAGA[edit.status]){
+    var rate=Number(state.cfg.rate)||0, vhint=document.getElementById('valorHint');
+    if(rate>0 && h!=null){ var sugg=Math.round(h*rate); vhint.innerHTML='Sugestão: '+horasLabel(h)+' × R$'+rate+'/h = <b>'+money(sugg)+'</b> · toque para usar'; vhint.style.cursor='pointer'; vhint.dataset.sugg=sugg; }
+    else { vhint.textContent='É pelo horário que calculamos as horas a pagar.'; vhint.style.cursor='default'; delete vhint.dataset.sugg; }
+  }
+}
+function saveSheet(){
+  var status=edit.status, data;
+  if(status==='folga'||status==='falta'){ data={status:status,horario:'',valor:null}; }
+  else{
+    var hor=document.getElementById('inHorario').value.trim(), valor=document.getElementById('inValor').value;
+    if(PAGA[status] && !hor){ alert('Preencha o horário da '+(status==='dobra'?'dobra':'freela')+' (ex.: 16h-0h) — é por ele que calculamos as horas a pagar.'); return; }
+    data={status:status,horario:hor,valor:(PAGA[status]&&valor!=='')?(Number(valor)||0):null};
+    if(PAGA[status]) data.pago=!!edit.pago;
+  }
+  setCell(edit.fid,edit.day,data); closeSheet(); render();
+}
+function clearCell(){ setCell(edit.fid,edit.day,null); closeSheet(); render(); }
+
+/* ================= eventos ================= */
+document.getElementById('body').addEventListener('click', function(ev){
+  var del=ev.target.closest('[data-del]');
+  if(del){ ev.stopPropagation();
+    var id=del.dataset.del;
+    if(state.roster.length<=1){ alert('Deixe pelo menos 1 funcionário.'); return; }
+    if(confirm('Remover este funcionário da escala?')){
+      state.roster=state.roster.filter(function(x){return x.id!==id;});
+      delete state.cells[id]; removePessoa(id); saveWeek(); render();
+    }
+    return;
+  }
+  var cell=ev.target.closest('td.cell'); if(cell){ openSheet(cell.dataset.fid, +cell.dataset.day); }
+});
+var nameTimer=null;
+document.getElementById('body').addEventListener('input', function(ev){
+  var inp=ev.target.closest('.nm input'); if(!inp) return;
+  var id=inp.dataset.id, e=state.roster.find(function(x){return x.id===id;});
+  if(e){ e.nome=inp.value; var av=inp.closest('.emp').querySelector('.avatar'); if(av) av.textContent=initial(e.nome);
+    clearTimeout(nameTimer); nameTimer=setTimeout(function(){ savePessoa(e); }, 500);
+  }
+});
+document.getElementById('addEmp').addEventListener('click', function(){
+  if(state.roster.length>=6) return;
+  var ordem=(state.roster.reduce(function(m,e){return Math.max(m,e.ordem||0);},0))+1;
+  var p={id:'cc'+Date.now().toString(36), nome:'Funcionário '+(state.roster.length+1), funcao:null, ordem:ordem};
+  state.roster.push(p); savePessoa(p); render();
+});
+document.getElementById('statuses').addEventListener('click', function(ev){ var b=ev.target.closest('.stbtn'); if(!b) return; edit.status=b.dataset.st; paintStatus(); updateHint(); });
+document.getElementById('pagoBtns').addEventListener('click', function(ev){ var b=ev.target.closest('.stbtn'); if(!b) return; edit.pago=(b.dataset.pago==='1'); paintStatus(); });
+document.getElementById('inHorario').addEventListener('input', updateHint);
+document.getElementById('valorHint').addEventListener('click', function(){ if(this.dataset.sugg){ document.getElementById('inValor').value=this.dataset.sugg; } });
+document.getElementById('shSave').addEventListener('click', saveSheet);
+document.getElementById('shClear').addEventListener('click', clearCell);
+document.getElementById('shClose').addEventListener('click', closeSheet);
+document.getElementById('sheetBg').addEventListener('click', function(ev){ if(ev.target===this) closeSheet(); });
+document.addEventListener('keydown', function(ev){ if(ev.key==='Escape') closeSheet(); });
+
+document.getElementById('prevWk').addEventListener('click', async function(){ state.weekStart=addDays(state.weekStart,-7); await loadWeek(); render(); });
+document.getElementById('nextWk').addEventListener('click', async function(){ state.weekStart=addDays(state.weekStart,7); await loadWeek(); render(); });
+document.getElementById('todayBtn').addEventListener('click', async function(){ state.weekStart=startOfWeek(new Date()); await loadWeek(); render(); });
+
+document.getElementById('rateInput').addEventListener('change', function(){ state.cfg.rate=Number(this.value)||0; saveCfg(); render(); });
+document.getElementById('orcInput').addEventListener('change', function(){ state.cfg.orcamento=Number(this.value)||0; saveCfg(); render(); });
+
+/* ================= realtime ================= */
+var pendingReload=false, reloadTimer=null;
+function scheduleReload(){
+  if(sheetOpen || (document.activeElement && document.activeElement.tagName==='INPUT')){ pendingReload=true; return; }
+  clearTimeout(reloadTimer); reloadTimer=setTimeout(applyReload, 400);
+}
+async function applyReload(){
+  pendingReload=false;
+  try{ await Promise.all([loadCfg(), loadRoster()]); await loadWeek(); render(); setSync('ok'); }catch(e){}
+}
+if(sb){
+  try{
+    sb.channel('central-escala-rt')
+      .on('postgres_changes',{event:'*',schema:'public',table:'lola_central_escala'}, scheduleReload)
+      .on('postgres_changes',{event:'*',schema:'public',table:'lola_central_escala_pessoas'}, scheduleReload)
+      .on('postgres_changes',{event:'*',schema:'public',table:'lola_central_escala_cfg'}, scheduleReload)
+      .subscribe();
+  }catch(e){ console.error('realtime', e); }
+}
+
+/* ================= init ================= */
+if(sb){ document.getElementById('boardMsg').classList.remove('hidden'); loadAll().then(function(){ document.getElementById('boardMsg').classList.add('hidden'); }); }
+else { setSync('off','sem conexão'); render(); }
+</script>
+</body>
+</html>
