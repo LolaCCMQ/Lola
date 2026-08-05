@@ -5548,6 +5548,21 @@ function _enSugere(desc){
   if(!best) return null;
   return {ins:best, n:bestN, cov:bestCov, forte:(bestN>=2 || bestCov>=0.99)};
 }
+/* 05/08 (Bianca): "preciso escolher entre as opções parecidas" — devolve os N insumos
+   mais parecidos com a descrição da nota (mesmo score do _enSugere), pra virar chips. */
+function _enSugereTop(desc, k){
+  const d=' '+_jnorm(desc)+' ';
+  if(!EN||!EN.insumos||d.trim().length<3) return [];
+  const scored=[];
+  EN.insumos.forEach(function(i){
+    const nt=_enToks(i.nome); if(!nt.length) return;
+    let hit=0; nt.forEach(function(t){ if(d.indexOf(t)>=0) hit++; });
+    if(!hit) return;
+    scored.push({ins:i, n:hit, cov:hit/nt.length});
+  });
+  scored.sort(function(a,b){ return b.n-a.n || b.cov-a.cov || a.ins.nome.localeCompare(b.ins.nome,'pt'); });
+  return scored.slice(0, k||6);
+}
 let EN=null,_enComp='';
 function _enMesLbl(m){const M=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];const p=m.split('-');return M[(+p[1])-1]+'/'+p[0].slice(2);}
 function _enQ(q){return N(q,3).replace(/,?0+$/,'')||'0';}
@@ -5712,6 +5727,27 @@ function abrirNotaEN(n){
     rw.innerHTML='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-weight:700;font-size:13px;color:var(--tx)">'+_envEsc(desc)+'</span>'+selo+'</div><div style="font-size:11px;color:var(--ts);margin-bottom:6px">nota: '+_enQ(q)+' '+_envEsc(un)+' · '+R(ct)+'</div>';
     const insInp=el('input','fi',null,{placeholder:'Insumo (busque ou crie novo)',value:insNome,autocomplete:'off'});insInp.style.cssText='width:100%;margin-bottom:6px;font-size:13px';
     _enAutoComplete(insInp);
+    /* 05/08 (Bianca): chips com os insumos PARECIDOS (escolher com 1 toque) + criar novo.
+       Some quando já é "não é insumo". Não muda nada se não achar parecidos. */
+    const parRow=div(null); parRow.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin:-2px 0 7px;align-items:center';
+    function pintaPar(){
+      parRow.innerHTML='';
+      if(_ign){ parRow.style.display='none'; return; }
+      parRow.style.display='flex';
+      const atual=_jnorm(insInp.value);
+      const cands=_enSugereTop(desc,6).filter(o=>o.ins && _jnorm(o.ins.nome)!==atual);
+      if(cands.length){
+        parRow.appendChild(el('span','tss',['parecidos:']));
+        cands.forEach(o=>{ const ch=el('button','',o.ins.nome,{type:'button'});
+          ch.style.cssText='padding:4px 10px;border-radius:50px;border:1px solid #D9CBE8;background:#fff;color:#5A463E;font-size:11.5px;font-weight:600;cursor:pointer';
+          ch.onclick=()=>{ insInp.value=o.ins.nome; insInp.dispatchEvent(new Event('input')); };
+          parRow.appendChild(ch); });
+      }
+      const novo=el('button','','🆕 cadastrar novo',{type:'button'});
+      novo.style.cssText='padding:4px 10px;border-radius:50px;border:1.5px dashed #7A4FA3;background:#F6F0FB;color:#7A4FA3;font-size:11.5px;font-weight:700;cursor:pointer';
+      novo.onclick=()=>{ insInp.value=String(desc||'').replace(/\s+/g,' ').trim().slice(0,60); insInp.dispatchEvent(new Event('input')); insInp.focus(); };
+      parRow.appendChild(novo);
+    }
     if(_sug && !_sug.forte){   // palpite fraco: dica, não preenchimento
       const dica=el('div',null,null,{style:'font-size:11px;color:#9A6B1E;margin:-2px 0 6px'});
       const lk=el('span',null,_sug.ins.nome,{style:'text-decoration:underline;cursor:pointer;font-weight:700'});
@@ -5739,7 +5775,7 @@ function abrirNotaEN(n){
       const f=+fatInp.value||0,qu=q*f;const unUso=unSelEN.value||(m?(m.unidade_custo||un):(unInp.value||un));
       calc.innerHTML=_ign?'<b style="color:#B5302E">não entra no estoque</b>':(qu>0?('→ entra <b style="color:var(--v)">'+_enQ(qu)+' '+_envEsc(unUso)+'</b> · '+R(ct/qu)+'/'+_envEsc(unUso)):'—');
     }
-    insInp.oninput=upd;fatInp.oninput=upd;
+    insInp.oninput=function(){upd();pintaPar();};fatInp.oninput=upd;
     unSelEN.onchange=()=>{_unTocada=true;upd();};
     /* 22/07 (Bianca): "temos que ter a opção de clicar NÃO É INSUMO" — gás, taxa,
        equipamento: marca, não entra no estoque e o sistema LEMBRA (mapa ignorar). */
@@ -5749,14 +5785,14 @@ function abrirNotaEN(n){
       bIgn.textContent=_ign?'🚫 não é insumo':'não é insumo?';
       insInp.disabled=_ign; fatInp.disabled=_ign; unSelEN.disabled=_ign;
       rw.style.opacity=_ign?'.55':'1';
-      upd();
+      upd(); pintaPar();
     }
     bIgn.onclick=()=>{_ign=!_ign;paintIgn();};
     const fl=div(null);fl.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap';
     fl.appendChild(el('span','tss',['Fator']));fl.appendChild(fatInp);
     fl.appendChild(el('span','tss',['entra em']));fl.appendChild(unSelEN);
     fl.appendChild(calc);fl.appendChild(bIgn);
-    rw.appendChild(insInp);rw.appendChild(fl);rw.appendChild(novoBox);wrap.appendChild(rw);
+    rw.appendChild(insInp);rw.appendChild(parRow);rw.appendChild(fl);rw.appendChild(novoBox);wrap.appendChild(rw);
     rows.push({desc,q,un,ct,insInp,fatInp,catSel,unInp,unSelEN,ign:()=>_ign,unTocada:()=>_unTocada});
     paintIgn();
   });
