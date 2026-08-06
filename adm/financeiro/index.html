@@ -1041,9 +1041,10 @@ async function patchLanc(id,body){
 async function toggleConc(id){const l=ST.lanc.find(x=>x.id===id);await patchLanc(id,{conciliado:!l.conciliado});renderLanc();}
 async function deleteLanc(id){
   const l=ST.lanc.find(x=>x.id===id); if(!l)return;
-  if(!confirm(`Excluir este lançamento?\n${(l.memo||'').slice(0,60)} · ${brl(+l.amount)}`))return;
+  if(!confirm(`Excluir este lançamento?\n${(l.memo||'').slice(0,60)} · ${brl(+l.amount)}${pairNote(l)}`))return;
   try{
     await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await delMirrorRcc(l);
     api(`financeiro_nota_lanc?lanc_id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
     ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(id));
     ST.lanc=ST.lanc.filter(x=>x.id!==id); toast('Excluído'); renderAll();
@@ -1084,8 +1085,9 @@ function openEdit(id){
     closeSheet(); toast('Salvo'); renderAll();
   };
   $('#e_del').onclick=async()=>{
-    if(!confirm('Excluir este lançamento?'))return;
+    if(!confirm('Excluir este lançamento?'+pairNote(l)))return;
     await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await delMirrorRcc(l);
     ST.lanc=ST.lanc.filter(x=>x.id!==id); closeSheet(); toast('Excluído'); renderAll();
   };
 }
@@ -1416,6 +1418,7 @@ function openImport(){
       <button class="on" data-s="arquivos" style="display:none"></button>
       <button data-s="manual" style="display:none"></button>
       <div style="width:100%;font-size:10.5px;color:var(--lbl);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin:6px 2px 2px">Outras opções</div>
+      <button data-s="central">Recebido da Central</button>
       <button data-s="cartao">Cartão</button>
       <button data-s="receita">Receita</button>
       <button data-s="colar">Colar extrato</button>
@@ -1496,6 +1499,43 @@ function impTab(s){
         if(ins.length){ const created=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(ins)}); created.forEach(r=>ST.lanc.unshift(r)); }
         closeSheet(); toast(ins.length?'Receitas salvas ('+ins.length+' lançamentos)':'Receitas do mês zeradas'); renderAll();
       }catch(e){ toast('Erro: '+e.message); }
+    };
+  } else if(s==='central'){
+    if(ST.unit==='central'){
+      el.innerHTML=`<div class="note">Você está na <b>Cozinha Central</b>. Esta aba registra o que <b>outra unidade recebeu</b> da Central. Troque a empresa no topo para <b>Lola CCMQ</b>, <b>Lola MAC</b> ou <b>Eventos</b> e volte aqui.</div>`;
+      return;
+    }
+    const parseNumC=v=>{v=(v||'').trim();if(!v)return NaN;if(v.includes(',')&&v.includes('.'))v=v.replace(/\./g,'').replace(',','.');else if(v.includes(','))v=v.replace(',','.');return parseFloat(v);};
+    const defCat=((ST.plano.find(p=>p.group_id==='cmv'&&/central/i.test(p.label))||ST.plano.find(p=>p.group_id==='cmv')||{}).id)||null;
+    const uNome=U(ST.unit).nome;
+    el.innerHTML=`
+      <div class="note">Item que a Central <b>produziu ou comprou e mandou pra ${esc(uNome)}</b>. O valor é o <b>custo</b> que a Central pagou (sem margem). O app lança o <b>custo aqui</b> e cria sozinho o <b>ressarcimento na Central</b> — os dois ficam ligados.</div>
+      <div class="fld"><label>Item recebido</label><input id="c_memo" placeholder="Ex.: Pão baguete"></div>
+      <div class="row2">
+        <div class="fld"><label>Custo (R$)</label><input id="c_amt" inputmode="decimal" placeholder="80,46"></div>
+        <div class="fld"><label>Data</label><input id="c_date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div class="fld"><label>Competência</label><select id="c_comp">${monthList().map(c=>`<option value="${c}" ${c===ST.comp?'selected':''}>${compLabel(c)}</option>`).join('')}</select></div>
+      <div class="fld"><label>Categoria (custo em ${esc(uNome)})</label>${catSelectHTML(defCat)}</div>
+      <button class="btn p" id="c_go"><i class="ph-duotone ph-arrow-bend-down-right"></i> Lançar recebimento</button>
+      <div class="note" style="background:var(--cremeDark);font-size:12px;margin-top:10px">Cria <b>2 lançamentos ligados</b>: −custo aqui (entra no CMV) e +custo de ressarcimento na Central (ela fica zero a zero).</div>`;
+    $('#c_go').onclick=async()=>{
+      const memo=($('#c_memo').value||'').trim();
+      const valor=Math.abs(parseNumC($('#c_amt').value));
+      if(!memo){toast('Descreva o item recebido');return;}
+      if(isNaN(valor)||valor<=0){toast('Informe o custo');return;}
+      const catEl=$('#sheetBody .pCat'); const cat=catEl?(catEl.value||null):defCat;
+      const date=$('#c_date').value, comp=$('#c_comp').value;
+      const btn=$('#c_go'), old=btn.innerHTML; btn.disabled=true; btn.innerHTML='Lançando…';
+      try{
+        const recCat=await ensureRessarcCat();
+        const base='rcc'+Date.now();
+        const rowLola={unit:ST.unit,date,competencia:comp,memo:'Recebido da Central: '+memo,amount:-valor,category:cat,manual:true,fitid:base};
+        const rowCentral={unit:'central',date,competencia:comp,memo:'Ressarcimento '+uNome+': '+memo,amount:valor,category:recCat,manual:true,fitid:base+'__c'};
+        const created=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify([rowLola,rowCentral])});
+        const mine=(created||[]).find(r=>r.unit===ST.unit); if(mine) ST.lanc.unshift(mine);
+        closeSheet(); toast('Recebimento lançado — custo aqui + ressarcimento na Central'); renderAll();
+      }catch(e){ btn.disabled=false; btn.innerHTML=old; toast('Erro: '+e.message); }
     };
   } else {
     el.innerHTML=`
@@ -2069,6 +2109,27 @@ function openEditCat(id){
   $('#catDel').onclick=()=>{closeSheet();deleteCat(id);};
 }
 function slug(s){return normSearch(s).replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,28)||'cat';}
+/* ===== Recebido da Central: categoria de ressarcimento + par ligado ===== */
+const RESSARC_CAT_ID='receitas__ressarcimento_central';
+async function ensureRessarcCat(){
+  if(ST.planoById[RESSARC_CAT_ID]) return RESSARC_CAT_ID;
+  const info=grupoInfo('receitas');
+  const maxSort=Math.max(0,...ST.plano.filter(p=>p.group_id==='receitas').map(p=>p.sort_order||0));
+  const row={id:RESSARC_CAT_ID,group_id:'receitas',group_label:info.label,group_type:info.type,label:'Ressarcimento da Central',sort_order:maxSort+1};
+  try{ await api('financeiro_plano',{method:'POST',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(row)}); }catch(e){}
+  try{ await loadPlano(); }catch(e){}
+  return ST.planoById[RESSARC_CAT_ID]?RESSARC_CAT_ID:((ST.plano.find(p=>p.group_id==='receitas')||{}).id||null);
+}
+function isRccPair(l){ return !!(l&&l.fitid&&/^rcc\d+(__c)?$/.test(l.fitid)); }
+function pairNote(l){ return isRccPair(l)?'\n(o lançamento-espelho na outra unidade também será removido)':''; }
+async function delMirrorRcc(l){
+  try{
+    if(!isRccPair(l)) return;
+    const f=l.fitid, partner=/__c$/.test(f)?f.replace(/__c$/,''):f+'__c';
+    await api(`financeiro_lancamentos?fitid=eq.${encodeURIComponent(partner)}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    ST.lanc=ST.lanc.filter(x=>x.fitid!==partner);
+  }catch(e){}
+}
 async function saveCat(id){
   const label=($('#catLabel').value||'').trim(); const gid=$('#catGroup').value;
   if(!label){toast('Digite o nome');return;}
