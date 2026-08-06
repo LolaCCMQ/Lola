@@ -122,6 +122,7 @@ td.cell.wknd:hover{background:#FBEAE7}
 .slot.st-dobra{background:#F1E9F6} .tag.dobra{background:#7A5AA0; color:#fff}
 .slot.st-folga{background:var(--cremeDark); color:var(--mut)} .tag.folga{background:#fff;color:var(--mut)}
 .slot.st-falta{background:var(--urgBg)} .tag.falta{background:var(--urgFg); color:#fff}
+.slot.st-atestado{background:#ECEEF9} .tag.atestado{background:#5B6EC2; color:#fff}
 
 .addrow{padding:12px 14px; text-align:center}
 .addrow button{border:1px dashed var(--border); background:transparent; color:var(--azul); border-radius:var(--r-btn); padding:9px 16px; font-weight:800; font-size:13px}
@@ -192,6 +193,7 @@ td.cell.wknd:hover{background:#FBEAE7}
 
   <div class="toolbar">
     <button class="btn ghost" id="todayBtn">Hoje</button>
+    <button class="btn ghost" id="copyPrevBtn" title="Traz os turnos da semana anterior para esta semana">↩ Copiar semana anterior</button>
     <div class="spacer"></div>
     <div class="setting">
       <label>R$/hora freela</label>
@@ -239,6 +241,7 @@ td.cell.wknd:hover{background:#FBEAE7}
         <button class="stbtn" data-st="dobra">Dobra</button>
         <button class="stbtn" data-st="folga">Folga</button>
         <button class="stbtn" data-st="falta">Falta</button>
+        <button class="stbtn" data-st="atestado">Atestado</button>
       </div>
     </div>
 
@@ -419,7 +422,7 @@ function setCell(fid, day, data){
 
 /* ================= cálculos ================= */
 var PAGA = {freela:true, dobra:true};
-function cellHoras(c){ if(!c) return null; if(c.status==='folga'||c.status==='falta') return null; return LOLA_HORAS(c.horario); }
+function cellHoras(c){ if(!c) return null; if(c.status==='folga'||c.status==='falta'||c.status==='atestado') return null; return LOLA_HORAS(c.horario); }
 function empTotals(fid){
   var horas=0, freela=0, turnos=0, frTurnos=0, pago=0, apagar=0;
   for(var d=0; d<7; d++){
@@ -495,6 +498,7 @@ function slotHTML(e,c){
   if(!c) return '<div class="slot empty"></div>';
   if(c.status==='folga') return '<div class="slot st-folga"><span class="tag folga">Folga</span></div>';
   if(c.status==='falta') return '<div class="slot st-falta"><span class="tag falta">Falta</span></div>';
+  if(c.status==='atestado') return '<div class="slot st-atestado"><span class="tag atestado">Atestado</span></div>';
   var h=LOLA_HORAS(c.horario), st=c.status||'trabalha';
   var tag = st==='freela'?'<span class="tag freela">Freela</span>':st==='dobra'?'<span class="tag dobra">Dobra</span>':'';
   return '<div class="slot st-'+st+'">'
@@ -520,12 +524,12 @@ function openSheet(fid,day){
   paintStatus(); updateHint();
   sheetOpen=true;
   document.getElementById('sheetBg').classList.remove('hidden');
-  setTimeout(function(){ if(edit.status!=='folga'&&edit.status!=='falta') document.getElementById('inHorario').focus(); },60);
+  setTimeout(function(){ if(edit.status!=='folga'&&edit.status!=='falta'&&edit.status!=='atestado') document.getElementById('inHorario').focus(); },60);
 }
 function closeSheet(){ sheetOpen=false; document.getElementById('sheetBg').classList.add('hidden'); if(pendingReload) applyReload(); }
 function paintStatus(){
   document.querySelectorAll('#statuses .stbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.st===edit.status); });
-  var noHor=(edit.status==='folga'||edit.status==='falta');
+  var noHor=(edit.status==='folga'||edit.status==='falta'||edit.status==='atestado');
   document.getElementById('fldHorario').classList.toggle('hidden', noHor);
   document.getElementById('fldValor').classList.toggle('hidden', !PAGA[edit.status]);
   document.getElementById('fldPago').classList.toggle('hidden', !PAGA[edit.status]);
@@ -543,7 +547,7 @@ function updateHint(){
 }
 function saveSheet(){
   var status=edit.status, data;
-  if(status==='folga'||status==='falta'){ data={status:status,horario:'',valor:null}; }
+  if(status==='folga'||status==='falta'||status==='atestado'){ data={status:status,horario:'',valor:null}; }
   else{
     var hor=document.getElementById('inHorario').value.trim(), valor=document.getElementById('inValor').value;
     if(PAGA[status] && !hor){ alert('Preencha o horário da '+(status==='dobra'?'dobra':'freela')+' (ex.: 16h-0h) — é por ele que calculamos as horas a pagar.'); return; }
@@ -595,6 +599,33 @@ document.addEventListener('keydown', function(ev){ if(ev.key==='Escape') closeSh
 document.getElementById('prevWk').addEventListener('click', async function(){ state.weekStart=addDays(state.weekStart,-7); await loadWeek(); render(); });
 document.getElementById('nextWk').addEventListener('click', async function(){ state.weekStart=addDays(state.weekStart,7); await loadWeek(); render(); });
 document.getElementById('todayBtn').addEventListener('click', async function(){ state.weekStart=startOfWeek(new Date()); await loadWeek(); render(); });
+document.getElementById('copyPrevBtn').addEventListener('click', async function(){
+  if(!sb){ alert('Sem conexão com a nuvem — não dá pra copiar agora.'); return; }
+  var prevIso = isoDay(addDays(state.weekStart,-7));
+  var temAtual = state.cells && Object.keys(state.cells).some(function(fid){ return Object.keys(state.cells[fid]||{}).length; });
+  var msg = 'Copiar a escala da SEMANA ANTERIOR para a semana que você está vendo?';
+  if(temAtual) msg += '\n\n⚠️ Os turnos já lançados nesta semana serão substituídos.';
+  if(!confirm(msg)) return;
+  setSync('saving');
+  try{
+    var r = await sb.from('lola_central_escala').select('dados').eq('semana', prevIso).maybeSingle();
+    var cells = (r.data && r.data.dados && r.data.dados.cells) ? r.data.dados.cells : null;
+    if(!cells || !Object.keys(cells).length){ setSync('ok'); alert('A semana anterior não tem escala lançada para copiar.'); return; }
+    /* copia turnos e horários, mas ZERA o pagamento — semana nova ainda não foi paga */
+    var novo = {};
+    Object.keys(cells).forEach(function(fid){
+      novo[fid] = {};
+      Object.keys(cells[fid]).forEach(function(d){
+        var c = Object.assign({}, cells[fid][d]);
+        if(c.pago) c.pago = false;
+        novo[fid][d] = c;
+      });
+    });
+    state.cells = novo;
+    await saveWeek();
+    render();
+  }catch(e){ console.error(e); setSync('off','erro ao copiar'); alert('Não consegui copiar a semana anterior. Tente de novo.'); }
+});
 
 document.getElementById('rateInput').addEventListener('change', function(){ state.cfg.rate=Number(this.value)||0; saveCfg(); render(); });
 document.getElementById('orcInput').addEventListener('change', function(){ state.cfg.orcamento=Number(this.value)||0; saveCfg(); render(); });
