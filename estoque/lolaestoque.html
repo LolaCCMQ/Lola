@@ -2168,11 +2168,11 @@ async function modalPrep(item){
     return w;
   })();
   const margWidget=el('div',null,[
-    fsel('',['30','40','50','60','70','personalizado'],String(f.margem_venda),v=>{
+    fsel('',['30','40','50','60','70',{v:'100',l:'A preço de custo (margem 0)'},'personalizado'],String(f.margem_venda),v=>{
       if(v==='personalizado'){margInp.style.display='block';}
       else{margInp.style.display='none';f.margem_venda=parseFloat(v);calcTotais();}
     }),
-    (()=>{margInp=finp('',f.margem_venda,v=>{f.margem_venda=parseFloat(v)||70;calcTotais();},'number');margInp.placeholder='% personalizado';margInp.style.display=['30','40','50','60','70'].includes(String(f.margem_venda))?'none':'block';margInp.style.marginTop='6px';return margInp;})()
+    (()=>{margInp=finp('',f.margem_venda,v=>{f.margem_venda=parseFloat(v)||70;calcTotais();},'number');margInp.placeholder='% personalizado';margInp.style.display=['30','40','50','60','70','100'].includes(String(f.margem_venda))?'none':'block';margInp.style.marginTop='6px';return margInp;})()
   ]);
   mkModal((ed?'Editar':'Nova')+' pré-produção',[
     div('fg2',[
