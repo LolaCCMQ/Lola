@@ -302,7 +302,6 @@
           var h = '<div class="cc-card">';
           h += '<div class="cc-top"><div class="cc-item">' + _escC(c.descricao || '(sem descrição)') + '</div><div class="cc-val">' + cartBRL(c.valor) + '</div></div>';
           if (c.data) h += '<div class="cc-data"><i class="ph-duotone ph-calendar-blank"></i> ' + fmtDate(c.data) + '</div>';
-          if (c.loja) h += '<div class="cc-forn"><i class="ph-duotone ph-storefront"></i> ' + _escC(c.loja) + '</div>';
           var tags = '';
           if (c.empresa) tags += '<span class="cc-tag cc-emp">' + _escC(c.empresa) + '</span>';
           if (c.cartao) tags += '<span class="cc-tag cc-cartao">' + _escC(_ccShort(c.cartao)) + '</span>';
@@ -311,7 +310,6 @@
           h += '<div class="cc-div"></div>';
           h += '<div class="cc-base"><div class="cc-status">' +
             '<label class="cc-chk"><input type="checkbox" ' + (c.conferido ? 'checked' : '') + ' onchange="cartaoToggleConf(' + c.id + ',this.checked)"> Lançado</label>' +
-            '<label class="cc-chk"><input type="checkbox" ' + (c.recebido ? 'checked' : '') + ' onchange="cartaoToggleReceb(' + c.id + ',this.checked)"> Recebido</label>' +
             '</div><div class="cc-acts">' +
             '<button class="cc-ab edit" title="Editar" onclick="cartaoEditar(' + c.id + ')"><i class="ph-duotone ph-pencil-simple"></i></button>' +
             '<button class="cc-ab del" title="Excluir" onclick="cartaoExcluir(' + c.id + ')"><i class="ph-duotone ph-trash"></i></button>' +
