@@ -460,6 +460,46 @@ td .sub{font-size:10px;color:var(--ts);margin-top:2px;}
 .ins-saldo .isd-min{font-size:11px;color:var(--rm);font-weight:600}
 .ins-saldo .isd-none{font-size:11.5px;color:var(--rm);font-weight:600}
 </style>
+<style id="ficha-v3">
+/* ===== Redesign da ficha (07/08, Bianca): modal 920px, 2 colunas, fios ===== */
+.mo-ficha{max-width:940px;width:calc(100vw - 40px);}
+.mo-ficha .mb{padding:0;}
+.mo-ficha .mf{padding:14px 24px 20px;}
+.ficha-v3 .fv-body{display:grid;grid-template-columns:330px 1fr;}
+.ficha-v3 .fv-l{padding:20px 20px 22px 24px;border-right:1px solid var(--fio,#EFE6DC);}
+.ficha-v3 .fv-r{padding:20px 24px 20px 20px;min-width:0;}
+.ficha-v3 .fv-seclbl{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#B79A8E;margin:0 0 8px;}
+.ficha-v3 .fv-blk{margin-bottom:16px;}
+.ficha-v3 .fg2,.ficha-v3 .fg3,.ficha-v3 .fg4{display:grid;gap:12px;margin-bottom:14px;}
+.ficha-v3 .fg2{grid-template-columns:1fr 1fr;}
+.ficha-v3 .fg3{grid-template-columns:1fr 1fr 1.4fr;}
+.ficha-v3 .fg4{grid-template-columns:1fr 1fr 1fr auto;align-items:end;}
+.ficha-v3 .dv{margin:16px 0;}
+/* foto grande */
+.ficha-v3 .fv-cover{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--rb);background:#fff;aspect-ratio:4/3;}
+.ficha-v3 .fv-cover img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;}
+.ficha-v3 .fv-cover-empty{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#B79A8E;cursor:pointer;font-size:13px;font-weight:600;}
+.ficha-v3 .fv-cover-empty i{font-size:34px;}
+.ficha-v3 .fv-rm{position:absolute;top:9px;right:9px;width:30px;height:30px;border-radius:50%;border:none;background:rgba(30,15,12,.55);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.ficha-v3 .fv-thumbs{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;}
+.ficha-v3 .fv-thumb{width:54px;height:54px;border-radius:10px;object-fit:cover;border:1px solid var(--rb);cursor:pointer;}
+.ficha-v3 .fv-addmini{width:54px;height:54px;border-radius:10px;border:1.5px dashed #e0cfc9;background:transparent;color:var(--v);cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;}
+/* ingredientes em fios */
+.ficha-v3 .ing-cols{display:grid;grid-template-columns:42px 1fr 56px 60px 44px 92px 24px;gap:8px;align-items:center;padding:0 2px 7px;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#B79A8E;border-bottom:1px solid var(--fio,#EFE6DC);}
+.ficha-v3 .ing-cols .r{text-align:right;}
+.ficha-v3 .ir{display:grid;grid-template-columns:42px 1fr 56px 60px 44px 92px 24px;gap:8px;align-items:center;background:transparent;border:none;border-bottom:1px solid var(--fio,#EFE6DC);border-radius:0;padding:9px 2px;margin:0;flex-wrap:nowrap;}
+.ficha-v3 .ir>.fi{font-size:12.5px;}
+.ficha-v3 .ir>.bd{width:24px;height:24px;min-width:24px;padding:0;border-radius:50%;font-size:11px;}
+.ficha-v3 .btn{padding:6px 13px;font-size:11.5px;}
+.ficha-v3 .btn.bsm{padding:5px 11px;font-size:11px;}
+@media(max-width:820px){
+  .ficha-v3 .fv-body{grid-template-columns:1fr;}
+  .ficha-v3 .fv-l{border-right:none;border-bottom:1px solid var(--fio,#EFE6DC);}
+  .ficha-v3 .fg2,.ficha-v3 .fg3,.ficha-v3 .fg4{grid-template-columns:1fr 1fr;}
+  .ficha-v3 .ing-cols{display:none;}
+  .ficha-v3 .ir{grid-template-columns:40px 1fr auto;grid-auto-rows:auto;gap:6px;}
+}
+</style>
 </head>
 <body>
 <div id="app"></div>
@@ -2362,6 +2402,8 @@ function drawFT(w){
   f=f.filter(_daMinhaCozinha);
   if(_ftBusca) f=f.filter(x=>x.nome.toLowerCase().includes(_ftBusca.toLowerCase()));
   f=_ftOrdena(f.slice());
+  /* Inativos (fora do menu) sempre no fim da lista, seja qual for a ordenação (Bianca, 07/08). */
+  f=[...f.filter(x=>x.no_menu!==false), ...f.filter(x=>x.no_menu===false)];
   // barra de ordenação
   const sortBar=div('ft-sort no-print');
   sortBar.appendChild(span('ft-sort-lb','Ordenar por'));
@@ -2372,23 +2414,9 @@ function drawFT(w){
   });
   w.appendChild(sortBar);
 
-  const alertas=f.filter(x=>{
-    if(!x.preco_venda||x.preco_venda<=0)return false;
-    return x.custo_por_porcao/x.preco_venda*100>_ftLim(x);
-  });
-  if(alertas.length&&!_ftBusca){
-    const alertBox=div('al',null,{style:'background:#FBEAE7;border:1px solid #F3D3CE;color:#B5302E;border-radius:14px;padding:12px 16px;margin-bottom:14px'});
-    alertBox.appendChild(el('div','bold','Revisar ficha técnica — CMV acima do limite:',{style:'margin-bottom:2px;font-size:13px'}));
-    alertBox.appendChild(el('div',null,'Preparo da casa: 30%. Produto pronto (comprado feito): 50%.',{style:'margin-bottom:8px;font-size:11px;opacity:.75'}));
-    alertas.forEach(x=>{
-      const cmv=(x.custo_por_porcao/x.preco_venda*100).toFixed(0);
-      alertBox.appendChild(div('fl_ jb aic',[
-        span(null,x.nome+(x.produto_pronto?' (produto pronto)':''),{style:'font-size:12px;font-weight:600'}),
-        span(null,'custo '+R(x.custo_por_porcao)+' venda '+R(x.preco_venda)+' CMV '+cmv+'% · limite '+_ftLim(x)+'%',{style:'font-size:11px;opacity:.8'})
-      ],{style:'padding:4px 0;border-bottom:1px solid #fca5a580'}));
-    });
-    w.appendChild(alertBox);
-  }
+  /* 07/08 (Bianca): tirou o banner "Revisar ficha técnica — CMV acima do limite" do topo.
+     As fichas acima do limite já aparecem em vermelho na própria lista (bolinha, % e a
+     etiqueta "revisar ficha"), então o aviso em cima virou redundante. */
   if(!f.length){w.appendChild(em('ficha',_ftBusca?'Nenhuma ficha encontrada':'Nenhuma ficha aqui'));return;}
 
   const DEST_COR={ccmq:'#C0392B',mac:'#2C7A4B',central:'#2C5AA0',eventos:'#9A6B1E'};
@@ -2428,11 +2456,10 @@ function drawFT(w){
       pp.title='Comprado feito, sem manipulação — o limite de CMV dele é 50%';
       nome.appendChild(pp);
     }
-    if(!semPreco&&cmv>lim){
-      const rc=span('ft-cmvalto'); rc.innerHTML='<i class="ph-duotone ph-warning-circle"></i> revisar ficha';
-      rc.title='CMV de '+cmv.toFixed(0)+'% — acima do limite de '+lim+'%'+(x.produto_pronto?' (produto pronto)':' (preparo da casa)');
-      nome.appendChild(rc);
-    }
+    /* 07/08 (Bianca): saiu a etiqueta vermelha automática "revisar ficha" (CMV alto).
+       Ficava duplicada com a etiqueta "revisar" manual. O CMV acima do limite já
+       aparece em vermelho na coluna CMV (bolinha + %), então não precisa de etiqueta.
+       Sobrou só a etiqueta "revisar" manual, que se tira dentro da ficha. */
     row.appendChild(nome);
 
     /* No desktop estes 4 são colunas do grid (o .ft-mob é display:contents).
@@ -2868,26 +2895,43 @@ function _thumbFromDataUrl(dataUrl, max, cb){
 }
 function _thumbP(dataUrl,max){ return new Promise(function(res){ _thumbFromDataUrl(dataUrl,max,res); }); }
 function buildFotosWidget(fotos){
+  /* 07/08 (Bianca): foto grande (capa) + miniaturas embaixo. Clicar numa miniatura
+     a torna capa; a capa abre em tamanho cheio. */
   var wrap=document.createElement('div');
-  var thumbs=document.createElement('div');
-  thumbs.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px';
-  function render(){
-    thumbs.innerHTML='';
-    fotos.forEach(function(src,idx){
-      var box=document.createElement('div'); box.style.cssText='position:relative;width:84px;height:84px;border-radius:10px;overflow:hidden;border:1.5px solid var(--rb)';
-      var im=document.createElement('img'); im.src=src; im.style.cssText='width:100%;height:100%;object-fit:cover;cursor:pointer'; im.addEventListener('click',function(){window.open(src,'_blank');});
-      var rm=document.createElement('button'); rm.type='button'; rm.textContent='✕'; rm.style.cssText='position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:1';
-      rm.addEventListener('click',function(){fotos.splice(idx,1);render();});
-      box.appendChild(im); box.appendChild(rm); thumbs.appendChild(box);
-    });
-  }
+  var cover=document.createElement('div'); cover.className='fv-cover';
+  var thumbs=document.createElement('div'); thumbs.className='fv-thumbs';
   var fileInp=document.createElement('input'); fileInp.type='file'; fileInp.accept='image/*'; fileInp.multiple=true; fileInp.style.display='none';
+  function openPick(){ fileInp.click(); }
+  function render(){
+    cover.innerHTML=''; thumbs.innerHTML='';
+    if(!fotos.length){
+      var e=document.createElement('div'); e.className='fv-cover-empty';
+      e.innerHTML='<i class="ph-duotone ph-image"></i><span>Adicionar foto</span>';
+      e.addEventListener('click',openPick); cover.appendChild(e);
+      return;
+    }
+    var im=document.createElement('img'); im.src=fotos[0];
+    im.addEventListener('click',function(){window.open(fotos[0],'_blank');});
+    cover.appendChild(im);
+    var badge=document.createElement('span'); badge.textContent='capa';
+    badge.style.cssText='position:absolute;left:9px;bottom:9px;background:rgba(255,255,255,.9);color:#5A463E;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:50px';
+    cover.appendChild(badge);
+    var rm=document.createElement('button'); rm.type='button'; rm.className='fv-rm'; rm.innerHTML='<i class="ph-duotone ph-x"></i>';
+    rm.addEventListener('click',function(){fotos.splice(0,1);render();});
+    cover.appendChild(rm);
+    for(var idx=1; idx<fotos.length; idx++){ (function(i){
+      var t=document.createElement('img'); t.className='fv-thumb'; t.src=fotos[i]; t.title='Usar como capa';
+      t.addEventListener('click',function(){ var f=fotos.splice(i,1)[0]; fotos.unshift(f); render(); });
+      thumbs.appendChild(t);
+    })(idx); }
+    var add=document.createElement('button'); add.type='button'; add.className='fv-addmini'; add.innerHTML='<i class="ph-duotone ph-plus"></i>';
+    add.addEventListener('click',openPick); thumbs.appendChild(add);
+  }
   fileInp.addEventListener('change',function(){
     var files=Array.prototype.slice.call(this.files); this.value='';
     files.forEach(function(f){ _resizeImg(f,function(d){ fotos.push(d); render(); }); });
   });
-  var addBtn=btn('btn bg bsm','📷 Adicionar foto',function(){fileInp.click();});
-  wrap.appendChild(addBtn); wrap.appendChild(fileInp); wrap.appendChild(thumbs);
+  wrap.appendChild(cover); wrap.appendChild(thumbs); wrap.appendChild(fileInp);
   render();
   return wrap;
 }
@@ -2999,17 +3043,17 @@ async function modalFicha(item){
       });
 
       // Unidade selecionável — SEMPRE todas (g/kg/ml/L/un...) + a atual
-      const unSel=el('select','fi',null,{style:'width:74px;flex-shrink:0;padding:6px 2px;font-size:12px'});
+      const unSel=el('select','fi',null,{style:'width:100%;min-width:0;padding:6px 2px;font-size:12px'});
       _ingUnits(ig).forEach(u=>{const o=el('option',null,u,{value:u});if(u===ig.unidade)o.selected=true;unSel.appendChild(o);});
       unSel.addEventListener('change',e=>{ig.unidade=e.target.value;calcItem(idx);});
 
       const qbI=finp('',ig.qtd_bruta!=null&&ig.qtd_bruta!==''?String(ig.qtd_bruta).replace('.',','):'',v=>{ig.qtd_bruta=(v||'').replace(',','.');calcItem(idx);},'text');qbI.setAttribute('inputmode','decimal');
-      qbI.style.cssText='width:62px;flex-shrink:0;text-align:center;padding:6px 4px';
+      qbI.style.cssText='width:100%;min-width:0;text-align:center;padding:6px 4px';
       qbI.placeholder='Qtd';
 
       const fcI=finp('',ig.fc!=null?String(ig.fc).replace('.',','):1,v=>{ig.fc=(v||'').replace(',','.');calcItem(idx);},'text');fcI.setAttribute('inputmode','decimal');
-      fcI.style.cssText='width:54px;flex-shrink:0;text-align:center;padding:6px 4px';fcI.placeholder='FC';fcI.title='Fator de correção';
-      sel.style.cssText='flex:1 1 120px;min-width:100px';
+      fcI.style.cssText='width:100%;min-width:0;text-align:center;padding:6px 4px';fcI.placeholder='FC';fcI.title='Fator de correção';
+      sel.style.cssText='width:100%;min-width:0';
 
       const ctEl=span('bold tv',R(ig.custo_total||0));
       ctEl.style.cssText='white-space:nowrap;text-align:right;font-weight:800;color:var(--v);font-size:14px';
@@ -3075,56 +3119,91 @@ async function modalFicha(item){
   precoInp=finp('',f.preco_venda,v=>{f.preco_venda=v;calcTotais();},'number');
   metaCmvInp=finp('',f.meta_cmv,v=>{f.meta_cmv=v;calcTotais();},'number');
   mkModal(ed?'Editar ficha':'Nova ficha técnica',[
-    div('fg2',[
-      fgrp('Nome do prato',finp('',f.nome,v=>f.nome=v)),
-      ...(ed?[fgrp('📝 O que foi alterado',descEd)]:[]),
-    ]),
-    /* 18/07 (Bianca): o campo Cardápio SAIU do modal — "tudo ali é do Lola CCMQ";
-       a ficha nova continua gravando o cardápio da cozinha/aba do app (f.cardapio
-       via _tabCard), só não se escolhe mais na mão. E "tentar ocupar uma ou duas
-       linhas somente" — o miolo virou 2 linhas (fg4 + fg3). */
-    div('fg4',[
-      fgrp('Categoria',fsel('',['prato','sobremesa','bebida','produto_evento'],f.categoria,v=>{f.categoria=v;})),
-      fgrp('Preço de venda (R$)',precoInp),
-      fgrp('🎯 Meta de CMV (%)',metaCmvInp),
-      fgrp('\u00A0',btn('btn bg bsm','↧ Usar preço sugerido',()=>{if(_precoSug>0){f.preco_venda=_precoSug.toFixed(2);if(precoInp)precoInp.value=f.preco_venda;calcTotais();}})),
-    ]),
-    div('fg3',[
-      fgrp('Rendimento (qtd)',finp('',f.rendimento_qtd,v=>f.rendimento_qtd=v,'number')),
-      fgrp('Unidade rendimento',fsel('',['porção','un','kg','L','pessoa'],f.rendimento_un,v=>f.rendimento_un=v)),
-      fgrp('🏷️ Situação no menu',destSelectorFT),
-    ]),
-    fgrp('📷 Fotos do prato',fotosWidget),
-    el('hr','dv'),
-    div('fl_ jb aic mb3',[
-      el('strong',null,'Composição do prato',{style:'font-size:13px'}),
-      btn('btn bg bsm','+ Ingrediente',()=>{ings.push({tipo:'insumo',id:'',qtd_bruta:'',qtd_liquida:0,fc:1,custo_unitario:0,custo_total:0,unidade:'g'});rebuildI();})
-    ]),
-    iw,custoResEl,
-    el('hr','dv'),
-    fgrp('📝 Modo de preparo',el('textarea','fi',f.modo_preparo||'',{oninput:e=>{f.modo_preparo=e.target.value;},rows:'4',placeholder:'Passo a passo do preparo...',style:'width:100%;resize:vertical;min-height:70px;font-family:inherit'})),
-    fgrp('🗒️ Observações',el('textarea','fi',f.observacoes||'',{oninput:e=>{f.observacoes=e.target.value;},rows:'3',placeholder:'Observações sobre a receita...',style:'width:100%;resize:vertical;min-height:55px;font-family:inherit'})),
-    el('hr','dv'),
+    /* 07/08 (Bianca): redesign V3 - modal 920px em 2 colunas. Esquerda: foto grande +
+       resumo de custo. Direita: campos + ingredientes em fios. Toda a logica (finp,
+       calcItem, calcTotais, salvar) e a mesma; so mudou a montagem visual. */
     (()=>{
-      const autorWrap=div('fl_ aic gap2');
-      autorWrap.style.cssText='margin-top:4px;padding:10px 14px;background:var(--rt);border-radius:10px;border:1.5px solid var(--rb)';
-      // Quem edita vem do LOGIN do portal (?u=). Só vira campo digitável se abrir fora do portal.
-      if(ME){
-        _autorFt.v=ME;
-        autorWrap.innerHTML='<span style="white-space:nowrap;font-size:12px;font-weight:700;color:var(--v);flex-shrink:0">✍️ Alterando como:</span>'
-          +'<b style="font-size:13px;color:var(--tx)">'+_uEsc(ME)+'</b>'
-          +'<span class="tss" style="margin-left:auto;font-size:11px;color:#8A7A72"><i class="ph-duotone ph-lock-simple"></i> vem do seu login</span>';
-        return autorWrap;
+      let reviewBanner=null;
+      if(ed && item && item.revisar){
+        const rb=div(null);
+        rb.style.cssText='display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FBF0DD;border:1.5px solid #F1DFB8;border-radius:10px;padding:10px 14px;margin-bottom:14px';
+        const txt=document.createElement('div');
+        txt.style.cssText='flex:1;min-width:180px;font-size:12.5px;color:#7A5A12';
+        const strong=document.createElement('strong');
+        strong.innerHTML='<i class="ph-duotone ph-warning"></i> Pendente de revis\u00E3o. ';
+        txt.appendChild(strong);
+        txt.appendChild(document.createTextNode(item.revisar_motivo?('Motivo: '+item.revisar_motivo):'Sem motivo informado.'));
+        const okb=btn('btn bv bsm','\u2713 Marcar como revisado',async()=>{
+          okb.disabled=true; okb.textContent='...';
+          try{
+            await db('lola_fichas_tecnicas','PATCH',{revisar:false,revisar_motivo:null},'?id=eq.'+item.id);
+            item.revisar=false; item.revisar_motivo=null; rb.remove();
+            try{ _ft=await db('lola_fichas_tecnicas','GET',null,'?select=*&ativo=eq.true&order=nome.asc'); drawFT($('#ft-t')); }catch(e){}
+          }catch(e){ alert('Erro: '+e.message); okb.disabled=false; okb.textContent='\u2713 Marcar como revisado'; }
+        });
+        rb.appendChild(txt); rb.appendChild(okb);
+        reviewBanner=rb;
       }
-      const lbl=el('span',null,'✍️ Quem está alterando:',{style:'white-space:nowrap;font-size:12px;font-weight:700;color:var(--v);flex-shrink:0'});
-      const inpA=el('input','fi',null,{type:'text',placeholder:'Seu nome (obrigatório para salvar)','data-autor-ft':'',style:'flex:1;border:1.5px solid var(--rb)'});
-      if(_autorFt.v)inpA.value=_autorFt.v;
-      inpA.addEventListener('input',e=>{
-        _autorFt.v=e.target.value;
-        inpA.style.borderColor=e.target.value.trim()?'var(--vd)':'var(--rb)';
-      });
-      autorWrap.appendChild(lbl);autorWrap.appendChild(inpA);
-      return autorWrap;
+      const autorWrap=(()=>{
+        const w=div('fl_ aic gap2');
+        w.style.cssText='margin-top:4px;padding:10px 14px;background:var(--rt);border-radius:10px;border:1.5px solid var(--rb)';
+        if(ME){
+          _autorFt.v=ME;
+          w.innerHTML='<span style="white-space:nowrap;font-size:12px;font-weight:700;color:var(--v);flex-shrink:0">\u270D\uFE0F Alterando como:</span>'
+            +'<b style="font-size:13px;color:var(--tx)">'+_uEsc(ME)+'</b>'
+            +'<span class="tss" style="margin-left:auto;font-size:11px;color:#8A7A72"><i class="ph-duotone ph-lock-simple"></i> vem do seu login</span>';
+          return w;
+        }
+        const lbl=el('span',null,'\u270D\uFE0F Quem est\u00E1 alterando:',{style:'white-space:nowrap;font-size:12px;font-weight:700;color:var(--v);flex-shrink:0'});
+        const inpA=el('input','fi',null,{type:'text',placeholder:'Seu nome (obrigat\u00F3rio para salvar)','data-autor-ft':'',style:'flex:1;border:1.5px solid var(--rb)'});
+        if(_autorFt.v)inpA.value=_autorFt.v;
+        inpA.addEventListener('input',e=>{ _autorFt.v=e.target.value; inpA.style.borderColor=e.target.value.trim()?'var(--vd)':'var(--rb)'; });
+        w.appendChild(lbl);w.appendChild(inpA);
+        return w;
+      })();
+      const colL=div('fv-l',[
+        el('div','fv-seclbl','Foto do prato'),
+        fotosWidget,
+        el('hr','dv'),
+        el('div','fv-seclbl','Resumo de custo'),
+        custoResEl
+      ]);
+      const ingHead=div('ing-cols',[
+        el('span',null,''), el('span',null,'Ingrediente'),
+        el('span','r','Qtd'), el('span','r','Un'), el('span','r','FC'),
+        el('span','r','Custo'), el('span',null,'')
+      ]);
+      const colR=div('fv-r',[
+        ...(reviewBanner?[reviewBanner]:[]),
+        div('fg2',[
+          fgrp('Nome do prato',finp('',f.nome,v=>f.nome=v)),
+          ...(ed?[fgrp('\uD83D\uDCDD O que foi alterado',descEd)]:[]),
+        ]),
+        div('fg4',[
+          fgrp('Categoria',fsel('',['prato','sobremesa','bebida','produto_evento'],f.categoria,v=>{f.categoria=v;})),
+          fgrp('Pre\u00E7o de venda (R$)',precoInp),
+          fgrp('\uD83C\uDFAF Meta CMV (%)',metaCmvInp),
+          fgrp(' ',btn('btn bg bsm','\u21A7 Sugerido',()=>{if(_precoSug>0){f.preco_venda=_precoSug.toFixed(2);if(precoInp)precoInp.value=f.preco_venda;calcTotais();}})),
+        ]),
+        div('fg3',[
+          fgrp('Rendimento (qtd)',finp('',f.rendimento_qtd,v=>f.rendimento_qtd=v,'number')),
+          fgrp('Unidade rendimento',fsel('',['por\u00E7\u00E3o','un','kg','L','pessoa'],f.rendimento_un,v=>f.rendimento_un=v)),
+          fgrp('\uD83C\uDFF7\uFE0F Situa\u00E7\u00E3o no menu',destSelectorFT),
+        ]),
+        el('hr','dv'),
+        div('fl_ jb aic mb3',[
+          el('strong',null,'Composi\u00E7\u00E3o do prato',{style:'font-size:15px;font-family:Fraunces,serif;font-weight:600'}),
+          btn('btn bg bsm','+ Ingrediente',()=>{ings.push({tipo:'insumo',id:'',qtd_bruta:'',qtd_liquida:0,fc:1,custo_unitario:0,custo_total:0,unidade:'g'});rebuildI();})
+        ]),
+        ingHead,
+        iw,
+        el('hr','dv'),
+        fgrp('\uD83D\uDCDD Modo de preparo',el('textarea','fi',f.modo_preparo||'',{oninput:e=>{f.modo_preparo=e.target.value;},rows:'3',placeholder:'Passo a passo do preparo...',style:'width:100%;resize:vertical;min-height:60px;font-family:inherit'})),
+        fgrp('\uD83D\uDDD2\uFE0F Observa\u00E7\u00F5es',el('textarea','fi',f.observacoes||'',{oninput:e=>{f.observacoes=e.target.value;},rows:'2',placeholder:'Observa\u00E7\u00F5es sobre a receita...',style:'width:100%;resize:vertical;min-height:46px;font-family:inherit'})),
+        el('hr','dv'),
+        autorWrap
+      ]);
+      return div('ficha-v3',[ div('fv-body',[colL,colR]) ]);
     })(),
   ],async()=>{
     // Validar autoria obrigatória
@@ -3163,7 +3242,7 @@ async function modalFicha(item){
     try{ await db('lola_fichas_fotos','DELETE',null,'?ficha_id=eq.'+fid); for(const _fo of fotos){ await db('lola_fichas_fotos','POST',{ficha_id:fid,foto:_fo}); } }catch(e){console.error('fotos',e);}
     _ft=await db('lola_fichas_tecnicas','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
     drawFT($('#ft-t'));
-  },'mo moxl');
+  },'mo moxl mo-ficha');
   }catch(e){alert('Erro ao abrir ficha: '+e.message);console.error(e);}
 }
 
