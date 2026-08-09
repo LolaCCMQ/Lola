@@ -2161,7 +2161,7 @@ function cartaoGrid(){
   var _mk=Object.keys(porMes).sort().reverse(); var _mesHtml=''; if(_mk.length){ _mesHtml='<div style="flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">Por mês</div>'+_mk.map(function(k){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span>'+cartMes(k)+'</span><b>'+cartBRL(porMes[k])+'</b></div>';}).join('')+'</div>'; }
   var _ck=Object.keys(porCat).sort(function(a,b){return porCat[b]-porCat[a];}); var _catHtml=''; if(_ck.length){ _catHtml='<div style="flex:1;min-width:180px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">Por categoria</div>'+_ck.map(function(k){var pi=cartCatInfo(k);return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_escC(pi?pi.label:k)+'</span><b style="flex:0 0 auto">'+cartBRL(porCat[k])+'</b></div>';}).join('')+'</div>'; }
   var resumo=(tot>0)?('<div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px">'+_chip('Por local',porEmp)+_chip('Por cartão',porCard)+_mesHtml+_catHtml+'</div>'):'';
-  var h='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">'+lst.length+' compra(s)'+(pend?(' · <b style="color:#9a5b1a">'+pend+' pendente(s) de lançar</b>'):'')+(tot>0?(' · Total <b style="color:var(--vinho-deep)">'+cartBRL(tot)+'</b>'):'')+'</div>'+resumo;
+  var h='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">'+lst.length+' compra(s)'+(pend?(' · <b style="color:#9a5b1a">'+pend+' pendente(s) de lançar</b>'):'')+(tot>0?(' · Total <b style="color:var(--vinho-deep)">'+cartBRL(tot)+'</b>'):'')+'</div>';
   if(!lst.length) return h+'<div style="padding:18px;color:var(--muted);text-align:center">Nenhuma compra com esse filtro.</div>';
   h+='<div class="cart-gridwrap"><table class="cart-grid"><thead><tr>'+['✓','Data','O que comprou','Categoria','Local','Cartão','Valor','Comp.',''].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
   lst.forEach(function(c){
@@ -2178,7 +2178,7 @@ function cartaoGrid(){
       +'<td style="text-align:center;white-space:nowrap"><button title="Editar" onclick="cartaoEditar('+c.id+')" style="border:0;background:transparent;color:#2C5AA0;cursor:pointer;font-size:1.05rem">✏️</button> <button title="Excluir" onclick="cartaoExcluir('+c.id+')" style="border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1.05rem">🗑</button></td>'
       +'</tr>';
   });
-  h+='</tbody></table></div>'; return h;
+  h+='</tbody></table></div>'; h+=resumo; return h;
 }
 
 function cartaoFiltro(){
