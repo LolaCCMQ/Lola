@@ -2126,8 +2126,8 @@ function cartCatCell(c){
   var groups=[],seen={};
   CART_PLANO.forEach(function(p){ if(!seen[p.group_label]){seen[p.group_label]=[];groups.push(p.group_label);} seen[p.group_label].push(p); });
   var h='<select onchange="cartaoSetCat('+c.id+',this.value)" style="color:'+(c.categoria?'#141414':'#CBC1B9')+';font-weight:'+(c.categoria?'600':'400')+'">';
-  h+='<option value=""'+(!c.categoria?' selected':'')+'>— classificar —</option>';
-  groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'"'+(p.id===c.categoria?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; });
+  h+='<option value="" style="color:#B0A69E"'+(!c.categoria?' selected':'')+'>— classificar —</option>';
+  groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'" style="color:#141414;font-weight:700">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'" style="color:#141414;font-weight:500"'+(p.id===c.categoria?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; });
   h+='</select>'; return h;
 }
 function _cartSelCell(id,field,arr,val){
