@@ -667,6 +667,26 @@ function parseBuscaData(txt){
   if(m && ok(m[3],m[2])) return {dd:m[3], mm:m[2], yyyy:m[1]};
   return null;
 }
+function ensureLgridCss(){ if(document.getElementById('lgridCss'))return; const st=document.createElement('style'); st.id='lgridCss'; st.textContent=`
+.lgridwrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-card);background:#fff}
+.lgrid{width:100%;min-width:820px;border-collapse:collapse;font-size:12.5px;background:#fff}
+.lgrid thead th{position:sticky;top:0;z-index:1;background:var(--cremeDark);text-align:left;padding:7px 9px;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--mut);border-bottom:1px solid var(--border);white-space:nowrap}
+.lgrid td{padding:5px 9px;border-bottom:1px solid var(--fio);vertical-align:middle}
+.lgrid tr.lrow:hover td{background:#FBF7F1}
+.lgrid tr.lrow.conc td{background:#F4F8F5}
+.lgrid .c-sel{width:34px}
+.lgrid .c-date{white-space:nowrap;color:var(--mut);font-size:11px;line-height:1.15}
+.lgrid .c-memo{max-width:260px}
+.lgrid .c-memo .memo{font-weight:600;font-size:12.5px;line-height:1.25;word-break:break-word}
+.lgrid .c-amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+.lgrid .c-nf{white-space:nowrap}
+.lgrid .c-act .mini{margin-left:0;gap:5px}
+.lgrid .catbtn{font-size:11px;padding:4px 8px}
+.lgrid .compchip{white-space:nowrap}
+.lgrid .iconbtn{width:30px;height:30px}
+.lgrid tr.lgrid-dh td{padding:12px 9px 5px;background:#fff;border-bottom:1px solid var(--fio)}
+.lgrid tr.lgrid-dh .dayhead{display:flex;justify-content:space-between;align-items:center;margin:0;padding:0;border:0}
+`; document.head.appendChild(st); }
 function renderLanc(){
   const busca=ST.search||'';
   const bd=parseBuscaData(busca);
@@ -705,7 +725,8 @@ function renderLanc(){
   const el=$('#lancList');
   if(!rows.length){const filtrando=ST.search||ST.catF||ST.lancComp==='todas'||ST.statusF!=='todos';
     el.innerHTML=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>${bd?`Nenhum lançamento em ${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}.`:(filtrando?'Nenhum lançamento com esses filtros.':'Nenhum lançamento nesta competência.<br>Use “Importar / lançar” abaixo.')}</div>`;return;}
-  const cardHTML=(l)=>{
+  ensureLgridCss();
+  const rowHTML=(l)=>{
     const cat=ST.planoById[l.category];
     const neg=+l.amount<0;
     const cor=cat?GRUPO_COR[cat.group_id]||'#8A7A72':null;
@@ -718,46 +739,44 @@ function renderLanc(){
       : `<button class="catbtn miss" data-nf="${l.id}" title="Associar nota fiscal"><i class="ph-duotone ph-receipt"></i> Associar NF</button>`;
     const dv=divStatus(l.id);
     const divHtml = dv==='aberto'
-      ? `<span class="catbtn" style="background:#FBF0DD;color:#9A6B1E;border-color:#F0DFC0;pointer-events:none" title="Pendência aberta — a Paola está procurando esta nota"><i class="ph-duotone ph-magnifying-glass"></i> Procurando nota</span>`
+      ? `<span class="catbtn" style="background:#FBF0DD;color:#9A6B1E;border-color:#F0DFC0;pointer-events:none" title="Pendência aberta — a Paola está procurando esta nota"><i class="ph-duotone ph-magnifying-glass"></i> Procurando</span>`
       : (dv==='resolvido' && !nfN)
-        ? `<span class="catbtn" style="background:#E6F3EA;color:#2C7A4B;border-color:#CBE6D5;pointer-events:none" title="A Paola já localizou — agora é só associar"><i class="ph-duotone ph-check-circle"></i> Nota localizada — associe</span>`
+        ? `<span class="catbtn" style="background:#E6F3EA;color:#2C7A4B;border-color:#CBE6D5;pointer-events:none" title="A Paola já localizou — agora é só associar"><i class="ph-duotone ph-check-circle"></i> Localizada</span>`
         : '';
-    return `<div class="lc">
-      <div class="r1" style="align-items:center">
-        <button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button>
-        <div style="flex:1;min-width:0"><div class="memo">${esc(l.memo||'—')}</div><div class="date">${fmtDate(l.date)}${l.manual?' · manual':''}</div></div>
-        <div class="amt ${neg?'neg':'pos'}">${brl(+l.amount)}</div>
-      </div>
-      <div class="r2">
-        ${catHtml}
-        <span class="compchip" data-comp="${l.id}"><i class="ph-duotone ph-calendar-blank"></i> ${compLabel(l.competencia)}</span>
-        ${nfHtml}${divHtml}
-        ${l.conciliado?`<span class="catbtn" style="background:#E6F3EA;color:#2C7A4B;border-color:#CBE6D5;pointer-events:none" title="Você já conferiu — entra no relatório do mês"><i class="ph-duotone ph-seal-check"></i> Conciliado</span>`:''}
-        <div class="mini">
-          ${(!nfN && !dv)?`<button class="iconbtn" data-flag="${l.id}" title="Não achei a nota — pedir pra localizar"><i class="ph-duotone ph-flag"></i></button>`:''}
-          <button class="iconbtn ${l.conciliado?'on':''}" data-conc="${l.id}" title="${l.conciliado?'Conciliado — tocar para desmarcar':'Marcar como conciliado (conferido)'}"><i class="ph-duotone ph-check-circle"></i></button>
-          <button class="iconbtn" data-mv="${l.id}" title="Mover para outra empresa"><i class="ph-duotone ph-arrows-left-right"></i></button>
-          <button class="iconbtn" data-edit="${l.id}" title="Editar"><i class="ph-duotone ph-pencil-simple"></i></button>
-          <button class="iconbtn del" data-del="${l.id}" title="Excluir"><i class="ph-duotone ph-trash"></i></button>
-        </div>
-      </div>
-    </div>`;
+    return `<tr class="lrow${l.conciliado?' conc':''}">
+      <td class="c-sel"><button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button></td>
+      <td class="c-date">${fmtDate(l.date)}${l.manual?'<br><span style="font-size:10px;opacity:.7">manual</span>':''}</td>
+      <td class="c-memo"><div class="memo">${esc(l.memo||'—')}</div></td>
+      <td class="c-cat">${catHtml}</td>
+      <td class="c-comp"><span class="compchip" data-comp="${l.id}"><i class="ph-duotone ph-calendar-blank"></i> ${compLabel(l.competencia)}</span></td>
+      <td class="c-amt amt ${neg?'neg':'pos'}">${brl(+l.amount)}</td>
+      <td class="c-nf">${nfHtml}${divHtml}</td>
+      <td class="c-conc"><button class="iconbtn ${l.conciliado?'on':''}" data-conc="${l.id}" title="${l.conciliado?'Conciliado — tocar para desmarcar':'Marcar como conciliado (conferido)'}"><i class="ph-duotone ph-check-circle"></i></button></td>
+      <td class="c-act"><div class="mini">
+        ${(!nfN && !dv)?`<button class="iconbtn" data-flag="${l.id}" title="Não achei a nota — pedir pra localizar"><i class="ph-duotone ph-flag"></i></button>`:''}
+        <button class="iconbtn" data-mv="${l.id}" title="Mover para outra empresa"><i class="ph-duotone ph-arrows-left-right"></i></button>
+        <button class="iconbtn" data-edit="${l.id}" title="Editar"><i class="ph-duotone ph-pencil-simple"></i></button>
+        <button class="iconbtn del" data-del="${l.id}" title="Excluir"><i class="ph-duotone ph-trash"></i></button>
+      </div></td>
+    </tr>`;
   };
-  // separa por DATA (como extrato): mais recente no topo, cabeçalho de dia + subtotal
   const ordenados=[...rows].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const totDia={}, dayIds={}, concDia={}; ordenados.forEach(l=>{ const d=l.date||'—'; if(!isNeutro(l))totDia[d]=(totDia[d]||0)+ +l.amount; (dayIds[d]=dayIds[d]||[]).push(l.id); if(l.conciliado)concDia[d]=(concDia[d]||0)+1; });
   ST.dayIds=dayIds;
-  let out='', lastD=null;
-  if(bd) out+=`<div class="note" style="font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><i class="ph-duotone ph-calendar-blank"></i> <span style="flex:1">Busca por data — ${rows.length} lançamento(s) em <b>${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}</b>, de todas as competências. Use pra bater com o extrato do dia.</span></div>`;
+  let body='', lastD=null;
   ordenados.forEach(l=>{
     if(l.date!==lastD){ lastD=l.date; const d=l.date||'—'; const ids=dayIds[d]||[]; const allSel=ids.length&&ids.every(id=>ST.sel.has(id));
       const nc=concDia[d]||0, nt=ids.length, tudo=nc===nt;
       const selo=`<span style="font-size:10.5px;font-weight:700;border-radius:8px;padding:2px 7px;background:${tudo?'#E6F3EA':'#FBF0DD'};color:${tudo?'#2C7A4B':'#9A6B1E'}">${tudo?'<i class="ph-duotone ph-check-circle"></i> tudo conciliado':`${nc}/${nt} conciliados`}</span>`;
-      out+=`<div class="dayhead"><span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
-        <button class="daysel${allSel?' on':''}" data-day="${d}" title="Selecionar o dia todo">${allSel?'<i class="ph-duotone ph-check"></i>':''}</button>
-        ${dowLabel(l.date)} ${selo}</span><span style="display:flex;align-items:center;gap:8px"><span class="dsub">${brl(totDia[d]||0)}</span>${d!=='—'?`<button class="iconbtn" data-printday="${d}" title="Imprimir conferência deste dia"><i class="ph-duotone ph-printer"></i></button>`:''}</span></div>`; }
-    out+=cardHTML(l);
+      body+=`<tr class="lgrid-dh"><td colspan="9"><div class="dayhead">
+        <span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><button class="daysel${allSel?' on':''}" data-day="${d}" title="Selecionar o dia todo">${allSel?'<i class="ph-duotone ph-check"></i>':''}</button> ${dowLabel(l.date)} ${selo}</span>
+        <span style="display:flex;align-items:center;gap:8px"><span class="dsub">${brl(totDia[d]||0)}</span>${d!=='—'?`<button class="iconbtn" data-printday="${d}" title="Imprimir conferência deste dia"><i class="ph-duotone ph-printer"></i></button>`:''}</span>
+      </div></td></tr>`; }
+    body+=rowHTML(l);
   });
+  let out='';
+  if(bd) out+=`<div class="note" style="font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><i class="ph-duotone ph-calendar-blank"></i> <span style="flex:1">Busca por data — ${rows.length} lançamento(s) em <b>${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}</b>, de todas as competências. Use pra bater com o extrato do dia.</span></div>`;
+  out+=`<div class="lgridwrap"><table class="lgrid"><thead><tr><th></th><th>Data</th><th>Descrição</th><th>Categoria</th><th>Comp.</th><th style="text-align:right">Valor</th><th>NF</th><th>Conc.</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
   el.innerHTML=out;
   el.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{const ids=ST.dayIds[b.dataset.day]||[];const allSel=ids.length&&ids.every(id=>ST.sel.has(id));ids.forEach(id=>allSel?ST.sel.delete(id):ST.sel.add(id));renderLanc();});
   el.querySelectorAll('[data-printday]').forEach(b=>b.onclick=e=>{e.stopPropagation();printConferenciaDia(b.dataset.printday);});
