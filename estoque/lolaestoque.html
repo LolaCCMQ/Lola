@@ -5674,7 +5674,10 @@ async function pgEntradaNotas(c){
         const r=await fetch(SB+'/functions/v1/notas-espiao',{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({unit:'ccmq'})});
         const j=await r.json().catch(()=>({}));
         if(!r.ok||j.error){ alert('Espião: '+(j.error||('erro '+r.status))); bEspiao.disabled=false; bEspiao.innerHTML=_t; return; }
-        alert('✓ '+(j.total||0)+' nota(s) no período · '+(j.novas||0)+' nova(s) importada(s).');
+        var msg='✓ '+(j.total||0)+' nota(s) no período · '+(j.novas||0)+' nova(s).';
+        if(j.itens_preenchidos) msg+='\n'+j.itens_preenchidos+' nota(s) tiveram os itens preenchidos.';
+        if(j.resgate_pedidas) msg+='\n\n📥 '+j.resgate_pedidas+' nota(s) sem XML ainda — pedi o download pro Espião (leva alguns minutos). Clique em "Buscar notas" de novo mais tarde pra puxar os itens delas.';
+        alert(msg);
         nav('entnotas');
       }catch(e){ alert('Erro ao buscar: '+e.message); bEspiao.disabled=false; bEspiao.innerHTML=_t; }
     });
