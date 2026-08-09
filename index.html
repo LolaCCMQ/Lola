@@ -2031,17 +2031,19 @@ function cartCatSelect(selId,val,placeholder){ var groups=[],seen={}; CART_PLANO
 async function cartLoadPlano(){ if(CART_PLANO.length) return; try{ var r=await fetch(SUPA_URL+'/rest/v1/rpc/compras_cat_lista',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},body:'{}'}); CART_PLANO = r.ok ? (await r.json()||[]) : []; }catch(e){ CART_PLANO=[]; } }
 function cartEnsureGridCss(){ if(document.getElementById('cartGridCss')) return; var st=document.createElement('style'); st.id='cartGridCss'; st.textContent=
   '#module-comprascartao .cart-gridwrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#fff}'+
-  '#module-comprascartao table.cart-grid{width:100%;min-width:820px;border-collapse:collapse;font-size:.82rem}'+
-  '#module-comprascartao table.cart-grid th{position:sticky;top:0;background:var(--vinho-pale);z-index:1;text-align:left;padding:8px 8px;font-size:.62rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);white-space:nowrap}'+
-  '#module-comprascartao table.cart-grid td{border:1px solid var(--border);padding:1px 5px;vertical-align:middle}'+
-  '#module-comprascartao table.cart-grid input,#module-comprascartao table.cart-grid select{border:0;background:transparent;font-family:inherit;font-size:.8rem;width:100%;padding:6px 3px;color:var(--ink);box-sizing:border-box}'+
+  '#module-comprascartao table.cart-grid{width:100%;min-width:760px;border-collapse:collapse;font-size:.75rem}'+
+  '#module-comprascartao table.cart-grid th{position:sticky;top:0;background:var(--vinho-pale);z-index:1;text-align:left;padding:5px 7px;font-size:.55rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);white-space:nowrap}'+
+  '#module-comprascartao table.cart-grid td{border:1px solid var(--border);padding:0 4px;vertical-align:middle}'+
+  '#module-comprascartao table.cart-grid input,#module-comprascartao table.cart-grid select{border:0;background:transparent;font-family:inherit;font-size:.74rem;width:100%;padding:4px 3px;color:var(--ink);box-sizing:border-box}'+
   '#module-comprascartao table.cart-grid select{cursor:pointer}'+
   '#module-comprascartao table.cart-grid input:focus,#module-comprascartao table.cart-grid select:focus{outline:2px solid var(--vinho);outline-offset:-2px;background:#FFFDF7;border-radius:6px}'+
   '#module-comprascartao table.cart-grid tr:hover td{background:#FBF7F1}'+
-  '#module-comprascartao table.cart-grid td.g-val{text-align:right;font-weight:800;color:var(--vinho);font-size:.98rem;white-space:nowrap;letter-spacing:-.01em}'+
-  '#module-comprascartao table.cart-grid td.g-chk{text-align:center;width:34px}'+
-  '#module-comprascartao table.cart-grid td.g-chk input{width:18px;height:18px;padding:0;cursor:pointer}'+
-  '#module-comprascartao table.cart-grid td.g-cat select{color:var(--ink)}';
+  '#module-comprascartao table.cart-grid td.g-val{text-align:right;font-weight:800;color:var(--vinho);font-size:.9rem;white-space:nowrap;letter-spacing:-.01em}'+
+  '#module-comprascartao table.cart-grid td.g-chk{text-align:center;width:30px}'+
+  '#module-comprascartao table.cart-grid td.g-chk input{width:17px;height:17px;padding:0;cursor:pointer}'+
+  '#module-comprascartao .cart-wrap{padding:14px 18px !important}'+
+  '#module-comprascartao .cart-form-row label{font-size:.58rem !important;margin-bottom:2px !important}'+
+  '#module-comprascartao .cart-form-row input,#module-comprascartao .cart-form-row select{font-size:.78rem !important;padding:6px 8px !important}';
   document.head.appendChild(st); }
 async function cartaoSetCat(id,catId){
   var c=COMPRAS.find(function(x){return x.id===id;}); if(!c) return;
@@ -2125,7 +2127,7 @@ function cartaoFiltrar(){
 function cartCatCell(c){
   var groups=[],seen={};
   CART_PLANO.forEach(function(p){ if(!seen[p.group_label]){seen[p.group_label]=[];groups.push(p.group_label);} seen[p.group_label].push(p); });
-  var h='<select onchange="cartaoSetCat('+c.id+',this.value)" style="color:'+(c.categoria?'var(--ink)':'#B79A8E')+'">';
+  var h='<select onchange="cartaoSetCat('+c.id+',this.value)" style="color:'+(c.categoria?'#141414':'#CBC1B9')+';font-weight:'+(c.categoria?'600':'400')+'">';
   h+='<option value=""'+(!c.categoria?' selected':'')+'>— classificar —</option>';
   groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'"'+(p.id===c.categoria?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; });
   h+='</select>'; return h;
