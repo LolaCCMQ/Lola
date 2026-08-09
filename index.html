@@ -2045,11 +2045,14 @@ function cartEnsureGridCss(){ if(document.getElementById('cartGridCss')) return;
   '#module-comprascartao .cart-form-row label{font-size:.58rem !important;margin-bottom:2px !important}'+
   '#module-comprascartao .cart-form-row input,#module-comprascartao .cart-form-row select{font-size:.78rem !important;padding:6px 8px !important}';
   document.head.appendChild(st); }
-async function cartaoSetCat(id,catId){
+async function cartaoSetCat(id,sel){
+  var catId=(sel&&typeof sel==='object')?sel.value:sel;
   var c=COMPRAS.find(function(x){return x.id===id;}); if(!c) return;
   var info=cartCatInfo(catId); var p={categoria:catId||null,categoria_label:info?info.label:null};
   try{ await api.patch('compras_cartao',p,'id=eq.'+id); c.categoria=p.categoria; c.categoria_label=p.categoria_label; }
   catch(e){ if(typeof showToast==='function') showToast('Erro ao salvar categoria'); return; }
+  // deixa a célula preta assim que classifica (cinza só enquanto sem categoria)
+  if(sel&&typeof sel==='object'){ sel.style.color=catId?'#141414':'#CBC1B9'; sel.style.fontWeight=catId?'600':'400'; }
   // se já estava lançada, mantém o Financeiro em sincronia
   if(c.conferido){ try{ if(c.categoria){ await cartRpc('compra_lancar',id); } else { await cartRpc('compra_estornar',id); c.conferido=false; var cb=document.getElementById('gchk_'+id); if(cb)cb.checked=false; } }catch(e){} }
   if(typeof showToast==='function') showToast('✓ Categoria salva');
@@ -2096,15 +2099,13 @@ function cartaoRender(){
   var _fAberto=window.__cartFiltAberto||_fAtivos;
   h+='<button class="btn btn-ghost btn-sm" id="cartFiltBtn" onclick="cartaoToggleFiltros()" style="margin-bottom:10px"><i class="ph-duotone ph-magnifying-glass"></i> Filtros'+(_fAtivos?' <span style="color:var(--vinho);font-weight:800">•</span>':'')+'</button>';
   h+='<div id="cartFiltrosBox" class="cart-filtros" style="'+(_fAberto?'':'display:none;')+'">'
-    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Status</label><select id="fStatus" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todas</option><option value="pend"'+(CART_F.status==='pend'?' selected':'')+'>⏳ Não lançadas</option><option value="conf"'+(CART_F.status==='conf'?' selected':'')+'>✓ Lançadas</option></select></div>'
-    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Local</label><select id="fEmp" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todos</option>'+CART_EMPRESAS.map(function(o){return '<option'+(CART_F.empresa===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
-    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Cartão</label><select id="fCard" onchange="cartaoFiltro()" style="'+_hin()+'"><option value="">Todos</option>'+CART_CARTOES.map(function(o){return '<option'+(CART_F.cartao===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
-    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Competência</label><input type="month" id="fMes" value="'+_escA(CART_F.mes)+'" onchange="cartaoFiltro()" style="'+_hin()+'"></div>'
-    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Categoria</label>'+cartCatSelect('fCat',CART_F.categoria,'Todas as categorias').replace('<select id="fCat" ','<select id="fCat" onchange="cartaoFiltro()" ')+'</div>'
-    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">De</label><input type="date" id="fDe" value="'+_escA(CART_F.de)+'" onchange="cartaoFiltro()" style="'+_hin()+'"></div>'
-    +'<div><label style="display:block;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Até</label><input type="date" id="fAte" value="'+_escA(CART_F.ate)+'" onchange="cartaoFiltro()" style="'+_hin()+'"></div>'
-    +'<button class="btn btn-ghost btn-sm" onclick="cartaoLimpar()">Limpar</button>'
-    +'<button class="btn btn-ghost btn-sm" onclick="cartaoExportar()">⬇️ Exportar</button>'
+    +'<div style="flex:1;min-width:112px"><label style="display:block;font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Status</label><select id="fStatus" onchange="cartaoFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todas</option><option value="pend"'+(CART_F.status==='pend'?' selected':'')+'>⏳ Não lançadas</option><option value="conf"'+(CART_F.status==='conf'?' selected':'')+'>✓ Lançadas</option></select></div>'
+    +'<div style="flex:1;min-width:112px"><label style="display:block;font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Local</label><select id="fEmp" onchange="cartaoFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todos</option>'+CART_EMPRESAS.map(function(o){return '<option'+(CART_F.empresa===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+    +'<div style="flex:1;min-width:112px"><label style="display:block;font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Cartão</label><select id="fCard" onchange="cartaoFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todos</option>'+CART_CARTOES.map(function(o){return '<option'+(CART_F.cartao===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+    +'<div style="flex:1;min-width:118px"><label style="display:block;font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Competência</label><input type="month" id="fMes" value="'+_escA(CART_F.mes)+'" onchange="cartaoFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<div style="flex:1.4;min-width:150px"><label style="display:block;font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px">Categoria</label>'+cartCatSelect('fCat',CART_F.categoria,'Todas as categorias').replace('<select id="fCat" ','<select id="fCat" onchange="cartaoFiltro()" ')+'</div>'
+    +'<button class="btn btn-ghost btn-sm" onclick="cartaoLimpar()" style="align-self:flex-end">Limpar</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="cartaoExportar()" style="align-self:flex-end">⬇️ Exportar</button>'
     +'</div>';
   cartEnsureGridCss(); h+='<div id="cartLista">'+cartaoGrid()+'</div>';
   h+='</div>'; panel.innerHTML=h;
@@ -2125,7 +2126,7 @@ function cartaoFiltrar(){
 function cartCatCell(c){
   var groups=[],seen={};
   CART_PLANO.forEach(function(p){ if(!seen[p.group_label]){seen[p.group_label]=[];groups.push(p.group_label);} seen[p.group_label].push(p); });
-  var h='<select onchange="cartaoSetCat('+c.id+',this.value)" style="color:'+(c.categoria?'#141414':'#CBC1B9')+';font-weight:'+(c.categoria?'600':'400')+'">';
+  var h='<select onchange="cartaoSetCat('+c.id+',this)" style="color:'+(c.categoria?'#141414':'#CBC1B9')+';font-weight:'+(c.categoria?'600':'400')+'">';
   h+='<option value="" style="color:#B0A69E"'+(!c.categoria?' selected':'')+'>— classificar —</option>';
   groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'" style="color:#141414;font-weight:700">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'" style="color:#141414;font-weight:500"'+(p.id===c.categoria?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; });
   h+='</select>'; return h;
