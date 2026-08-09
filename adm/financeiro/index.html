@@ -240,6 +240,10 @@ section.view{display:none} section.view.on{display:block}
   <main>
     <!-- LANÇAMENTOS -->
     <section class="view on" id="v-lanc">
+      <div style="display:flex;gap:10px;margin:2px 0 16px;flex-wrap:wrap">
+        <button class="btn p" id="btnRecXml" style="flex:1;min-width:170px"><i class="ph-duotone ph-receipt"></i> Receber XML</button>
+        <button class="btn o" id="btnNovoLanc" style="flex:1;min-width:170px"><i class="ph-duotone ph-plus-circle"></i> Novos lançamentos</button>
+      </div>
       <div class="monthsel">
         <span class="lblcap">Competência</span>
         <select id="compSel"></select>
@@ -1427,7 +1431,7 @@ async function doSplit(id){
 }
 
 /* ========================= IMPORT / ADD SHEET ========================= */
-function openImport(){
+function openImport(initial){
   openSheet(`<h3>Importar / lançar</h3><div class="hint">${U(ST.unit).nome}</div>
     <div style="display:flex;gap:10px;margin-bottom:6px">
       <button class="segbig on" data-s="arquivos" style="flex:1"><i class="ph-duotone ph-folder-open"></i> Importar arquivos<br><span style="font-weight:400;font-size:11px;opacity:.85">Notas XML ou extratos OFX</span></button>
@@ -1446,7 +1450,7 @@ function openImport(){
   const setTab=s=>{ $$('#impSeg button,.segbig').forEach(x=>x.classList.remove('on'));
     $$(`[data-s="${s}"]`).forEach(x=>x.classList.add('on')); impTab(s); };
   $$('#impSeg button,.segbig').forEach(b=>b.onclick=()=>setTab(b.dataset.s));
-  impTab('arquivos');
+  setTab(initial||'arquivos');
 }
 function impTab(s){
   const el=$('#impBody');
@@ -2426,6 +2430,8 @@ $('#selConc').onclick=conciliarSelecionados;
 $('#selMover').onclick=moverSelecionados;
 $('#fab').onclick=()=>{ const v=$('.view.on').id; if(v==='v-notas')openImportXml(); else openImport(); };
 $('#btnImpXml').onclick=openImportXml;
+$('#btnRecXml').onclick=openImportXml;
+$('#btnNovoLanc').onclick=()=>openImport('manual');
 $('#btnEspiao').onclick=buscarNotasEspiao;
 $('#notasComp').onchange=e=>{ST.notasComp=e.target.value;renderNotas();};
 $('#notasSearch').oninput=e=>{ST.notasSearch=e.target.value;renderNotas();};
