@@ -2028,7 +2028,37 @@ function cartCor(g){ return CART_GRUPO_COR[g] || ['#EFEBE4','#6B6258']; }
 function cartCatInfo(id){ if(!id) return null; for(var i=0;i<CART_PLANO.length;i++){ if(CART_PLANO[i].id===id) return CART_PLANO[i]; } return null; }
 function cartCatChip(id){ var p=cartCatInfo(id); if(!p) return '<span style="color:var(--muted);font-size:.72rem">— sem categoria</span>'; var c=cartCor(p.group_label); return '<span title="'+_escA(p.group_label)+'" style="display:inline-block;background:'+c[0]+';color:'+c[1]+';font-weight:700;font-size:.7rem;padding:3px 9px;border-radius:20px;line-height:1.3;white-space:nowrap">'+_escC(p.label)+'</span>'; }
 function cartCatSelect(selId,val,placeholder){ var groups=[],seen={}; CART_PLANO.forEach(function(p){ if(!seen[p.group_label]){seen[p.group_label]=[];groups.push(p.group_label);} seen[p.group_label].push(p); }); var h='<select id="'+selId+'" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">'+(placeholder||'— Selecione a categoria —')+'</option>'; groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'"'+(p.id===val?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; }); h+='</select>'; return h; }
-async function cartLoadPlano(){ if(CART_PLANO.length) return; try{ CART_PLANO=await api.get('financeiro_plano','select=id,label,group_label,group_type,sort_order&group_type=eq.despesa&order=group_label.asc,sort_order.asc,label.asc')||[]; }catch(e){ CART_PLANO=[]; } }
+async function cartLoadPlano(){ if(CART_PLANO.length) return; try{ var r=await fetch(SUPA_URL+'/rest/v1/rpc/compras_cat_lista',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},body:'{}'}); CART_PLANO = r.ok ? (await r.json()||[]) : []; }catch(e){ CART_PLANO=[]; } }
+function cartEnsureGridCss(){ if(document.getElementById('cartGridCss')) return; var st=document.createElement('style'); st.id='cartGridCss'; st.textContent=
+  '#module-comprascartao .cart-gridwrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#fff}'+
+  '#module-comprascartao table.cart-grid{width:100%;min-width:820px;border-collapse:collapse;font-size:.82rem}'+
+  '#module-comprascartao table.cart-grid th{position:sticky;top:0;background:var(--vinho-pale);z-index:1;text-align:left;padding:8px 8px;font-size:.62rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);white-space:nowrap}'+
+  '#module-comprascartao table.cart-grid td{border:1px solid var(--border);padding:1px 5px;vertical-align:middle}'+
+  '#module-comprascartao table.cart-grid input,#module-comprascartao table.cart-grid select{border:0;background:transparent;font-family:inherit;font-size:.8rem;width:100%;padding:6px 3px;color:var(--ink);box-sizing:border-box}'+
+  '#module-comprascartao table.cart-grid select{cursor:pointer}'+
+  '#module-comprascartao table.cart-grid input:focus,#module-comprascartao table.cart-grid select:focus{outline:2px solid var(--vinho);outline-offset:-2px;background:#FFFDF7;border-radius:6px}'+
+  '#module-comprascartao table.cart-grid tr:hover td{background:#FBF7F1}'+
+  '#module-comprascartao table.cart-grid td.g-val input{text-align:right;font-weight:700;color:var(--vinho)}'+
+  '#module-comprascartao table.cart-grid td.g-chk{text-align:center;width:34px}'+
+  '#module-comprascartao table.cart-grid td.g-chk input{width:18px;height:18px;padding:0;cursor:pointer}'+
+  '#module-comprascartao table.cart-grid td.g-cat select{color:var(--ink)}';
+  document.head.appendChild(st); }
+async function cartaoSetCat(id,catId){
+  var c=COMPRAS.find(function(x){return x.id===id;}); if(!c) return;
+  var info=cartCatInfo(catId); var p={categoria:catId||null,categoria_label:info?info.label:null};
+  try{ await api.patch('compras_cartao',p,'id=eq.'+id); c.categoria=p.categoria; c.categoria_label=p.categoria_label; }
+  catch(e){ if(typeof showToast==='function') showToast('Erro ao salvar categoria'); return; }
+  // se já estava lançada, mantém o Financeiro em sincronia
+  if(c.conferido){ try{ if(c.categoria){ await cartRpc('compra_lancar',id); } else { await cartRpc('compra_estornar',id); c.conferido=false; var cb=document.getElementById('gchk_'+id); if(cb)cb.checked=false; } }catch(e){} }
+  if(typeof showToast==='function') showToast('✓ Categoria salva');
+}
+async function cartaoSetField(id,field,value){
+  var c=COMPRAS.find(function(x){return x.id===id;}); if(!c) return;
+  var p={}; p[field]=value;
+  try{ await api.patch('compras_cartao',p,'id=eq.'+id); c[field]=value; }
+  catch(e){ if(typeof showToast==='function') showToast('Erro ao salvar'); return; }
+  if(c.conferido){ try{ await cartRpc('compra_lancar',id); }catch(e){} }
+}
 async function renderCartao(){
   var panel=document.getElementById('module-comprascartao'); if(!panel) return;
   panel.style.overflowY='auto';
@@ -2076,7 +2106,7 @@ function cartaoRender(){
     +'<button class="btn btn-ghost btn-sm" onclick="cartaoLimpar()">Limpar</button>'
     +'<button class="btn btn-ghost btn-sm" onclick="cartaoExportar()">⬇️ Exportar</button>'
     +'</div>';
-  h+='<div id="cartLista">'+cartaoLista()+'</div>';
+  cartEnsureGridCss(); h+='<div id="cartLista">'+cartaoGrid()+'</div>';
   h+='</div>'; panel.innerHTML=h;
 }
 function cartaoFiltrar(){
@@ -2092,36 +2122,49 @@ function cartaoFiltrar(){
     return true;
   });
 }
-function cartaoLista(){
+function cartCatCell(c){
+  var groups=[],seen={};
+  CART_PLANO.forEach(function(p){ if(!seen[p.group_label]){seen[p.group_label]=[];groups.push(p.group_label);} seen[p.group_label].push(p); });
+  var h='<select onchange="cartaoSetCat('+c.id+',this.value)" style="color:'+(c.categoria?'var(--ink)':'#B79A8E')+'">';
+  h+='<option value=""'+(!c.categoria?' selected':'')+'>— classificar —</option>';
+  groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'"'+(p.id===c.categoria?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; });
+  h+='</select>'; return h;
+}
+function _cartSelCell(id,field,arr,val){
+  var h='<select onchange="cartaoSetField('+id+',\''+field+'\',this.value)"><option value="">—</option>';
+  h+=arr.map(function(o){return '<option'+(o===val?' selected':'')+'>'+_escC(o)+'</option>';}).join('');
+  h+='</select>'; return h;
+}
+function cartaoGrid(){
   var lst=cartaoFiltrar();
-  if(!lst.length) return '<div style="padding:18px;color:var(--muted);text-align:center">Nenhuma compra com esse filtro.</div>';
   var pend=lst.filter(function(c){return !c.conferido;}).length;
   var tot=lst.reduce(function(s,c){return s+(Number(c.valor)||0);},0);
   var porEmp={},porCard={},porMes={},porCat={};
   lst.forEach(function(c){ var v=Number(c.valor)||0; if(c.empresa){porEmp[c.empresa]=(porEmp[c.empresa]||0)+v;} if(c.cartao){porCard[c.cartao]=(porCard[c.cartao]||0)+v;} var m=c.competencia||(c.data?String(c.data).slice(0,7):''); if(m){porMes[m]=(porMes[m]||0)+v;} if(c.categoria){porCat[c.categoria]=(porCat[c.categoria]||0)+v;} });
-  var _chip=function(label,obj){ var ks=Object.keys(obj).sort(); if(!ks.length)return ''; return '<div style="flex:1;min-width:170px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">'+label+'</div>'+ks.map(function(k){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span>'+_escC(k)+'</span><b>'+cartBRL(obj[k])+'</b></div>';}).join('')+'</div>'; };
-  var _mk=Object.keys(porMes).sort().reverse(); var _mesHtml=''; if(_mk.length){ _mesHtml='<div style="flex:1;min-width:170px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">Por mês</div>'+_mk.map(function(k){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span>'+cartMes(k)+'</span><b>'+cartBRL(porMes[k])+'</b></div>';}).join('')+'</div>'; }
-  var _ck=Object.keys(porCat).sort(function(a,b){return porCat[b]-porCat[a];}); var _catHtml=''; if(_ck.length){ _catHtml='<div style="flex:1;min-width:200px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">Por categoria</div>'+_ck.map(function(k){var pi=cartCatInfo(k);var cc=pi?cartCor(pi.group_label):['','#6B6258'];return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0;align-items:center"><span style="display:inline-flex;align-items:center;gap:6px;min-width:0"><span style="flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:'+cc[1]+'"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_escC(pi?pi.label:k)+'</span></span><b style="flex:0 0 auto">'+cartBRL(porCat[k])+'</b></div>';}).join('')+'</div>'; }
+  var _chip=function(label,obj){ var ks=Object.keys(obj).sort(); if(!ks.length)return ''; return '<div style="flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">'+label+'</div>'+ks.map(function(k){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span>'+_escC(k)+'</span><b>'+cartBRL(obj[k])+'</b></div>';}).join('')+'</div>'; };
+  var _mk=Object.keys(porMes).sort().reverse(); var _mesHtml=''; if(_mk.length){ _mesHtml='<div style="flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">Por mês</div>'+_mk.map(function(k){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span>'+cartMes(k)+'</span><b>'+cartBRL(porMes[k])+'</b></div>';}).join('')+'</div>'; }
+  var _ck=Object.keys(porCat).sort(function(a,b){return porCat[b]-porCat[a];}); var _catHtml=''; if(_ck.length){ _catHtml='<div style="flex:1;min-width:180px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">Por categoria</div>'+_ck.map(function(k){var pi=cartCatInfo(k);return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_escC(pi?pi.label:k)+'</span><b style="flex:0 0 auto">'+cartBRL(porCat[k])+'</b></div>';}).join('')+'</div>'; }
   var resumo=(tot>0)?('<div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px">'+_chip('Por local',porEmp)+_chip('Por cartão',porCard)+_mesHtml+_catHtml+'</div>'):'';
   var h='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">'+lst.length+' compra(s)'+(pend?(' · <b style="color:#9a5b1a">'+pend+' pendente(s) de lançar</b>'):'')+(tot>0?(' · Total <b style="color:var(--vinho-deep)">'+cartBRL(tot)+'</b>'):'')+'</div>'+resumo;
-  h+='<div style="overflow-x:auto"><table class="cart-table" style="width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;font-size:.85rem">';
-  h+='<thead><tr style="background:var(--vinho-pale)">'+['✓','Data','O que comprou','Categoria','Local','Cartão','Valor','Comp.',''].map(function(x){return '<th style="text-align:left;padding:9px 10px;font-size:.68rem;text-transform:uppercase;color:var(--muted)">'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+  if(!lst.length) return h+'<div style="padding:18px;color:var(--muted);text-align:center">Nenhuma compra com esse filtro.</div>';
+  h+='<div class="cart-gridwrap"><table class="cart-grid"><thead><tr>'+['✓','Data','O que comprou','Categoria','Local','Cartão','Valor','Comp.',''].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
   lst.forEach(function(c){
     var _ci=cartCatInfo(c.categoria); var _cc=_ci?cartCor(_ci.group_label):null;
-    h+='<tr style="border-top:1px solid var(--border);'+(_cc?('border-left:4px solid '+_cc[1]+';'):'border-left:4px solid transparent;')+(c.conferido?'opacity:.62':'')+'">'
-      +'<td data-label="✓ Lançado" style="padding:8px 10px;text-align:center"><input type="checkbox" '+(c.conferido?'checked':'')+' onchange="cartaoToggleConf('+c.id+',this.checked)" title="Marcado = lançado no Financeiro do local" style="width:18px;height:18px"></td>'
-      +'<td data-label="Data" style="padding:8px 10px;white-space:nowrap">'+(c.data?fmtDate(c.data):'')+'</td>'
-      +'<td data-label="O que comprou" style="padding:8px 10px;font-weight:600">'+_escC(c.descricao||'')+'</td>'
-      +'<td data-label="Categoria" style="padding:8px 10px">'+cartCatChip(c.categoria)+'</td>'
-      +'<td data-label="Local" style="padding:8px 10px">'+_escC(c.empresa||'')+'</td>'
-      +'<td data-label="Cartão" style="padding:8px 10px">'+_escC(c.cartao||'')+'</td>'
-      +'<td data-label="Valor" style="padding:8px 10px;white-space:nowrap;text-align:right">'+cartBRL(c.valor)+'</td>'
-      +'<td data-label="Comp." style="padding:8px 10px;white-space:nowrap">'+cartMes(c.competencia)+'</td>'
-      +'<td class="cart-acoes" style="padding:8px 10px;white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="cartaoEditar('+c.id+')">🖊</button> <button class="btn btn-ghost btn-sm" style="color:#C0392B" onclick="cartaoExcluir('+c.id+')">🗑</button></td>'
+    h+='<tr style="'+(_cc?('box-shadow:inset 4px 0 0 '+_cc[1]+';'):'')+(c.conferido?'background:#F3F7F3;':'')+'">'
+      +'<td class="g-chk"><input type="checkbox" id="gchk_'+c.id+'" '+(c.conferido?'checked':'')+' onchange="cartaoToggleConf('+c.id+',this.checked)" title="Marcado = lançado no Financeiro do local"></td>'
+      +'<td style="white-space:nowrap"><input type="date" value="'+_escA((c.data||'').slice(0,10))+'" onchange="cartaoSetField('+c.id+',\'data\',this.value||null)"></td>'
+      +'<td style="min-width:170px"><input type="text" value="'+_escA(c.descricao||'')+'" placeholder="—" onchange="cartaoSetField('+c.id+',\'descricao\',this.value)"></td>'
+      +'<td class="g-cat" style="min-width:150px">'+cartCatCell(c)+'</td>'
+      +'<td style="min-width:110px">'+_cartSelCell(c.id,'empresa',CART_EMPRESAS,c.empresa)+'</td>'
+      +'<td style="min-width:120px">'+_cartSelCell(c.id,'cartao',CART_CARTOES,c.cartao)+'</td>'
+      +'<td class="g-val" style="width:100px"><input type="text" inputmode="decimal" value="'+_escA(c.valor!=null?String(c.valor).replace('.',','):'')+'" placeholder="0,00" onchange="cartaoSetField('+c.id+',\'valor\',_cartNum(this.value))"></td>'
+      +'<td style="white-space:nowrap"><input type="month" value="'+_escA(c.competencia||'')+'" onchange="cartaoSetField('+c.id+',\'competencia\',this.value||null)"></td>'
+      +'<td style="text-align:center;width:34px"><button title="Excluir" onclick="cartaoExcluir('+c.id+')" style="border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1rem">🗑</button></td>'
       +'</tr>';
   });
   h+='</tbody></table></div>'; return h;
 }
+
 function cartaoFiltro(){
   CART_F.status=(document.getElementById('fStatus')||{}).value||'';
   CART_F.empresa=(document.getElementById('fEmp')||{}).value||'';
@@ -2130,7 +2173,7 @@ function cartaoFiltro(){
   CART_F.de=(document.getElementById('fDe')||{}).value||'';
   CART_F.ate=(document.getElementById('fAte')||{}).value||'';
   CART_F.categoria=(document.getElementById('fCat')||{}).value||'';
-  var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoLista();
+  var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoGrid();
 }
 function cartaoToggleFiltros(){
   window.__cartFiltAberto=!window.__cartFiltAberto;
@@ -2163,7 +2206,7 @@ async function cartaoToggleConf(id,ck){
   // ao marcar "Lançado", a compra vira um lançamento real no Financeiro — exige categoria
   if(ck && (!c || !c.categoria)){
     if(typeof showToast==='function') showToast('Escolha a categoria antes de lançar 🏷️');
-    var el0=document.getElementById('cartLista'); if(el0) el0.innerHTML=cartaoLista();
+    var el0=document.getElementById('cartLista'); if(el0) el0.innerHTML=cartaoGrid();
     return;
   }
   try{
@@ -2173,7 +2216,7 @@ async function cartaoToggleConf(id,ck){
   }catch(e){
     if(typeof showToast==='function') showToast('Erro ao '+(ck?'lançar':'estornar')+' no Financeiro');
   }
-  var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoLista();
+  var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoGrid();
 }
 async function cartaoExcluir(id){
   if(!confirm('Excluir esta compra do registro?'))return;
