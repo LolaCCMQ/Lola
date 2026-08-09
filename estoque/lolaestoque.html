@@ -5666,6 +5666,20 @@ async function pgEntradaNotas(c){
     const note=div(null);note.style.cssText='background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5';
     note.innerHTML='<i class="ph-duotone ph-info" style="color:var(--v)"></i> As notas vêm do <b>Financeiro</b> — você não digita de novo. Abra cada nota e confirme a qual <b>insumo</b> cada item corresponde (ou crie um novo). O sistema lança a entrada e converte pela unidade (fator); o preço pago fica <b>guardado pro fechamento do mês</b> (regra 22/07: preço de insumo só muda na virada, pela média). Feito uma vez, o item já é reconhecido nas próximas notas.';
     c.appendChild(note);
+    /* Espião (09/08 - Bianca): puxar as XML da SEFAZ aqui mesmo, sem depender do ADM Financeiro */
+    const bEspiao=btn('btn bp bsm','🔎 Buscar notas na SEFAZ (Espião)',async()=>{
+      if(!confirm('Buscar as notas fiscais dos últimos 30 dias na SEFAZ (via Espião)?\n\nPode levar alguns segundos.'))return;
+      bEspiao.disabled=true; const _t=bEspiao.innerHTML; bEspiao.textContent='Buscando notas…';
+      try{
+        const r=await fetch(SB+'/functions/v1/notas-espiao',{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({unit:'ccmq'})});
+        const j=await r.json().catch(()=>({}));
+        if(!r.ok||j.error){ alert('Espião: '+(j.error||('erro '+r.status))); bEspiao.disabled=false; bEspiao.innerHTML=_t; return; }
+        alert('✓ '+(j.total||0)+' nota(s) no período · '+(j.novas||0)+' nova(s) importada(s).');
+        nav('entnotas');
+      }catch(e){ alert('Erro ao buscar: '+e.message); bEspiao.disabled=false; bEspiao.innerHTML=_t; }
+    });
+    bEspiao.style.cssText='margin-bottom:12px;font-weight:700;margin-right:8px';
+    c.appendChild(bEspiao);
     /* 22/07 (Bianca): "precisamos poder fazer lançamentos manuais também no ccmq" */
     const bManual=btn('btn bo bsm','➕ Entrada manual (sem nota)',()=>modalEntradaManualEN());
     bManual.style.cssText='margin-bottom:12px;font-weight:700;margin-right:8px';
