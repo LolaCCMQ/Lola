@@ -2043,7 +2043,11 @@ function cartEnsureGridCss(){ if(document.getElementById('cartGridCss')) return;
   '#module-comprascartao table.cart-grid td.g-chk input{width:17px;height:17px;padding:0;cursor:pointer}'+
   '#module-comprascartao .cart-wrap{padding:14px 18px !important}'+
   '#module-comprascartao .cart-form-row label{font-size:.58rem !important;margin-bottom:2px !important}'+
-  '#module-comprascartao .cart-form-row input,#module-comprascartao .cart-form-row select{font-size:.78rem !important;padding:6px 8px !important}';
+  '#module-comprascartao .cart-form-row input,#module-comprascartao .cart-form-row select{font-size:.78rem !important;padding:6px 8px !important}'+
+  '#module-comprascartao .cart-filtros{align-items:flex-end !important;gap:8px !important;margin-bottom:12px !important}'+
+  '#module-comprascartao .cart-filtros label{font-size:.56rem !important;margin-bottom:3px !important;white-space:nowrap}'+
+  '#module-comprascartao .cart-filtros input,#module-comprascartao .cart-filtros select{font-size:.76rem !important;padding:6px 8px !important;box-sizing:border-box;height:34px}'+
+  '#module-comprascartao .cart-filtros .btn-sm{font-size:.72rem !important;padding:0 12px !important;height:34px;display:inline-flex;align-items:center}';
   document.head.appendChild(st); }
 async function cartaoSetCat(id,sel){
   var catId=(sel&&typeof sel==='object')?sel.value:sel;
