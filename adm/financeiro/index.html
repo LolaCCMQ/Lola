@@ -56,6 +56,11 @@ header .htitle{flex:1;min-width:0}
 header .htitle .t{color:var(--vinho);font-size:19px;line-height:1.1}
 header .htitle .s{font-size:12px;color:var(--mut);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .upill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
+.hdrimp{background:var(--vinho);color:#fff;font-weight:700;font-size:12.5px;padding:8px 13px;border-radius:var(--r-btn);display:inline-flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap;cursor:pointer;border:0}
+.hdrimp:active{background:var(--vinhoHover)}
+.lancFilters{display:flex;gap:10px;margin:2px 0 12px;flex-wrap:wrap}
+.lancFilters .monthsel{flex:1;min-width:150px;margin:0}
+@media(max-width:540px){.hdrimp span{display:none}.hdrimp{padding:9px 11px}}
 
 /* tabs */
 nav.tabs{display:flex;gap:4px;padding:6px 12px 0;overflow-x:auto;border-bottom:1px solid var(--fio);
@@ -225,6 +230,7 @@ section.view{display:none} section.view.on{display:block}
       <div class="fr t" id="hTitle">Financeiro</div>
       <div class="s" id="hSub">—</div>
     </div>
+    <button class="hdrimp" id="fab"><i class="ph-duotone ph-plus"></i> <span id="fabTxt">Importar / lançar</span></button>
     <span class="upill" id="hUnit"></span>
   </header>
 
@@ -240,17 +246,9 @@ section.view{display:none} section.view.on{display:block}
   <main>
     <!-- LANÇAMENTOS -->
     <section class="view on" id="v-lanc">
-      <div style="display:flex;gap:10px;margin:2px 0 16px;flex-wrap:wrap">
-        <button class="btn p" id="btnRecXml" style="flex:1;min-width:170px"><i class="ph-duotone ph-receipt"></i> Receber XML</button>
-        <button class="btn o" id="btnNovoLanc" style="flex:1;min-width:170px"><i class="ph-duotone ph-plus-circle"></i> Novos lançamentos</button>
-      </div>
-      <div class="monthsel">
-        <span class="lblcap">Competência</span>
-        <select id="compSel"></select>
-      </div>
-      <div class="monthsel" style="margin-top:-4px">
-        <span class="lblcap">Categoria</span>
-        <select id="catFilter"></select>
+      <div class="lancFilters">
+        <div class="monthsel"><span class="lblcap">Competência</span><select id="compSel"></select></div>
+        <div class="monthsel"><span class="lblcap">Categoria</span><select id="catFilter"></select></div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="seg" id="lancMode" style="max-width:300px;flex:1;margin-bottom:0">
@@ -337,7 +335,6 @@ section.view{display:none} section.view.on{display:block}
     </section>
   </main>
 
-  <button class="fab" id="fab"><i class="ph-duotone ph-plus"></i> <span id="fabTxt">Importar / lançar</span></button>
   <div class="selbar" id="selBar">
     <span class="sc" id="selCount">0 selecionados</span>
     <div style="display:flex;gap:8px">
@@ -2433,8 +2430,6 @@ $('#selConc').onclick=conciliarSelecionados;
 $('#selMover').onclick=moverSelecionados;
 $('#fab').onclick=()=>{ const v=$('.view.on').id; if(v==='v-notas')openImportXml(); else openImport(); };
 $('#btnImpXml').onclick=openImportXml;
-$('#btnRecXml').onclick=openImportXml;
-$('#btnNovoLanc').onclick=()=>openImport('manual');
 $('#btnEspiao').onclick=buscarNotasEspiao;
 $('#notasComp').onchange=e=>{ST.notasComp=e.target.value;renderNotas();};
 $('#notasSearch').oninput=e=>{ST.notasSearch=e.target.value;renderNotas();};
