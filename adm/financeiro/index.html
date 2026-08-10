@@ -672,23 +672,24 @@ function parseBuscaData(txt){
   return null;
 }
 function ensureLgridCss(){ if(document.getElementById('lgridCss'))return; const st=document.createElement('style'); st.id='lgridCss'; st.textContent=`
-.lgridwrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-card);background:#fff}
-.lgrid{width:100%;min-width:820px;border-collapse:collapse;font-size:12.5px;background:#fff}
-.lgrid thead th{position:sticky;top:0;z-index:1;background:var(--cremeDark);text-align:left;padding:7px 9px;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--mut);border-bottom:1px solid var(--border);white-space:nowrap}
-.lgrid td{padding:4px 9px;border-bottom:1px solid var(--fio);vertical-align:middle;white-space:nowrap}
+.lgridwrap{border:1px solid var(--border);border-radius:var(--r-card);background:#fff}
+.lgrid{width:100%;border-collapse:collapse;font-size:11.5px;background:#fff;table-layout:auto}
+.lgrid thead th{position:sticky;top:0;z-index:1;background:var(--cremeDark);text-align:left;padding:6px 5px;font-size:9px;text-transform:uppercase;letter-spacing:.02em;color:var(--mut);border-bottom:1px solid var(--border);white-space:nowrap}
+.lgrid td{padding:3px 5px;border-bottom:1px solid var(--fio);vertical-align:middle;white-space:nowrap}
 .lgrid tr.lrow:hover td{background:#FBF7F1}
 .lgrid tr.lrow.conc td{background:#F4F8F5}
-.lgrid .c-sel{width:34px}
-.lgrid .c-date{white-space:nowrap;color:var(--mut);font-size:11px;line-height:1.15}
-.lgrid .c-memo{max-width:300px;width:300px}
-.lgrid .c-memo .memo{font-weight:600;font-size:12px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lgrid .c-amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+.lgrid .c-sel{width:30px}
+.lgrid .c-date{white-space:nowrap;color:var(--mut);font-size:10.5px;line-height:1.15}
+.lgrid .c-memo{max-width:0;width:100%}
+.lgrid .c-memo .memo{font-weight:600;font-size:11.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lgrid .c-amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}
 .lgrid .c-nf{white-space:nowrap}
-.lgrid .c-act .mini{margin-left:0;gap:5px}
-.lgrid .catbtn{font-size:11px;padding:4px 8px}
-.lgrid .compchip{white-space:nowrap}
-.lgrid .iconbtn{width:30px;height:30px}
-.lgrid tr.lgrid-dh td{padding:12px 9px 5px;background:#fff;border-bottom:1px solid var(--fio)}
+.lgrid .c-act .mini{margin-left:0;gap:2px}
+.lgrid .catbtn{font-size:10px;padding:3px 6px;gap:4px}
+.lgrid .catbtn .cbar{width:6px;height:6px}
+.lgrid .compchip{white-space:nowrap;font-size:10px;padding:3px 6px}
+.lgrid .iconbtn{width:26px;height:26px}
+.lgrid tr.lgrid-dh td{padding:11px 5px 4px;background:#fff;border-bottom:1px solid var(--fio)}
 .lgrid tr.lgrid-dh .dayhead{display:flex;justify-content:space-between;align-items:center;margin:0;padding:0;border:0}
 `; document.head.appendChild(st); }
 function renderLanc(){
@@ -749,10 +750,10 @@ function renderLanc(){
         : '';
     return `<tr class="lrow${l.conciliado?' conc':''}">
       <td class="c-sel"><button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button></td>
-      <td class="c-date">${fmtDate(l.date)}${l.manual?' <span style="font-size:9px;opacity:.6">·man</span>':''}</td>
+      <td class="c-date">${fmtDM(l.date)}${l.manual?'<span style="font-size:9px;opacity:.6">·m</span>':''}</td>
       <td class="c-memo"><div class="memo" title="${esc(l.memo||'')}">${esc(l.memo||'—')}</div></td>
       <td class="c-cat">${catHtml}</td>
-      <td class="c-comp"><span class="compchip" data-comp="${l.id}"><i class="ph-duotone ph-calendar-blank"></i> ${compLabel(l.competencia)}</span></td>
+      <td class="c-comp"><span class="compchip" data-comp="${l.id}">${compShort(l.competencia)}</span></td>
       <td class="c-amt amt ${neg?'neg':'pos'}">${brl(+l.amount)}</td>
       <td class="c-nf">${nfHtml}${divHtml}</td>
       <td class="c-conc"><button class="iconbtn ${l.conciliado?'on':''}" data-conc="${l.id}" title="${l.conciliado?'Conciliado — tocar para desmarcar':'Marcar como conciliado (conferido)'}"><i class="ph-duotone ph-check-circle"></i></button></td>
@@ -881,6 +882,8 @@ async function conciliarSelecionados(){
 }
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function fmtDate(d){if(!d)return'';const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}
+function fmtDM(d){if(!d)return'';const[,m,dd]=d.split('-');return `${dd}/${m}`;}
+function compShort(c){if(!c)return '';const[y,m]=c.split('-');const nm=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];return nm[+m-1]+'/'+String(y).slice(-2);}
 function dowLabel(d){if(!d)return'Sem data';const[y,m,dd]=d.split('-').map(Number);const dt=new Date(y,m-1,dd);const w=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dt.getDay()];return `${w} · ${String(dd).padStart(2,'0')}/${String(m).padStart(2,'0')}`;}
 function isNeutro(l){const p=ST.planoById[l.category];return !!(p&&p.group_type==='neutro');}
 
