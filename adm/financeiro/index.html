@@ -302,9 +302,7 @@ section.view{display:none} section.view.on{display:block}
 
     <!-- NOTAS -->
     <section class="view" id="v-notas">
-      <div class="note"><b>Notas fiscais.</b> Puxe automático da SEFAZ (via Espião Cloud) ou importe o XML do Takeat. Cada nota você associa a um pagamento na aba Lançamentos.</div>
-      <button class="btn p" id="btnEspiao" style="margin-bottom:10px"><i class="ph-duotone ph-cloud-arrow-down"></i> Buscar notas na SEFAZ (Espião Cloud)</button>
-      <button class="btn o" id="btnImpXml" style="margin-bottom:14px"><i class="ph-duotone ph-file-xml"></i> Importar XML (Takeat)</button>
+      <div class="note"><b>Notas fiscais.</b> Chegam automáticamente da SEFAZ (Espião) e pela Entrada de Notas do portal. Aqui você associa cada nota a um pagamento na aba Lançamentos. Para importar um XML avulso (Takeat), use o botão <b>Importar XML</b> no topo.</div>
       <div class="monthsel"><span class="lblcap">Competência</span><select id="notasComp"></select></div>
       <div class="catsearch" id="notasSearchWrap" style="margin:0 0 12px"><i class="ph-duotone ph-magnifying-glass"></i><input id="notasSearch" placeholder="Buscar por emitente, CNPJ ou produto…" autocomplete="off"></div>
       <div class="filters" id="notasFilters" style="margin-bottom:12px">
@@ -2429,8 +2427,6 @@ $('#selDel').onclick=deleteSelecionados;
 $('#selConc').onclick=conciliarSelecionados;
 $('#selMover').onclick=moverSelecionados;
 $('#fab').onclick=()=>{ const v=$('.view.on').id; if(v==='v-notas')openImportXml(); else openImport(); };
-$('#btnImpXml').onclick=openImportXml;
-$('#btnEspiao').onclick=buscarNotasEspiao;
 $('#notasComp').onchange=e=>{ST.notasComp=e.target.value;renderNotas();};
 $('#notasSearch').oninput=e=>{ST.notasSearch=e.target.value;renderNotas();};
 $$('#notasFilters .chip').forEach(c=>c.onclick=()=>{$$('#notasFilters .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.notasFilt=c.dataset.nf;renderNotas();});
