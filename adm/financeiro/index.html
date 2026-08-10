@@ -230,7 +230,7 @@ section.view{display:none} section.view.on{display:block}
       <div class="fr t" id="hTitle">Financeiro</div>
       <div class="s" id="hSub">—</div>
     </div>
-    <button class="hdrimp" id="fab"><i class="ph-duotone ph-plus"></i> <span id="fabTxt">Importar / lançar</span></button>
+    <button class="hdrimp" id="fab"><i class="ph-duotone ph-plus"></i> <span id="fabTxt">Lançar / importar</span></button>
     <span class="upill" id="hUnit"></span>
   </header>
 
@@ -726,7 +726,7 @@ function renderLanc(){
   ST.visibleIds=rows.map(l=>l.id);
   const el=$('#lancList');
   if(!rows.length){const filtrando=ST.search||ST.catF||ST.lancComp==='todas'||ST.statusF!=='todos';
-    el.innerHTML=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>${bd?`Nenhum lançamento em ${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}.`:(filtrando?'Nenhum lançamento com esses filtros.':'Nenhum lançamento nesta competência.<br>Use “Importar / lançar” abaixo.')}</div>`;return;}
+    el.innerHTML=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>${bd?`Nenhum lançamento em ${bd.dd}/${bd.mm}${bd.yyyy?'/'+bd.yyyy:''}.`:(filtrando?'Nenhum lançamento com esses filtros.':'Nenhum lançamento nesta competência.<br>Use “Lançar / importar” no topo.')}</div>`;return;}
   ensureLgridCss();
   const rowHTML=(l)=>{
     const cat=ST.planoById[l.category];
@@ -1432,7 +1432,7 @@ async function doSplit(id){
 
 /* ========================= IMPORT / ADD SHEET ========================= */
 function openImport(initial){
-  openSheet(`<h3>Importar / lançar</h3><div class="hint">${U(ST.unit).nome}</div>
+  openSheet(`<h3>Lançar / importar</h3><div class="hint">${U(ST.unit).nome}</div>
     <div style="display:flex;gap:10px;margin-bottom:6px">
       <button class="segbig on" data-s="arquivos" style="flex:1"><i class="ph-duotone ph-folder-open"></i> Importar arquivos<br><span style="font-weight:400;font-size:11px;opacity:.85">Notas XML ou extratos OFX</span></button>
       <button class="segbig" data-s="manual" style="flex:1"><i class="ph-duotone ph-pencil-simple"></i> Lançar manual<br><span style="font-weight:400;font-size:11px;opacity:.85">Uma despesa/receita à mão</span></button>
@@ -2382,7 +2382,7 @@ function switchView(v){
   if(v!=='lanc' && ST.sel.size){ST.sel.clear();$('#selBar').classList.remove('show');}
   $$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
   $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
-  $('#fabTxt').textContent = v==='notas'?'Importar XML':'Importar / lançar';
+  $('#fabTxt').textContent = v==='notas'?'Importar XML':'Lançar / importar';
   $('#fab').style.display = (v==='lanc'||v==='notas')?'inline-flex':'none';
   if(v==='lanc')renderLanc(); if(v==='dre')renderDRE(); if(v==='relatorio')renderRelatorio(); if(v==='notas')renderNotas(); if(v==='regras')renderRegras(); if(v==='categorias')renderCategorias();
 }
