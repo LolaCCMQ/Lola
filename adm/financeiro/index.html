@@ -675,15 +675,16 @@ function ensureLgridCss(){ if(document.getElementById('lgridCss'))return; const 
 .lgrid tr.lrow.conc td{background:#F4F8F5}
 .lgrid .c-sel{width:30px}
 .lgrid .c-date{white-space:nowrap;color:var(--mut);font-size:10.5px;line-height:1.15}
-.lgrid .c-memo{max-width:0;width:100%}
-.lgrid .c-memo .memo{font-weight:600;font-size:11.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lgrid .c-memo{max-width:0;width:100%;min-width:240px}
+.lgrid .c-memo .memo{font-weight:600;font-size:12px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lgrid .c-amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}
 .lgrid .c-nf{white-space:nowrap}
 .lgrid .c-act .mini{margin-left:0;gap:2px}
 .lgrid .catbtn{font-size:10px;padding:3px 6px;gap:4px}
 .lgrid .catbtn .cbar{width:6px;height:6px}
 .lgrid .compchip{white-space:nowrap;font-size:10px;padding:3px 6px}
-.lgrid .iconbtn{width:26px;height:26px}
+.lgrid .iconbtn{width:24px;height:24px}
+.lgrid .c-cat .catbtn{max-width:130px;overflow:hidden;text-overflow:ellipsis}
 .lgrid tr.lgrid-dh td{padding:11px 5px 4px;background:#fff;border-bottom:1px solid var(--fio)}
 .lgrid tr.lgrid-dh .dayhead{display:flex;justify-content:space-between;align-items:center;margin:0;padding:0;border:0}
 `; document.head.appendChild(st); }
@@ -735,13 +736,13 @@ function renderLanc(){
       : `<button class="catbtn miss" data-cat="${l.id}"><i class="ph-duotone ph-tag"></i>Classificar</button>`;
     const nfN=notasDoLanc(l.id).length;
     const nfHtml=nfN
-      ? `<button class="catbtn set" data-nf="${l.id}" title="Nota(s) associada(s) — tocar para ver/editar"><span class="cbar" style="background:#2C7A4B"></span>${nfN} NF ✓</button>`
-      : `<button class="catbtn miss" data-nf="${l.id}" title="Associar nota fiscal"><i class="ph-duotone ph-receipt"></i> Associar NF</button>`;
+      ? `<button class="catbtn set" data-nf="${l.id}" title="${nfN} nota(s) associada(s) — tocar para ver/editar"><span class="cbar" style="background:#2C7A4B"></span>${nfN}✓</button>`
+      : `<button class="catbtn miss" data-nf="${l.id}" title="Associar nota fiscal"><i class="ph-duotone ph-receipt"></i></button>`;
     const dv=divStatus(l.id);
     const divHtml = dv==='aberto'
-      ? `<span class="catbtn" style="background:#FBF0DD;color:#9A6B1E;border-color:#F0DFC0;pointer-events:none" title="Pendência aberta — a Paola está procurando esta nota"><i class="ph-duotone ph-magnifying-glass"></i> Procurando</span>`
+      ? `<span class="catbtn" style="background:#FBF0DD;color:#9A6B1E;border-color:#F0DFC0;pointer-events:none" title="Pendência aberta — a Paola está procurando esta nota"><i class="ph-duotone ph-magnifying-glass"></i></span>`
       : (dv==='resolvido' && !nfN)
-        ? `<span class="catbtn" style="background:#E6F3EA;color:#2C7A4B;border-color:#CBE6D5;pointer-events:none" title="A Paola já localizou — agora é só associar"><i class="ph-duotone ph-check-circle"></i> Localizada</span>`
+        ? `<span class="catbtn" style="background:#E6F3EA;color:#2C7A4B;border-color:#CBE6D5;pointer-events:none" title="A Paola já localizou — agora é só associar"><i class="ph-duotone ph-check-circle"></i></span>`
         : '';
     return `<tr class="lrow${l.conciliado?' conc':''}">
       <td class="c-sel"><button class="selchk ${ST.sel.has(l.id)?'on':''}" data-sel="${l.id}">${ST.sel.has(l.id)?'<i class="ph-duotone ph-check"></i>':''}</button></td>
