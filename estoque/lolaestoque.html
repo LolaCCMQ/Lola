@@ -5736,15 +5736,14 @@ function _enQ(q){return N(q,3).replace(/,?0+$/,'')||'0';}
 /* ══ COMPRAS / CMV (10/08 Bianca): controle de compras por plano de contas -> insumo,
    filtrando por dia / semana / mês. Fonte: itens das notas (Financeiro) + mapa de insumo.
    Backend: rpc compras_cmv(unit,desde,ate) e compras_cmv_detalhe(unit,desde,ate,insumo,desc). ══ */
-let _cmv={mes:null, gran:'mes', sub:'', data:null, open:{}};
+let _cmv={mes:null, gran:'mes', sub:'', de:'', ate:'', data:null, open:{}};
 function _cmvMesLabel(m){const nm=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];const p=m.split('-');return nm[+p[1]-1]+'/'+p[0].slice(-2);}
 function _cmvLastDay(m){const p=m.split('-').map(Number);return new Date(p[0],p[1],0).getDate();}
 function _cmvRange(){
   const m=_cmv.mes, ld=_cmvLastDay(m);
-  if(_cmv.gran==='mes') return [m+'-01', m+'-'+String(ld).padStart(2,'0')];
+  if(_cmv.gran==='periodo'){ const de=_cmv.de||(m+'-01'), ate=_cmv.ate||(m+'-'+String(ld).padStart(2,'0')); return (de<=ate)?[de,ate]:[ate,de]; }
   if(_cmv.gran==='dia'){ const d=_cmv.sub||(m+'-01'); return [d,d]; }
-  const ini=parseInt(_cmv.sub||'1',10), fim=Math.min(ini+6,ld);
-  return [m+'-'+String(ini).padStart(2,'0'), m+'-'+String(fim).padStart(2,'0')];
+  return [m+'-01', m+'-'+String(ld).padStart(2,'0')];
 }
 function _cmvLbl(t){return el('span',null,t,{style:'font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);font-weight:700;opacity:.7'});}
 
@@ -5756,14 +5755,14 @@ async function pgComprasCMV(c){
   c.appendChild(note);
 
   const ctr=div(null,null,{style:'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px'});
-  const mesWrap=div(null,[_cmvLbl('Mês')],{style:'display:flex;flex-direction:column;gap:4px'});
+  const mesWrap=div(null,[_cmvLbl('Mês')],{id:'cmvMesWrap',style:'display:flex;flex-direction:column;gap:4px'});
   const mesSel=el('select','fi',null,{style:'min-width:150px'});
   { const d=new Date(); for(let i=0;i<12;i++){ const dt=new Date(d.getFullYear(), d.getMonth()-i, 1); const mv=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'); const o=el('option',null,_cmvMesLabel(mv),{value:mv}); if(mv===_cmv.mes)o.selected=true; mesSel.appendChild(o); } }
   mesSel.onchange=()=>{ _cmv.mes=mesSel.value; _cmv.sub=''; _cmvBuildSub(); _cmvLoad(); };
   mesWrap.appendChild(mesSel); ctr.appendChild(mesWrap);
   const granWrap=div(null,[_cmvLbl('Ver por')],{style:'display:flex;flex-direction:column;gap:4px'});
   const seg=div(null,null,{id:'cmvSeg',style:'display:flex;border:1px solid var(--rb);border-radius:10px;overflow:hidden'});
-  [['mes','Mês inteiro'],['semana','Semana'],['dia','Dia']].forEach(function(o){
+  [['mes','Mês inteiro'],['dia','Dia'],['periodo','Período (de–até)']].forEach(function(o){
     const b=el('button',null,o[1],{'data-g':o[0],style:'padding:9px 13px;border:0;font-weight:600;font-size:12.5px;cursor:pointer'});
     b.onclick=()=>{ _cmv.gran=o[0]; _cmv.sub=''; _cmvPaintSeg(); _cmvBuildSub(); _cmvLoad(); };
     seg.appendChild(b);
@@ -5789,18 +5788,26 @@ function _cmvPaintSeg(){
 }
 function _cmvBuildSub(){
   const w=document.getElementById('cmvSub'); if(!w)return; w.innerHTML='';
+  w.style.flexDirection='column'; w.style.gap='4px';
+  const mw=document.getElementById('cmvMesWrap'); if(mw) mw.style.display=(_cmv.gran==='periodo')?'none':'';
   if(_cmv.gran==='mes') return;
-  w.appendChild(_cmvLbl(_cmv.gran==='semana'?'Semana':'Dia'));
   const ld=_cmvLastDay(_cmv.mes);
-  if(_cmv.gran==='semana'){
-    if(!_cmv.sub)_cmv.sub='1';
-    const s=el('select','fi',null,{style:'min-width:150px'});
-    for(let ini=1;ini<=ld;ini+=7){ const fim=Math.min(ini+6,ld); const v=String(ini); const o=el('option',null,String(ini).padStart(2,'0')+'–'+String(fim).padStart(2,'0'),{value:v}); if(v===_cmv.sub)o.selected=true; s.appendChild(o); }
-    s.value=_cmv.sub; s.onchange=()=>{ _cmv.sub=s.value; _cmvLoad(); }; w.appendChild(s);
-  } else {
+  if(_cmv.gran==='dia'){
+    w.appendChild(_cmvLbl('Dia'));
     if(!_cmv.sub)_cmv.sub=_cmv.mes+'-01';
     const inp=el('input','fi',null,{type:'date',min:_cmv.mes+'-01',max:_cmv.mes+'-'+String(ld).padStart(2,'0'),value:_cmv.sub,style:'min-width:150px'});
     inp.onchange=()=>{ _cmv.sub=inp.value; _cmvLoad(); }; w.appendChild(inp);
+  } else if(_cmv.gran==='periodo'){
+    if(!_cmv.de)_cmv.de=_cmv.mes+'-01';
+    if(!_cmv.ate)_cmv.ate=_cmv.mes+'-'+String(ld).padStart(2,'0');
+    const de=div(null,[_cmvLbl('De')],{style:'display:flex;flex-direction:column;gap:4px'});
+    const di=el('input','fi',null,{type:'date',value:_cmv.de,style:'min-width:145px'});
+    di.onchange=()=>{ _cmv.de=di.value; _cmvLoad(); }; de.appendChild(di);
+    const at=div(null,[_cmvLbl('Até')],{style:'display:flex;flex-direction:column;gap:4px'});
+    const ai=el('input','fi',null,{type:'date',value:_cmv.ate,style:'min-width:145px'});
+    ai.onchange=()=>{ _cmv.ate=ai.value; _cmvLoad(); }; at.appendChild(ai);
+    w.style.flexDirection='row'; w.style.gap='10px';
+    w.appendChild(de); w.appendChild(at);
   }
 }
 async function _cmvLoad(){
