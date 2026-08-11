@@ -727,6 +727,7 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
     ]},
     {s:'Operações',items:[
       {id:'entnotas',ic:'ph-receipt',lb:'Entrada de Notas'},
+      {id:'compras',ic:'ph-chart-line-up',lb:'Compras / CMV'},
       {id:'saidas',ic:'ph-arrow-square-out',lb:'Saída de Estoque'},
       {id:'fornecedores',ic:'ph-storefront',lb:'Fornecedores'},
       {id:'pedidos',ic:'ph-shopping-cart',lb:'Pedidos'},
@@ -751,8 +752,8 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
 
 /* 19/07 (Bianca): "Pedidos à Central" virou PEDIDOS — página única com Pedidos à
    Central + Enviar pra outras unidades + Recebimentos (a antiga Envios da Central). */
-const TITLES={dashboard:'Cozinha',insumos:'Estoque Lola',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos',envios:'Envios da Central',entnotas:'Entrada de Notas'};
-const SUBS={dashboard:'Visão geral das operações',insumos:'Ingredientes e matérias-primas com custo real',conferencia:'Suba a planilha do mês e confira preço por preço antes de aplicar',preproducoes:'Fichas técnicas dos preparos da cozinha',fichas:'Composição e custo dos pratos do cardápio',producao:'O que a Cozinha Central produziu hoje',contagem:'Registro de estoque do CCMQ e Mac',saidas:'Registro de saídas de insumos do estoque',fornecedores:'Cadastro e gestão de fornecedores',pedidos:'Pedidos entre unidades e Cozinha Central',envios:'Ingredientes e produções que a Central mandou pra cá',entnotas:'Puxa as notas do Financeiro e lança no estoque'};
+const TITLES={dashboard:'Cozinha',insumos:'Estoque Lola',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos',envios:'Envios da Central',entnotas:'Entrada de Notas',compras:'Compras / CMV'};
+const SUBS={dashboard:'Visão geral das operações',compras:'Tudo que foi comprado no mês, por plano de contas e insumo',insumos:'Ingredientes e matérias-primas com custo real',conferencia:'Suba a planilha do mês e confira preço por preço antes de aplicar',preproducoes:'Fichas técnicas dos preparos da cozinha',fichas:'Composição e custo dos pratos do cardápio',producao:'O que a Cozinha Central produziu hoje',contagem:'Registro de estoque do CCMQ e Mac',saidas:'Registro de saídas de insumos do estoque',fornecedores:'Cadastro e gestão de fornecedores',pedidos:'Pedidos entre unidades e Cozinha Central',envios:'Ingredientes e produções que a Central mandou pra cá',entnotas:'Puxa as notas do Financeiro e lança no estoque'};
 
 function nav(p){window._navBack=null;PAGE=p;document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.page===p));renderPage();}
 
@@ -780,7 +781,7 @@ async function renderPage(){
   main.innerHTML='';
   main.appendChild(brandHead(TITLES[PAGE],SUBS[PAGE]));
   const body=div(null,null,{id:'pb'});main.appendChild(body);
-  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgIns,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPedU,envios:pgEnvios,entnotas:pgEntradaNotas};
+  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgIns,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPedU,envios:pgEnvios,entnotas:pgEntradaNotas,compras:pgComprasCMV};
   if(map[PAGE])await map[PAGE](body);
 }
 
@@ -1020,8 +1021,6 @@ async function pgIns(c){
         el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-clipboard-text"></i> Nova contagem',onclick:()=>modalNovaContagem()}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-download-simple"></i> Baixar planilha',onclick:()=>exportInsumosXlsx()}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-upload-simple"></i> Conferir preços',onclick:()=>nav('conferencia')}),
-        el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-currency-dollar"></i> Atualizar preços',onclick:()=>modalPrecos()}),
-        el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-arrows-clockwise"></i> Recalcular receitas',title:'Leva o preço dos insumos até as pré-produções e as fichas. Mostra tudo antes de gravar.',onclick:()=>abrirRecalculo()}),
         el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-plus"></i> Novo insumo',onclick:()=>modalIns()}),
       ],{style:'flex-wrap:wrap'})
     ]));
@@ -1037,11 +1036,11 @@ async function pgIns(c){
         const grupos={};f.forEach(i=>{if(!grupos[i.categoria])grupos[i.categoria]=[];grupos[i.categoria].push(i);});
         Object.entries(grupos).forEach(([cat,itens])=>{
           w.appendChild(mkSecH(cat,itens.length));
-          w.appendChild(mkInsTable(itens));
+          w.appendChild(mkInsTableX(itens));
         });
       }else{
         w.appendChild(mkSecH(filtCat,f.length));
-        w.appendChild(mkInsTable(f));
+        w.appendChild(mkInsTableX(f));
       }
     }
     window._drawIns=drawIns;
@@ -1088,6 +1087,95 @@ function insDotCor(cat){
 }
 function fecharInsMenu(){ document.querySelectorAll('.ins-menu').forEach(m=>m.remove()); document.querySelectorAll('.ins-more.on').forEach(b=>b.classList.remove('on')); }
 document.addEventListener('click',e=>{ if(!e.target.closest('.ins-menu')&&!e.target.closest('.ins-more')) fecharInsMenu(); });
+/* Planilha de insumos (10/08 Bianca): uma linha por insumo, visão de planilha. */
+function ensureInsxCss(){ if(document.getElementById('insxCss'))return; const s=document.createElement('style'); s.id='insxCss'; s.textContent=`
+.insxwrap{border:1px solid var(--rb);border-radius:12px;background:#fff;margin-bottom:14px}
+.insx{width:100%;border-collapse:collapse;font-size:12.5px}
+.insx thead th{background:#FBF7F1;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--ts);font-weight:700;padding:7px 12px;border-bottom:1px solid var(--rb);white-space:nowrap}
+.insx td{padding:6px 12px;border-top:1px solid #efe7df;vertical-align:middle;white-space:nowrap}
+.insx tr:first-child td{border-top:0}
+.insx tbody tr:hover td{background:#FBF9F5}
+.insx .ix-nome{max-width:0;width:100%}
+.insx .ix-nm{display:flex;align-items:center;gap:8px;min-width:0}
+.insx .ix-nmt{font-weight:600;color:var(--tp);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.insx .ix-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.insx .ix-saldo{font-variant-numeric:tabular-nums}
+.insx .ix-st{font-size:10px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:6px}
+.insx .ix-st.ok{background:#E6F3EA;color:#2C7A4B}
+.insx .ix-st.lo{background:#FBEAE7;color:#B5302E}
+.insx .ix-st.am{background:#FBF0DD;color:#9A6B1E}
+.insx .ix-st.nc{background:#EFEAE4;color:#8A7A72}
+.insx .ix-none{color:#B7A99C;font-size:11.5px}
+.insx .ix-atu{color:var(--ts);opacity:.75;font-size:11px}
+.insx .ix-preco{text-align:right;font-weight:700;color:var(--v);white-space:nowrap}
+.insx .ix-preco .u{display:block;font-size:9px;color:var(--ts);opacity:.6;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+.insx .ix-acts{text-align:right;width:34px}
+@media(max-width:640px){.insx .ix-atu{display:none}.insx thead th.hcol-atu{display:none}}
+`; document.head.appendChild(s); }
+function mkInsTableX(itens){
+  ensureInsxCss();
+  const wrap=div('insxwrap');
+  const tbl=el('table','insx');
+  tbl.innerHTML='<thead><tr><th>Insumo</th><th>Saldo</th><th class="hcol-atu">Atualizado</th><th style="text-align:right">Preço</th><th></th></tr></thead>';
+  const tb=el('tbody');
+  itens.forEach(i=>{
+    const unCusto=i.unidade_custo||'kg';
+    const dcArr=insDotCor(i.categoria); const dc=dcArr[0], dh=dcArr[1];
+    const sd=_saldoMap&&_saldoMap[i.id];
+    let saldoHtml='<span class="ix-none">sem contagem</span>', saldoTitle='';
+    if(sd && sd.saldo!=null){
+      const min=(i.qtd_minima!=null&&i.qtd_minima!=='')?parseFloat(i.qtd_minima):null;
+      let cls='ok',lab='OK';
+      if(sd.semBase){cls='nc';lab='sem base';}
+      else if(sd.saldo<=0){cls='lo';lab='Zerado';}
+      else if(min!=null&&sd.saldo<=min){cls='lo';lab='Abaixo';}
+      else if(min!=null&&sd.saldo<=min*1.5){cls='am';lab='Atenção';}
+      const apx=sd.aprox?'≈ ':'';
+      saldoHtml='<span class="ix-saldo">'+apx+_nbr(sd.saldo,1)+' '+sd.un+'</span><span class="ix-st '+cls+'">'+lab+'</span>'+(min!=null?' <span class="ix-none" style="font-size:10px">mín '+_nbr(min,0)+'</span>':'');
+      saldoTitle=(sd.contData?('contagem '+DBR(sd.contData)+': '+_nbr(sd.contQtd||0,1)+' '+sd.un):'sem contagem')+(sd.entr?(' + '+_nbr(sd.entr,1)+' '+sd.un+' de notas'):'');
+    }
+    let atu;
+    if(i.preco_atualizado_em){ const d=new Date(i.preco_atualizado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); atu=_uEsc(d+(i.preco_atualizado_por?(' · '+i.preco_atualizado_por):'')); }
+    else atu='<span class="ix-none">Sem registro</span>';
+    const alerta = insForaDeReceita(i) ? ' <i class="ph-duotone ph-warning ix-alert" style="color:#C99A33;cursor:pointer" title="Não está em nenhuma receita — toque para ver onde poderia entrar"></i>' : '';
+    const tr=el('tr');
+    tr.innerHTML=
+      '<td class="ix-nome"><div class="ix-nm"><span class="ix-dot" style="background:'+dc+';box-shadow:0 0 0 3px '+dh+'" title="'+_uEsc(i.categoria||'')+'"></span><span class="ix-nmt" title="Abrir a ficha completa — preço, nota, fornecedor, saldo, onde é usado">'+_uEsc(i.nome)+'</span>'+alerta+'</div></td>'+
+      '<td class="ix-scell" title="'+_uEsc(saldoTitle)+'">'+saldoHtml+'</td>'+
+      '<td class="ix-atu hcol-atu">'+atu+'</td>'+
+      '<td class="ix-preco">'+R(i.custo_por_unidade)+'<span class="u">'+insUnExt(unCusto)+'</span></td>'+
+      '<td class="ix-acts"></td>';
+    tr.querySelector('.ix-nmt').addEventListener('click',()=>abrirFichaInsumo(i.id,i.nome));
+    const alEl=tr.querySelector('.ix-alert'); if(alEl){ alEl.addEventListener('click',(ev)=>{ev.stopPropagation();ondeEUsado(i);}); }
+    const acts=tr.querySelector('.ix-acts'); acts.style.position='relative';
+    const mb=el('button','ins-more',null,{html:'<i class="ph-duotone ph-dots-three-vertical"></i>',title:'Ações'});
+    mb.onclick=(ev)=>{ ev.stopPropagation();
+      const aberto=acts.querySelector('.ins-menu'); fecharInsMenu(); if(aberto) return;
+      mb.classList.add('on');
+      const menu=div('ins-menu');
+      const item=(ic,lb,fn,cls)=>{ const b=el('button',cls||null,null,{html:'<i class="ph-duotone ph-'+ic+'"></i> '+lb}); b.onclick=(e2)=>{e2.stopPropagation();fecharInsMenu();fn();}; menu.appendChild(b); };
+      item('magnifying-glass','Buscar receitas',()=>ondeEUsado(i));
+      item('chart-line','Ver tendência',()=>verHistoricoPreco(i));
+      item('pencil-simple','Editar',()=>modalIns(i));
+      if(podeMexerAqui()) item('trash','Excluir',async()=>{
+        if(!confirm('Excluir "'+i.nome+'"?'))return;
+        await db('lola_insumos','PATCH',{ativo:false},'?id=eq.'+i.id);
+        _ins=_ins.filter(x=>x.id!==i.id);
+        window._drawIns&&window._drawIns(document.getElementById('ins-t'));
+      },'del');
+      acts.appendChild(menu);
+      const rb=mb.getBoundingClientRect();
+      menu.style.position='fixed'; menu.style.right='auto';
+      menu.style.left=Math.max(8,rb.right-184)+'px';
+      const hMenu=menu.offsetHeight||200;
+      if(rb.bottom+hMenu+8>window.innerHeight){ menu.style.top=Math.max(8,rb.top-hMenu-6)+'px'; }
+      else { menu.style.top=(rb.bottom+6)+'px'; }
+    };
+    acts.appendChild(mb);
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb); wrap.appendChild(tbl); return wrap;
+}
 function mkInsTable(itens){
   const tbl=div('ins-tbl');
   const hd=div('ins-hd');
@@ -5645,6 +5733,166 @@ function _enSugereTop(desc, k){
 let EN=null,_enComp='';
 function _enMesLbl(m){const M=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];const p=m.split('-');return M[(+p[1])-1]+'/'+p[0].slice(2);}
 function _enQ(q){return N(q,3).replace(/,?0+$/,'')||'0';}
+/* ══ COMPRAS / CMV (10/08 Bianca): controle de compras por plano de contas -> insumo,
+   filtrando por dia / semana / mês. Fonte: itens das notas (Financeiro) + mapa de insumo.
+   Backend: rpc compras_cmv(unit,desde,ate) e compras_cmv_detalhe(unit,desde,ate,insumo,desc). ══ */
+let _cmv={mes:null, gran:'mes', sub:'', data:null, open:{}};
+function _cmvMesLabel(m){const nm=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];const p=m.split('-');return nm[+p[1]-1]+'/'+p[0].slice(-2);}
+function _cmvLastDay(m){const p=m.split('-').map(Number);return new Date(p[0],p[1],0).getDate();}
+function _cmvRange(){
+  const m=_cmv.mes, ld=_cmvLastDay(m);
+  if(_cmv.gran==='mes') return [m+'-01', m+'-'+String(ld).padStart(2,'0')];
+  if(_cmv.gran==='dia'){ const d=_cmv.sub||(m+'-01'); return [d,d]; }
+  const ini=parseInt(_cmv.sub||'1',10), fim=Math.min(ini+6,ld);
+  return [m+'-'+String(ini).padStart(2,'0'), m+'-'+String(fim).padStart(2,'0')];
+}
+function _cmvLbl(t){return el('span',null,t,{style:'font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);font-weight:700;opacity:.7'});}
+
+async function pgComprasCMV(c){
+  if(!_cmv.mes){ const d=new Date(); const p=new Date(d.getFullYear(), d.getMonth()-1, 1); _cmv.mes=p.getFullYear()+'-'+String(p.getMonth()+1).padStart(2,'0'); }
+  c.innerHTML='';
+  const note=div(null,null,{style:'background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5'});
+  note.innerHTML='<i class="ph-duotone ph-chart-line-up" style="color:var(--v)"></i> Tudo que foi <b>comprado</b> no período, somado por <b>insumo</b> e agrupado pelo <b>plano de contas</b>. Vem das notas fiscais (Financeiro). Toque num insumo pra ver cada compra.';
+  c.appendChild(note);
+
+  const ctr=div(null,null,{style:'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px'});
+  const mesWrap=div(null,[_cmvLbl('Mês')],{style:'display:flex;flex-direction:column;gap:4px'});
+  const mesSel=el('select','fi',null,{style:'min-width:150px'});
+  { const d=new Date(); for(let i=0;i<12;i++){ const dt=new Date(d.getFullYear(), d.getMonth()-i, 1); const mv=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'); const o=el('option',null,_cmvMesLabel(mv),{value:mv}); if(mv===_cmv.mes)o.selected=true; mesSel.appendChild(o); } }
+  mesSel.onchange=()=>{ _cmv.mes=mesSel.value; _cmv.sub=''; _cmvBuildSub(); _cmvLoad(); };
+  mesWrap.appendChild(mesSel); ctr.appendChild(mesWrap);
+  const granWrap=div(null,[_cmvLbl('Ver por')],{style:'display:flex;flex-direction:column;gap:4px'});
+  const seg=div(null,null,{id:'cmvSeg',style:'display:flex;border:1px solid var(--rb);border-radius:10px;overflow:hidden'});
+  [['mes','Mês inteiro'],['semana','Semana'],['dia','Dia']].forEach(function(o){
+    const b=el('button',null,o[1],{'data-g':o[0],style:'padding:9px 13px;border:0;font-weight:600;font-size:12.5px;cursor:pointer'});
+    b.onclick=()=>{ _cmv.gran=o[0]; _cmv.sub=''; _cmvPaintSeg(); _cmvBuildSub(); _cmvLoad(); };
+    seg.appendChild(b);
+  });
+  granWrap.appendChild(seg); ctr.appendChild(granWrap);
+  ctr.appendChild(div(null,null,{id:'cmvSub',style:'display:flex;flex-direction:column;gap:4px'}));
+  const pr=btn('btn bo bsm','🖨️ Imprimir',_cmvPrint); pr.style.cssText='margin-left:auto;align-self:flex-end;font-weight:700';
+  ctr.appendChild(pr);
+  c.appendChild(ctr);
+  c.appendChild(div(null,null,{id:'cmvRes'}));
+
+  _cmvPaintSeg(); _cmvBuildSub();
+  await _cmvLoad();
+}
+
+function _cmvPaintSeg(){
+  const seg=document.getElementById('cmvSeg'); if(!seg)return;
+  Array.prototype.forEach.call(seg.children,function(b){
+    const on=b.getAttribute('data-g')===_cmv.gran;
+    b.style.background=on?'var(--v)':'#fff';
+    b.style.color=on?'#fff':'var(--ts)';
+  });
+}
+function _cmvBuildSub(){
+  const w=document.getElementById('cmvSub'); if(!w)return; w.innerHTML='';
+  if(_cmv.gran==='mes') return;
+  w.appendChild(_cmvLbl(_cmv.gran==='semana'?'Semana':'Dia'));
+  const ld=_cmvLastDay(_cmv.mes);
+  if(_cmv.gran==='semana'){
+    if(!_cmv.sub)_cmv.sub='1';
+    const s=el('select','fi',null,{style:'min-width:150px'});
+    for(let ini=1;ini<=ld;ini+=7){ const fim=Math.min(ini+6,ld); const v=String(ini); const o=el('option',null,String(ini).padStart(2,'0')+'–'+String(fim).padStart(2,'0'),{value:v}); if(v===_cmv.sub)o.selected=true; s.appendChild(o); }
+    s.value=_cmv.sub; s.onchange=()=>{ _cmv.sub=s.value; _cmvLoad(); }; w.appendChild(s);
+  } else {
+    if(!_cmv.sub)_cmv.sub=_cmv.mes+'-01';
+    const inp=el('input','fi',null,{type:'date',min:_cmv.mes+'-01',max:_cmv.mes+'-'+String(ld).padStart(2,'0'),value:_cmv.sub,style:'min-width:150px'});
+    inp.onchange=()=>{ _cmv.sub=inp.value; _cmvLoad(); }; w.appendChild(inp);
+  }
+}
+async function _cmvLoad(){
+  const res=document.getElementById('cmvRes'); if(!res)return;
+  res.innerHTML='<div class="spin"></div>';
+  const r=_cmvRange();
+  let rows=[];
+  try{ rows=await db('rpc/compras_cmv','POST',{p_unit:'ccmq',p_desde:r[0],p_ate:r[1]}); }
+  catch(e){ res.innerHTML='<div class="note">Erro ao carregar: '+_enEsc(e.message)+'</div>'; return; }
+  _cmv.data=rows;
+  _cmvRender(res,rows,r[0],r[1]);
+}
+
+function _cmvRender(res,rows,desde,ate){
+  res.innerHTML='';
+  if(!rows||!rows.length){ res.appendChild(div('note',['Nenhuma compra com itens neste período.'])); return; }
+  const grupos={}, ordem=[];
+  rows.forEach(function(x){ const k=x.plano_label||'Sem plano de contas'; if(!grupos[k]){grupos[k]={label:k,rows:[],total:0};ordem.push(k);} grupos[k].rows.push(x); grupos[k].total+=(+x.valor||0); });
+  const totalGeral=rows.reduce((s,x)=>s+(+x.valor||0),0);
+  ordem.sort(function(a,b){ if(a==='Sem plano de contas')return 1; if(b==='Sem plano de contas')return -1; return grupos[b].total-grupos[a].total; });
+
+  const head=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px'});
+  head.innerHTML='<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);opacity:.7;font-weight:700">Total comprado no período</div><div style="font-family:Georgia,serif;font-size:26px;color:var(--v);font-weight:700">'+R(totalGeral)+'</div><div style="font-size:11.5px;color:var(--ts);opacity:.75">'+DBR(desde)+(desde!==ate?' a '+DBR(ate):'')+' · '+rows.length+' itens · '+ordem.length+' contas</div></div>';
+  res.appendChild(head);
+
+  ordem.forEach(function(k){
+    const g=grupos[k], semPlano=(k==='Sem plano de contas');
+    const pct=totalGeral?Math.round(g.total/totalGeral*100):0;
+    const card=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;margin-bottom:12px;overflow:hidden'+(semPlano?';border-color:#F1DFB8':'')});
+    const hd=div(null,null,{style:'display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 15px;cursor:pointer;background:'+(semPlano?'#FBF0DD':'#FBF7F1')});
+    const open=_cmv.open[k]!==false;
+    hd.innerHTML='<span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><i class="ph-duotone '+(open?'ph-caret-down':'ph-caret-right')+'" style="color:var(--v)"></i><b style="font-size:14px;color:'+(semPlano?'#9A6B1E':'var(--tp)')+'">'+_enEsc(g.label)+'</b><span style="font-size:11px;color:var(--ts);opacity:.7">'+g.rows.length+' insumos · '+pct+'%</span></span><b style="font-family:Georgia,serif;font-size:16px;color:'+(semPlano?'#9A6B1E':'var(--v)')+'">'+R(g.total)+'</b>';
+    hd.onclick=()=>{ _cmv.open[k]=(open?false:true); _cmvRender(res,rows,desde,ate); };
+    card.appendChild(hd);
+    if(open){
+      const tbl=el('table',null,null,{style:'width:100%;border-collapse:collapse;font-size:12.5px'});
+      tbl.innerHTML='<thead><tr style="text-align:left;color:var(--ts);opacity:.7;font-size:10px;text-transform:uppercase;letter-spacing:.03em"><th style="padding:7px 15px">Insumo</th><th style="padding:7px 8px;text-align:right">Qtd</th><th style="padding:7px 8px;text-align:right">Compras</th><th style="padding:7px 8px;text-align:right">Preço médio</th><th style="padding:7px 15px;text-align:right">Total</th></tr></thead>';
+      const tb=el('tbody');
+      g.rows.forEach(function(x,i){
+        const nome=x.mapeado?x.insumo_nome:(x.item_desc||'—');
+        const qtd=(+x.qtd||0), val=(+x.valor||0), pm=qtd?val/qtd:0;
+        const tr=el('tr',null,null,{style:'border-top:1px solid var(--fio,#eee);cursor:pointer'});
+        tr.innerHTML='<td style="padding:8px 15px"><span style="font-weight:600;color:var(--tp)">'+_enEsc(nome)+'</span>'+(x.mapeado?'':' <span style="font-size:10px;color:#9A6B1E;background:#FBF0DD;border-radius:6px;padding:1px 5px">só na nota</span>')+(x.insumo_categoria?' <span style="font-size:10px;color:var(--ts);opacity:.6">· '+_enEsc(x.insumo_categoria)+'</span>':'')+'</td>'+
+          '<td style="padding:8px 8px;text-align:right;white-space:nowrap">'+N(qtd,qtd%1===0?0:2)+' '+_enEsc(x.unidade||'')+'</td>'+
+          '<td style="padding:8px 8px;text-align:right">'+x.n_compras+'</td>'+
+          '<td style="padding:8px 8px;text-align:right;white-space:nowrap;color:var(--ts)">'+R(pm)+'</td>'+
+          '<td style="padding:8px 15px;text-align:right;white-space:nowrap;font-weight:700;color:var(--v)">'+R(val)+'</td>';
+        tr.onclick=()=>_cmvDetalhe(tr,x,desde,ate);
+        tb.appendChild(tr);
+      });
+      tbl.appendChild(tb); card.appendChild(tbl);
+    }
+    res.appendChild(card);
+  });
+}
+
+async function _cmvDetalhe(tr,x,desde,ate){
+  if(tr._det && tr._det.parentNode){ tr._det.remove(); tr._det=null; return; }
+  const det=el('tr'); const td=el('td',null,null,{colspan:5,style:'padding:0 15px 10px'});
+  td.innerHTML='<div style="font-size:12px;color:var(--ts);padding:6px 0">Carregando compras…</div>';
+  det.appendChild(td); tr.parentNode.insertBefore(det,tr.nextSibling); tr._det=det;
+  let rows=[];
+  try{ rows=await db('rpc/compras_cmv_detalhe','POST',{p_unit:'ccmq',p_desde:desde,p_ate:ate,p_insumo:(x.mapeado?x.insumo_id:null),p_desc:(x.mapeado?null:(x.item_desc||''))}); }
+  catch(e){ td.innerHTML='<div style="color:#b5302e;font-size:12px">Erro: '+_enEsc(e.message)+'</div>'; return; }
+  if(!rows.length){ td.innerHTML='<div style="font-size:12px;color:var(--ts)">Sem detalhes.</div>'; return; }
+  let h='<div style="background:#FAF6F0;border:1px solid var(--fio,#eee);border-radius:10px;overflow:hidden;margin:2px 0 4px"><table style="width:100%;border-collapse:collapse;font-size:11.5px">'+
+    '<thead><tr style="text-align:left;color:var(--ts);opacity:.7;font-size:9.5px;text-transform:uppercase"><th style="padding:6px 10px">Data</th><th style="padding:6px 10px">Fornecedor</th><th style="padding:6px 8px;text-align:right">Qtd</th><th style="padding:6px 8px;text-align:right">Unit.</th><th style="padding:6px 10px;text-align:right">Total</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    h+='<tr style="border-top:1px solid #eee"><td style="padding:6px 10px;white-space:nowrap">'+DBR(r.data_emissao)+'</td><td style="padding:6px 10px">'+_enEsc(r.emitente||'—')+(r.numero?' <span style="opacity:.5">nº '+_enEsc(r.numero)+'</span>':'')+'</td><td style="padding:6px 8px;text-align:right;white-space:nowrap">'+N((+r.qtd||0),((+r.qtd)%1===0?0:2))+' '+_enEsc(r.unidade||'')+'</td><td style="padding:6px 8px;text-align:right;white-space:nowrap">'+R(+r.vunit||0)+'</td><td style="padding:6px 10px;text-align:right;white-space:nowrap;font-weight:600">'+R(+r.vtotal||0)+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  td.innerHTML=h;
+}
+
+function _cmvPrint(){
+  const rows=_cmv.data||[]; const r=_cmvRange();
+  const grupos={}, ordem=[];
+  rows.forEach(function(x){ const k=x.plano_label||'Sem plano de contas'; if(!grupos[k]){grupos[k]={label:k,rows:[],total:0};ordem.push(k);} grupos[k].rows.push(x); grupos[k].total+=(+x.valor||0); });
+  const totalGeral=rows.reduce((s,x)=>s+(+x.valor||0),0);
+  ordem.sort(function(a,b){ if(a==='Sem plano de contas')return 1; if(b==='Sem plano de contas')return -1; return grupos[b].total-grupos[a].total; });
+  let body='';
+  ordem.forEach(function(k){ const g=grupos[k];
+    body+='<tr style="background:#f3e9e9"><td colspan="4" style="padding:7px 8px;font-weight:700">'+k+'</td><td style="padding:7px 8px;text-align:right;font-weight:700">'+R(g.total)+'</td></tr>';
+    g.rows.forEach(function(x){ const nome=x.mapeado?x.insumo_nome:(x.item_desc||'—'); const qtd=(+x.qtd||0),val=(+x.valor||0);
+      body+='<tr><td style="padding:5px 8px 5px 20px">'+nome+'</td><td style="padding:5px 8px;text-align:right">'+N(qtd,qtd%1===0?0:2)+' '+(x.unidade||'')+'</td><td style="padding:5px 8px;text-align:right">'+x.n_compras+'</td><td style="padding:5px 8px;text-align:right">'+R(qtd?val/qtd:0)+'</td><td style="padding:5px 8px;text-align:right">'+R(val)+'</td></tr>';
+    });
+  });
+  const w=window.open('','_print');
+  w.document.write('<html><head><title>Compras / CMV — Lola CCMQ</title><style>body{font-family:Georgia,serif;padding:28px;color:#2A1A17}h1{color:#A82A2A;font-size:20px;margin:0}h2{font-size:13px;color:#8A7A72;font-weight:normal;margin:4px 0 18px}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;color:#8A7A72;border-bottom:1px solid #ddd;padding:6px 8px}td{font-size:12px;border-bottom:1px solid #f0f0f0}</style></head><body><h1>Compras por plano de contas — Lola CCMQ</h1><h2>'+DBR(r[0])+(r[0]!==r[1]?' a '+DBR(r[1]):'')+' · Total '+R(totalGeral)+'</h2><table><thead><tr><th>Insumo</th><th style="text-align:right">Qtd</th><th style="text-align:right">Compras</th><th style="text-align:right">Preço médio</th><th style="text-align:right">Total</th></tr></thead><tbody>'+body+'</tbody></table></body></html>');
+  w.document.close(); setTimeout(function(){w.print();},300);
+}
+
 /* ── Notas a procurar (pendências criadas no Financeiro pela bandeirinha) ──
    09/08 (Bianca): "quero selecionar o lançamento que não encontro a nota e essa
    notificação aparecer aqui na Entrada de Notas pra Paola procurar e adicionar."
