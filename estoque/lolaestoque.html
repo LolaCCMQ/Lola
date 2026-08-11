@@ -5850,7 +5850,7 @@ function _cmvRender(res,rows,desde,ate){
         const nome=x.mapeado?x.insumo_nome:(x.item_desc||'—');
         const qtd=(+x.qtd||0), val=(+x.valor||0), pm=qtd?val/qtd:0;
         const tr=el('tr',null,null,{style:'border-top:1px solid var(--fio,#eee);cursor:pointer'});
-        tr.innerHTML='<td style="padding:8px 15px"><span style="font-weight:600;color:var(--tp)">'+_enEsc(nome)+'</span>'+((x.mapeado&&x.unidade)?' <span style="font-size:10px;color:#5A463E;background:#EFEAE3;border-radius:5px;padding:1px 6px;margin-left:3px" title="Unidade de medida que usamos neste insumo">'+_enEsc(x.unidade)+'</span>':'')+(x.mapeado?'':' <span style="font-size:10px;color:#9A6B1E;background:#FBF0DD;border-radius:6px;padding:1px 5px">só na nota</span>')+(x.insumo_categoria?' <span style="font-size:10px;color:var(--ts);opacity:.6">· '+_enEsc(x.insumo_categoria)+'</span>':'')+'</td>'+
+        tr.innerHTML='<td style="padding:8px 15px"><span style="font-weight:600;color:var(--tp)">'+_enEsc(nome)+'</span>'+((x.mapeado&&x.unidade)?' <span style="font-size:10px;color:#5A463E;background:#EFEAE3;border-radius:5px;padding:1px 6px;margin-left:3px" title="Unidade de medida que usamos neste insumo">'+_enEsc(x.unidade)+'</span>':'')+(x.mapeado?'':' <span style="font-size:10px;color:#9A6B1E;background:#FBF0DD;border-radius:6px;padding:1px 5px">só na nota</span>')+(x.insumo_categoria?' <span style="font-size:10px;color:var(--ts);opacity:.6">· '+_enEsc(x.insumo_categoria)+'</span>':'')+' <button class="cmv-cat" data-ci="'+i+'" title="Classificar plano de contas" style="border:0;background:none;cursor:pointer;padding:0 2px;vertical-align:middle">'+(semPlano?'<span style="font-size:10px;background:#9A6B1E;color:#fff;border-radius:6px;padding:2px 8px;font-weight:700;white-space:nowrap">+ classificar</span>':'<i class="ph-duotone ph-folder-simple" style="color:var(--ts);opacity:.5;font-size:13px" title="Reclassificar"></i>')+'</button>'+'</td>'+
           '<td style="padding:8px 8px;text-align:right;white-space:nowrap">'+N(qtd,qtd%1===0?0:2)+' '+_enEsc(x.unidade||'')+'</td>'+
           '<td style="padding:8px 8px;text-align:right">'+x.n_compras+'</td>'+
           '<td style="padding:8px 8px;text-align:right;white-space:nowrap;color:var(--ts)">'+R(pm)+'</td>'+
@@ -5859,6 +5859,7 @@ function _cmvRender(res,rows,desde,ate){
         tb.appendChild(tr);
       });
       tbl.appendChild(tb); card.appendChild(tbl);
+      tbl.querySelectorAll('.cmv-cat').forEach(function(b){ b.addEventListener('click',function(ev){ ev.stopPropagation(); _cmvClassify(g.rows[+b.getAttribute('data-ci')]); }); });
     }
     res.appendChild(card);
   });
@@ -5923,6 +5924,55 @@ function _cmvEditFator(x, r){
     catch(e){ alert('Erro ao salvar: '+e.message); btn.disabled=false; btn.textContent='Salvar'; return; }
     ov.remove(); try{ _cmvLoad(); }catch(e){}
   };
+}
+
+/* Classificar plano de contas (11/08 Bianca): "precisamos poder cadastrar plano
+   de contas para estes tambem". Insumo mapeado → grava plano_padrao (vale p/ todas
+   as compras do insumo). Item só na nota → grava override por descrição (item_plano). */
+function _cmvClassify(x){
+  if(!x) return;
+  const nrm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const mapeado=!!x.mapeado;
+  const nome = mapeado ? (x.insumo_nome||'') : (x.item_desc||'—');
+  const ov=div(null,null,{style:'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px'});
+  const card=div(null,null,{style:'background:#fff;border-radius:16px;max-width:460px;width:100%;max-height:86vh;display:flex;flex-direction:column;padding:18px;box-shadow:0 22px 55px -12px rgba(0,0,0,.45)'});
+  card.innerHTML=''
+    +'<div style="font-family:Georgia,serif;color:var(--v);font-size:19px">Classificar plano de contas</div>'
+    +'<div style="font-size:12px;color:var(--ts);margin:2px 0 4px">'+(mapeado?'Insumo: ':'Item da nota: ')+'<b>'+_enEsc(nome)+'</b></div>'
+    +'<div style="font-size:11px;color:#9A6B1E;background:#FBF0DD;border-radius:8px;padding:7px 10px;margin:4px 0 10px">'+(mapeado
+        ?'Vale para <b>todas</b> as compras deste insumo.'
+        :'Vale para todas as compras com a descrição "<b>'+_enEsc(nome)+'</b>".')+'</div>'
+    +'<input id="cmvCatBusca" placeholder="Buscar conta…" style="border:1px solid var(--rb);border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:8px">'
+    +'<div id="cmvCatLista" style="overflow:auto;flex:1;min-height:130px;border:1px solid var(--fio,#eee);border-radius:10px"><div style="padding:14px;color:var(--ts);font-size:12px">Carregando contas…</div></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button id="cmvCatCancel" class="btn bo bsm">Fechar</button></div>';
+  ov.appendChild(card); document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  card.querySelector('#cmvCatCancel').onclick=function(){ ov.remove(); };
+  const lista=card.querySelector('#cmvCatLista'), busca=card.querySelector('#cmvCatBusca');
+  let cats=[];
+  async function pick(id){
+    lista.style.opacity='.5';
+    try{
+      if(mapeado){ await db('rpc/insumo_set_plano','POST',{p_insumo:x.insumo_id,p_plano:id}); }
+      else{ const s=(typeof _sessaoDoPortal==='function'?_sessaoDoPortal():null); await db('rpc/item_set_plano','POST',{p_desc:x.item_desc,p_plano:id,p_quem:(s&&s.nome)||null}); }
+    }catch(e){ lista.style.opacity='1'; alert('Erro ao classificar: '+e.message); return; }
+    ov.remove(); try{ _cmvLoad(); }catch(e){}
+  }
+  function paint(){
+    const q=nrm(busca.value);
+    const fil=cats.filter(c=> !q || nrm(c.label+' '+c.group_label).indexOf(q)>=0);
+    if(!fil.length){ lista.innerHTML='<div style="padding:14px;color:var(--ts);font-size:12px">Nada encontrado.</div>'; return; }
+    const grp={}, ord=[];
+    fil.forEach(c=>{ const gl=c.group_label||'—'; if(!grp[gl]){grp[gl]=[];ord.push(gl);} grp[gl].push(c); });
+    let h='';
+    ord.forEach(gl=>{ h+='<div style="padding:6px 12px 3px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.6;font-weight:700;background:#FAF6F0">'+_enEsc(gl)+'</div>';
+      grp[gl].forEach(c=>{ h+='<button class="cmvCatOpt" data-id="'+_enEsc(c.id)+'" style="display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--fio,#eee);background:#fff;cursor:pointer;padding:9px 12px;font-size:13px;color:var(--tp)">'+_enEsc(c.label)+'</button>'; });
+    });
+    lista.innerHTML=h;
+    lista.querySelectorAll('.cmvCatOpt').forEach(b=>b.addEventListener('click',()=>pick(b.getAttribute('data-id'))));
+  }
+  busca.addEventListener('input',paint);
+  db('rpc/compras_cat_lista','POST',{}).then(r=>{ cats=r||[]; paint(); setTimeout(()=>busca.focus(),40); }).catch(e=>{ lista.innerHTML='<div style="padding:14px;color:#b5302e;font-size:12px">Erro ao carregar contas: '+_enEsc(e.message)+'</div>'; });
 }
 
 function _cmvPrint(){
