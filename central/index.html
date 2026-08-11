@@ -2761,6 +2761,13 @@ function viewInicio(){
     <div class="ini-card" data-go="al"><div class="k">Alertas abertos</div><div class="n" style="color:${al.length?'var(--urgFg)':'var(--okFg)'}">${al.length}</div><div class="s">${al.length?'toque pra resolver':'tudo resolvido'}</div></div>
     <div class="ini-card" data-go="pz"><div class="k">Produzido hoje</div><div class="n" style="color:var(--okFg)">${ph?ph.length:'…'}</div><div class="s">${ph?(ph.length===1?'produção registrada':'produções registradas'):'carregando'}</div></div>
   </div>`;
+  /* 06/08 (Bianca): atalhos pro Inventário e Manutenção + sinalizar equipamento com problema */
+  h+=`<div class="lbl">Atalhos</div>
+    <div class="ini-grid">
+      <a class="ini-card" href="/inventario.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="k">Inventário</div><div class="n" style="color:var(--vinho)"><i class="ph-duotone ph-package"></i></div><div class="s">abrir o inventário</div></a>
+      <a class="ini-card" href="/?mod=man_equip" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="k">Manutenção</div><div class="n" style="color:var(--vinho)"><i class="ph-duotone ph-wrench"></i></div><div class="s">equipamentos</div></a>
+      <div class="ini-card" data-action="reportar" style="cursor:pointer"><div class="k">Equipamento com problema</div><div class="n" style="color:var(--urgFg)"><i class="ph-duotone ph-warning-octagon"></i></div><div class="s">sinalizar pra manutenção</div></div>
+    </div>`;
   h+=`<div class="lbl" style="margin-top:0">Pedidos pendentes</div><div class="ini-list">`;
   if(!peds) h+=`<div class="ini-vazio">carregando…</div>`;
   else if(!peds.length) h+=`<div class="ini-vazio">Nenhum pedido esperando. 🎉</div>`;
@@ -2792,8 +2799,48 @@ function _iniGo(t){ ST.tab=t; render();
   if(t==='ped' && (!ST.pedidos||ST.pedidos==='loading')) carregarPedidos();
   if(t==='pz' && (!ST.prodHist||ST.prodHist==='loading')) carregarProduzidos();
 }
+/* 06/08 (Bianca): Cacy sinaliza equipamento da Central com problema → grava na tabela
+   'equipamentos' (status='problema' + entrada no histórico) e o app do Lola (Manutenção)
+   já mostra. Mesmo formato de histórico do app de manutenção: {nf,data,desc,quem,custo,garantia}. */
+async function openReportarProblema(){
+  $('#shTitle').textContent='Equipamento com problema';
+  const foot=$('.sh-foot'); if(foot) foot.style.display='none';
+  $('#shBody').innerHTML=`<div class="note">Sinalize um equipamento da Central que está com <b>problema</b>. Ele fica marcado e aparece no app do Lola (Manutenção) pra ser resolvido.</div><div class="spin"></div>`;
+  openSheet();
+  let eqs=[];
+  try{ eqs=await api('equipamentos?select=id,nome,status,historico,lojas&order=nome'); }
+  catch(e){ $('#shBody').innerHTML='<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar equipamentos: '+esc(e.message)+'</div>'; return; }
+  eqs=(eqs||[]).filter(e=>Array.isArray(e.lojas)&&e.lojas.map(x=>String(x).toLowerCase()).includes('central'));
+  if(!eqs.length){ $('#shBody').innerHTML='<div class="note">Nenhum equipamento da Central cadastrado na Manutenção. Cadastre primeiro no app de Manutenção do Lola.</div>'; return; }
+  eqs.sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt'));
+  const opts=eqs.map(e=>`<option value="${e.id}">${esc(e.nome||'?')}${e.status==='problema'?' — já sinalizado':''}</option>`).join('');
+  $('#shBody').innerHTML=`<div class="note">Sinalize um equipamento da Central que está com <b>problema</b>. Ele fica marcado como <b>problema</b> e aparece no app do Lola (Manutenção).</div>
+    <div class="mf"><label>Equipamento</label><select id="rpEq" style="width:100%">${opts}</select></div>
+    <div class="mf"><label>Qual o problema?</label><textarea id="rpDesc" rows="3" placeholder="Ex.: a câmara fria de resfriamento não está gelando" style="width:100%;font:inherit;padding:11px 12px;border:1px solid var(--border);border-radius:var(--r-btn)"></textarea></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-warning-octagon"></i> Sinalizar problema';
+  $('#shSave').removeAttribute('disabled'); onSave=()=>salvarReportarProblema(eqs); openSheet();
+  setTimeout(()=>{const d=$('#rpDesc'); if(d) d.focus();},60);
+}
+async function salvarReportarProblema(eqs){
+  const id=$('#rpEq').value; const desc=($('#rpDesc').value||'').trim();
+  if(!desc){ toast('Escreva qual é o problema.'); const d=$('#rpDesc'); if(d) d.focus(); return; }
+  const eq=(eqs||[]).find(e=>String(e.id)===String(id)); if(!eq){ toast('Escolha um equipamento.'); return; }
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const _s=(typeof lolaSession==='function'?lolaSession():null)||{}; const quem=_s.nome||_s.email||'Central';
+    const data=new Date().toISOString().slice(0,10);
+    const hist=Array.isArray(eq.historico)?eq.historico.slice():[];
+    hist.push({nf:'', data:data, desc:desc, quem:quem, custo:'', garantia:''});
+    await lolaEnsure();
+    const r=await fetch(SB_URL+'/rest/v1/equipamentos?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({status:'problema', historico:hist})});
+    if(!r.ok) throw new Error(await r.text());
+    eq.status='problema'; eq.historico=hist;
+    toast('Sinalizado ✓ — aparece na Manutenção do Lola'); closeSheet();
+  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
+}
 function wireInicio(){
   $$('#app [data-go]').forEach(el=>el.onclick=()=>_iniGo(el.dataset.go));
+  $$('#app [data-action="reportar"]').forEach(el=>el.onclick=openReportarProblema);
   $$('#app .ini-ped').forEach(el=>el.onclick=()=>{ const id=el.dataset.id; _iniGo('ped'); setTimeout(()=>{ try{ openPedido(id); }catch(_){} },60); });
   $$('#app .tardone').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); concluirTarefa(b.dataset.id); });
   $$('#app .okchip').forEach(c=>c.onclick=()=>toggleOkTarefa(c.dataset.id, c.dataset.nome));
