@@ -5818,51 +5818,183 @@ async function _cmvLoad(){
   try{ rows=await db('rpc/compras_cmv','POST',{p_unit:'ccmq',p_desde:r[0],p_ate:r[1]}); }
   catch(e){ res.innerHTML='<div class="note">Erro ao carregar: '+_enEsc(e.message)+'</div>'; return; }
   _cmv.data=rows;
+  try{ await _cmvMetaLoad(); }catch(e){ _cmv.meta={cats:[],fat:null,fatFonte:''}; }
   _cmvRender(res,rows,r[0],r[1]);
+}
+
+/* ══ CMC — orçamento por categoria a partir da meta de faturamento (13/08 Bianca) ══
+   Incorpora a planilha "Controle CMC Semanal": cada categoria (plano de contas do
+   grupo CMV) tem um % da meta de faturamento -> orçamento do mês. Mostra gasto x meta
+   x restante. Metas em lola_cmc_categoria (% por plano) e lola_cmc_config (faturamento
+   por mês; se vazio, usa a meta de vendas de lola_vendas_metas). ══ */
+async function _cmvMetaLoad(){
+  const mes=_cmv.mes, y=+mes.split('-')[0], mo=+mes.split('-')[1];
+  let cats=[]; try{ cats=await db('lola_cmc_categoria','GET',null,'?select=plano_id,categoria,pct,ordem&ativo=eq.true&order=ordem'); }catch(e){ cats=[]; }
+  let fat=null, fonte='';
+  try{ const cfg=await db('lola_cmc_config','GET',null,'?select=faturamento_meta&ano=eq.'+y+'&mes=eq.'+mo);
+       if(cfg&&cfg.length&&cfg[0].faturamento_meta!=null){ fat=+cfg[0].faturamento_meta; fonte='ajustado'; } }catch(e){}
+  if(fat==null){ try{ const vm=await db('lola_vendas_metas','GET',null,'?select=meta_mensal&mes=eq.'+mes+'&unidade=eq.CCMQ');
+       if(vm&&vm.length&&vm[0].meta_mensal!=null){ fat=+vm[0].meta_mensal; fonte='meta de vendas'; } }catch(e){} }
+  _cmv.meta={cats:cats||[], fat:fat, fatFonte:fonte, y:y, mo:mo};
+}
+function _cmvBar(frac){
+  const p=Math.max(0,frac||0), col=p>1.001?'#B5302E':(p>0.85?'#9A6B1E':'#2C7A4B'), w=Math.min(100,p*100);
+  return '<div style="height:7px;background:#EFE6DC;border-radius:5px;overflow:hidden;margin-top:7px"><div style="height:100%;width:'+w.toFixed(1)+'%;background:'+col+';border-radius:5px"></div></div>';
+}
+function _cmvPct(frac,dec){ return (100*(frac||0)).toFixed(dec==null?0:dec).replace('.',',')+'%'; }
+
+/* monta a tabela expansível de insumos de um grupo (reaproveitada nas 2 seções) */
+function _cmvGrpTable(g,res,desde,ate,semPlano){
+  const tbl=el('table',null,null,{style:'width:100%;border-collapse:collapse;font-size:12.5px'});
+  tbl.innerHTML='<thead><tr style="text-align:left;color:var(--ts);opacity:.7;font-size:10px;text-transform:uppercase;letter-spacing:.03em"><th style="padding:7px 15px">Insumo</th><th style="padding:7px 8px;text-align:right">Qtd</th><th style="padding:7px 8px;text-align:right">Compras</th><th style="padding:7px 8px;text-align:right">Preço médio</th><th style="padding:7px 15px;text-align:right">Total</th></tr></thead>';
+  const tb=el('tbody');
+  g.rows.forEach(function(x,i){
+    const nome=x.mapeado?x.insumo_nome:(x.item_desc||'—');
+    const qtd=(+x.qtd||0), val=(+x.valor||0), pm=qtd?val/qtd:0;
+    const tr=el('tr',null,null,{style:'border-top:1px solid var(--fio,#eee);cursor:pointer'});
+    tr.innerHTML='<td style="padding:8px 15px"><span style="font-weight:600;color:var(--tp)">'+_enEsc(nome)+'</span>'+((x.mapeado&&x.unidade)?' <span style="font-size:10px;color:#5A463E;background:#EFEAE3;border-radius:5px;padding:1px 6px;margin-left:3px" title="Unidade de medida que usamos neste insumo">'+_enEsc(x.unidade)+'</span>':'')+(x.mapeado?'':' <span style="font-size:10px;color:#9A6B1E;background:#FBF0DD;border-radius:6px;padding:1px 5px">só na nota</span>')+(x.insumo_categoria?' <span style="font-size:10px;color:var(--ts);opacity:.6">· '+_enEsc(x.insumo_categoria)+'</span>':'')+' <button class="cmv-cat" data-ci="'+i+'" title="Classificar plano de contas" style="border:0;background:none;cursor:pointer;padding:0 2px;vertical-align:middle">'+(semPlano?'<span style="font-size:10px;background:#9A6B1E;color:#fff;border-radius:6px;padding:2px 8px;font-weight:700;white-space:nowrap">+ classificar</span>':'<i class="ph-duotone ph-folder-simple" style="color:var(--ts);opacity:.5;font-size:13px" title="Reclassificar"></i>')+'</button>'+'</td>'+
+      '<td style="padding:8px 8px;text-align:right;white-space:nowrap">'+N(qtd,qtd%1===0?0:2)+' '+_enEsc(x.unidade||'')+'</td>'+
+      '<td style="padding:8px 8px;text-align:right">'+x.n_compras+'</td>'+
+      '<td style="padding:8px 8px;text-align:right;white-space:nowrap;color:var(--ts)">'+R(pm)+'</td>'+
+      '<td style="padding:8px 15px;text-align:right;white-space:nowrap;font-weight:700;color:var(--v)">'+R(val)+'</td>';
+    tr.onclick=()=>_cmvDetalhe(tr,x,desde,ate);
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);
+  tbl.querySelectorAll('.cmv-cat').forEach(function(b){ b.addEventListener('click',function(ev){ ev.stopPropagation(); _cmvClassify(g.rows[+b.getAttribute('data-ci')]); }); });
+  return tbl;
 }
 
 function _cmvRender(res,rows,desde,ate){
   res.innerHTML='';
-  if(!rows||!rows.length){ res.appendChild(div('note',['Nenhuma compra com itens neste período.'])); return; }
-  const grupos={}, ordem=[];
-  rows.forEach(function(x){ const k=x.plano_label||'Sem plano de contas'; if(!grupos[k]){grupos[k]={label:k,rows:[],total:0};ordem.push(k);} grupos[k].rows.push(x); grupos[k].total+=(+x.valor||0); });
-  const totalGeral=rows.reduce((s,x)=>s+(+x.valor||0),0);
-  ordem.sort(function(a,b){ if(a==='Sem plano de contas')return 1; if(b==='Sem plano de contas')return -1; return grupos[b].total-grupos[a].total; });
+  rows=rows||[];
+  const meta=_cmv.meta||{cats:[],fat:null,fatFonte:''};
+  const cmcCats=meta.cats||[];
+  const cmcSet={}; cmcCats.forEach(function(c){ cmcSet[c.plano_id]=c; });
 
-  const head=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px'});
-  head.innerHTML='<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);opacity:.7;font-weight:700">Total comprado no período</div><div style="font-family:Georgia,serif;font-size:26px;color:var(--v);font-weight:700">'+R(totalGeral)+'</div><div style="font-size:11.5px;color:var(--ts);opacity:.75">'+DBR(desde)+(desde!==ate?' a '+DBR(ate):'')+' · '+rows.length+' itens · '+ordem.length+' contas</div></div>';
+  const byPlano={}; const semPlano={label:'Sem plano de contas',plano_id:null,rows:[],total:0};
+  rows.forEach(function(x){
+    if(x.plano_id){ const k=x.plano_id; if(!byPlano[k])byPlano[k]={label:x.plano_label||k,plano_id:k,rows:[],total:0}; byPlano[k].rows.push(x); byPlano[k].total+=(+x.valor||0); }
+    else { semPlano.rows.push(x); semPlano.total+=(+x.valor||0); }
+  });
+  const totalGeral=rows.reduce(function(s,x){return s+(+x.valor||0);},0);
+  const nContas=Object.keys(byPlano).length+(semPlano.rows.length?1:0);
+
+  const ld=_cmvLastDay(_cmv.mes);
+  const diasPer=Math.round((new Date(ate+'T12:00:00')-new Date(desde+'T12:00:00'))/86400000)+1;
+  const fator=Math.max(0,Math.min(1,diasPer/ld));
+  const fat=(meta.fat!=null)?meta.fat*fator:null;
+  const pctTot=cmcCats.reduce(function(s,c){return s+(+c.pct||0);},0);
+  let gastoCMC=0; cmcCats.forEach(function(c){ gastoCMC+=((byPlano[c.plano_id]&&byPlano[c.plano_id].total)||0); });
+  const orcadoCMC=(fat!=null)?fat*pctTot:null;
+
+  const head=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;padding:14px 16px;margin-bottom:12px'});
+  head.innerHTML='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);opacity:.7;font-weight:700">Total comprado no período</div><div style="font-family:Georgia,serif;font-size:26px;color:var(--v);font-weight:700">'+R(totalGeral)+'</div><div style="font-size:11.5px;color:var(--ts);opacity:.75">'+DBR(desde)+(desde!==ate?' a '+DBR(ate):'')+' · '+rows.length+' itens · '+nContas+' contas</div>';
   res.appendChild(head);
 
-  ordem.forEach(function(k){
-    const g=grupos[k], semPlano=(k==='Sem plano de contas');
-    const pct=totalGeral?Math.round(g.total/totalGeral*100):0;
-    const card=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;margin-bottom:12px;overflow:hidden'+(semPlano?';border-color:#F1DFB8':'')});
-    const hd=div(null,null,{style:'display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 15px;cursor:pointer;background:'+(semPlano?'#FBF0DD':'#FBF7F1')});
-    const open=_cmv.open[k]!==false;
-    hd.innerHTML='<span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><i class="ph-duotone '+(open?'ph-caret-down':'ph-caret-right')+'" style="color:var(--v)"></i><b style="font-size:14px;color:'+(semPlano?'#9A6B1E':'var(--tp)')+'">'+_enEsc(g.label)+'</b><span style="font-size:11px;color:var(--ts);opacity:.7">'+g.rows.length+' insumos · '+pct+'%</span></span><b style="font-family:Georgia,serif;font-size:16px;color:'+(semPlano?'#9A6B1E':'var(--v)')+'">'+R(g.total)+'</b>';
-    hd.onclick=()=>{ _cmv.open[k]=(open?false:true); _cmvRender(res,rows,desde,ate); };
-    card.appendChild(hd);
-    if(open){
-      const tbl=el('table',null,null,{style:'width:100%;border-collapse:collapse;font-size:12.5px'});
-      tbl.innerHTML='<thead><tr style="text-align:left;color:var(--ts);opacity:.7;font-size:10px;text-transform:uppercase;letter-spacing:.03em"><th style="padding:7px 15px">Insumo</th><th style="padding:7px 8px;text-align:right">Qtd</th><th style="padding:7px 8px;text-align:right">Compras</th><th style="padding:7px 8px;text-align:right">Preço médio</th><th style="padding:7px 15px;text-align:right">Total</th></tr></thead>';
-      const tb=el('tbody');
-      g.rows.forEach(function(x,i){
-        const nome=x.mapeado?x.insumo_nome:(x.item_desc||'—');
-        const qtd=(+x.qtd||0), val=(+x.valor||0), pm=qtd?val/qtd:0;
-        const tr=el('tr',null,null,{style:'border-top:1px solid var(--fio,#eee);cursor:pointer'});
-        tr.innerHTML='<td style="padding:8px 15px"><span style="font-weight:600;color:var(--tp)">'+_enEsc(nome)+'</span>'+((x.mapeado&&x.unidade)?' <span style="font-size:10px;color:#5A463E;background:#EFEAE3;border-radius:5px;padding:1px 6px;margin-left:3px" title="Unidade de medida que usamos neste insumo">'+_enEsc(x.unidade)+'</span>':'')+(x.mapeado?'':' <span style="font-size:10px;color:#9A6B1E;background:#FBF0DD;border-radius:6px;padding:1px 5px">só na nota</span>')+(x.insumo_categoria?' <span style="font-size:10px;color:var(--ts);opacity:.6">· '+_enEsc(x.insumo_categoria)+'</span>':'')+' <button class="cmv-cat" data-ci="'+i+'" title="Classificar plano de contas" style="border:0;background:none;cursor:pointer;padding:0 2px;vertical-align:middle">'+(semPlano?'<span style="font-size:10px;background:#9A6B1E;color:#fff;border-radius:6px;padding:2px 8px;font-weight:700;white-space:nowrap">+ classificar</span>':'<i class="ph-duotone ph-folder-simple" style="color:var(--ts);opacity:.5;font-size:13px" title="Reclassificar"></i>')+'</button>'+'</td>'+
-          '<td style="padding:8px 8px;text-align:right;white-space:nowrap">'+N(qtd,qtd%1===0?0:2)+' '+_enEsc(x.unidade||'')+'</td>'+
-          '<td style="padding:8px 8px;text-align:right">'+x.n_compras+'</td>'+
-          '<td style="padding:8px 8px;text-align:right;white-space:nowrap;color:var(--ts)">'+R(pm)+'</td>'+
-          '<td style="padding:8px 15px;text-align:right;white-space:nowrap;font-weight:700;color:var(--v)">'+R(val)+'</td>';
-        tr.onclick=()=>_cmvDetalhe(tr,x,desde,ate);
-        tb.appendChild(tr);
-      });
-      tbl.appendChild(tb); card.appendChild(tbl);
-      tbl.querySelectorAll('.cmv-cat').forEach(function(b){ b.addEventListener('click',function(ev){ ev.stopPropagation(); _cmvClassify(g.rows[+b.getAttribute('data-ci')]); }); });
-    }
-    res.appendChild(card);
-  });
+  const cmcHead=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;padding:14px 16px;margin-bottom:14px'});
+  if(fat==null){
+    cmcHead.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-weight:800;color:var(--v);font-size:15px">Controle de CMC</div><button id="cmcGear" class="btn bo bsm" style="font-weight:700"><i class="ph-duotone ph-gear"></i> Metas</button></div><div style="font-size:12.5px;color:#9A6B1E;background:#FBF0DD;border-radius:9px;padding:9px 11px;margin-top:10px">Defina a <b>meta de faturamento</b> deste mês pra ver quanto pode gastar por categoria. Toque em <b>Metas</b>.</div>';
+  } else {
+    const restCMC=orcadoCMC-gastoCMC;
+    const cmcPctReal=fat>0?gastoCMC/fat:0;
+    cmcHead.innerHTML=''
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
+      +'<div style="font-weight:800;color:var(--v);font-size:15px">Controle de CMC · '+_cmvMesLabel(_cmv.mes)+'</div>'
+      +'<button id="cmcGear" class="btn bo bsm" style="font-weight:700"><i class="ph-duotone ph-gear"></i> Metas</button></div>'
+      +'<div style="font-size:11.5px;color:var(--ts);margin-top:6px">Faturamento meta: <b>'+R(meta.fat)+'</b> <span style="opacity:.6">('+_enEsc(meta.fatFonte||'')+(fator<1?' · período '+_cmvPct(fator)+' do mês':'')+')</span></div>'
+      +'<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:9px">'
+        +'<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Orçado ('+_cmvPct(pctTot)+')</div><div style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:var(--tp)">'+R(orcadoCMC)+'</div></div>'
+        +'<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Gasto CMC</div><div style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:var(--v)">'+R(gastoCMC)+'</div></div>'
+        +'<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Restante</div><div style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:'+(restCMC<0?'#B5302E':'#2C7A4B')+'">'+R(restCMC)+'</div></div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:11px;font-size:11.5px;color:var(--ts)"><span>CMC realizado <b style="color:'+(cmcPctReal>pctTot?'#B5302E':'var(--tp)')+'">'+_cmvPct(cmcPctReal,1)+'</b> <span style="opacity:.6">sobre a meta de faturamento</span></span><span style="opacity:.75">meta '+_cmvPct(pctTot)+'</span></div>'
+      +_cmvBar(pctTot>0?cmcPctReal/pctTot:0);
+  }
+  res.appendChild(cmcHead);
+  const gear=cmcHead.querySelector('#cmcGear'); if(gear) gear.onclick=_cmvEditMetas;
+
+  if(cmcCats.length){
+    const secLbl=div(null,null,{style:'font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);opacity:.7;font-weight:700;margin:2px 2px 8px'}); secLbl.textContent='Categorias do CMC'; res.appendChild(secLbl);
+    cmcCats.forEach(function(c){
+      const g=byPlano[c.plano_id];
+      const gasto=g?g.total:0;
+      const metaRs=(fat!=null)?fat*(+c.pct||0):null;
+      const rest=(metaRs!=null)?metaRs-gasto:null;
+      const uso=(metaRs&&metaRs>0)?gasto/metaRs:0;
+      const key='cmc:'+c.plano_id;
+      const open=g?(_cmv.open[key]!==false):false;
+      const card=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;margin-bottom:12px;overflow:hidden'});
+      const hd=div(null,null,{style:'padding:12px 15px;background:#FBF7F1'+(g?';cursor:pointer':'')});
+      hd.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
+        +'<span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">'+(g?'<i class="ph-duotone '+(open?'ph-caret-down':'ph-caret-right')+'" style="color:var(--v)"></i>':'<i class="ph-duotone ph-circle-dashed" style="color:var(--ts);opacity:.45;font-size:14px"></i>')+'<b style="font-size:14px;color:var(--tp)">'+_enEsc(c.categoria)+'</b>'+(g?'<span style="font-size:11px;color:var(--ts);opacity:.7">'+g.rows.length+' insumos</span>':'<span style="font-size:11px;color:var(--ts);opacity:.55">sem compras</span>')+'</span>'
+        +'<b style="font-family:Georgia,serif;font-size:16px;color:var(--v)">'+R(gasto)+'</b></div>'
+        +(metaRs!=null?('<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:7px;font-size:11.5px;color:var(--ts)"><span>meta '+R(metaRs)+' <span style="opacity:.55">('+_cmvPct(c.pct)+')</span></span><span style="font-weight:700;color:'+(rest<0?'#B5302E':'#2C7A4B')+'">'+(rest<0?'estourou '+R(-rest):'resta '+R(rest))+'</span></div>'+_cmvBar(uso)):'');
+      if(g){ hd.onclick=function(){ _cmv.open[key]=(open?false:true); _cmvRender(res,rows,desde,ate); }; }
+      card.appendChild(hd);
+      if(g&&open){ card.appendChild(_cmvGrpTable(g,res,desde,ate,false)); }
+      res.appendChild(card);
+    });
+  }
+
+  const outros=[];
+  Object.keys(byPlano).forEach(function(k){ if(!cmcSet[k]) outros.push(byPlano[k]); });
+  if(semPlano.rows.length) outros.push(semPlano);
+  outros.sort(function(a,b){return b.total-a.total;});
+  if(outros.length){
+    const secLbl=div(null,null,{style:'font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);opacity:.7;font-weight:700;margin:16px 2px 8px'}); secLbl.textContent='Outros gastos (fora do CMC)'; res.appendChild(secLbl);
+    outros.forEach(function(g){
+      const isSem=(g.plano_id===null);
+      const key='out:'+(g.plano_id||'sem');
+      const open=_cmv.open[key]===true;
+      const card=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;margin-bottom:12px;overflow:hidden'+(isSem?';border-color:#F1DFB8':'')});
+      const hd=div(null,null,{style:'display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 15px;cursor:pointer;background:'+(isSem?'#FBF0DD':'#FBF7F1')});
+      const pct=totalGeral?Math.round(g.total/totalGeral*100):0;
+      hd.innerHTML='<span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><i class="ph-duotone '+(open?'ph-caret-down':'ph-caret-right')+'" style="color:var(--v)"></i><b style="font-size:14px;color:'+(isSem?'#9A6B1E':'var(--tp)')+'">'+_enEsc(g.label)+'</b><span style="font-size:11px;color:var(--ts);opacity:.7">'+g.rows.length+' insumos · '+pct+'%</span></span><b style="font-family:Georgia,serif;font-size:16px;color:'+(isSem?'#9A6B1E':'var(--v)')+'">'+R(g.total)+'</b>';
+      hd.onclick=function(){ _cmv.open[key]=!open; _cmvRender(res,rows,desde,ate); };
+      card.appendChild(hd);
+      if(open){ card.appendChild(_cmvGrpTable(g,res,desde,ate,isSem)); }
+      res.appendChild(card);
+    });
+  }
+}
+
+/* Editor das metas de CMC: faturamento do mês (lola_cmc_config) + % por categoria
+   (lola_cmc_categoria). O % é global (vale pros próximos meses); o faturamento é por mês. */
+function _cmvEditMetas(){
+  const meta=_cmv.meta||{cats:[],fat:null}; const cats=(meta.cats||[]).slice();
+  const ov=div(null,null,{style:'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px'});
+  const card=div(null,null,{style:'background:#fff;border-radius:16px;max-width:480px;width:100%;max-height:88vh;display:flex;flex-direction:column;padding:18px;box-shadow:0 22px 55px -12px rgba(0,0,0,.45)'});
+  const rowsHtml=cats.map(function(c){ return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--fio,#eee)"><span style="flex:1;font-size:13px;color:var(--tp)">'+_enEsc(c.categoria)+'</span><input class="cmcPct" data-id="'+_enEsc(c.plano_id)+'" type="number" step="0.1" min="0" value="'+(100*(+c.pct||0)).toFixed(2).replace(/\.?0+$/,'')+'" style="width:76px;text-align:right;border:1px solid var(--rb);border-radius:8px;padding:7px 9px;font-size:14px;font-weight:700"><span style="font-size:12px;color:var(--ts)">%</span></div>'; }).join('');
+  card.innerHTML=''
+    +'<div style="font-family:Georgia,serif;color:var(--v);font-size:19px">Metas de CMC · '+_cmvMesLabel(_cmv.mes)+'</div>'
+    +'<div style="font-size:12px;color:var(--ts);margin:2px 0 12px">O orçamento de cada categoria é esse % aplicado sobre a meta de faturamento do mês.</div>'
+    +'<label style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);font-weight:700">Faturamento meta do mês</label>'
+    +'<div style="display:flex;align-items:center;gap:8px;margin:5px 0 4px"><span style="font-weight:700">R$</span><input id="cmcFat" type="number" step="1000" min="0" value="'+(meta.fat!=null?meta.fat:'')+'" placeholder="ex.: 500000" style="flex:1;border:1px solid var(--rb);border-radius:9px;padding:10px 12px;font-size:16px;font-weight:700"></div>'
+    +'<div style="font-size:11px;color:var(--ts);opacity:.7;margin-bottom:14px">Deixe em branco pra usar a meta de vendas do mês automaticamente.</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);font-weight:700">% por categoria</label><span id="cmcSoma" style="font-size:12px;font-weight:700"></span></div>'
+    +'<div style="overflow:auto;flex:1;min-height:80px;margin-top:2px">'+rowsHtml+'</div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button id="cmcCancel" class="btn bo bsm">Cancelar</button><button id="cmcSave" class="btn bp bsm" style="font-weight:700">Salvar</button></div>';
+  ov.appendChild(card); document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  function soma(){ let t=0; card.querySelectorAll('.cmcPct').forEach(function(i){ t+=parseFloat(i.value)||0; }); const s=card.querySelector('#cmcSoma'); s.textContent='soma '+t.toFixed(1).replace('.',',')+'%'; s.style.color=(Math.abs(t-30)<0.05)?'#2C7A4B':'#9A6B1E'; }
+  card.querySelectorAll('.cmcPct').forEach(function(i){ i.addEventListener('input',soma); }); soma();
+  card.querySelector('#cmcCancel').onclick=function(){ ov.remove(); };
+  card.querySelector('#cmcSave').onclick=async function(){
+    const bt=card.querySelector('#cmcSave'); bt.disabled=true; bt.textContent='Salvando…';
+    const s=(typeof _sessaoDoPortal==='function'?_sessaoDoPortal():null); const quem=(s&&s.nome)||null;
+    const y=+_cmv.mes.split('-')[0], mo=+_cmv.mes.split('-')[1];
+    try{
+      const fv=(card.querySelector('#cmcFat').value||'').trim();
+      const body={faturamento_meta:(fv===''?null:(+fv)),atualizado_por:quem,atualizado_em:new Date().toISOString()};
+      const upd=await db('lola_cmc_config','PATCH',body,'?ano=eq.'+y+'&mes=eq.'+mo);
+      if(!upd||!upd.length){ await db('lola_cmc_config','POST',Object.assign({ano:y,mes:mo},body)); }
+      const proms=[];
+      card.querySelectorAll('.cmcPct').forEach(function(i){ const id=i.getAttribute('data-id'); const pv=parseFloat(i.value); if(!isNaN(pv)){ proms.push(db('lola_cmc_categoria','PATCH',{pct:pv/100,atualizado_por:quem,atualizado_em:new Date().toISOString()},'?plano_id=eq.'+encodeURIComponent(id))); } });
+      await Promise.all(proms);
+    }catch(e){ alert('Erro ao salvar metas: '+e.message); bt.disabled=false; bt.textContent='Salvar'; return; }
+    ov.remove(); _cmvLoad();
+  };
 }
 
 async function _cmvDetalhe(tr,x,desde,ate){
