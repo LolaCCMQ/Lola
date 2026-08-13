@@ -6151,8 +6151,26 @@ async function pgEntradaNotas(c){
       if(!list.length){listBox.appendChild(div('tss',null,{style:'padding:16px',html:q?'Nenhuma nota desse fornecedor.':'Sem notas nessa competência.'}));return;}
       list.forEach(n=>{
         const done=lanSet.has(n.chave);const nit=Array.isArray(n.itens)?n.itens.length:0;
-        const card=div(null);card.style.cssText='background:#fff;border:1.5px solid var(--rb);border-radius:14px;padding:13px 15px;margin-bottom:9px'+(done?';opacity:.72':'');
-        card.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--tx);flex:1;min-width:0">'+_envEsc(n.emitente||('Nota '+(n.numero||'')))+'</b>'+(done?'<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">lançada</span>':'<span style="background:#FBF0DD;color:#9A6B1E;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">a lançar</span>')+'</div><div style="font-size:11.5px;color:var(--ts);margin-top:3px">'+DBR(n.data_emissao)+' · '+nit+' itens · '+R(n.valor_total)+'</div>';
+        /* 13/08 (Bianca): notas sem XML (passou o prazo de 10 dias da Ciência na SEFAZ,
+           ou NF-e cancelada) não preenchem sozinhas — selo pra separar das que ainda
+           estão processando. Só marca as ainda não lançadas. */
+        const bloq=!!n.xml_indisponivel && !done;
+        const cancel=bloq && n.xml_motivo==='nfe_cancelada';
+        const card=div(null);
+        card.style.cssText='background:'+(cancel?'#FDF3F2':(bloq?'#FFF8EE':'#fff'))+';border:1.5px solid '+(cancel?'#EBC7C2':(bloq?'#F1DFB8':'var(--rb)'))+';border-radius:14px;padding:13px 15px;margin-bottom:9px'+(done?';opacity:.72':'');
+        const selo = done
+          ? '<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">lançada</span>'
+          : (cancel
+             ? '<span style="background:#FDECEA;color:#9A2A2A;font-size:11px;font-weight:800;padding:3px 9px;border-radius:50px">nota cancelada</span>'
+             : (bloq
+                ? '<span style="background:#F4C77E;color:#5A3B00;font-size:11px;font-weight:800;padding:3px 9px;border-radius:50px">sem XML · lançar manual</span>'
+                : '<span style="background:#FBF0DD;color:#9A6B1E;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">a lançar</span>'));
+        const hint = bloq
+          ? '<div style="font-size:11px;color:'+(cancel?'#9A2A2A':'#9A5B00')+';margin-top:5px;font-weight:600;line-height:1.35">'+(cancel
+              ? 'NF-e cancelada pelo fornecedor — não precisa lançar.'
+              : 'A SEFAZ não libera mais o XML (passou o prazo de 10 dias). Digite os itens manualmente no botão abaixo.')+'</div>'
+          : '';
+        card.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--tx);flex:1;min-width:0">'+_envEsc(n.emitente||('Nota '+(n.numero||'')))+'</b>'+selo+'</div><div style="font-size:11.5px;color:var(--ts);margin-top:3px">'+DBR(n.data_emissao)+' · '+nit+' itens · '+R(n.valor_total)+'</div>'+hint;
         const b=btn('btn '+(done?'bo':'bp')+' bsm',done?'Ver / relançar':'Lançar itens',()=>abrirNotaEN(n));
         b.style.cssText='margin-top:10px;font-size:12px;font-weight:700';card.appendChild(b);listBox.appendChild(card);
       });
