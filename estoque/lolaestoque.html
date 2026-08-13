@@ -5762,7 +5762,7 @@ async function pgComprasCMV(c){
   mesWrap.appendChild(mesSel); ctr.appendChild(mesWrap);
   const granWrap=div(null,[_cmvLbl('Ver por')],{style:'display:flex;flex-direction:column;gap:4px'});
   const seg=div(null,null,{id:'cmvSeg',style:'display:flex;border:1px solid var(--rb);border-radius:10px;overflow:hidden'});
-  [['mes','Mês inteiro'],['dia','Dia'],['periodo','Período (de–até)']].forEach(function(o){
+  [['mes','Mês inteiro'],['semanas','Semanas'],['dia','Dia'],['periodo','Período (de–até)']].forEach(function(o){
     const b=el('button',null,o[1],{'data-g':o[0],style:'padding:9px 13px;border:0;font-weight:600;font-size:12.5px;cursor:pointer'});
     b.onclick=()=>{ _cmv.gran=o[0]; _cmv.sub=''; _cmvPaintSeg(); _cmvBuildSub(); _cmvLoad(); };
     seg.appendChild(b);
@@ -5790,7 +5790,7 @@ function _cmvBuildSub(){
   const w=document.getElementById('cmvSub'); if(!w)return; w.innerHTML='';
   w.style.flexDirection='column'; w.style.gap='4px';
   const mw=document.getElementById('cmvMesWrap'); if(mw) mw.style.display=(_cmv.gran==='periodo')?'none':'';
-  if(_cmv.gran==='mes') return;
+  if(_cmv.gran==='mes'||_cmv.gran==='semanas') return;
   const ld=_cmvLastDay(_cmv.mes);
   if(_cmv.gran==='dia'){
     w.appendChild(_cmvLbl('Dia'));
@@ -5813,12 +5813,13 @@ function _cmvBuildSub(){
 async function _cmvLoad(){
   const res=document.getElementById('cmvRes'); if(!res)return;
   res.innerHTML='<div class="spin"></div>';
+  try{ await _cmvMetaLoad(); }catch(e){ _cmv.meta={cats:[],fat:null,fatFonte:''}; }
+  if(_cmv.gran==='semanas'){ return _cmvLoadSemanas(res); }
   const r=_cmvRange();
   let rows=[];
   try{ rows=await db('rpc/compras_cmv','POST',{p_unit:'ccmq',p_desde:r[0],p_ate:r[1]}); }
   catch(e){ res.innerHTML='<div class="note">Erro ao carregar: '+_enEsc(e.message)+'</div>'; return; }
   _cmv.data=rows;
-  try{ await _cmvMetaLoad(); }catch(e){ _cmv.meta={cats:[],fat:null,fatFonte:''}; }
   _cmvRender(res,rows,r[0],r[1]);
 }
 
@@ -5995,6 +5996,94 @@ function _cmvEditMetas(){
     }catch(e){ alert('Erro ao salvar metas: '+e.message); bt.disabled=false; bt.textContent='Salvar'; return; }
     ov.remove(); _cmvLoad();
   };
+}
+
+/* ══ CMC por SEMANA (13/08 Bianca) — colunas da planilha: 1–9, 10–16, 17–23, 24–fim.
+   Reaproveita a própria compras_cmv (4 chamadas + o mês), então os totais semanais
+   sempre batem com o mensal. Meta por semana = meta da categoria ÷ 4. ══ */
+function _cmvKbrl(v){ v=+v||0; if(v>=1000){ return 'R$ '+(v/1000).toFixed(1).replace('.',',')+'k'; } return 'R$ '+Math.round(v); }
+function _cmvByPlano(rows){ const o={}; (rows||[]).forEach(function(x){ if(x.plano_id) o[x.plano_id]=(o[x.plano_id]||0)+(+x.valor||0); }); return o; }
+
+async function _cmvLoadSemanas(res){
+  const m=_cmv.mes, ld=_cmvLastDay(m), pad=n=>String(n).padStart(2,'0');
+  const ranges=[
+    ['Mês', m+'-01', m+'-'+pad(ld)],
+    ['1–9', m+'-01', m+'-09'],
+    ['10–16', m+'-10', m+'-16'],
+    ['17–23', m+'-17', m+'-23'],
+    ['24–'+ld, m+'-24', m+'-'+pad(ld)]
+  ];
+  let results;
+  try{ results=await Promise.all(ranges.map(function(rg){ return db('rpc/compras_cmv','POST',{p_unit:'ccmq',p_desde:rg[1],p_ate:rg[2]}); })); }
+  catch(e){ res.innerHTML='<div class="note">Erro ao carregar: '+_enEsc(e.message)+'</div>'; return; }
+  _cmv.data=results[0];
+  _cmv.sem={
+    monthByPlano:_cmvByPlano(results[0]),
+    monthRows:results[0],
+    weeks:ranges.slice(1).map(function(rg,i){ return {lbl:rg[0], de:rg[1], ate:rg[2], byPlano:_cmvByPlano(results[i+1])}; })
+  };
+  _cmvRenderSemanas(res);
+}
+
+function _cmvRenderSemanas(res){
+  res.innerHTML='';
+  const S=_cmv.sem, meta=_cmv.meta||{cats:[],fat:null,fatFonte:''};
+  const cats=meta.cats||[], fat=meta.fat;
+  const pctTot=cats.reduce(function(s,c){return s+(+c.pct||0);},0);
+  let gastoCMC=0; cats.forEach(function(c){ gastoCMC+=(S.monthByPlano[c.plano_id]||0); });
+  const totalGeral=(S.monthRows||[]).reduce(function(s,x){return s+(+x.valor||0);},0);
+  const orcadoCMC=(fat!=null)?fat*pctTot:null;
+
+  const head=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;padding:14px 16px;margin-bottom:12px'});
+  head.innerHTML='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);opacity:.7;font-weight:700">Total comprado no mês</div><div style="font-family:Georgia,serif;font-size:26px;color:var(--v);font-weight:700">'+R(totalGeral)+'</div><div style="font-size:11.5px;color:var(--ts);opacity:.75">'+_cmvMesLabel(_cmv.mes)+' · '+(S.monthRows?S.monthRows.length:0)+' itens</div>';
+  res.appendChild(head);
+
+  const cmcHead=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;padding:14px 16px;margin-bottom:14px'});
+  if(fat==null){
+    cmcHead.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-weight:800;color:var(--v);font-size:15px">Controle de CMC</div><button id="cmcGear" class="btn bo bsm" style="font-weight:700"><i class="ph-duotone ph-gear"></i> Metas</button></div><div style="font-size:12.5px;color:#9A6B1E;background:#FBF0DD;border-radius:9px;padding:9px 11px;margin-top:10px">Defina a <b>meta de faturamento</b> deste mês (botão <b>Metas</b>) pra ver o orçamento por semana.</div>';
+  } else {
+    const restCMC=orcadoCMC-gastoCMC, cmcPctReal=fat>0?gastoCMC/fat:0;
+    cmcHead.innerHTML=''
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
+      +'<div style="font-weight:800;color:var(--v);font-size:15px">Controle de CMC · '+_cmvMesLabel(_cmv.mes)+'</div>'
+      +'<button id="cmcGear" class="btn bo bsm" style="font-weight:700"><i class="ph-duotone ph-gear"></i> Metas</button></div>'
+      +'<div style="font-size:11.5px;color:var(--ts);margin-top:6px">Faturamento meta: <b>'+R(meta.fat)+'</b> <span style="opacity:.6">('+_enEsc(meta.fatFonte||'')+')</span></div>'
+      +'<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:9px">'
+        +'<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Orçado ('+_cmvPct(pctTot)+')</div><div style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:var(--tp)">'+R(orcadoCMC)+'</div></div>'
+        +'<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Gasto CMC</div><div style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:var(--v)">'+R(gastoCMC)+'</div></div>'
+        +'<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Restante</div><div style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:'+(restCMC<0?'#B5302E':'#2C7A4B')+'">'+R(restCMC)+'</div></div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:11px;font-size:11.5px;color:var(--ts)"><span>CMC realizado <b style="color:'+(cmcPctReal>pctTot?'#B5302E':'var(--tp)')+'">'+_cmvPct(cmcPctReal,1)+'</b> <span style="opacity:.6">sobre a meta de faturamento</span></span><span style="opacity:.75">meta '+_cmvPct(pctTot)+'</span></div>'
+      +_cmvBar(pctTot>0?cmcPctReal/pctTot:0);
+  }
+  res.appendChild(cmcHead);
+  const gear=cmcHead.querySelector('#cmcGear'); if(gear) gear.onclick=_cmvEditMetas;
+
+  const wl=S.weeks.map(function(w){return w.lbl;});
+  const note=div(null,null,{style:'font-size:11px;color:var(--ts);opacity:.75;margin:2px 2px 8px'});
+  note.innerHTML='<b style="text-transform:uppercase;letter-spacing:.05em;opacity:.9">Por semana</b> — colunas: '+wl.join(' · ')+(fat!=null?'. Meta por semana = meta da categoria ÷ 4.':'.');
+  res.appendChild(note);
+
+  cats.forEach(function(c){
+    const mesGasto=S.monthByPlano[c.plano_id]||0;
+    const metaMes=(fat!=null)?fat*(+c.pct||0):null;
+    const metaSem=(metaMes!=null)?metaMes/4:null;
+    const card=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;margin-bottom:12px;overflow:hidden'});
+    let cells='';
+    S.weeks.forEach(function(w){
+      const g=w.byPlano[c.plano_id]||0;
+      let bg='#FAF6F0', col='var(--ts)';
+      if(metaSem!=null && g>0){ const u=g/metaSem; if(u>1.001){bg='#FBEAE7';col='#B5302E';} else if(u>0.85){bg='#FBF0DD';col='#9A6B1E';} else {bg='#E6F3EA';col='#2C7A4B';} }
+      else if(g>0){ col='var(--tp)'; }
+      cells+='<div style="background:'+bg+';border-radius:9px;padding:7px 5px;text-align:center;min-width:0"><div style="font-size:9px;color:var(--ts);opacity:.7;font-weight:700;white-space:nowrap">'+_enEsc(w.lbl)+'</div><div style="font-family:Georgia,serif;font-weight:700;font-size:12.5px;color:'+col+';white-space:nowrap">'+(g>0?_cmvKbrl(g):'—')+'</div></div>';
+    });
+    card.innerHTML='<div style="padding:12px 15px;background:#FBF7F1">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:14px;color:var(--tp)">'+_enEsc(c.categoria)+'</b><b style="font-family:Georgia,serif;font-size:15px;color:var(--v)">'+R(mesGasto)+'</b></div>'
+      +(metaMes!=null?'<div style="font-size:11px;color:var(--ts);margin-top:4px">meta/semana <b>'+R(metaSem)+'</b> · mês '+R(metaMes)+' <span style="opacity:.55">('+_cmvPct(c.pct)+')</span></div>':'')
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px">'+cells+'</div>'
+      +'</div>';
+    res.appendChild(card);
+  });
 }
 
 async function _cmvDetalhe(tr,x,desde,ate){
