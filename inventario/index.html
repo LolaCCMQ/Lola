@@ -608,7 +608,7 @@ async function confirmarAcaoEquip(tipo,btn){
     fecharOv('ovAcao'); await load(); reabrirFicha();
   }catch(e){toast('Erro: '+(e.message||e));if(btn){btn.disabled=false;btn.textContent='Confirmar';}}
 }
-function abrirManut(){try{var pp=window.parent;if(pp&&pp!==window&&typeof pp.openManutencoes==='function'){pp.openManutencoes('equip');return;}}catch(e){}window.open('https://lolaccmq.github.io/Lola-Manutencoes/?page=equip','_blank');}
+function abrirManut(){try{var pp=window.parent;if(pp&&pp!==window&&typeof pp.openManutencoes==='function'){pp.openManutencoes('equip');return;}}catch(e){}window.open('/manutencoes/?page=equip','_blank');}
 
 /* ===================== FORM (novo / editar) ===================== */
 function abrirFormNovo(){abrirForm({});}
