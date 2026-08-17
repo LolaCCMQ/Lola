@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lola MAC · Fechamento do dia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+  :root{
+    --creme:#FBF7F1; --card:#FFFFFF; --borda:#ECE3D9;
+    --vinho:#A82A2A; --vinho2:#7E1E1F;
+    --t1:#2A1A17; --t2:#5A463E; --t3:#92837B; --rotulo:#B79A8E;
+    --verde-bg:#E6F3EA; --verde:#2C7A4B;   /* MAC / Café */
+    --ambar-bg:#FBF0DD; --ambar:#9A6B1E;    /* Lojinha */
+    --roxo-bg:#F0EAF7; --roxo:#7A4FA3;      /* Freelancers */
+    --azul-bg:#E6EEF8; --azul:#2C5AA0;      /* Pessoas */
+    --sombra:0 1px 2px rgba(42,26,23,.05), 0 12px 26px -16px rgba(42,26,23,.22);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--creme)}
+  body{font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--t1);
+    -webkit-font-smoothing:antialiased;padding-bottom:40px}
+  .fr{font-family:'Fraunces',serif;font-weight:600;font-style:normal}
+  .wrap{max-width:520px;margin:0 auto;padding:0 16px}
+  a{color:inherit}
+
+  /* ===== CABEÇALHO v2 (transparente, título vinho) ===== */
+  .head{padding:16px 0 6px}
+  .head .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;min-height:44px}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--borda);
+    color:var(--vinho2);font-weight:600;font-size:13.5px;padding:9px 14px;border-radius:20px;cursor:pointer}
+  .pill i{font-size:16px}
+  .htitle{font-family:'Fraunces',serif;font-weight:600;font-size:25px;color:var(--vinho2);line-height:1.1}
+  .hsub{font-size:12.5px;color:var(--t2);margin-top:4px}
+
+  .sec-label{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.5px;
+    color:var(--rotulo);text-transform:uppercase;margin:22px 2px 10px}
+  .sec-label i{font-size:14px}
+
+  .card{background:var(--card);border:1px solid var(--borda);border-radius:18px;box-shadow:var(--sombra)}
+  .link-card{display:flex;align-items:center;gap:12px;padding:13px 14px;margin-bottom:9px}
+  .link-card .tile{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 40px}
+  .link-card b{font-weight:600;font-size:14.5px;display:block}
+  .link-card small{font-size:12px;color:var(--t3)}
+  .link-card .go{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .link-card .go a{color:var(--vinho);font-size:20px}
+  .link-card .go .del{color:var(--t3);font-size:19px;cursor:pointer}
+
+  .dashed{border:1.5px dashed #D8CBBD;border-radius:13px;padding:11px;text-align:center;
+    font-size:13.5px;font-weight:600;color:var(--vinho2);cursor:pointer;background:transparent}
+  .dashed i{margin-right:4px}
+
+  .month-card{display:flex;align-items:center;gap:12px;padding:14px 15px;margin-bottom:9px;cursor:pointer}
+  .month-card .mtitle{font-family:'Fraunces',serif;font-weight:600;font-size:16px}
+  .month-card .msub{font-size:12px;color:var(--t3);margin-top:2px}
+  .month-card .caret{margin-left:auto;color:var(--rotulo);font-size:18px}
+  .tag{font-size:11px;font-weight:700;padding:4px 9px;border-radius:10px}
+  .tag.open{background:var(--verde-bg);color:var(--verde)}
+
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;
+    background:var(--vinho);color:#fff;font-weight:600;font-size:15px;border:none;border-radius:13px;
+    cursor:pointer;font-family:inherit;margin-top:14px}
+  .btn i{font-size:19px}
+  .btn.ghost{background:transparent;color:var(--t2);border:1px solid var(--borda)}
+
+  /* ===== resumo do mês ===== */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+  .stat{padding:13px 14px}
+  .stat .lab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .stat .val{font-family:'Fraunces',serif;font-weight:600;font-size:22px;margin-top:4px;color:var(--t1)}
+
+  /* ===== card de dia ===== */
+  .day-card{padding:13px 15px;margin-bottom:9px;cursor:pointer}
+  .day-card .drow{display:flex;align-items:center;justify-content:space-between}
+  .day-card .ddate{font-family:'Fraunces',serif;font-weight:600;font-size:15px;text-transform:capitalize}
+  .day-card .dinfo{display:flex;gap:16px;font-size:13px;color:var(--t2);margin-top:7px}
+  .day-card .dinfo i{margin-right:5px}
+  .day-card .dtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .chip{font-size:11px;font-weight:600;padding:3px 8px;border-radius:9px}
+  .chip.cafe{background:var(--verde-bg);color:var(--verde)}
+  .chip.loja{background:var(--ambar-bg);color:var(--ambar)}
+  .chip.free{background:var(--roxo-bg);color:var(--roxo)}
+  .chip.perda{background:#FBE4DF;color:#B23A2E}
+
+  .empty{text-align:center;color:var(--t3);font-size:13.5px;padding:26px 10px}
+
+  /* ===== estado de erro (à prova de falha) ===== */
+  .errbox{background:#FBEAE7;border:1px solid #F0C9C2;border-radius:14px;padding:16px;text-align:center;margin:8px 0}
+  .errbox .ei{font-size:30px;color:var(--vinho)}
+  .errbox b{display:block;font-family:'Fraunces',serif;font-size:16px;color:var(--vinho2);margin:6px 0 3px}
+  .errbox p{font-size:12.5px;color:var(--t2);margin-bottom:12px;word-break:break-word}
+  .errbox .btn{max-width:220px;margin:0 auto}
+
+  /* ===== folha de baixo ===== */
+  .sheet-bg{position:fixed;inset:0;background:rgba(42,26,23,.42);display:none;z-index:50;align-items:flex-end;justify-content:center}
+  .sheet-bg.on{display:flex}
+  .sheet{background:var(--creme);width:100%;max-width:520px;max-height:92vh;overflow:auto;
+    border-radius:22px 22px 0 0;padding:8px 16px 24px}
+  .grab{width:44px;height:5px;border-radius:3px;background:#E3D6C9;margin:8px auto 6px}
+  .sheet h3{font-family:'Fraunces',serif;font-weight:600;font-size:20px;margin:4px 0 2px}
+  .sheet .sd{font-size:12.5px;color:var(--t3);margin-bottom:16px;text-transform:capitalize}
+  .field{margin-bottom:14px}
+  .field>label{display:block;font-size:11px;font-weight:700;color:var(--rotulo);
+    text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  input,textarea{width:100%;background:var(--card);border:1px solid var(--borda);border-radius:13px;
+    padding:11px 13px;font-size:15px;font-family:inherit;color:var(--t1)}
+  input:focus,textarea:focus{outline:none;border-color:var(--vinho)}
+  textarea{min-height:64px;resize:vertical}
+  .two{display:flex;gap:10px}
+  .two>div{flex:1}
+  .sublab{font-size:10.5px;font-weight:700;margin-bottom:5px}
+  .sublab.cafe{color:var(--verde)} .sublab.loja{color:var(--ambar)}
+  .money-warn{font-size:11.5px;color:var(--vinho2);background:#FBEAE7;border-radius:9px;padding:7px 10px;margin-top:4px;display:none}
+  .money-warn.on{display:block}
+
+  .line{display:flex;gap:8px;align-items:center;margin-bottom:7px}
+  .line input{flex:1}
+  .line .qtd{flex:0 0 74px;text-align:center}
+  .line .val{flex:0 0 100px}
+  .line .rm{flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:1px solid var(--borda);
+    background:var(--card);color:var(--t3);font-size:17px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .line .ptipo{flex:1 1 80px;background:var(--card);border:1px solid var(--borda);border-radius:13px;
+    padding:10px 8px;font-family:inherit;font-size:13.5px;color:var(--t1);min-width:0}
+  .line.perda{flex-wrap:wrap}
+  .line.perda .pitem{flex:1 1 100%}
+
+  .sheet-actions{display:flex;gap:10px;margin-top:20px}
+  .sheet-actions .btn{margin-top:0}
+  .sheet-actions .btn.ghost{flex:1}
+  .sheet-actions .btn.save{flex:2}
+  .del-day{text-align:center;margin-top:14px}
+  .del-day span{color:var(--vinho);font-size:13px;font-weight:600;cursor:pointer}
+
+  /* ===== modal central ===== */
+  .modal-bg{position:fixed;inset:0;background:rgba(42,26,23,.42);display:none;z-index:60;align-items:center;justify-content:center;padding:24px}
+  .modal-bg.on{display:flex}
+  .modal{background:var(--card);border-radius:18px;padding:22px 20px;max-width:340px;width:100%;text-align:center}
+  .modal h4{font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin-bottom:8px}
+  .modal p{font-size:13.5px;color:var(--t2);margin-bottom:18px}
+  .modal .mrow{display:flex;gap:10px}
+  .modal .mrow .btn{margin-top:0}
+  .modal .btn.danger{background:var(--vinho)}
+
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--t1);color:#fff;
+    font-size:13px;font-weight:600;padding:11px 18px;border-radius:12px;opacity:0;transition:opacity .25s;z-index:80;pointer-events:none}
+  .toast.on{opacity:1}
+  .hidden{display:none!important}
+  .loading{text-align:center;color:var(--t3);font-size:13.5px;padding:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- CABEÇALHO -->
+  <div class="head">
+    <div class="row">
+      <span class="pill" id="backBtn" onclick="onBack()"><i class="ph-duotone ph-caret-left"></i><span id="backLbl">Menu</span></span>
+      <span class="pill" id="fecharTop" onclick="openDia()" style="color:var(--vinho2)"><i class="ph-duotone ph-plus"></i>Fechar o dia</span>
+    </div>
+    <div class="htitle" id="hTitle">Lola MAC</div>
+    <div class="hsub" id="hSub">Fechamento diário · vendas e atendimento</div>
+  </div>
+
+  <!-- ===== TELA INÍCIO ===== -->
+  <div id="viewInicio">
+    <div class="sec-label"><i class="ph-duotone ph-table"></i>Planilhas fixas · valem pra todos os meses</div>
+    <div id="planilhasList"><div class="loading">Carregando…</div></div>
+    <div class="dashed" onclick="openPlanilha()"><i class="ph-duotone ph-plus"></i>Adicionar planilha</div>
+
+    <div class="sec-label"><i class="ph-duotone ph-calendar-blank"></i>Meses</div>
+    <div id="mesesList"><div class="loading">Carregando…</div></div>
+    <button class="btn" onclick="openDia()"><i class="ph-duotone ph-plus-circle"></i>Fechar o dia</button>
+  </div>
+
+  <!-- ===== TELA MÊS ===== -->
+  <div id="viewMes" class="hidden">
+    <div class="stats" id="mesStats"></div>
+    <div class="sec-label"><i class="ph-duotone ph-list-checks"></i>Dias lançados</div>
+    <div id="diasList"></div>
+    <button class="btn" onclick="openDia()"><i class="ph-duotone ph-plus-circle"></i>Fechar o dia</button>
+  </div>
+</div>
+
+<!-- ===== FOLHA: ADICIONAR PLANILHA ===== -->
+<div class="sheet-bg" id="sheetPlanilha">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3 id="plTitle">Adicionar planilha</h3>
+    <div class="sd">Link do Google Sheets ou Drive · vale pra todos os meses</div>
+    <div class="field"><label>Título</label><input id="plTitulo" placeholder="Planilha geral"></div>
+    <div class="field"><label>Tipo</label>
+      <select id="plTipo" style="width:100%;background:var(--card);border:1px solid var(--borda);border-radius:13px;padding:11px 13px;font-size:15px;font-family:inherit">
+        <option value="geral">Geral</option>
+        <option value="ponto">Ponto</option>
+        <option value="outra">Outra</option>
+      </select>
+    </div>
+    <div class="field"><label>Link</label><input id="plUrl" placeholder="https://docs.google.com/..." inputmode="url"></div>
+    <div class="sheet-actions">
+      <button class="btn ghost" onclick="closeSheet('sheetPlanilha')">Cancelar</button>
+      <button class="btn save" onclick="savePlanilha()"><i class="ph-duotone ph-check"></i>Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FOLHA: FECHAR O DIA ===== -->
+<div class="sheet-bg" id="sheetDia">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3 id="diaTitle">Fechar o dia</h3>
+    <div class="sd" id="diaDataLbl"></div>
+
+    <div class="field"><label>Data</label><input type="date" id="dData" onchange="refreshDiaData()"></div>
+    <div class="field"><label>Pessoas atendidas</label><input type="number" id="dPessoas" inputmode="numeric" placeholder="0"></div>
+
+    <div class="field">
+      <label>Valor total de vendas (R$)</label>
+      <input type="number" id="dTotal" inputmode="decimal" step="0.01" placeholder="0,00" oninput="checkMoney()">
+      <div class="two" style="margin-top:8px">
+        <div><div class="sublab cafe">CAFÉ</div><input type="number" id="dCafe" inputmode="decimal" step="0.01" placeholder="0,00" oninput="checkMoney()"></div>
+        <div><div class="sublab loja">LOJINHA</div><input type="number" id="dLoja" inputmode="decimal" step="0.01" placeholder="0,00" oninput="checkMoney()"></div>
+      </div>
+      <div class="money-warn" id="moneyWarn"></div>
+    </div>
+
+    <div class="field">
+      <label>Produtos vendidos</label>
+      <div id="prodLines"></div>
+      <div class="dashed" onclick="addProdLine()"><i class="ph-duotone ph-plus"></i>Adicionar produto</div>
+    </div>
+
+    <div class="field">
+      <label>Pagamentos de freelancers</label>
+      <div id="freeLines"></div>
+      <div class="dashed" onclick="addFreeLine()"><i class="ph-duotone ph-plus"></i>Adicionar freelancer</div>
+    </div>
+
+    <div class="field">
+      <label>Quebras, perdas e desperdícios</label>
+      <div id="perdaLines"></div>
+      <div class="dashed" onclick="addPerdaLine()"><i class="ph-duotone ph-plus"></i>Adicionar perda</div>
+    </div>
+
+    <div class="field"><label>Informações do dia</label><textarea id="dInfo" placeholder="Observações do dia…"></textarea></div>
+
+    <div class="sheet-actions">
+      <button class="btn ghost" onclick="closeSheet('sheetDia')">Cancelar</button>
+      <button class="btn save" onclick="saveDia()"><i class="ph-duotone ph-check"></i>Salvar dia</button>
+    </div>
+    <div class="del-day hidden" id="delDayRow"><span onclick="askDeleteDia()"><i class="ph-duotone ph-trash"></i> Excluir este dia</span></div>
+  </div>
+</div>
+
+<!-- ===== MODAL CONFIRMAÇÃO ===== -->
+<div class="modal-bg" id="modalConfirm">
+  <div class="modal">
+    <h4 id="mcTitle">Excluir?</h4>
+    <p id="mcMsg">Esta ação não pode ser desfeita.</p>
+    <div class="mrow">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn danger" style="flex:1" id="mcOk">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://mvjbsdpfjhywhaonvpfl.supabase.co';
+// Chave nova (publishable) — mesma do Reuniões & Tarefas. Substitui a JWT anon legada.
+const SB_KEY='sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy';
+const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+function api(path,opts){
+  opts=opts||{};
+  // timeout de 12s: nunca mais "Carregando…" pra sempre
+  const ctrl=new AbortController();
+  const to=setTimeout(()=>ctrl.abort(),12000);
+  return fetch(SB_URL+'/rest/v1/'+path,Object.assign({headers:H,signal:ctrl.signal},opts))
+    .then(async r=>{if(!r.ok)throw new Error('HTTP '+r.status+' — '+(await r.text()).slice(0,140));const t=await r.text();return t?JSON.parse(t):null;})
+    .finally(()=>clearTimeout(to));
+}
+const qp=new URLSearchParams(location.search);
+const USER=qp.get('u')||'';
+
+let STATE={dias:[],planilhas:[],mesKey:null,editing:null,editingPl:null};
+const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function brl(n){return (Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function brlK(n){n=Number(n)||0;return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function dObj(s){return new Date(s+'T12:00:00');}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200);}
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ===================== CARGA ===================== */
+function showLoadError(msg){
+  const html='<div class="errbox"><i class="ph-duotone ph-warning-circle ei"></i>'
+    +'<b>Não consegui carregar</b>'
+    +'<p>'+esc(msg||'Verifique a conexão e tente de novo.')+'</p>'
+    +'<button class="btn" onclick="loadAll()"><i class="ph-duotone ph-arrow-clockwise"></i>Tentar de novo</button></div>';
+  const pl=document.getElementById('planilhasList'); if(pl)pl.innerHTML=html;
+  const me=document.getElementById('mesesList'); if(me)me.innerHTML='';
+}
+async function loadAll(){
+  const pl0=document.getElementById('planilhasList'); if(pl0)pl0.innerHTML='<div class="loading">Carregando…</div>';
+  const me0=document.getElementById('mesesList'); if(me0)me0.innerHTML='<div class="loading">Carregando…</div>';
+  try{
+    const [pl,di]=await Promise.all([
+      api('lola_mac_planilhas?order=ordem.asc,id.asc'),
+      api('lola_mac_dias?order=data.desc')
+    ]);
+    STATE.planilhas=pl||[]; STATE.dias=di||[];
+    renderPlanilhas(); renderMeses();
+  }catch(e){
+    console.error(e);
+    const msg=/aborted|abort/i.test(e.message||'')?'A conexão demorou demais (tempo esgotado). Toque em Tentar de novo.':(e.message||'Erro desconhecido');
+    showLoadError(msg);
+    toast('Erro ao carregar');
+  }
+}
+
+/* ===================== INÍCIO ===================== */
+const PL_ICON={geral:'ph-google-drive-logo',ponto:'ph-clock-user',outra:'ph-file-text'};
+const PL_TILE={geral:['var(--verde-bg)','var(--verde)'],ponto:['var(--ambar-bg)','var(--ambar)'],outra:['var(--azul-bg)','var(--azul)']};
+function renderPlanilhas(){
+  const el=document.getElementById('planilhasList');
+  if(!STATE.planilhas.length){el.innerHTML='<div class="empty">Nenhuma planilha ainda.</div>';return;}
+  el.innerHTML=STATE.planilhas.map(p=>{
+    const tl=PL_TILE[p.tipo]||PL_TILE.outra;
+    return `<div class="card link-card">
+      <div class="tile" style="background:${tl[0]};color:${tl[1]}"><i class="ph-duotone ${PL_ICON[p.tipo]||PL_ICON.outra}"></i></div>
+      <div><b>${esc(p.titulo)}</b><small>${p.tipo==='ponto'?'Ponto':p.tipo==='geral'?'Geral':'Planilha'} · abrir</small></div>
+      <div class="go">
+        <a href="${esc(p.url)}" target="_blank" rel="noopener"><i class="ph-duotone ph-arrow-square-out"></i></a>
+        <i class="ph-duotone ph-pencil-simple del" style="color:var(--vinho)" onclick="editPlanilha(${p.id})"></i>
+        <i class="ph-duotone ph-trash del" onclick="askDeletePlanilha(${p.id})"></i>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderMeses(){
+  const el=document.getElementById('mesesList');
+  const groups={};
+  STATE.dias.forEach(d=>{const dt=dObj(d.data);const k=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');(groups[k]=groups[k]||[]).push(d);});
+  const keys=Object.keys(groups).sort().reverse();
+  if(!keys.length){el.innerHTML='<div class="empty">Nenhum mês lançado. Toque em “Fechar o dia”.</div>';return;}
+  el.innerHTML=keys.map(k=>{
+    const arr=groups[k];const [y,m]=k.split('-');
+    const total=arr.reduce((s,d)=>s+Number(d.venda_total||0),0);
+    const pessoas=arr.reduce((s,d)=>s+Number(d.pessoas||0),0);
+    const label=MESES[+m-1].charAt(0).toUpperCase()+MESES[+m-1].slice(1)+' '+y;
+    const now=new Date();const isCur=(+y===now.getFullYear()&&+m===now.getMonth()+1);
+    return `<div class="card month-card" onclick="openMes('${k}')">
+      <div><div class="mtitle">${label}</div><div class="msub">${arr.length} dia${arr.length>1?'s':''} · ${pessoas} pessoas · ${brlK(total)}</div></div>
+      ${isCur?'<span class="tag open">Aberto</span>':''}
+      <i class="ph-duotone ph-caret-right caret"></i>
+    </div>`;
+  }).join('');
+}
+
+/* ===================== MÊS ===================== */
+async function openMes(k){
+  STATE.mesKey=k;
+  const [y,m]=k.split('-');
+  document.getElementById('hTitle').textContent=MESES[+m-1].charAt(0).toUpperCase()+MESES[+m-1].slice(1)+' '+y;
+  document.getElementById('hSub').textContent='Resumo do mês e fechamento por dia';
+  document.getElementById('backLbl').textContent='Lola MAC';
+  document.getElementById('viewInicio').classList.add('hidden');
+  document.getElementById('viewMes').classList.remove('hidden');
+  window.scrollTo(0,0);
+  renderMes();
+}
+async function renderMes(){
+  const k=STATE.mesKey;
+  const dias=STATE.dias.filter(d=>{const dt=dObj(d.data);return (dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'))===k;});
+  const ids=dias.map(d=>d.id);
+  let frees=[],perdasArr=[];
+  if(ids.length){try{[frees,perdasArr]=await Promise.all([api('lola_mac_freelancers?dia_id=in.('+ids.join(',')+')'),api('lola_mac_perdas?dia_id=in.('+ids.join(',')+')')]);frees=frees||[];perdasArr=perdasArr||[];}catch(e){}}
+  const freeByDay={};frees.forEach(f=>{freeByDay[f.dia_id]=(freeByDay[f.dia_id]||0)+1;});
+  const perdaByDay={};perdasArr.forEach(p=>{perdaByDay[p.dia_id]=(perdaByDay[p.dia_id]||0)+Number(p.valor||0);});
+  const perdaTotal=perdasArr.reduce((s,p)=>s+Number(p.valor||0),0);
+  const pessoas=dias.reduce((s,d)=>s+Number(d.pessoas||0),0);
+  const total=dias.reduce((s,d)=>s+Number(d.venda_total||0),0);
+  const cafe=dias.reduce((s,d)=>s+Number(d.venda_cafe||0),0);
+  const loja=dias.reduce((s,d)=>s+Number(d.venda_lojinha||0),0);
+  document.getElementById('mesStats').innerHTML=`
+    <div class="card stat"><div class="lab" style="color:var(--azul)">Pessoas</div><div class="val">${pessoas}</div></div>
+    <div class="card stat"><div class="lab" style="color:var(--vinho2)">Vendas</div><div class="val">${brlK(total)}</div></div>
+    <div class="card stat"><div class="lab" style="color:var(--verde)">Café</div><div class="val">${brlK(cafe)}</div></div>
+    <div class="card stat"><div class="lab" style="color:var(--ambar)">Lojinha</div><div class="val">${brlK(loja)}</div></div>
+    ${perdaTotal>0?`<div class="card stat" style="grid-column:1/-1"><div class="lab" style="color:#B23A2E">Quebras / perdas / desperdícios</div><div class="val">${brlK(perdaTotal)}</div></div>`:''}`;
+  const el=document.getElementById('diasList');
+  if(!dias.length){el.innerHTML='<div class="empty">Nenhum dia neste mês.</div>';return;}
+  el.innerHTML=dias.map(d=>{
+    const dt=dObj(d.data);const dia=String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');
+    const wd=['dom','seg','ter','qua','qui','sex','sáb'][dt.getDay()];
+    const nf=freeByDay[d.id]||0;
+    return `<div class="card day-card" onclick="openDia(${d.id})">
+      <div class="drow"><div class="ddate">${wd} · ${dia}</div><i class="ph-duotone ph-pencil-simple" style="color:var(--vinho)"></i></div>
+      <div class="dinfo"><span><i class="ph-duotone ph-users" style="color:var(--azul)"></i>${d.pessoas||0} pessoas</span><span><i class="ph-duotone ph-money" style="color:var(--verde)"></i>${brlK(d.venda_total)}</span></div>
+      <div class="dtags">
+        <span class="chip cafe">Café ${brlK(d.venda_cafe)}</span>
+        <span class="chip loja">Lojinha ${brlK(d.venda_lojinha)}</span>
+        ${nf?`<span class="chip free">${nf} freela${nf>1?'s':''}</span>`:''}
+        ${perdaByDay[d.id]?`<span class="chip perda">Perdas ${brlK(perdaByDay[d.id])}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function goInicio(){
+  STATE.mesKey=null;
+  document.getElementById('hTitle').textContent='Lola MAC';
+  document.getElementById('hSub').textContent='Fechamento diário · vendas e atendimento';
+  document.getElementById('backLbl').textContent='Menu';
+  document.getElementById('viewMes').classList.add('hidden');
+  document.getElementById('viewInicio').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+function onBack(){
+  if(STATE.mesKey){goInicio();return;}
+  try{ if(window.parent!==window){window.parent.postMessage({lola:'voltar-menu'},'*');window.parent.postMessage({type:'lola-mac-home'},'*');return;} }catch(e){}
+}
+
+/* ===================== FOLHA: PLANILHA ===================== */
+function openPlanilha(){STATE.editingPl=null;document.getElementById('plTitle').textContent='Adicionar planilha';document.getElementById('plTitulo').value='';document.getElementById('plUrl').value='';document.getElementById('plTipo').value='geral';openSheet('sheetPlanilha');}
+function editPlanilha(id){const p=STATE.planilhas.find(x=>x.id===id);if(!p)return;STATE.editingPl=id;document.getElementById('plTitle').textContent='Editar planilha';document.getElementById('plTitulo').value=p.titulo;document.getElementById('plUrl').value=p.url;document.getElementById('plTipo').value=p.tipo;openSheet('sheetPlanilha');}
+async function savePlanilha(){
+  const titulo=document.getElementById('plTitulo').value.trim();
+  const url=document.getElementById('plUrl').value.trim();
+  const tipo=document.getElementById('plTipo').value;
+  if(!titulo||!url){toast('Preencha título e link');return;}
+  try{
+    if(STATE.editingPl){
+      await api('lola_mac_planilhas?id=eq.'+STATE.editingPl,{method:'PATCH',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify({titulo,url,tipo})});
+    }else{
+      await api('lola_mac_planilhas',{method:'POST',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify({titulo,url,tipo,ordem:STATE.planilhas.length})});
+    }
+    const wasEdit=!!STATE.editingPl;STATE.editingPl=null;
+    closeSheet('sheetPlanilha');await loadAll();toast(wasEdit?'Planilha atualizada':'Planilha adicionada');
+  }catch(e){console.error(e);toast('Erro ao salvar');}
+}
+function askDeletePlanilha(id){
+  const p=STATE.planilhas.find(x=>x.id===id);const titulo=p?p.titulo:'';
+  confirmModal('Excluir planilha?','“'+titulo+'” sairá da lista.',async()=>{
+    try{await api('lola_mac_planilhas?id=eq.'+id,{method:'DELETE',headers:Object.assign({},H,{'Prefer':'return=minimal'})});closeModal();await loadAll();toast('Removida');}catch(e){toast('Erro');}
+  });
+}
+
+/* ===================== FOLHA: DIA ===================== */
+function todayStr(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+function addProdLine(produto,qtd){
+  const w=document.getElementById('prodLines');const div=document.createElement('div');div.className='line';
+  div.innerHTML=`<input placeholder="Produto" value="${esc(produto||'')}"><input class="qtd" type="number" inputmode="numeric" placeholder="Qtd" value="${qtd!=null?qtd:''}"><div class="rm" onclick="this.parentNode.remove()"><i class="ph-duotone ph-x"></i></div>`;
+  w.appendChild(div);
+}
+function addFreeLine(nome,funcao,valor){
+  const w=document.getElementById('freeLines');const div=document.createElement('div');div.className='line';
+  div.innerHTML=`<input placeholder="Nome" value="${esc(nome||'')}"><input placeholder="Função" value="${esc(funcao||'')}" style="flex:0 0 92px"><input class="val" type="number" inputmode="decimal" step="0.01" placeholder="R$" value="${valor!=null?valor:''}"><div class="rm" onclick="this.parentNode.remove()"><i class="ph-duotone ph-x"></i></div>`;
+  w.appendChild(div);
+}
+const PERDA_TIPOS=[['quebra','Quebra'],['perda','Perda'],['desperdicio','Desperdício']];
+function addPerdaLine(item,qtd,tipo,valor){
+  const w=document.getElementById('perdaLines');const div=document.createElement('div');div.className='line perda';
+  const opts=PERDA_TIPOS.map(t=>`<option value="${t[0]}"${tipo===t[0]?' selected':''}>${t[1]}</option>`).join('');
+  div.innerHTML=`<input class="pitem" placeholder="Item (o que quebrou/perdeu)" value="${esc(item||'')}"><input class="qtd" type="number" inputmode="numeric" placeholder="Qtd" value="${qtd!=null?qtd:''}"><select class="ptipo">${opts}</select><input class="val" type="number" inputmode="decimal" step="0.01" placeholder="R$" value="${valor!=null?valor:''}"><div class="rm" onclick="this.parentNode.remove()"><i class="ph-duotone ph-x"></i></div>`;
+  w.appendChild(div);
+}
+async function openDia(id){
+  document.getElementById('prodLines').innerHTML='';
+  document.getElementById('freeLines').innerHTML='';
+  document.getElementById('perdaLines').innerHTML='';
+  document.getElementById('moneyWarn').classList.remove('on');
+  let dia=null;
+  if(typeof id==='number'){dia=STATE.dias.find(d=>d.id===id);}
+  STATE.editing=dia?dia.id:null;
+  if(dia){
+    document.getElementById('diaTitle').textContent='Editar o dia';
+    document.getElementById('dData').value=dia.data;
+    document.getElementById('dPessoas').value=dia.pessoas||'';
+    document.getElementById('dTotal').value=dia.venda_total||'';
+    document.getElementById('dCafe').value=dia.venda_cafe||'';
+    document.getElementById('dLoja').value=dia.venda_lojinha||'';
+    document.getElementById('dInfo').value=dia.informacoes||'';
+    document.getElementById('delDayRow').classList.remove('hidden');
+    try{
+      const [pr,fr,pe]=await Promise.all([api('lola_mac_produtos?dia_id=eq.'+dia.id+'&order=ordem.asc,id.asc'),api('lola_mac_freelancers?dia_id=eq.'+dia.id+'&order=ordem.asc,id.asc'),api('lola_mac_perdas?dia_id=eq.'+dia.id+'&order=ordem.asc,id.asc')]);
+      (pr||[]).forEach(p=>addProdLine(p.produto,p.quantidade));
+      (fr||[]).forEach(f=>addFreeLine(f.nome,f.funcao,f.valor));
+      (pe||[]).forEach(p=>addPerdaLine(p.item,p.quantidade,p.tipo,p.valor));
+    }catch(e){}
+  }else{
+    document.getElementById('diaTitle').textContent='Fechar o dia';
+    let def=todayStr();
+    if(STATE.mesKey){const [y,m]=STATE.mesKey.split('-');const t=new Date();const isCur=(+y===t.getFullYear()&&+m===t.getMonth()+1);def=isCur?todayStr():y+'-'+m+'-01';}
+    document.getElementById('dData').value=def;
+    ['dPessoas','dTotal','dCafe','dLoja','dInfo'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('delDayRow').classList.add('hidden');
+  }
+  refreshDiaData();
+  openSheet('sheetDia');
+}
+function refreshDiaData(){
+  const v=document.getElementById('dData').value;
+  if(!v){document.getElementById('diaDataLbl').textContent='';return;}
+  const dt=dObj(v);const wd=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dt.getDay()];
+  document.getElementById('diaDataLbl').textContent=wd+', '+dt.getDate()+' de '+MESES[dt.getMonth()]+' de '+dt.getFullYear();
+}
+function checkMoney(){
+  const t=parseFloat(document.getElementById('dTotal').value)||0;
+  const c=parseFloat(document.getElementById('dCafe').value)||0;
+  const l=parseFloat(document.getElementById('dLoja').value)||0;
+  const w=document.getElementById('moneyWarn');
+  if((c||l)&&Math.abs((c+l)-t)>0.005){w.textContent='Café + Lojinha ('+brlK(c+l)+') não bate com o total ('+brlK(t)+').';w.classList.add('on');}
+  else{w.classList.remove('on');}
+}
+async function saveDia(){
+  const data=document.getElementById('dData').value;
+  if(!data){toast('Escolha a data');return;}
+  const payload={
+    data,
+    pessoas:parseInt(document.getElementById('dPessoas').value)||0,
+    venda_total:parseFloat(document.getElementById('dTotal').value)||0,
+    venda_cafe:parseFloat(document.getElementById('dCafe').value)||0,
+    venda_lojinha:parseFloat(document.getElementById('dLoja').value)||0,
+    informacoes:document.getElementById('dInfo').value.trim()||null,
+    criado_por:USER||null
+  };
+  try{
+    let diaId=STATE.editing;
+    if(diaId){
+      await api('lola_mac_dias?id=eq.'+diaId,{method:'PATCH',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(payload)});
+    }else{
+      const existing=STATE.dias.find(d=>d.data===data);
+      if(existing){diaId=existing.id;await api('lola_mac_dias?id=eq.'+diaId,{method:'PATCH',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(payload)});}
+      else{const r=await api('lola_mac_dias',{method:'POST',headers:Object.assign({},H,{'Prefer':'return=representation'}),body:JSON.stringify(payload)});diaId=r[0].id;}
+    }
+    // regrava produtos, freelancers e perdas
+    await api('lola_mac_produtos?dia_id=eq.'+diaId,{method:'DELETE',headers:Object.assign({},H,{'Prefer':'return=minimal'})});
+    await api('lola_mac_freelancers?dia_id=eq.'+diaId,{method:'DELETE',headers:Object.assign({},H,{'Prefer':'return=minimal'})});
+    await api('lola_mac_perdas?dia_id=eq.'+diaId,{method:'DELETE',headers:Object.assign({},H,{'Prefer':'return=minimal'})});
+    const prods=[];document.querySelectorAll('#prodLines .line').forEach((ln,i)=>{const ins=ln.querySelectorAll('input');const p=ins[0].value.trim();const q=parseInt(ins[1].value)||0;if(p)prods.push({dia_id:diaId,produto:p,quantidade:q,ordem:i});});
+    const frees=[];document.querySelectorAll('#freeLines .line').forEach((ln,i)=>{const ins=ln.querySelectorAll('input');const n=ins[0].value.trim();const f=ins[1].value.trim()||null;const v=parseFloat(ins[2].value)||0;if(n)frees.push({dia_id:diaId,nome:n,funcao:f,valor:v,ordem:i});});
+    const perdas=[];document.querySelectorAll('#perdaLines .line').forEach((ln,i)=>{const it=ln.querySelector('.pitem').value.trim();const q=parseInt(ln.querySelector('.qtd').value)||null;const tp=ln.querySelector('.ptipo').value;const v=parseFloat(ln.querySelector('.val').value)||0;if(it)perdas.push({dia_id:diaId,item:it,quantidade:q,tipo:tp,valor:v,ordem:i});});
+    if(prods.length)await api('lola_mac_produtos',{method:'POST',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(prods)});
+    if(frees.length)await api('lola_mac_freelancers',{method:'POST',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(frees)});
+    if(perdas.length)await api('lola_mac_perdas',{method:'POST',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(perdas)});
+    closeSheet('sheetDia');
+    const wasMes=STATE.mesKey;
+    await loadAll();
+    if(wasMes){STATE.mesKey=wasMes;renderMes();}
+    toast('Dia salvo');
+  }catch(e){console.error(e);toast('Erro ao salvar o dia');}
+}
+function askDeleteDia(){
+  if(!STATE.editing)return;
+  confirmModal('Excluir este dia?','Todos os produtos, freelancers e perdas do dia serão apagados.',async()=>{
+    try{await api('lola_mac_dias?id=eq.'+STATE.editing,{method:'DELETE',headers:Object.assign({},H,{'Prefer':'return=minimal'})});closeModal();closeSheet('sheetDia');const wasMes=STATE.mesKey;await loadAll();if(wasMes){const still=STATE.dias.some(d=>{const dt=dObj(d.data);return (dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'))===wasMes;});if(still){STATE.mesKey=wasMes;renderMes();}else{goInicio();}}toast('Dia excluído');}catch(e){toast('Erro');}
+  });
+}
+
+/* ===================== HELPERS UI ===================== */
+function openSheet(id){document.getElementById(id).classList.add('on');document.body.style.overflow='hidden';}
+function closeSheet(id){document.getElementById(id).classList.remove('on');document.body.style.overflow='';}
+let _mcCb=null;
+function confirmModal(title,msg,cb){document.getElementById('mcTitle').textContent=title;document.getElementById('mcMsg').textContent=msg;_mcCb=cb;document.getElementById('modalConfirm').classList.add('on');}
+function closeModal(){document.getElementById('modalConfirm').classList.remove('on');_mcCb=null;}
+document.getElementById('mcOk').onclick=()=>{if(_mcCb)_mcCb();};
+document.querySelectorAll('.sheet-bg,.modal-bg').forEach(bg=>{bg.addEventListener('click',e=>{if(e.target===bg){bg.classList.remove('on');document.body.style.overflow='';}});});
+
+loadAll();
+</script>
+</body>
+</html>
