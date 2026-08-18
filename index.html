@@ -969,7 +969,7 @@
   </div>
 </div>
 
-      <div class="module-panel" id="module-tarefas"><iframe id="tarefasFrame" title="Reuniões & Tarefas" src="https://equipelola.net/registros.html" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
+      <div class="module-panel" id="module-tarefas"><iframe id="tarefasFrame" title="Reuniões & Tarefas" src="/reunioes/" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
 
       <div class="module-panel" id="module-diario"><iframe id="diarioFrame" title="Diário de Gerentes" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
 
@@ -2506,7 +2506,7 @@ let currentUser = null;
 // INIT — SETUP BANCO
 // ═══════════════════════════════════════
 async function initDB() {
-  // Núcleo enxuto: só carrega config + usuário logado (o app de Tarefas virou o iframe registros.html).
+  // Núcleo enxuto: só carrega config + usuário logado (o app de Tarefas virou o iframe /reunioes/).
   try {
     await loadConfig();
     setSyncOk(true);
@@ -2546,7 +2546,7 @@ async function loadConfig() {
 function _esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _escA(s){return _esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
-// ── App de Tarefas legado REMOVIDO (hoje é o iframe registros.html). Abaixo, só o núcleo compartilhado. ──
+// ── App de Tarefas legado REMOVIDO (hoje é o iframe /reunioes/). Abaixo, só o núcleo compartilhado. ──
 
 // ═══════════════════════════════════════
 // TOAST
@@ -2624,7 +2624,7 @@ window.openLolaMAC=function(){try{
 </script>
 <script>
 async function loadBellCount(){ try{ var u=window.__portalUser; if(!u||typeof dbFetch!=="function") return; var nameLC=(u.name||"").toLowerCase(); var tasks=await dbFetch("lola_assuntos","select=id,responsaveis,oks&eh_tarefa=eq.true&concluido=eq.false"); var mine=(tasks||[]).filter(function(t){ var r=t.responsaveis; if(typeof r==="string"){try{r=JSON.parse(r);}catch(e){r=[];}} if(!Array.isArray(r)||!r.some(function(x){return String(x).toLowerCase()===nameLC;})) return false; var o=t.oks; if(typeof o==="string"){try{o=JSON.parse(o);}catch(e){o={};}} if(o&&typeof o==="object"){for(var k in o){if(String(k).toLowerCase()===nameLC) return false;}} return true; }); var b=document.getElementById("phBellBadge"); if(b){ b.textContent=mine.length>99?"99+":String(mine.length); b.style.display=mine.length>0?"flex":"none"; } }catch(e){} }
-function abrirMinhasTarefas(){ try{ if(typeof switchModule==="function") switchModule("tarefas"); var f=document.getElementById("tarefasFrame"); if(f){ f.dataset.loaded="1"; f.src="https://equipelola.net/registros.html?view=minhas&t="+Date.now(); } }catch(e){} }
+function abrirMinhasTarefas(){ try{ if(typeof switchModule==="function") switchModule("tarefas"); var f=document.getElementById("tarefasFrame"); if(f){ f.dataset.loaded="1"; f.src="/reunioes/?view=minhas&t="+Date.now(); } }catch(e){} }
 (function(){ function tick(){ if(window.__portalUser) loadBellCount(); } setTimeout(tick,1600); setInterval(tick,60000); })();
 </script>
 <script>
@@ -2632,11 +2632,11 @@ function esc2(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</
 function bellWhen(iso){try{var d=new Date(iso);var now=new Date();var p2=function(n){return String(n).padStart(2,'0');};var hh=p2(d.getHours())+':'+p2(d.getMinutes());var dd=p2(d.getDate())+'/'+p2(d.getMonth()+1);if(d.toDateString()===now.toDateString())return 'hoje '+hh;var y=new Date(now);y.setDate(now.getDate()-1);if(d.toDateString()===y.toDateString())return 'ontem '+hh;return dd+' '+hh;}catch(e){return '';}}
 async function bellPending(){var u=window.__portalUser;if(!u||typeof dbFetch!=='function')return [];var nameLC=(u.name||'').toLowerCase();var tasks=await dbFetch('lola_assuntos','select=id,titulo,created_at,criado_por,responsaveis,oks&eh_tarefa=eq.true&concluido=eq.false&order=created_at.desc&limit=50');return (tasks||[]).filter(function(t){var r=t.responsaveis;if(typeof r==='string'){try{r=JSON.parse(r);}catch(e){r=[];}}if(!Array.isArray(r)||!r.some(function(x){return String(x).toLowerCase()===nameLC;}))return false;var o=t.oks;if(typeof o==='string'){try{o=JSON.parse(o);}catch(e){o={};}}if(o&&typeof o==='object'){for(var k in o){if(String(k).toLowerCase()===nameLC)return false;}}return true;});}
 async function toggleBell(ev){if(ev&&ev.stopPropagation)ev.stopPropagation();var m=document.getElementById('phBellMenu');if(!m)return;if(m.style.display!=='none'){m.style.display='none';return;}m.innerHTML='<div class="bellm-h">Movimentações recentes</div><div class="bellm-empty">Carregando…</div>';m.style.display='block';var list=await bellPending();var html='<div class="bellm-h">Movimentações recentes</div>';if(window.__chatUnread>0){html+='<div class="bellm-item" onclick="abrirChat()"><div class="bellm-tit">💬 '+window.__chatUnread+' nova(s) mensagem(ns) no chat</div><div class="bellm-sub">Mural da equipe</div></div>';}if(!list.length){html+='<div class="bellm-empty">✅ Nada pendente pra você.</div>';}else{html+=list.slice(0,12).map(function(t){var quem=t.criado_por?(esc2(t.criado_por)+' adicionou pra você'):'Tarefa pra você';var when=t.created_at?bellWhen(t.created_at):'';return '<div class="bellm-item" onclick="openTaskFromBell(\''+t.id+'\')"><div class="bellm-tit">'+esc2(t.titulo||'(sem título)')+'</div><div class="bellm-sub">'+quem+(when?' · '+when:'')+'</div></div>';}).join('');}html+='<div class="bellm-foot" onclick="document.getElementById(\'phBellMenu\').style.display=\'none\';abrirMinhasTarefas()">Ver todas as minhas tarefas →</div>';m.innerHTML=html;}
-function openTaskFromBell(id){var m=document.getElementById('phBellMenu');if(m)m.style.display='none';try{if(typeof switchModule==='function')switchModule('tarefas');var f=document.getElementById('tarefasFrame');if(f){f.dataset.loaded='1';f.src='https://equipelola.net/registros.html?open='+encodeURIComponent(id)+'&t='+Date.now();}}catch(e){}}
+function openTaskFromBell(id){var m=document.getElementById('phBellMenu');if(m)m.style.display='none';try{if(typeof switchModule==='function')switchModule('tarefas');var f=document.getElementById('tarefasFrame');if(f){f.dataset.loaded='1';f.src='/reunioes/?open='+encodeURIComponent(id)+'&t='+Date.now();}}catch(e){}}
 document.addEventListener('click',function(e){var m=document.getElementById('phBellMenu');var b=document.getElementById('phBell');if(m&&m.style.display!=='none'&&!m.contains(e.target)&&b&&!b.contains(e.target)){m.style.display='none';}});
 </script>
 <script>/* V3: atividades + nav topo */
-function abrirNovaTarefaV3(){try{switchModule('tarefas');var f=document.getElementById('tarefasFrame');if(f){f.dataset.loaded='1';f.src='https://equipelola.net/registros.html?novo=1&t='+Date.now();}}catch(e){}}
+function abrirNovaTarefaV3(){try{switchModule('tarefas');var f=document.getElementById('tarefasFrame');if(f){f.dataset.loaded='1';f.src='/reunioes/?novo=1&t='+Date.now();}}catch(e){}}
 async function loadDashAtividades(){var el=document.getElementById('dashAtividades');if(!el)return;try{var rows=await dbFetch('lola_atividades','select=quem,acao,alvo_tipo,alvo_titulo,detalhe,created_at&order=created_at.desc&limit=10');if(!rows||!rows.length){el.innerHTML='<div class="dash-card-empty">Sem atividades ainda.</div>';return;}el.innerHTML=rows.map(function(a){var quem=a.quem?esc2(a.quem):'<span class="hv3-det">registro antigo ·</span>';var tit=a.alvo_titulo?esc2(String(a.alvo_titulo).split('\n')[0].slice(0,64)):'';var det=a.detalhe?(' <span class="hv3-det">('+esc2(a.detalhe)+')</span>'):'';var when=(typeof bellWhen==='function'&&a.created_at)?bellWhen(a.created_at):'';return '<div class="hv3-item"><div class="hv3-item-txt"><b>'+quem+'</b> '+esc2(a.acao)+' <span class="hv3-tit">'+tit+'</span>'+det+'</div><span class="hv3-when">'+when+'</span></div>';}).join('');}catch(e){el.innerHTML='<div class="dash-card-empty">—</div>';}}
 (function(){
 if(typeof switchModule==='function'){var _s3=switchModule;switchModule=function(m){var r=_s3.apply(this,arguments);try{if(typeof closeSidebar==='function')closeSidebar();document.querySelectorAll('#phNav [data-nav]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-nav')===m);});}catch(e){}return r;};}
