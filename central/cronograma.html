@@ -719,12 +719,17 @@ function iniciarArraste(ev,modo){
   ghost.classList.add('ghost'); ghost.style.width=r.width+'px'; ghost.style.left=r.left+'px'; ghost.style.top=r.top+'px';
   document.body.appendChild(ghost); document.body.classList.add('dragging');
   card.classList.add('arrast');
-  DRAG={modo, card, ghost, dx:ev.clientX-r.left, dy:ev.clientY-r.top, origem:card.parentElement, movido:false};
+  DRAG={modo, card, ghost, dx:ev.clientX-r.left, dy:ev.clientY-r.top, origem:card.parentElement, movido:false, destSlot:null, destRef:null};
   grip.setPointerCapture(ev.pointerId);
   grip.addEventListener('pointermove',moverArraste);
   grip.addEventListener('pointerup',soltarArraste);
   grip.addEventListener('pointercancel',soltarArraste);
 }
+/* 18/08: o cartão real NÃO é mais movido no DOM durante o arraste (só o
+   ghost acompanha o mouse) — ficava reparentando a cada célula sobrevoada
+   e isso soltava a captura do ponteiro no meio do gesto em uso real (mouse
+   físico), fazendo o soltar não disparar e o card "voltar" sem aviso. Agora
+   só guardamos o slot/posição-alvo e movemos o card UMA vez, ao soltar. */
 function moverArraste(ev){
   if(!DRAG) return;
   DRAG.movido=true;
@@ -743,15 +748,14 @@ function moverArraste(ev){
   const slot=alvo.closest('.slot'); if(!slot) return;
   $$('.slot.over').forEach(s=>s.classList.remove('over'));
   slot.classList.add('over');
-  const vazio=slot.querySelector('.vazio'); if(vazio) vazio.remove();
   const irmaos=[...slot.querySelectorAll('.pcard:not(.arrast)')];
   let ref=null;
   for(const c of irmaos){ const b=c.getBoundingClientRect(); if(ev.clientY < b.top+b.height/2){ ref=c; break; } }
-  if(ref) slot.insertBefore(DRAG.card,ref); else slot.appendChild(DRAG.card);
+  DRAG.destSlot=slot; DRAG.destRef=ref;
 }
 async function soltarArraste(ev){
   if(!DRAG) return;
-  const {modo,card,ghost,origem,movido}=DRAG;
+  const {modo,card,ghost,origem,movido,destSlot,destRef}=DRAG;
   const grip=ev.currentTarget;
   grip.removeEventListener('pointermove',moverArraste);
   grip.removeEventListener('pointerup',soltarArraste);
@@ -759,6 +763,9 @@ async function soltarArraste(ev){
   ghost.remove(); card.classList.remove('arrast');
   document.body.classList.remove('dragging');
   $$('.slot.over').forEach(s=>s.classList.remove('over'));
+  /* só agora, com o gesto todo já concluído, move o card de verdade pro slot-alvo */
+  if(destSlot){ const vazio=destSlot.querySelector('.vazio'); if(vazio) vazio.remove();
+    if(destRef) destSlot.insertBefore(card,destRef); else destSlot.appendChild(card); }
   const destino=card.parentElement;
   DRAG=null;
   if(!movido){ render(); return; }
