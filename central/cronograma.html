@@ -217,7 +217,7 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 
   <div class="testbar">
     <i class="ph-duotone ph-flask"></i>
-    <div><b>Página de teste.</b> Arraste pelo <i class="ph-duotone ph-dots-six-vertical"></i> pra mudar a ordem, o turno ou o dia. <b>Concluir não mexe no estoque</b> — mostra só a simulação do que seria baixado.</div>
+    <div><b>Página de teste.</b> Arraste pelo <i class="ph-duotone ph-dots-six-vertical"></i> pra mudar a ordem, o turno ou o dia. <b>Concluir já baixa os insumos do estoque e soma a produção</b> — igual ao botão Produzir de hoje (menos em modo demonstração, fora do site).</div>
   </div>
 
   <div class="tabs" id="tabs">
@@ -245,8 +245,10 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
    CRONOGRAMA DE PRODUÇÃO — Cozinha Central  ·  PÁGINA DE TESTE
    Tabelas: lola_central_cronograma / lola_central_cronograma_grade
    Turnos (manhã/tarde/noite) + ordem, arrastar-e-soltar pelo grip.
-   NÃO grava em lola_central_estoque_mov, lola_central_saldo nem
-   lola_central_prod_hist — concluir só SIMULA.
+   Concluir GRAVA de verdade (17/08): soma lola_central_saldo, registra
+   lola_central_prod_hist e baixa lola_central_estoque_mov (origem_ref
+   'prodhist:<id>', igual ao botão Produzir do app de Estoque) — exceto
+   em modo demonstração (arquivo aberto fora do site, sem SB_URL).
    ══════════════════════════════════════════════════════════════════ */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const DEMO = (typeof SB_URL==='undefined');
@@ -288,6 +290,67 @@ function disp(q,un){const b=toBase(q,un);
 function dstr(q,un){ if(String(un||'')==='tarefa') return 'tarefa'; const d=disp(q,un);return num(d.q)+' '+d.u;}
 function unPadrao(r){return disp(r.rendimento_qtd||0,r.rendimento_un||'un').u;}
 function fcDe(nome){return +ST.fc[norm(nome)]||1;}
+/* ---------- conversão de custo/estoque (igual ao app de Estoque) ----------
+   toBase/disp/qtdNaUnidade (acima) tratam g e ml como dimensões DIFERENTES
+   e não convertem entre elas — por isso um insumo pesado (leite, creme,
+   óleo) que a ficha guarda em GRAMAS mas é custeado por LITRO saía com o
+   número de gramas e o rótulo "L" (ex.: 43.411,765 L de leite, na real
+   43,412 kg/L). O app de Estoque (central-estoque/index.html) já resolve
+   isso com conv/convCusto/qtdCusto — copiado aqui pra bater os dois apps. */
+function conv(q,u){ q=+q||0; const uu=String(u||'').toLowerCase().trim();
+  if(uu==='g'||uu==='grama'||uu==='gramas') return {q:q/1000,u:'kg'};
+  if(uu==='mg') return {q:q/1e6,u:'kg'};
+  if(uu==='ml'||uu==='mililitro'||uu==='mililitros') return {q:q/1000,u:'L'};
+  if(uu==='l'||uu==='lt'||uu==='litro'||uu==='litros') return {q:q,u:'L'};
+  return {q:q,u:u||''}; }
+function convUn(u){ return conv(1,u).u; }
+/* mostra na unidade em que o insumo é CUSTEADO (o leite é "L", mesmo a
+   ficha guardando 36000 "g" — 1g≈1ml é a aproximação usada pro custo) */
+function convCusto(q,unReceita,unCusto){
+  const c=conv(q,unReceita); const uc=String(unCusto||'').toLowerCase().trim();
+  if(!uc) return c;
+  const ehVol=uc==='l'||uc==='lt'||uc==='litro'||uc==='litros'||uc==='ml';
+  const ehMassa=uc==='kg'||uc==='g'||uc==='mg';
+  if(ehVol&&c.u==='kg') return {q:c.q,u:'L'};
+  if(ehMassa&&c.u==='L') return {q:c.q,u:'kg'};
+  return c;
+}
+/* qtd na unidade de CUSTO exata do insumo — é a unidade obrigatória dos
+   movimentos de estoque (lola_central_estoque_mov) */
+function qtdCusto(q,unReceita,unCusto){
+  const c=conv(q,unReceita); const uc=String(unCusto||'').toLowerCase().trim(); const cu=String(c.u||'').toLowerCase();
+  if((uc==='g'||uc==='ml')&&(cu==='kg'||cu==='l')) return c.q*1000;
+  return c.q;
+}
+function rendInfo(r){ // interpreta o rendimento da receita (já em kg/L) — igual ao app de Estoque
+  const rq=+r.rendimento_qtd||0, run=r.rendimento_un||'', pq=+r.porcao_qtd||0;
+  if(pq>0 && rq>0){ const ps=conv(pq,run); return {ehPorcao:true, base:rq/pq, un:'porções', porcaoQtd:ps.q, totalRend:rq, rendUn:ps.u}; }
+  const c=conv(rq,run); return {ehPorcao:false, base:c.q, un:c.u||'un', totalRend:c.q, rendUn:c.u};
+}
+function prodUn(r){ const s=ST.saldo[r.id]; if(s&&s.unidade) return s.unidade; const ri=rendInfo(r); return ri.ehPorcao?'un':convUn(r.rendimento_un||r.porcao_un||'un'); }
+/* ===== LOTEAMENTO (17/08) — igual ao app de Estoque, mesma regra:
+   SIGLA-DDMMAA-NN (NN = sequência daquele produto naquele dia, contando
+   os dois apps juntos, porque os dois gravam na mesma lola_central_prod_hist). */
+function siglaProduto(nome){
+  let n=String(nome||'').replace(/^PP\s+/i,'').trim();
+  n=n.normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const palavras=n.replace(/[^A-Za-z ]/g,' ').split(/\s+/).filter(Boolean);
+  if(!palavras.length) return 'LOT';
+  let sig = palavras.length===1 ? palavras[0].slice(0,4) : palavras.map(w=>w[0]).join('');
+  if(sig.length<3 && palavras[0]) sig=palavras[0].slice(0,4);
+  return (sig||'LOT').toUpperCase().slice(0,4);
+}
+function gerarLote(nome,data,seq){
+  const d=String(data||'').slice(0,10).split('-');
+  const yy=(d[0]||'').slice(2), mm=d[1]||'', dd=d[2]||'';
+  return siglaProduto(nome)+'-'+dd+mm+yy+'-'+String(seq).padStart(2,'0');
+}
+async function proxSeqLote(ppId,data){
+  if(DEMO) return 1;
+  try{ const rows=await api('lola_central_prod_hist?preproducao_id=eq.'+ppId+'&data=eq.'+data+'&ativo=neq.false&select=id');
+    return (rows&&rows.length||0)+1;
+  }catch(e){ return 1; }
+}
 /* tempo: guardado em MINUTOS-PESSOA. A Central tem 3 colaboradores além da chefe,
    então cada turno comporta ~3 x 4h = 720 min de trabalho. */
 const CAP_TURNO=720;
@@ -909,6 +972,9 @@ function openTarefa(id){
   const br=$('#bReab'); if(br) br.onclick=reabrir;
   openSheet();
   if(x.preproducao_id) carregarReceita(x);
+  if(x.status==='previsto'){
+    const qEl=$('#fQtd'); if(qEl) qEl.oninput=()=>{ if(x.preproducao_id) carregarReceita(x,+qEl.value||0); };
+  }
   if(x.status==='andamento') startTick(x);
   if(x.status==='feito'&&x.preproducao_id) mostrarSimulacao(x);
 }
@@ -920,12 +986,13 @@ function startTick(x){
     el.textContent=(hh?String(hh).padStart(2,'0')+':':'')+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0');};
   upd(); TICK=setInterval(upd,1000);
 }
-async function itensEscalados(x){
+async function itensEscalados(x,overrideQtd){
   const r=ST.recById[x.preproducao_id]; if(!r) return {itens:[],fator:1};
   const its=await receitaItens(x.preproducao_id)||[];
   const un=x.unidade||r.rendimento_un||'un';
-  const prev=toBase(+x.qtd_prevista||0,un), rend=toBase(+r.rendimento_qtd||0,r.rendimento_un||'un');
-  let f=1; if(rend.q>0 && prev.d===rend.d) f=prev.q/rend.q; else if(+r.rendimento_qtd>0) f=(+x.qtd_prevista||0)/(+r.rendimento_qtd);
+  const qtdUsar=overrideQtd!=null?+overrideQtd||0:(+x.qtd_prevista||0);
+  const prev=toBase(qtdUsar,un), rend=toBase(+r.rendimento_qtd||0,r.rendimento_un||'un');
+  let f=1; if(rend.q>0 && prev.d===rend.d) f=prev.q/rend.q; else if(+r.rendimento_qtd>0) f=qtdUsar/(+r.rendimento_qtd);
   const itens=its.map(i=>{
     const fc=fcDe(i.nome);
     const liq=((i.qtd_liq!=null?+i.qtd_liq:+i.qtd)||0)*f;
@@ -934,49 +1001,88 @@ async function itensEscalados(x){
   });
   return {itens,fator:f};
 }
-async function carregarReceita(x){
+async function carregarReceita(x,overrideQtd){
   const box=$('#recBox'); if(!box) return;
   try{
-    const {itens,fator}=await itensEscalados(x);
+    const {itens,fator}=await itensEscalados(x,overrideQtd);
     const el=$('#recEsc'); if(el) el.textContent = Math.abs(fator-1)<0.005?'receita cheia':(num(fator,2)+'× a receita');
-    if(!itens.length){ box.innerHTML='<div class="empty" style="padding:16px"><i class="ph-duotone ph-warning"></i>Esta receita não tem ingredientes cadastrados.</div>'; return; }
+    if(!itens.length){ box.innerHTML='<div class="empty" style="padding:16px"><i class="ph-duotone ph-warning"></i>Esta receita não tem ingredientes cadastrados.</div>'; CUR._itens=itens; return; }
     box.innerHTML=itens.map(i=>{
-      const q=qtdNaUnidade(i.fc!==1?i.liq:i.base, i.un, i.unCusto);
-      const qb=i.fc!==1?qtdNaUnidade(i.bruta,i.un,i.unCusto):null;
-      return `<div class="ring"><span>${esc(i.nome)}</span><b>${num(q)} ${esc(i.unCusto||i.un||'')}
-        ${qb?`<span class="fcb">pegar ${num(qb)} ${esc(i.unCusto||i.un||'')} bruto (FC ${num(i.fc,2)})</span>`:''}</b></div>`;
+      const c=convCusto(i.fc!==1?i.liq:i.base, i.un, i.unCusto);
+      const cb=i.fc!==1?convCusto(i.bruta,i.un,i.unCusto):null;
+      return `<div class="ring"><span>${esc(i.nome)}</span><b>${num(c.q)} ${esc(c.u||i.unCusto||i.un||'')}
+        ${cb?`<span class="fcb">pegar ${num(cb.q)} ${esc(cb.u||i.unCusto||i.un||'')} bruto (FC ${num(i.fc,2)})</span>`:''}</b></div>`;
     }).join('');
-    CUR._itens=itens;
+    /* ajudar a calcular pela quantidade que tem de UM insumo, em vez do
+       rendimento total (pedido da Mahara, 17/08) — só faz sentido antes de
+       iniciar, quando ainda dá pra ajustar "Quanto produzir" */
+    if(x.status==='previsto' && itens.some(i=>i.insumo_id)){
+      box.innerHTML+=`<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
+        <div class="lbl" style="margin:0 0 6px">Calcular pela quantidade que eu tenho de um insumo</div>
+        <div class="mf2">
+          <div class="mf"><label>Insumo</label><select id="fCalcIns">${itens.filter(i=>i.insumo_id).map(i=>`<option value="${esc(i.nome)}">${esc(i.nome)}</option>`).join('')}</select></div>
+          <div class="mf"><label>Quanto eu tenho</label><input type="number" id="fCalcQtd" step="0.001" inputmode="decimal" placeholder="0"></div>
+        </div>
+        <button class="btn sec" id="bCalcAplicar" type="button" style="width:100%;margin-top:4px"><i class="ph-duotone ph-calculator"></i> Calcular o rendimento total</button>
+      </div>`;
+      const bCa=$('#bCalcAplicar'); if(bCa) bCa.onclick=()=>{
+        const nome=$('#fCalcIns').value, disp2=+$('#fCalcQtd').value||0;
+        if(!(disp2>0)){ toast('Diga quanto você tem desse insumo.'); return; }
+        recalcularPorInsumo(itens,nome,disp2,x);
+      };
+    }
+    CUR._itens=itens; CUR._fator=fator;
   }catch(e){ box.innerHTML='<div class="note">Erro ao carregar a receita: '+esc(e.message)+'</div>'; }
 }
-function simular(x,qtdReal){
-  const r=ST.recById[x.preproducao_id]||{}; const un=x.unidade||r.rendimento_un||'un';
+/* dado "eu tenho N desse insumo", recalcula o total a produzir — a mesma
+   escala aplicada de trás pra frente. Atualiza #fQtd e re-renderiza a
+   receita já na nova escala. */
+function recalcularPorInsumo(itens,nome,disponivel,x){
+  const it=itens.find(i=>i.nome===nome); if(!it) return;
+  const precisa=(it.fc!==1?convCusto(it.liq,it.un,it.unCusto):convCusto(it.base,it.un,it.unCusto)).q;
+  if(!(precisa>0)){ toast('Esse insumo está zerado nesta receita — não dá pra calcular por ele.'); return; }
+  const fResc=disponivel/precisa;
+  const qEl=$('#fQtd'); if(!qEl) return;
+  const atualQtd=+qEl.value||+x.qtd_prevista||0;
+  const nova=atualQtd*fResc;
+  qEl.value=+nova.toFixed(3);
+  const unLbl=($('#fUn')&&$('#fUn').value)||x.unidade||'';
+  toast('Com '+num(disponivel)+' '+esc(it.unCusto||it.un)+' de '+nome+', dá pra fazer '+num(nova)+' '+esc(unLbl)+'.');
+  carregarReceita(x,nova);
+}
+function simular(x,qtdReal,unReal){
+  const r=ST.recById[x.preproducao_id]||{}; const un=unReal||x.unidade||r.rendimento_un||'un';
   const itens=(CUR&&CUR._itens)||[];
-  const prevBase=toBase(+x.qtd_prevista||0,un).q||1, realBase=toBase(+qtdReal||0,un).q||prevBase;
+  const prevBase=toBase(+x.qtd_prevista||0,x.unidade||r.rendimento_un||'un').q||1, realBase=toBase(+qtdReal||0,un).q||prevBase;
   const fr=prevBase>0?realBase/prevBase:1;
   const linhas=itens.map(i=>{
     const ins=i.insumo_id?ST.insumos[i.insumo_id]:ST.insByNome[norm(i.nome)];
     const unC=(ins&&ins.unidade_custo)||i.unCusto||i.un;
-    const q=qtdNaUnidade(i.bruta*fr,i.un,unC);
+    const q=qtdCusto(i.bruta*fr,i.un,unC);
     const cu=ins?+ins.custo_por_unidade||0:0;
     return {nome:i.nome, q, un:unC, custo:cu?cu*q:null};
   }).filter(l=>l.q>0);
   const total=linhas.reduce((s,l)=>s+(l.custo||0),0);
   const s=ST.saldo[x.preproducao_id]; const atual=s?+s.saldo||0:0;
-  const unSaldo=(s&&s.unidade)||r.rendimento_un||un;
-  return {linhas,total,atual,soma:qtdNaUnidade(+qtdReal||0,un,unSaldo),unSaldo};
+  const unSaldo=prodUn(r)||un;
+  return {linhas,total,atual,soma:convCusto(+qtdReal||0,un,unSaldo).q,unSaldo};
 }
 function mostrarSimulacao(x){
   const box=$('#simBox'); if(!box) return;
   const q=x.qtd_produzida!=null?x.qtd_produzida:x.qtd_prevista;
+  const real=!DEMO && x.prod_hist_id; // já foi gravado de verdade no banco
   setTimeout(()=>{
     if(!$('#simBox')) return;
-    const s=simular(x,q);
-    $('#simBox').innerHTML=`<div class="simbox"><div class="h"><i class="ph-duotone ph-flask"></i> Simulação — nada foi gravado</div>
+    const s=simular(x,q,x.unidade);
+    const titulo = real ? '<i class="ph-duotone ph-check-circle"></i> Baixado do estoque' : '<i class="ph-duotone ph-flask"></i> Simulação — nada foi gravado'+(DEMO?' (demonstração)':'');
+    const linhaSaldo = real
+      ? `<div class="ring"><span>Saldo de <b>${esc(x.item_nome||'')}</b></span><b style="color:var(--okFg)">${num(s.atual)} ${esc(s.unSaldo)}</b></div>`
+      : `<div class="ring"><span>Saldo de <b>${esc(x.item_nome||'')}</b></span><b style="color:var(--okFg)">${num(s.atual)} → ${num(s.atual+s.soma)} ${esc(s.unSaldo)}</b></div>`;
+    $('#simBox').innerHTML=`<div class="simbox"><div class="h">${titulo}</div>
       ${s.linhas.length?s.linhas.map(l=>`<div class="ring"><span>${esc(l.nome)}</span><b style="color:var(--urgFg)">−${num(l.q)} ${esc(l.un)}${l.custo?`<span class="fcb" style="color:var(--mut)">${brl(l.custo)}</span>`:''}</b></div>`).join(''):'<div class="ring"><span>Sem ingredientes pra baixar</span><b>—</b></div>'}
       ${s.total?`<div class="ring"><span><b>Custo dos insumos</b></span><b>${brl(s.total)}</b></div>`:''}
-      <div class="ring"><span>Saldo de <b>${esc(x.item_nome||'')}</b></span><b style="color:var(--okFg)">${num(s.atual)} → ${num(s.atual+s.soma)} ${esc(s.unSaldo)}</b></div>
-      <div style="font-size:11.5px;color:var(--mut);margin-top:8px">No app de verdade isso vira movimento em <i>lola_central_estoque_mov</i> + saldo em <i>lola_central_saldo</i>, igual ao botão Produzir de hoje.</div></div>`;
+      ${linhaSaldo}
+      ${real?'':'<div style="font-size:11.5px;color:var(--mut);margin-top:8px">No app de verdade isso vira movimento em <i>lola_central_estoque_mov</i> + saldo em <i>lola_central_saldo</i>, igual ao botão Produzir de hoje.</div>'}</div>`;
   },500);
 }
 async function iniciar(){
@@ -991,31 +1097,110 @@ async function iniciar(){
     toast('Produção iniciada ✓ — cronômetro rodando'); openTarefa(x.id); render();
   }catch(e){ toast('Erro: '+e.message); }
 }
+/* ---------- baixa real de insumos + saldo (17/08 — deixou de ser só
+   simulação; a Mahara pediu que o cronograma passasse a mexer no estoque
+   de verdade, igual ao botão Produzir do app de Estoque). Reusa a mesma
+   forma de gravar: soma no lola_central_saldo, registra em
+   lola_central_prod_hist (aparece em Produzidos) e baixa cada insumo em
+   lola_central_estoque_mov com origem_ref='prodhist:<id>' — o mesmo elo
+   que o app de Estoque usa pra poder desfazer. */
+async function baixarProducao(x,qtdReal,unReal,data,quem){
+  const r=ST.recById[x.preproducao_id]; if(!r) return null;
+  const s=ST.saldo[r.id]||{};
+  const unSaldo=prodUn(r);
+  const qtdSaldo=convCusto(qtdReal,unReal,unSaldo).q;
+  const novo=(+s.saldo||0)+qtdSaldo;
+  await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+  const seqLote=await proxSeqLote(r.id,data); const lote=gerarLote(r.nome,data,seqLote);
+  const _h=await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:qtdSaldo, saldo_depois:novo, criado_por:quem, lote}],'return=representation');
+  const histId=(Array.isArray(_h)&&_h[0])?_h[0].id:null;
+  ST.saldo[r.id]={preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem};
+  let nb=0;
+  if(histId){
+    try{
+      const itens=(CUR&&CUR.id===x.id&&CUR._itens)?CUR._itens:(await itensEscalados(x)).itens;
+      const un=x.unidade||r.rendimento_un||'un';
+      const prevBase=toBase(+x.qtd_prevista||0,un).q||1, realBase=toBase(+qtdReal||0,unReal||un).q||prevBase;
+      const fr=prevBase>0?realBase/prevBase:1;
+      const rows=[];
+      itens.forEach(i=>{
+        if(!i.insumo_id) return; const ins=ST.insumos[i.insumo_id]; if(!ins) return;
+        const unC=ins.unidade_custo||i.unCusto||i.un;
+        const qb=qtdCusto(i.bruta*fr,i.un,unC); if(!(qb>0)) return;
+        const cu=+ins.custo_por_unidade||0;
+        rows.push({insumo_id:i.insumo_id, tipo:'producao', qtd:-+qb.toFixed(5), unidade:unC||'',
+          custo_unit:cu||null, custo_total:cu?-+(cu*qb).toFixed(2):null,
+          origem_tipo:'producao', origem_ref:'prodhist:'+histId, data,
+          obs:'Produção (cronograma) — '+(r.nome||x.item_nome||''), criado_por:quem});
+      });
+      if(rows.length){ await post('lola_central_estoque_mov', rows, 'return=minimal'); nb=rows.length; }
+    }catch(eb){ toast('Produção salva, mas a baixa de insumos falhou: '+eb.message); }
+  }
+  return {histId, nb, unSaldo, novo, lote};
+}
+async function del(path){
+  if(DEMO) return null;
+  await lolaEnsure(); const h=lolaHeaders({'Prefer':'return=minimal'});
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{method:'DELETE',headers:h});
+  if(!r.ok) throw new Error(await r.text());
+}
+async function reverterProducao(x){
+  if(!x.prod_hist_id) return;
+  try{
+    await patch('lola_central_prod_hist?id=eq.'+x.prod_hist_id,{ativo:false});
+    await del('lola_central_estoque_mov?origem_tipo=eq.producao&origem_ref=eq.'+encodeURIComponent('prodhist:'+x.prod_hist_id));
+    const r=ST.recById[x.preproducao_id]; const s=r?ST.saldo[r.id]:null;
+    if(r&&s){
+      const unSaldo=s.unidade||prodUn(r);
+      const qtdSaldo=convCusto(x.qtd_produzida!=null?x.qtd_produzida:0, x.unidade||r.rendimento_un||'un', unSaldo).q;
+      const novo=(+s.saldo||0)-qtdSaldo;
+      await patch('lola_central_saldo?preproducao_id=eq.'+r.id,{saldo:novo, updated_at:new Date().toISOString()});
+      s.saldo=novo;
+    }
+  }catch(e){ toast('Aviso: não consegui desfazer a baixa do estoque — confira manualmente. ('+e.message+')'); }
+}
 function concluir(){
   const x=CUR; if(!x) return;
   const r=ST.recById[x.preproducao_id]||{}; const un=x.unidade||r.rendimento_un||'un';
   const mins=Math.max(1,Math.round((Date.now()-new Date(x.iniciado_em).getTime())/60000));
   $('#shTitle').textContent='Concluir — '+(x.item_nome||'');
+  const avisoEstoque = !x.preproducao_id ? '' : (DEMO
+    ? '<div class="note" style="background:#F4F7FC;border:1px dashed #B9CBE6"><b>Modo demonstração:</b> nada é gravado (arquivo aberto fora do site).</div>'
+    : '<div class="note" style="background:#F4F7FC;border:1px dashed #B9CBE6"><b>Ao concluir:</b> os insumos desta receita baixam do estoque e a produção soma no saldo — igual ao botão Produzir de hoje.</div>');
   $('#shBody').innerHTML=`<div class="note">Tempo gasto: <b>${num(mins,0)} min</b> · executou: <b>${esc(x.responsavel||'—')}</b></div>
     <div class="mf2"><div class="mf"><label>Quanto rendeu de verdade</label><input type="number" id="fReal" step="0.001" inputmode="decimal" value="${+x.qtd_prevista||''}"></div>
     <div class="mf"><label>Unidade</label><input type="text" id="fRealUn" value="${esc(un)}" readonly></div></div>
     <div class="mf"><label>Observação da produção</label><input type="text" id="fObs2" placeholder="opcional — ex.: rendeu menos, tomate muito maduro"></div>
-    <div class="note" style="background:#F4F7FC;border:1px dashed #B9CBE6"><b>Lembrete:</b> nesta página de teste o estoque <b>não</b> é alterado. Depois de salvar você vê a simulação do que seria baixado.</div>`;
+    ${avisoEstoque}`;
   $('#shFoot').innerHTML=`<button class="btn sec" id="bV">Voltar</button><button class="btn ok" id="bOk"><i class="ph-duotone ph-check-circle"></i> Concluir</button>`;
   $('#bV').onclick=()=>openTarefa(x.id);
   $('#bOk').onclick=async()=>{
     const real=+$('#fReal').value||+x.qtd_prevista||0;
-    const body={status:'feito', concluido_em:new Date().toISOString(), concluido_por:ST.quem,
-                duracao_min:mins, qtd_produzida:real, obs:$('#fObs2').value||x.obs||null};
+    const data=x.data||hoje();
+    const _s=(typeof lolaSession==='function'?lolaSession():null)||{}; const quem=ST.quem||_s.nome||_s.email||'portal';
     $('#bOk').setAttribute('disabled','');
-    try{ await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
-      clearInterval(TICK); toast('Produção concluída ✓ ('+num(mins,0)+' min)'); openTarefa(x.id); render();
+    try{
+      let histInfo=null;
+      if(x.preproducao_id && !DEMO){ histInfo=await baixarProducao(x,real,un,data,quem); }
+      const obsDigitada=$('#fObs2').value||x.obs||null;
+      const obsComLote=histInfo&&histInfo.lote ? ('Lote '+histInfo.lote+(obsDigitada?' — '+obsDigitada:'')) : obsDigitada;
+      const body={status:'feito', concluido_em:new Date().toISOString(), concluido_por:quem,
+                  duracao_min:mins, qtd_produzida:real, obs:obsComLote,
+                  prod_hist_id:histInfo?histInfo.histId:null};
+      await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
+      clearInterval(TICK);
+      toast('Produção concluída ✓ ('+num(mins,0)+' min)'+(histInfo&&histInfo.lote?' · lote '+histInfo.lote:'')+(histInfo&&histInfo.nb?' · '+histInfo.nb+' insumo'+(histInfo.nb===1?'':'s')+' baixado'+(histInfo.nb===1?'':'s'):''));
+      openTarefa(x.id); render();
     }catch(e){ toast('Erro: '+e.message); $('#bOk').removeAttribute('disabled'); }
   };
 }
 async function reabrir(){
   const x=CUR; if(!x) return;
-  const body={status:'previsto', iniciado_em:null, concluido_em:null, duracao_min:null, qtd_produzida:null};
+  if(x.prod_hist_id && !DEMO){
+    if(!confirm('Reabrir devolve os insumos baixados e desfaz a soma no saldo desta produção. Continuar?')) return;
+    await reverterProducao(x);
+  }
+  const body={status:'previsto', iniciado_em:null, concluido_em:null, duracao_min:null, qtd_produzida:null, prod_hist_id:null};
   try{ await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
     toast('Produção reaberta'); openTarefa(x.id); render();
   }catch(e){ toast('Erro: '+e.message); }
@@ -1026,8 +1211,8 @@ async function imprimir(x){
   let itens=(CUR&&CUR._itens)||null;
   if(!itens){ const e=await itensEscalados(x); itens=e.itens; }
   const linhas=itens.map(i=>{
-    const q=qtdNaUnidade(i.fc!==1?i.bruta:i.base, i.un, i.unCusto);
-    return `<tr><td>${esc(i.nome)}</td><td class="q">${num(q)} ${esc(i.unCusto||i.un||'')}</td></tr>`;}).join('');
+    const c=convCusto(i.fc!==1?i.bruta:i.base, i.un, i.unCusto);
+    return `<tr><td>${esc(i.nome)}</td><td class="q">${num(c.q)} ${esc(c.u||i.unCusto||i.un||'')}</td></tr>`;}).join('');
   const w=window.open('','_blank','width=560,height=760'); if(!w){toast('Libere o pop-up pra imprimir.');return;}
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(x.item_nome||'Receita')}</title>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">

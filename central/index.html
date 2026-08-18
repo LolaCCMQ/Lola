@@ -151,8 +151,8 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .pzevrow{align-items:center;gap:8px}
 .pzevrow span{flex:1;min-width:0}
 .pzevrow b{white-space:nowrap}
-.pzevrow .pzedit,.pzevrow .pzdel{background:none;border:0;font-size:15px;cursor:pointer;padding:2px 4px}
-.pzevrow .pzedit{color:var(--vinho)}.pzevrow .pzdel{color:var(--lbl)}
+.pzevrow .pzedit,.pzevrow .pzdel,.pzevrow .pzcron{background:none;border:0;font-size:15px;cursor:pointer;padding:2px 4px}
+.pzevrow .pzedit{color:var(--vinho)}.pzevrow .pzdel{color:var(--lbl)}.pzevrow .pzcron{color:#2C7A4B}
 .pcard .prow{display:flex;align-items:center;gap:12px}
 .pcard .prow .t{flex:1;min-width:0}
 .pcard .prow .t b{display:block;font-size:13.5px;font-weight:700}
@@ -909,6 +909,33 @@ function rendInfo(r){ // interpreta o rendimento da receita (já em kg/L)
   const c=conv(rq,run); return {ehPorcao:false, base:c.q, un:c.u||'un', totalRend:c.q, rendUn:c.u};
 }
 function prodUn(r){ const s=(ST.saldo||{})[r.id]; if(s&&s.unidade) return s.unidade; const ri=rendInfo(r); return ri.ehPorcao?'un':convUn(r.rendimento_un||r.porcao_un||'un'); }
+/* ===== LOTEAMENTO (17/08/2026, pedido da Mahara) =====
+   Critério do lote: SIGLA do produto (3-4 letras) + data de fabricação
+   (DDMMAA) + sequência daquele produto naquele dia (01, 02…). Ex.:
+   "PP Requeijão" produzido 2x em 17/08/26 → REQ-170826-01 e REQ-170826-02.
+   Já identifica QUAL produto e QUANDO só de olhar o código; QUEM fabricou
+   e QUANTO rendeu ficam gravados junto na mesma linha do prod_hist
+   (criado_por / qtd_produzida) — são os "quantos foram produzidos" e
+   "quem fabricou" do pedido, sem precisar caber tudo no código curto. */
+function siglaProduto(nome){
+  let n=String(nome||'').replace(/^PP\s+/i,'').trim();
+  n=n.normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const palavras=n.replace(/[^A-Za-z ]/g,' ').split(/\s+/).filter(Boolean);
+  if(!palavras.length) return 'LOT';
+  let sig = palavras.length===1 ? palavras[0].slice(0,4) : palavras.map(w=>w[0]).join('');
+  if(sig.length<3 && palavras[0]) sig=palavras[0].slice(0,4);
+  return (sig||'LOT').toUpperCase().slice(0,4);
+}
+function gerarLote(nome,data,seq){
+  const d=String(data||'').slice(0,10).split('-');
+  const yy=(d[0]||'').slice(2), mm=d[1]||'', dd=d[2]||'';
+  return siglaProduto(nome)+'-'+dd+mm+yy+'-'+String(seq).padStart(2,'0');
+}
+async function proxSeqLote(ppId,data){
+  try{ const rows=await api('lola_central_prod_hist?preproducao_id=eq.'+ppId+'&data=eq.'+data+'&ativo=neq.false&select=id');
+    return (rows&&rows.length||0)+1;
+  }catch(e){ return 1; }
+}
 /* ═══════════════════════════════════════════════════════════════════
    ESTOQUE CENTRAL — tela ÚNICA (insumos + produções), organizada por
    LOCAL de armazenamento. É daqui que saem as contagens semanais.
@@ -1429,7 +1456,8 @@ async function salvarProduzir(){
   $('#shSave').setAttribute('disabled','');
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
     await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
-    const _h=await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem}],'return=representation');
+    const seqLote=await proxSeqLote(r.id,data); const lote=gerarLote(r.nome,data,seqLote);
+    const _h=await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem, lote}],'return=representation');
     const histId=(Array.isArray(_h)&&_h[0])?_h[0].id:null;
     ST.saldo=ST.saldo||{}; ST.saldo[r.id]={preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem};
     /* BAIXA AUTOMÁTICA dos insumos (18/07/2026, decisão da Bianca): baixa o BRUTO
@@ -1458,7 +1486,7 @@ async function salvarProduzir(){
           rows.forEach(m=>ST.movs.push({insumo_id:m.insumo_id, qtd:m.qtd, custo_total:m.custo_total||0, origem_tipo:'producao', origem_ref:m.origem_ref})); }
       }catch(eb){ toast('Produção salva, mas a baixa de insumos falhou: '+eb.message); }
     }
-    toast('Produção registrada ✓ (+'+num(q)+' '+esc(un)+')'+(nb?' · '+nb+' insumo'+(nb===1?'':'s')+' baixado'+(nb===1?'':'s'):'')); closeSheet(); render();
+    toast('Produção registrada ✓ (+'+num(q)+' '+esc(un)+') · lote '+lote+(nb?' · '+nb+' insumo'+(nb===1?'':'s')+' baixado'+(nb===1?'':'s'):'')); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
 function updateRend(ri, f){
@@ -1472,7 +1500,7 @@ function updateRend(ri, f){
 let EDIT_REND=null;
 async function carregarProduzidos(){
   ST.prodHist='loading'; if(ST.tab==='pz'||ST.tab==='ini') render();
-  try{ ST.prodHist=await api('lola_central_prod_hist?ativo=neq.false&select=id,preproducao_id,data,qtd_produzida,saldo_depois,criado_por&order=data.desc&limit=400'); }
+  try{ ST.prodHist=await api('lola_central_prod_hist?ativo=neq.false&select=id,preproducao_id,data,qtd_produzida,saldo_depois,criado_por,lote&order=data.desc&limit=400'); }
   catch(e){ ST.prodHist=[]; }
   if(ST.tab==='pz'||ST.tab==='ini') render();
 }
@@ -1504,7 +1532,7 @@ function viewProduzidos(){
         <div class="lbl" style="margin:0 0 4px">Receita usada</div>
         <div class="pzrec"><div class="uinfo">carregando…</div></div>
         <div class="lbl" style="margin:10px 0 4px">Produções (${x.n})</div>
-        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}</span><b>+${num(e.qtd_produzida)} ${porc?('porções <small style="font-weight:600;color:var(--mut)">de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)+'</small>'):esc(un)}</b><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
+        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}${e.lote?' · <b style="color:var(--vinho)">'+esc(e.lote)+'</b>':''}</span><b>+${num(e.qtd_produzida)} ${porc?('porções <small style="font-weight:600;color:var(--mut)">de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)+'</small>'):esc(un)}</b><button class="pzcron" title="Adicionar ao cronograma"><i class="ph-duotone ph-calendar-plus"></i></button><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
       </div>
     </div>`;
   }).join('')+`</div>`;
@@ -1534,12 +1562,47 @@ function wireProduzidos(){
     el.querySelector('.pzet').onclick=()=>openEtiqueta(id);
     el.querySelector('.pzrend').onclick=()=>openEditRend(id);
     el.querySelectorAll('.pzevrow').forEach(row=>{ const eid=row.dataset.eid;
+      row.querySelector('.pzcron').onclick=()=>adicionarAoCronograma(eid, id);
       row.querySelector('.pzedit').onclick=()=>editProdEvento(eid, id);
       row.querySelector('.pzdel').onclick=()=>delProdEvento(eid, id);
     });
   });
 }
 function evtDe(eid){ return (ST.prodHist||[]).find(x=>x.id===eid); }
+/* ---- adicionar ao cronograma uma produção já executada (pedido da Mahara, 17/08) ----
+   Cobre o caso de produção feita direto no Produzir (fora do cronograma):
+   registra no calendário do cronograma pra ela aparecer lá também, ligada
+   ao MESMO prod_hist (mesmo lote, mesmo saldo já lançado) — não baixa
+   estoque de novo, só documenta dia/turno/hora/responsável no calendário. */
+let CRON_ADD=null;
+function adicionarAoCronograma(eid,prepId){
+  const e=evtDe(eid); if(!e) return;
+  const r=(ST.receitas||[]).find(x=>x.id===prepId)||{}; const un=prodUn(r);
+  CRON_ADD={eid,prepId,e,r,un};
+  const horaSug = new Date().getHours()<12?'08:00':'13:00';
+  $('#shTitle').textContent='Adicionar ao cronograma';
+  $('#shBody').innerHTML=`<div class="note">Registra esta produção já feita — <b>${esc(r.nome||e.item_nome||'')}</b>, ${fmtData(String(e.data).slice(0,10))}, +${num(e.qtd_produzida)} ${esc(un)}${e.lote?', lote <b>'+esc(e.lote)+'</b>':''} — no calendário do cronograma. Não baixa estoque de novo (já foi baixado quando produziu).</div>
+    <div class="mf2"><div class="mf"><label>Turno</label><select id="cgTurno"><option value="manha"${horaSug==='08:00'?' selected':''}>Manhã</option><option value="tarde"${horaSug==='13:00'?' selected':''}>Tarde</option><option value="noite">Noite</option></select></div>
+    <div class="mf"><label>Hora (opcional)</label><input type="time" id="cgHora" value="${horaSug}"></div></div>
+    <div class="mf"><label>Responsável</label><input type="text" id="cgResp" value="${esc(e.criado_por||'')}"></div>`;
+  $('#shSave').innerHTML='<i class="ph-duotone ph-calendar-plus"></i> Adicionar ao cronograma';
+  $('#shSave').removeAttribute('disabled'); onSave=salvarAoCronograma; openSheet();
+}
+async function salvarAoCronograma(){
+  const c=CRON_ADD; if(!c) return; const {e,r,un,prepId}=c;
+  const turno=$('#cgTurno').value||'manha', hora=$('#cgHora').value||null, resp=($('#cgResp').value||'').trim()||null;
+  const data=String(e.data).slice(0,10);
+  $('#shSave').setAttribute('disabled','');
+  try{
+    const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+    let ordem=1; try{ const ex=await api('lola_central_cronograma?data=eq.'+data+'&turno=eq.'+turno+'&ativo=neq.false&select=id'); ordem=(ex&&ex.length||0)+1; }catch(_e){}
+    const body={data, hora, turno, ordem, preproducao_id:prepId, item_nome:r.nome||e.item_nome||'', qtd_prevista:e.qtd_produzida, unidade:un,
+      responsavel:resp, status:'feito', concluido_em:data+'T12:00:00', concluido_por:resp, duracao_min:null,
+      qtd_produzida:e.qtd_produzida, prod_hist_id:e.id, obs:e.lote?('Lote '+e.lote):null, origem:'retroativo', teste:false, criado_por:quem};
+    await post('lola_central_cronograma',[body],'return=minimal');
+    toast('Adicionado ao cronograma ✓'); closeSheet();
+  }catch(err){ toast('Erro: '+err.message); $('#shSave').removeAttribute('disabled'); }
+}
 async function delProdEvento(eid, prepId){
   const e=evtDe(eid); if(!e)return;
   if(!confirm('Excluir esta produção de '+fmtData(String(e.data).slice(0,10))+' (+'+num(e.qtd_produzida)+')? O estoque baixa essa quantidade e os insumos baixados voltam.')) return;
@@ -1734,10 +1797,15 @@ function openEtiqueta(id){
   const _hist=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(h=>h.preproducao_id===id):[];
   const _ultProd=_hist.length?Math.round(+_hist[0].qtd_produzida||0):0;
   const nSug=_ultProd>0?_ultProd:((ri.ehPorcao&&ri.base>0)?Math.round(ri.base):12);
+  /* loteamento (17/08): sugere o lote da produção real daquele dia, se já
+     tiver sido registrada; senão propõe um código novo (nº 01 do dia) */
+  const _histHoje=_hist.find(h=>String(h.data).slice(0,10)===hoje);
+  const loteSug=(_histHoje&&_histHoje.lote)||(_hist[0]&&_hist[0].lote)||gerarLote(r.nome,hoje,1);
   $('#shTitle').textContent='Etiquetas — '+r.nome;
   /* 17/07: "tudo podia ser menor simulando como vai ficar na etiqueta" — campos em pares + prévia ao vivo */
   $('#shBody').innerHTML=`
     <div class="mf"><label>Produção e responsável</label><div class="rendrow"><input type="date" id="etData" value="${hoje}" style="max-width:160px"><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div></div>
+    <div class="mf"><label>Lote <span style="color:var(--mut);font-weight:400">(rastreio — vem da produção já registrada nesse dia; ajuste se for de outro dia)</span></label><input type="text" id="etLote" value="${esc(loteSug)}"></div>
     <div class="mf"><div class="rendrow">
       <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Validade (dias após produção)</label><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric"></div>
       <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Nº de etiquetas <span style="color:var(--mut);font-weight:600">(${_ultProd>0?'últimas '+_ultProd+' produzidas':'sugerido '+nSug})</span></label><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric"></div>
@@ -1758,14 +1826,16 @@ function openEtiqueta(id){
     const dv=new Date(dp+'T12:00:00'); dv.setDate(dv.getDate()+dd);
     const f=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
     const peso=($('#etPeso').value||'').trim();
+    const lote=($('#etLote').value||'').trim(); const nEt=Math.max(1,parseInt($('#etQtd').value||'1',10)||1);
     el.innerHTML=`<div style="font-weight:800;font-size:13px;text-transform:uppercase">${esc(r.nome)}</div>
       <div style="font-size:11px;margin-top:3px">Produção: <b>${f(new Date(dp+'T12:00:00'))}</b> · ${esc(($('#etResp').value||'').trim()||'—')}</div>
       <div style="font-size:11px">Validade: <b>${f(dv)}</b> (${dd} dia${dd===1?'':'s'})</div>
       <div style="font-size:11px">Peso: ${peso?('<b>'+esc(peso)+'</b>'):'________'}</div>
+      ${lote?`<div style="font-size:11px">Lote: <b>${esc(lote)}</b>${nEt>1?' · <span style="color:#666">cada etiqueta numerada 01/'+String(nEt).padStart(2,'0')+' até '+String(nEt).padStart(2,'0')+'/'+String(nEt).padStart(2,'0')+'</span>':''}</div>`:''}
       <div style="font-size:9.5px;margin-top:3px;color:#333">${esc(($('#etCons').value||'').trim())}</div>
       ${$('#etIng').checked?'<div style="font-size:9px;margin-top:3px;color:#555">Ingredientes: (entram na impressão)</div>':''}`;
   };
-  ['etData','etResp','etDias','etPeso','etCons','etIng','etQtd'].forEach(i=>{ const e2=$('#'+i); if(e2){ e2.oninput=etPrev; e2.onchange=etPrev; } });
+  ['etData','etResp','etLote','etDias','etPeso','etCons','etIng','etQtd'].forEach(i=>{ const e2=$('#'+i); if(e2){ e2.oninput=etPrev; e2.onchange=etPrev; } });
   etPrev();
   $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
   $('#shSave').removeAttribute('disabled'); onSave=printEtiquetas; openSheet();
@@ -1788,17 +1858,21 @@ async function printEtiquetas(){
   }catch(e){}
   const sizes={'60x40':{w:'60mm',h:'40mm',page:'60mm 40mm'},'50x30':{w:'50mm',h:'30mm',page:'50mm 30mm'},'100x50':{w:'100mm',h:'50mm',page:'100mm 50mm'},'58':{w:'54mm',h:'auto',page:'58mm auto'},'a4':{w:'90mm',h:'52mm',page:'A4'}};
   const sz=sizes[tam]||sizes.a4; const roll = tam!=='a4';
-  const label=`<div class="lab"><div class="rin">
+  const lote=($('#etLote').value||'').trim();
+  /* cada etiqueta física sai numerada dentro do lote (01/N, 02/N…) — é o
+     "inserir na etiqueta em ordem" pedido pela Mahara pro rastreio */
+  const labelHTML=(i)=>`<div class="lab"><div class="rin">
       <div class="ln">${esc(r.nome)}</div>
       <div class="lr"><span>Produção</span><b>${fmtData(dataP)}</b></div>
       <div class="lr"><span>Validade</span><b>${fmtData(dataV)}${dias?` (${dias}d)`:''}</b></div>
       <div class="lr pw"><span>Peso</span><b>${peso?esc(peso):''}</b></div>
       ${resp?`<div class="lr"><span>Resp.</span><b>${esc(resp)}</b></div>`:''}
+      ${lote?`<div class="lr"><span>Lote</span><b>${esc(lote)}${n>1?' · '+String(i+1).padStart(2,'0')+'/'+String(n).padStart(2,'0'):''}</b></div>`:''}
       ${incIng&&ings?`<div class="li"><b>Ingr.:</b> ${esc(ings)}</div>`:''}
       ${cons?`<div class="lc">${esc(cons)}</div>`:''}
       ${roll?'':'<div class="lf">Lola · Cozinha Central</div>'}
     </div></div>`;
-  const many=Array.from({length:n}).map(()=>label).join('');
+  const many=Array.from({length:n}).map((_,i)=>labelHTML(i)).join('');
   const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas — ${esc(r.nome)}</title><style>
     @page{size:${sz.page};margin:0}
@@ -2434,42 +2508,6 @@ function notaRecebimento(p, rec){
   hn+='</table><div class="footer">Gerado em '+new Date().toLocaleString('pt-BR')+' · Cozinha Central</div></body></html>';
   w.document.write(hn); w.document.close(); w.print();
 }
-/* 06/08 (Bianca): nota/romaneio de ENVIO — imprime quando o pedido está pronto pra enviar.
-   Funciona como nota de fornecedor: remetente Cozinha Central, quem enviou, itens e
-   assinatura de envio + recebimento. */
-function notaEnvio(p){
-  const its=((p&&p.lola_pedidos_itens)||[]).slice().sort((a,b)=>String(a.nome_item||'').localeCompare(String(b.nome_item||''),'pt'));
-  if(!its.length){ toast('Este pedido não tem itens.'); return; }
-  const w=window.open('','_blank'); if(!w){ toast('Libere o pop-up pra ver a nota.'); return; }
-  const destMap={ccmq:'CCMQ',mac:'MAC'}; const dest=destMap[(p.unidade||'').toLowerCase()]||(p.unidade||'').toUpperCase()||'—';
-  const _s=(typeof lolaSession==='function'?lolaSession():null)||{};
-  const enviadoPor=((p.central_aceito_por||'').trim())||(_s.nome||_s.email||'');
-  const hoje=new Date().toLocaleDateString('pt-BR');
-  let hn='<html><head><meta charset="utf-8"><title>Nota de envio #'+(p.numero_pedido||'')+'</title>'+
-    '<style>body{font-family:Arial,sans-serif;padding:24px;max-width:720px;margin:0 auto;color:#2A1A17}'+
-    'h1{color:#2C5AA0;margin:0;font-size:22px}.sub{color:#6b7b88;font-size:12px;margin-top:2px}'+
-    '.head{border-bottom:2px solid #2C5AA0;padding-bottom:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-end}'+
-    '.rem{font-size:11px;color:#555;text-align:right;line-height:1.5}'+
-    '.info{background:#f5f2ec;padding:10px 14px;border-radius:8px;margin:14px 0;font-size:13px;line-height:1.8}'+
-    'table{width:100%;border-collapse:collapse;margin-top:6px}th{background:#2C5AA0;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase}'+
-    'td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12.5px}tfoot td{font-weight:700;border-top:2px solid #2C5AA0;color:#2C5AA0}'+
-    '.sign{display:flex;gap:40px;margin-top:60px}.sign>div{flex:1;text-align:center}'+
-    '.sline{border-top:1px solid #2A1A17;padding-top:6px;font-size:12px;font-weight:700}.scap{font-size:10px;color:#888;margin-top:3px}'+
-    '.footer{margin-top:28px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}'+
-    '@media print{body{padding:6px}}</style></head><body>';
-  hn+='<div class="head"><div><h1>Nota de Envio</h1><div class="sub">Romaneio de saída da Cozinha Central</div></div>'+
-      '<div class="rem">Remetente<br><b>Cozinha Central</b></div></div>';
-  hn+='<div class="info"><b>Pedido:</b> #'+(p.numero_pedido||'')+' &nbsp;·&nbsp; <b>Data do envio:</b> '+esc(hoje)+'<br>'+
-      '<b>Destinatário:</b> '+esc(dest)+(p.responsavel?(' — '+esc((p.responsavel||'').trim())):'')+'<br>'+
-      '<b>Enviado por:</b> '+esc(enviadoPor||'—')+(p.observacoes?('<br><b>Obs.:</b> '+esc(p.observacoes)):'')+'</div>';
-  hn+='<table><tr><th>Item</th><th style="text-align:center">Un</th><th style="text-align:right">Quantidade</th></tr>';
-  its.forEach(it=>{ hn+='<tr><td><b>'+esc(it.nome_item||'')+'</b></td><td style="text-align:center">'+esc(it.unidade||'')+'</td><td style="text-align:right;font-weight:700">'+num(it.quantidade)+'</td></tr>'; });
-  hn+='<tfoot><tr><td colspan="3">Total de itens: '+its.length+'</td></tr></tfoot></table>';
-  hn+='<div class="sign"><div><div class="sline">Enviado por — Cozinha Central</div><div class="scap">nome, assinatura e data</div></div>'+
-      '<div><div class="sline">Recebido por — '+esc(dest)+'</div><div class="scap">nome, assinatura e data</div></div></div>';
-  hn+='<div class="footer">Gerado em '+new Date().toLocaleString('pt-BR')+' · Cozinha Central</div></body></html>';
-  w.document.write(hn); w.document.close(); w.print();
-}
 function atualizaBadgePed(){ const d=ST.pedidos; const nn=(d&&d!=='loading')?d.filter(p=>p.status==='solicitado' && (!p.central_status||p.central_status==='novo')).length:0; const cp=$('#cntPed'); if(cp){ if(nn){cp.style.display='';cp.textContent=nn;}else cp.style.display='none'; } }
 function pedUniTag(u){ return u==='ccmq'?'<span class="utag ccmq">CCMQ</span>':u==='mac'?'<span class="utag mac">MAC</span>':''; }
 function pedPill(cs){ cs=cs||'novo'; return cs==='pronto'?'<span class="stpill ok">pronto</span>':cs==='aceito'?'<span class="stpill az">aceito</span>':'<span class="stpill pend">novo</span>'; }
@@ -2593,9 +2631,7 @@ function openPedido(id){
   else if(cs==='aceito') h+=`<button class="prodbtn" id="pedPronto"><i class="ph-duotone ph-package"></i> Pronto pra enviar</button><button class="pdel" id="pedVolta" title="voltar"><i class="ph-duotone ph-arrow-counter-clockwise"></i></button>`;
   else h+=`<button class="btn sec" id="pedVolta2"><i class="ph-duotone ph-arrow-counter-clockwise"></i> Reabrir</button>`;
   h+=`</div>`;
-  if(cs!=='novo') h+=`<button class="btn sec" id="pedRomaneio" style="width:100%;margin-top:8px"><i class="ph-duotone ph-printer"></i> Imprimir nota de envio</button>`;
   $('#shBody').innerHTML=h; openSheet();
-  $('#pedRomaneio')&&($('#pedRomaneio').onclick=()=>notaEnvio(p));
   $('#pedNota')&&($('#pedNota').onclick=()=>notaRecebimento(p, ri&&ri.rec));
   $('#pedAceitar')&&($('#pedAceitar').onclick=()=>setPedidoStatus(id,'aceito'));
   $('#pedPronto')&&($('#pedPronto').onclick=()=>setPedidoStatus(id,'pronto'));
@@ -2761,14 +2797,6 @@ function viewInicio(){
     <div class="ini-card" data-go="al"><div class="k">Alertas abertos</div><div class="n" style="color:${al.length?'var(--urgFg)':'var(--okFg)'}">${al.length}</div><div class="s">${al.length?'toque pra resolver':'tudo resolvido'}</div></div>
     <div class="ini-card" data-go="pz"><div class="k">Produzido hoje</div><div class="n" style="color:var(--okFg)">${ph?ph.length:'…'}</div><div class="s">${ph?(ph.length===1?'produção registrada':'produções registradas'):'carregando'}</div></div>
   </div>`;
-  /* 06/08 (Bianca): atalhos pro Inventário e Manutenção + sinalizar equipamento com problema */
-  h+=`<div class="lbl">Atalhos</div>
-    <div class="ini-grid">
-      <a class="ini-card" href="/central/cronograma.html" rel="noopener" style="text-decoration:none;color:inherit"><div class="k">Cronograma de produção</div><div class="n" style="color:var(--vinho)"><i class="ph-duotone ph-calendar-check"></i></div><div class="s">planejar a semana</div></a>
-      <a class="ini-card" href="/inventario/" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="k">Inventário</div><div class="n" style="color:var(--vinho)"><i class="ph-duotone ph-package"></i></div><div class="s">abrir o inventário</div></a>
-      <a class="ini-card" href="/?mod=man_equip" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="k">Manutenção</div><div class="n" style="color:var(--vinho)"><i class="ph-duotone ph-wrench"></i></div><div class="s">equipamentos</div></a>
-      <div class="ini-card" data-action="reportar" style="cursor:pointer"><div class="k">Equipamento com problema</div><div class="n" style="color:var(--urgFg)"><i class="ph-duotone ph-warning-octagon"></i></div><div class="s">sinalizar pra manutenção</div></div>
-    </div>`;
   h+=`<div class="lbl" style="margin-top:0">Pedidos pendentes</div><div class="ini-list">`;
   if(!peds) h+=`<div class="ini-vazio">carregando…</div>`;
   else if(!peds.length) h+=`<div class="ini-vazio">Nenhum pedido esperando. 🎉</div>`;
@@ -2800,48 +2828,8 @@ function _iniGo(t){ ST.tab=t; render();
   if(t==='ped' && (!ST.pedidos||ST.pedidos==='loading')) carregarPedidos();
   if(t==='pz' && (!ST.prodHist||ST.prodHist==='loading')) carregarProduzidos();
 }
-/* 06/08 (Bianca): Cacy sinaliza equipamento da Central com problema → grava na tabela
-   'equipamentos' (status='problema' + entrada no histórico) e o app do Lola (Manutenção)
-   já mostra. Mesmo formato de histórico do app de manutenção: {nf,data,desc,quem,custo,garantia}. */
-async function openReportarProblema(){
-  $('#shTitle').textContent='Equipamento com problema';
-  const foot=$('.sh-foot'); if(foot) foot.style.display='none';
-  $('#shBody').innerHTML=`<div class="note">Sinalize um equipamento da Central que está com <b>problema</b>. Ele fica marcado e aparece no app do Lola (Manutenção) pra ser resolvido.</div><div class="spin"></div>`;
-  openSheet();
-  let eqs=[];
-  try{ eqs=await api('equipamentos?select=id,nome,status,historico,lojas&order=nome'); }
-  catch(e){ $('#shBody').innerHTML='<div class="note" style="background:var(--urgBg);color:var(--urgFg)">Erro ao carregar equipamentos: '+esc(e.message)+'</div>'; return; }
-  eqs=(eqs||[]).filter(e=>Array.isArray(e.lojas)&&e.lojas.map(x=>String(x).toLowerCase()).includes('central'));
-  if(!eqs.length){ $('#shBody').innerHTML='<div class="note">Nenhum equipamento da Central cadastrado na Manutenção. Cadastre primeiro no app de Manutenção do Lola.</div>'; return; }
-  eqs.sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt'));
-  const opts=eqs.map(e=>`<option value="${e.id}">${esc(e.nome||'?')}${e.status==='problema'?' — já sinalizado':''}</option>`).join('');
-  $('#shBody').innerHTML=`<div class="note">Sinalize um equipamento da Central que está com <b>problema</b>. Ele fica marcado como <b>problema</b> e aparece no app do Lola (Manutenção).</div>
-    <div class="mf"><label>Equipamento</label><select id="rpEq" style="width:100%">${opts}</select></div>
-    <div class="mf"><label>Qual o problema?</label><textarea id="rpDesc" rows="3" placeholder="Ex.: a câmara fria de resfriamento não está gelando" style="width:100%;font:inherit;padding:11px 12px;border:1px solid var(--border);border-radius:var(--r-btn)"></textarea></div>`;
-  $('#shSave').innerHTML='<i class="ph-duotone ph-warning-octagon"></i> Sinalizar problema';
-  $('#shSave').removeAttribute('disabled'); onSave=()=>salvarReportarProblema(eqs); openSheet();
-  setTimeout(()=>{const d=$('#rpDesc'); if(d) d.focus();},60);
-}
-async function salvarReportarProblema(eqs){
-  const id=$('#rpEq').value; const desc=($('#rpDesc').value||'').trim();
-  if(!desc){ toast('Escreva qual é o problema.'); const d=$('#rpDesc'); if(d) d.focus(); return; }
-  const eq=(eqs||[]).find(e=>String(e.id)===String(id)); if(!eq){ toast('Escolha um equipamento.'); return; }
-  $('#shSave').setAttribute('disabled','');
-  try{
-    const _s=(typeof lolaSession==='function'?lolaSession():null)||{}; const quem=_s.nome||_s.email||'Central';
-    const data=new Date().toISOString().slice(0,10);
-    const hist=Array.isArray(eq.historico)?eq.historico.slice():[];
-    hist.push({nf:'', data:data, desc:desc, quem:quem, custo:'', garantia:''});
-    await lolaEnsure();
-    const r=await fetch(SB_URL+'/rest/v1/equipamentos?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({status:'problema', historico:hist})});
-    if(!r.ok) throw new Error(await r.text());
-    eq.status='problema'; eq.historico=hist;
-    toast('Sinalizado ✓ — aparece na Manutenção do Lola'); closeSheet();
-  }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
-}
 function wireInicio(){
   $$('#app [data-go]').forEach(el=>el.onclick=()=>_iniGo(el.dataset.go));
-  $$('#app [data-action="reportar"]').forEach(el=>el.onclick=openReportarProblema);
   $$('#app .ini-ped').forEach(el=>el.onclick=()=>{ const id=el.dataset.id; _iniGo('ped'); setTimeout(()=>{ try{ openPedido(id); }catch(_){} },60); });
   $$('#app .tardone').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); concluirTarefa(b.dataset.id); });
   $$('#app .okchip').forEach(c=>c.onclick=()=>toggleOkTarefa(c.dataset.id, c.dataset.nome));
