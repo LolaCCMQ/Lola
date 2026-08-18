@@ -2760,7 +2760,7 @@ async function resSalvar(destino){
 
 /* ===== Tarefas do Artur (18/07: "importar para a pagina inicial as tarefas do Artur" — Bianca) =====
    Fonte: Reuniões e Tarefas (lola_assuntos, eh_tarefa=true, responsáveis contém "Artur").
-   Concluir aqui grava os MESMOS campos que o registros.html usa (concluido/concluido_em/etapa). */
+   Concluir aqui grava os MESMOS campos que o /reunioes/ usa (concluido/concluido_em/etapa). */
 async function carregarTarefas(){
   ST.tarefas='loading'; if(ST.tab==='ini') render();
   try{ const r=await api('lola_assuntos?eh_tarefa=is.true&concluido=not.is.true&responsaveis=cs.'+encodeURIComponent('["Artur"]')+'&select=id,titulo,conteudo,prazo,data,criado_por,responsaveis,unidades,categorias,tags,oks&order=prazo.asc.nullslast,data.desc&limit=60');
@@ -2769,7 +2769,7 @@ async function carregarTarefas(){
   }catch(e){ ST.tarefas=[]; }
   if(ST.tab==='ini') render();
 }
-/* cores/rotulos iguais aos do registros.html — pro card parecer o MESMO card */
+/* cores/rotulos iguais aos do /reunioes/ — pro card parecer o MESMO card */
 const TAR_CAT_COLORS={'Operacional':'#2C7A4B','Manutenções':'#6B6258','Compras':'#2C5AA0','Cozinha':'#B5302E','Salão':'#9A6B1E','Bar':'#7A4FA3','Eventos':'#B23A6B','Financeiro':'#0F766E','RH':'#8A6A2B','Marketing':'#B24A8A','Entregas':'#1F7A6E','Processos':'#4858A8','Reunião':'#6B4FA8'};
 const TAR_UNI_SHORT={'Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'CENTRAL'};
 function tarCor(t){ for(const c of (t.categorias||[])){ if(TAR_CAT_COLORS[c]) return TAR_CAT_COLORS[c]; } return '#7E1E1F'; }
@@ -2794,11 +2794,11 @@ function tarCardHTML(t){
     ${okh}
     ${tags?`<div class="tc-chips" style="margin:8px 0 0">${tags}</div>`:''}
     <div class="tc-foot"><button class="chip tardone" data-id="${t.id}"><i class="ph-duotone ph-check"></i> Concluir</button>
-      <a class="tarlink" title="Abrir no Reuniões e Tarefas" href="/registros.html?open=${t.id}" target="_blank" rel="noopener"><i class="ph-duotone ph-arrow-square-out"></i></a>
+      <a class="tarlink" title="Abrir no Reuniões e Tarefas" href="/reunioes/?open=${t.id}" target="_blank" rel="noopener"><i class="ph-duotone ph-arrow-square-out"></i></a>
       <span class="spacer2"></span>${t.criado_por?`<span class="tc-por">por ${esc(t.criado_por)}</span>`:''}</div>
   </div>`;
 }
-/* OK por responsável — mesma regra do registros.html: todos com OK = tarefa concluída */
+/* OK por responsável — mesma regra do /reunioes/: todos com OK = tarefa concluída */
 async function toggleOkTarefa(id, nome){
   const t=(ST.tarefas||[]).find(x=>String(x.id)===String(id)); if(!t) return;
   const oks=Object.assign({}, tarOks(t));
@@ -2815,7 +2815,7 @@ async function toggleOkTarefa(id, nome){
     render();
   }catch(e){ toast('Erro: '+e.message); }
 }
-/* sino do portal: registra a atividade como o registros.html faz (melhor esforço) */
+/* sino do portal: registra a atividade como o /reunioes/ faz (melhor esforço) */
 function _tarLog(acao, t){
   try{ const _s=lolaSession()||{}; post('lola_atividades',[{quem:_s.nome||_s.email||null, acao:acao, alvo_tipo:'tarefa', alvo_id:t.id||null, alvo_titulo:String(t.titulo||'').slice(0,120)}],'return=minimal').catch(()=>{}); }catch(e){}
 }
@@ -2863,7 +2863,7 @@ function viewInicio(){
   else if(!tf.length) h+=`<div class="ini-list"><div class="ini-vazio">Nenhuma tarefa aberta pro Artur. 🎉</div></div>`;
   else{
     h+=`<div class="tarcards">${tf.slice(0,8).map(tarCardHTML).join('')}</div>`;
-    if(tf.length>8) h+=`<div class="ini-list" style="margin-top:-6px"><div class="ini-row"><a class="t" style="color:var(--mut);text-decoration:none;font-weight:600" href="/registros.html" target="_blank" rel="noopener">ver todas as ${tf.length} no Reuniões e Tarefas</a></div></div>`;
+    if(tf.length>8) h+=`<div class="ini-list" style="margin-top:-6px"><div class="ini-row"><a class="t" style="color:var(--mut);text-decoration:none;font-weight:600" href="/reunioes/" target="_blank" rel="noopener">ver todas as ${tf.length} no Reuniões e Tarefas</a></div></div>`;
   }
   if(al.length){
     h+=`<div class="lbl">Precisa de atenção</div><div class="ini-list">`;
