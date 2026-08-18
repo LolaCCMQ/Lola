@@ -526,6 +526,8 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .pl-nulo{color:#C3B5AB}
 .pl-pill{font-size:9.5px;padding:1px 6px;border-radius:999px;font-weight:800;margin-left:5px}
 .pl-pill.p{background:#EFE7F6;color:#7A4FA3} .pl-pill.i{background:var(--okBg);color:var(--okFg)}
+.conschip{font-size:9.5px;padding:1px 7px 1px 5px;border-radius:999px;font-weight:800;margin-left:5px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.conschip i{font-size:10px}
 </style>
 </head>
 <body>
@@ -632,14 +634,14 @@ async function carregar(){
     const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo, perdas, inv] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
-      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por&order=categoria,nome'),
+      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por,conservacao,validade_dias_resfriado,validade_dias_congelado&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total,origem_tipo,origem_ref'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
       api('lola_central_alertas?motivo=eq.nao_usamos&select=id,nota_chave,desc_item,obs,justificativa,resolvido,criado_por,criado_em&order=criado_em.desc').catch(()=>[]),
       api('lola_central_prod?ativo=neq.false&select=id,nome,categoria,unidade,saldo,obs,preproducao_id&order=categoria,nome').catch(()=>[]),
       api('lola_preproducoes?ativo=neq.false&cozinha=eq.central&select=id,nome,rendimento_qtd,rendimento_un,porcao_qtd,porcao_un,valor_venda_central,local&order=nome').catch(()=>null),
-      api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias').catch(()=>[]),
+      api('lola_central_saldo?select=preproducao_id,saldo,unidade,saldo_data,atualizado_por,validade_dias,conservacao,validade_dias_congelado').catch(()=>[]),
       api('lola_central_perdas?ativo=neq.false&select=*&order=data.desc,criado_em.desc&limit=500').catch(()=>[]),
       api('lola_inv_itens?ativo=neq.false&select=id,nome,categoria,unidade,qtd,medida,cor,foto_url&order=nome').catch(()=>[])
     ]);
@@ -1068,8 +1070,10 @@ function viewPlanilha(){
     g.forEach(r=>{
       const difOk = r.contado && r.dif!=null;
       const difCell = !difOk?'<span class="pl-nulo">—</span>' : (Math.abs(r.dif)<=0.001?'<span class="pl-pos">0</span>':`<span class="${r.dif>0?'pl-pos':'pl-neg'}">${r.dif>0?'+':''}${nf(r.dif)}</span>`);
+      const consSrc = r.tipo==='producao' ? (ST.saldo||{})[r.id] : ST.byId[r.id];
+      const consHtml = consSrc ? consChip(consSrc.conservacao, consSrc.validade_dias_resfriado!=null?consSrc.validade_dias_resfriado:consSrc.validade_dias, consSrc.validade_dias_congelado, r.tipo==='producao'?consSrc.saldo_data:null) : '';
       body+=`<tr data-id="${r.id}" data-tp="${r.tipo}">
-        <td class="pl-item"><span class="pl-name">${esc(r.nome)}</span><span class="pl-pill ${r.tipo==='producao'?'p':'i'}">${r.tipo==='producao'?'PP':'ins'}</span></td>
+        <td class="pl-item"><span class="pl-name">${esc(r.nome)}</span><span class="pl-pill ${r.tipo==='producao'?'p':'i'}">${r.tipo==='producao'?'PP':'ins'}</span>${consHtml}</td>
         <td class="pl-un">${esc(r.un||'')}</td>
         <td class="plc-ini">${r.contado?nf(r.ini):'<span class="pl-nulo" title="não contado nesta data">—</span>'}</td>
         <td class="plc-prod">${r.ent?nf(r.ent):'<span class="pl-nulo">0</span>'}</td>
@@ -1523,9 +1527,11 @@ function viewProduzidos(){
     const fem=/^(un|por|pç|fatia)/i.test(un);
     /* 17/07: "o que mais importa é o rendimento — 20 unidades ou 20 porções de 40 g?" */
     const porc=(+r.porcao_qtd>0&&r.porcao_un)?('porções de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)):null;
+    const sconsSrc=(ST.saldo||{})[x.id];
+    const sconsHtml=sconsSrc?consChip(sconsSrc.conservacao, sconsSrc.validade_dias_resfriado!=null?sconsSrc.validade_dias_resfriado:sconsSrc.validade_dias, sconsSrc.validade_dias_congelado, sconsSrc.saldo_data):'';
     return `<div class="pzrow" data-id="${x.id}">
       <div class="pzline pztog">
-        <div class="t"><b>${esc(x.nome)}</b><span>${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'}</span></div>
+        <div class="t"><b>${esc(x.nome)}</b>${sconsHtml}<span>${fmtData(String(x.ultima).slice(0,10))} · ${x.n} ${x.n===1?'produção':'produções'}</span></div>
         <div class="qty"><b>${num(x.total)} ${porc?'porções':esc(un)}</b><span>${porc?('de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)+' cada'):(fem?'produzidas':'produzidos')}</span></div>
         <button class="pzbi pzet" title="Etiquetas" aria-label="Etiquetas"><i class="ph-duotone ph-tag"></i></button>
         <button class="pzbi pzrend" title="Rendimento" aria-label="Rendimento"><i class="ph-duotone ph-scales"></i></button>
@@ -1787,13 +1793,41 @@ async function printReceita(ppId){
     </body></html>`);
   w.document.close(); setTimeout(()=>{ try{w.focus();w.print();}catch(e){} }, 350);
 }
+/* ---- conservação (seco/resfriado/congelado) — 18/08 (Mahara) ----
+   Usado tanto pros insumos (lola_insumos) quanto pelos pré-preparos
+   (lola_central_saldo, por preproducao_id). "seco" não tem validade em
+   dias (fica de referência); resfriado e congelado têm cada um a sua. */
+const CONS_L={seco:'Seco',resfriado:'Resfriado',congelado:'Congelado'};
+const CONS_IC={seco:'ph-package',resfriado:'ph-snowflake',congelado:'ph-cube'};
+const CONS_COR={seco:{bg:'#F7F0DD',fg:'#9A6B1E'},resfriado:{bg:'#E2F0EC',fg:'#1F7A6B'},congelado:{bg:'#E7EDF7',fg:'#2C5AA0'}};
+/* chip compacto pra linha de lista — mostra o tipo padrão e, se souber, a validade de cada situação.
+   dataBase (opcional, 18/08): quando dá pra saber quando foi a última contagem/produção,
+   mostra a DATA prevista de validade em cada situação, não só os dias. */
+function consChip(conservacao,vR,vC,dataBase){
+  if(!conservacao) return '';
+  const c=CONS_COR[conservacao]||CONS_COR.seco;
+  const partes=[];
+  if(vR){ const dv=dataBase&&validadePrevista(dataBase,vR); partes.push('resfr. '+vR+'d'+(dv?' (até '+dv+')':'')); }
+  if(vC){ const dv=dataBase&&validadePrevista(dataBase,vC); partes.push('congel. '+vC+'d'+(dv?' (até '+dv+')':'')); }
+  const tit=partes.length?(' · '+partes.join(' · ')):'';
+  return `<span class="conschip" style="background:${c.bg};color:${c.fg}" title="${esc(CONS_L[conservacao]+tit)}"><i class="ph-duotone ${CONS_IC[conservacao]||'ph-package'}"></i>${esc(CONS_L[conservacao])}</span>`;
+}
+/* data prevista de validade a partir de uma data-base + N dias (ou '' se não der pra calcular) */
+function validadePrevista(dataBase,dias){
+  if(!dataBase||!dias) return '';
+  const d=new Date(String(dataBase).slice(0,10)+'T12:00:00'); d.setDate(d.getDate()+(+dias||0));
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
 /* ---- etiquetas de porção ---- */
 const CONSERV_PADRAO='Refrig. 0 a -6°C: 24h · Freezer -18°C: 1 mês';
-let ETIQ_CUR=null;
+let ETIQ_CUR=null, ETIQ_CONS='resfriado';
 function openEtiqueta(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r;
   const s=(ST.saldo||{})[id]||{}; const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'';
-  const hoje=new Date().toISOString().slice(0,10); const dias=s.validade_dias!=null?s.validade_dias:2;
+  const hoje=new Date().toISOString().slice(0,10);
+  ETIQ_CONS=s.conservacao||'resfriado';
+  const diasR=s.validade_dias!=null?s.validade_dias:2, diasC=s.validade_dias_congelado!=null?s.validade_dias_congelado:15;
+  const dias=ETIQ_CONS==='congelado'?diasC:diasR;
   const ri=rendInfo(r);
   /* 17/07: sugerir pela PRODUÇÃO real — "foram 20 porções produzidas" → sugere 20 */
   const _hist=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(h=>h.preproducao_id===id):[];
@@ -1808,6 +1842,8 @@ function openEtiqueta(id){
   $('#shBody').innerHTML=`
     <div class="mf"><label>Produção e responsável</label><div class="rendrow"><input type="date" id="etData" value="${hoje}" style="max-width:160px"><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div></div>
     <div class="mf"><label>Lote <span style="color:var(--urgFg);font-weight:700">*obrigatório</span> <span style="color:var(--mut);font-weight:400">— vem da produção já registrada nesse dia; ajuste se for de outro dia</span></label><input type="text" id="etLote" required value="${esc(loteSug)}"></div>
+    <label class="iml">Como vai ser guardado</label>
+    <div id="etConsBtns" class="unrow" style="margin-bottom:12px">${['resfriado','congelado','seco'].map(c=>`<button data-c="${c}" class="${c===ETIQ_CONS?'on':''}"><i class="ph-duotone ${CONS_IC[c]}"></i> ${CONS_L[c]}</button>`).join('')}</div>
     <div class="mf"><div class="rendrow">
       <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Validade (dias após produção)</label><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric"></div>
       <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Nº de etiquetas <span style="color:var(--mut);font-weight:600">(${_ultProd>0?'últimas '+_ultProd+' produzidas':'sugerido '+nSug})</span></label><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric"></div>
@@ -1831,13 +1867,15 @@ function openEtiqueta(id){
     const lote=($('#etLote').value||'').trim(); const nEt=Math.max(1,parseInt($('#etQtd').value||'1',10)||1);
     el.innerHTML=`<div style="font-weight:800;font-size:13px;text-transform:uppercase">${esc(r.nome)}</div>
       <div style="font-size:11px;margin-top:3px">Produção: <b>${f(new Date(dp+'T12:00:00'))}</b> · ${esc(($('#etResp').value||'').trim()||'—')}</div>
-      <div style="font-size:11px">Validade: <b>${f(dv)}</b> (${dd} dia${dd===1?'':'s'})</div>
+      <div style="font-size:11px">Validade: <b>${f(dv)}</b> (${dd} dia${dd===1?'':'s'}) · ${CONS_L[ETIQ_CONS]}</div>
       <div style="font-size:11px">Peso: ${peso?('<b>'+esc(peso)+'</b>'):'________'}</div>
       <div style="font-size:11px">Lote: ${lote?`<b>${esc(lote)}</b>${nEt>1?' · <span style="color:#666">cada etiqueta numerada 01/'+String(nEt).padStart(2,'0')+' até '+String(nEt).padStart(2,'0')+'/'+String(nEt).padStart(2,'0')+'</span>':''}`:'<b style="color:var(--urgFg)">— preencha o lote pra poder imprimir —</b>'}</div>
       <div style="font-size:9.5px;margin-top:3px;color:#333">${esc(($('#etCons').value||'').trim())}</div>
       ${$('#etIng').checked?'<div style="font-size:9px;margin-top:3px;color:#555">Ingredientes: (entram na impressão)</div>':''}`;
   };
   ['etData','etResp','etLote','etDias','etPeso','etCons','etIng','etQtd'].forEach(i=>{ const e2=$('#'+i); if(e2){ e2.oninput=etPrev; e2.onchange=etPrev; } });
+  $$('#etConsBtns button').forEach(b=>b.onclick=()=>{ ETIQ_CONS=b.dataset.c; $$('#etConsBtns button').forEach(x=>x.classList.toggle('on',x===b));
+    const dEl=$('#etDias'); if(dEl) dEl.value=ETIQ_CONS==='congelado'?diasC:diasR; etPrev(); });
   etPrev();
   $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
   $('#shSave').removeAttribute('disabled'); onSave=printEtiquetas; openSheet();
@@ -1848,6 +1886,7 @@ async function printEtiquetas(){
   const resp=($('#etResp').value||'').trim();
   const dias=parseInt($('#etDias').value||'0',10)||0;
   const cons=($('#etCons').value||'').trim();
+  const consTipo=ETIQ_CONS||'resfriado';
   const tam=$('#etTam').value; const n=Math.max(1,Math.min(200,parseInt($('#etQtd').value||'1',10)||1));
   const incIng=$('#etIng').checked; const peso=($('#etPeso').value||'').trim();
   /* 18/08 (Mahara): o lote passou a ser obrigatório em toda etiqueta — sem
@@ -1859,8 +1898,10 @@ async function printEtiquetas(){
   if(incIng){ try{ const rr=await post('rpc/central_receita_itens',{pid:r.id}); ings=(rr||[]).map(x=>x.nome).join(', '); }catch(e){} }
   // grava a validade escolhida pra lembrar
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
-    await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, validade_dias:dias, atualizado_por:quem}],'resolution=merge-duplicates,return=minimal');
-    ST.saldo=ST.saldo||{}; ST.saldo[r.id]=Object.assign({}, ST.saldo[r.id]||{preproducao_id:r.id}, {validade_dias:dias});
+    const _sd={preproducao_id:r.id, atualizado_por:quem, conservacao:consTipo};
+    if(consTipo==='congelado') _sd.validade_dias_congelado=dias; else _sd.validade_dias=dias;
+    await post('lola_central_saldo?on_conflict=preproducao_id',[_sd],'resolution=merge-duplicates,return=minimal');
+    ST.saldo=ST.saldo||{}; ST.saldo[r.id]=Object.assign({}, ST.saldo[r.id]||{preproducao_id:r.id}, {conservacao:consTipo}, consTipo==='congelado'?{validade_dias_congelado:dias}:{validade_dias:dias});
   }catch(e){}
   const sizes={'60x40':{w:'60mm',h:'40mm',page:'60mm 40mm'},'50x30':{w:'50mm',h:'30mm',page:'50mm 30mm'},'100x50':{w:'100mm',h:'50mm',page:'100mm 50mm'},'58':{w:'54mm',h:'auto',page:'58mm auto'},'a4':{w:'90mm',h:'52mm',page:'A4'}};
   const sz=sizes[tam]||sizes.a4; const roll = tam!=='a4';
@@ -1871,6 +1912,7 @@ async function printEtiquetas(){
       <div class="ln">${esc(r.nome)}</div>
       <div class="lr"><span>Produção</span><b>${fmtData(dataP)}</b></div>
       <div class="lr"><span>Validade</span><b>${fmtData(dataV)}${dias?` (${dias}d)`:''}</b></div>
+      <div class="lr"><span>Guardar</span><b>${esc(CONS_L[consTipo]||consTipo)}</b></div>
       <div class="lr pw"><span>Peso</span><b>${peso?esc(peso):''}</b></div>
       ${resp?`<div class="lr"><span>Resp.</span><b>${esc(resp)}</b></div>`:''}
       <div class="lr"><span>Lote</span><b>${esc(lote)}${n>1?' · '+String(i+1).padStart(2,'0')+'/'+String(n).padStart(2,'0'):''}</b></div>
@@ -2974,10 +3016,11 @@ function openVincularReceita(id){
   };
   $('#vrBusca').oninput=()=>drawVr($('#vrBusca').value); drawVr(''); setTimeout(()=>$('#vrBusca').focus(),80);
 }
-let EDIT_INS=null, EDIT_CAT=null, EDIT_EUN=null, EDIT_EVENTO=false;
+let EDIT_INS=null, EDIT_CAT=null, EDIT_EUN=null, EDIT_EVENTO=false, EDIT_CONS='seco';
 const INS_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Material de Limpeza','Materiais de Expediente'];
 function openEditInsumo(id){
   const i=ST.byId[id]; if(!i)return; EDIT_INS=id; EDIT_CAT=i.categoria||''; EDIT_EUN=i.unidade_custo||'kg'; EDIT_EVENTO=!!i.evento;
+  EDIT_CONS=i.conservacao||'seco';
   const cats=[...new Set([...INS_CATS, ...(EDIT_CAT?[EDIT_CAT]:[])])];
   $('#shTitle').textContent='Editar insumo';
   $('#shBody').innerHTML=`<div class="note">Renomeie ou ajuste o insumo. A mudança vale em todo o sistema (fichas, estoque, sugestões).</div>
@@ -2987,12 +3030,19 @@ function openEditInsumo(id){
     <label class="iml">Unidade de custo</label>
     <div id="ediUnBtns" class="unrow" style="margin-bottom:12px">${['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u===EDIT_EUN?'on':''}">${u}</button>`).join('')}</div>
     <div class="mf"><label>Custo por unidade (R$)</label><input type="number" id="ediCusto" step="0.0001" value="${i.custo_por_unidade!=null?i.custo_por_unidade:''}"></div>
+    <label class="iml">Como é guardado</label>
+    <div id="ediConsBtns" class="unrow" style="margin-bottom:12px">${['seco','resfriado','congelado'].map(c=>`<button data-c="${c}" class="${c===EDIT_CONS?'on':''}"><i class="ph-duotone ${CONS_IC[c]}"></i> ${CONS_L[c]}</button>`).join('')}</div>
+    <div id="ediValRow" style="display:flex;gap:10px">
+      <div class="mf" style="flex:1"><label>Validade resfriado (dias)</label><input type="number" id="ediValR" step="1" min="0" value="${i.validade_dias_resfriado!=null?i.validade_dias_resfriado:''}"></div>
+      <div class="mf" style="flex:1"><label>Validade congelado (dias)</label><input type="number" id="ediValC" step="1" min="0" value="${i.validade_dias_congelado!=null?i.validade_dias_congelado:''}"></div>
+    </div>
     <label class="etck"><input type="checkbox" id="ediEvento" ${EDIT_EVENTO?'checked':''}> comprado pra <b style="color:#B23A6B">evento</b> — destacar na lista (não deixar parado)</label>`;
   $('#shSave').innerHTML='<i class="ph-duotone ph-check"></i> Salvar';
   $('#shSave').removeAttribute('disabled'); onSave=salvarEditInsumo; openSheet();
   $('#ediEvento').onchange=e=>{ EDIT_EVENTO=e.target.checked; };
   $$('#ediCatBtns button').forEach(b=>b.onclick=()=>{ EDIT_CAT=b.dataset.c; $$('#ediCatBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
   $$('#ediUnBtns button').forEach(b=>b.onclick=()=>{ EDIT_EUN=b.dataset.u; $$('#ediUnBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
+  $$('#ediConsBtns button').forEach(b=>b.onclick=()=>{ EDIT_CONS=b.dataset.c; $$('#ediConsBtns button').forEach(x=>x.classList.toggle('on',x===b)); });
   setTimeout(()=>$('#ediNome').focus(),60);
 }
 async function salvarEditInsumo(){
@@ -3000,6 +3050,9 @@ async function salvarEditInsumo(){
   const nome=($('#ediNome').value||'').trim(); if(!nome){ toast('O nome não pode ficar vazio.'); return; }
   const cat=EDIT_CAT||null, un=EDIT_EUN||null;
   const custoRaw=$('#ediCusto').value; const custo=custoRaw===''?i.custo_por_unidade:(+custoRaw||0);
+  const cons=EDIT_CONS||'seco';
+  const valRRaw=$('#ediValR').value; const valR=valRRaw===''?null:(+valRRaw||0);
+  const valCRaw=$('#ediValC').value; const valC=valCRaw===''?null:(+valCRaw||0);
   const dup=(ST.insumos||[]).find(x=>x.id!==id && x.ativo!==false && norm(x.nome)===norm(nome));
   if(dup){
     if(confirm('Já existe "'+dup.nome+'".\n\nOK = FUNDIR os dois (junta o estoque e as receitas num só)\nCancelar = manter separado e renomear assim mesmo')){
@@ -3011,8 +3064,8 @@ async function salvarEditInsumo(){
   }
   $('#shSave').setAttribute('disabled','');
   try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, evento:EDIT_EVENTO, updated_at:new Date().toISOString()})});
-    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo; i.evento=EDIT_EVENTO;
+    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, evento:EDIT_EVENTO, conservacao:cons, validade_dias_resfriado:valR, validade_dias_congelado:valC, updated_at:new Date().toISOString()})});
+    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo; i.evento=EDIT_EVENTO; i.conservacao=cons; i.validade_dias_resfriado=valR; i.validade_dias_congelado=valC;
     buildInsumoOptions(); toast('Insumo atualizado ✓'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
