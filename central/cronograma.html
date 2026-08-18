@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Lola · Cronograma de Produção (teste)</title>
+<title>Lola · Cronograma de Produção</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -210,14 +210,14 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
     <button class="sq" id="back" aria-label="Voltar"><i class="ph-duotone ph-caret-left"></i></button>
     <div class="tt">
       <h1>Cronograma de produção</h1>
-      <div class="sub" id="sub">Cozinha Central · página de teste</div>
+      <div class="sub" id="sub">Cozinha Central</div>
     </div>
     <button class="sq" id="btnHoje" title="Ir para hoje"><i class="ph-duotone ph-calendar-dot"></i></button>
   </header>
 
   <div class="testbar">
-    <i class="ph-duotone ph-flask"></i>
-    <div><b>Página de teste.</b> Arraste pelo <i class="ph-duotone ph-dots-six-vertical"></i> pra mudar a ordem, o turno ou o dia. <b>Concluir já baixa os insumos do estoque e soma a produção</b> — igual ao botão Produzir de hoje (menos em modo demonstração, fora do site).</div>
+    <i class="ph-duotone ph-info"></i>
+    <div>Arraste pelo <i class="ph-duotone ph-dots-six-vertical"></i> pra mudar a ordem, o turno ou o dia. <b>Concluir já baixa os insumos do estoque e soma a produção</b> — igual ao botão Produzir de hoje (menos em modo demonstração, fora do site).</div>
   </div>
 
   <div class="tabs" id="tabs">
@@ -242,7 +242,7 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 <script src="/adm/auth.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════
-   CRONOGRAMA DE PRODUÇÃO — Cozinha Central  ·  PÁGINA DE TESTE
+   CRONOGRAMA DE PRODUÇÃO — Cozinha Central
    Tabelas: lola_central_cronograma / lola_central_cronograma_grade
    Turnos (manhã/tarde/noite) + ordem, arrastar-e-soltar pelo grip.
    Concluir GRAVA de verdade (17/08): soma lola_central_saldo, registra
@@ -484,7 +484,7 @@ async function carregar(){
     ST.insumos={}; ST.insByNome={}; (ins||[]).forEach(i=>{ST.insumos[i.id]=i;ST.insByNome[norm(i.nome)]=i;});
     ST.agenda=ag||[]; ST.grade=gr||[];
     if(!DEMO){ const s=(typeof lolaSession==='function'?lolaSession():null)||{}; ST.quem=s.nome||s.email||'portal';
-      $('#sub').textContent='Cozinha Central · teste'+(s.nome?' · '+s.nome:''); }
+      $('#sub').textContent='Cozinha Central'+(s.nome?' · '+s.nome:''); }
     else $('#sub').textContent='Cozinha Central · demonstração (dados de exemplo)';
   }catch(e){ toast('Erro ao carregar: '+e.message); }
   ST.loading=false; render();
@@ -846,7 +846,7 @@ function openNova(data,turnoOuHora){
       const row={data, hora:$('#fHora').value||null, turno, ordem:irmaos.length+1, preproducao_id:rid, item_nome:nome,
         qtd_prevista:+$('#fQtd').value||1, unidade:($('#fUn').value||'').trim()||(r?unPadrao(r):'tarefa'),
         responsavel:$('#fResp').value||null, tempo_min:+$('#fTempo').value||null, status:'previsto',
-        obs:$('#fObs').value||null, origem:'manual', teste:true, criado_por:ST.quem};
+        obs:$('#fObs').value||null, origem:'manual', teste:false, criado_por:ST.quem};
       const res=await post('lola_central_cronograma',[row],'return=representation');
       ST.agenda.push((res&&res[0])||Object.assign({id:'tmp'+Date.now()},row));
       toast('Agendado ✓'); closeSheet(); render();
@@ -912,7 +912,7 @@ async function gerarSemana(){
     if(ja) return;
     novas.push({data:d, hora:g.hora||null, turno:g.turno||'manha', ordem:+g.ordem||0, preproducao_id:g.preproducao_id,
       item_nome:g.item_nome, qtd_prevista:g.qtd, unidade:g.unidade, responsavel:g.responsavel, obs:g.obs, tempo_min:g.tempo_min||null,
-      status:'previsto', origem:'grade', grade_id:g.id, teste:true, criado_por:ST.quem});
+      status:'previsto', origem:'grade', grade_id:g.id, teste:false, criado_por:ST.quem});
   });
   if(!novas.length){ toast('A semana já está gerada — nada novo a criar.'); return; }
   try{ const res=await post('lola_central_cronograma',novas,'return=representation');
