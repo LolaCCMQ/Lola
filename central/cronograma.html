@@ -120,8 +120,12 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 /* ── cartão de produção ── */
 .pcard{display:flex;align-items:center;gap:8px;padding:9px 12px 9px 0;border-bottom:1px solid var(--fio);border-left:4px solid transparent;background:var(--card)}
 .pcard:last-child{border-bottom:0}
-.grip{width:34px;flex-shrink:0;align-self:stretch;display:flex;align-items:center;justify-content:center;color:var(--lbl);font-size:16px;cursor:grab;touch-action:none}
+.grip{width:34px;flex-shrink:0;align-self:stretch;display:flex;align-items:center;justify-content:center;color:var(--lbl);font-size:16px;cursor:grab;touch-action:none;position:relative}
 .grip:active{cursor:grabbing;color:var(--vinho)}
+/* alvo de clique/toque bem maior que o ícone visível — o ícone é fino de propósito
+   (não pode ocupar espaço do card), mas a área que responde ao arraste é ampliada
+   com um ::before invisível, então não precisa acertar o pixel certo (18/08). */
+.grip::before{content:'';position:absolute;top:-6px;bottom:-6px;left:-8px;right:-2px}
 .pcard .body{flex:1;min-width:0;cursor:pointer;display:flex;align-items:center;gap:9px}
 .pcard .mid{flex:1;min-width:0}
 .pcard .mid b{display:block;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
