@@ -1807,7 +1807,7 @@ function openEtiqueta(id){
   /* 17/07: "tudo podia ser menor simulando como vai ficar na etiqueta" — campos em pares + prévia ao vivo */
   $('#shBody').innerHTML=`
     <div class="mf"><label>Produção e responsável</label><div class="rendrow"><input type="date" id="etData" value="${hoje}" style="max-width:160px"><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div></div>
-    <div class="mf"><label>Lote <span style="color:var(--mut);font-weight:400">(rastreio — vem da produção já registrada nesse dia; ajuste se for de outro dia)</span></label><input type="text" id="etLote" value="${esc(loteSug)}"></div>
+    <div class="mf"><label>Lote <span style="color:var(--urgFg);font-weight:700">*obrigatório</span> <span style="color:var(--mut);font-weight:400">— vem da produção já registrada nesse dia; ajuste se for de outro dia</span></label><input type="text" id="etLote" required value="${esc(loteSug)}"></div>
     <div class="mf"><div class="rendrow">
       <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Validade (dias após produção)</label><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric"></div>
       <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Nº de etiquetas <span style="color:var(--mut);font-weight:600">(${_ultProd>0?'últimas '+_ultProd+' produzidas':'sugerido '+nSug})</span></label><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric"></div>
@@ -1833,7 +1833,7 @@ function openEtiqueta(id){
       <div style="font-size:11px;margin-top:3px">Produção: <b>${f(new Date(dp+'T12:00:00'))}</b> · ${esc(($('#etResp').value||'').trim()||'—')}</div>
       <div style="font-size:11px">Validade: <b>${f(dv)}</b> (${dd} dia${dd===1?'':'s'})</div>
       <div style="font-size:11px">Peso: ${peso?('<b>'+esc(peso)+'</b>'):'________'}</div>
-      ${lote?`<div style="font-size:11px">Lote: <b>${esc(lote)}</b>${nEt>1?' · <span style="color:#666">cada etiqueta numerada 01/'+String(nEt).padStart(2,'0')+' até '+String(nEt).padStart(2,'0')+'/'+String(nEt).padStart(2,'0')+'</span>':''}</div>`:''}
+      <div style="font-size:11px">Lote: ${lote?`<b>${esc(lote)}</b>${nEt>1?' · <span style="color:#666">cada etiqueta numerada 01/'+String(nEt).padStart(2,'0')+' até '+String(nEt).padStart(2,'0')+'/'+String(nEt).padStart(2,'0')+'</span>':''}`:'<b style="color:var(--urgFg)">— preencha o lote pra poder imprimir —</b>'}</div>
       <div style="font-size:9.5px;margin-top:3px;color:#333">${esc(($('#etCons').value||'').trim())}</div>
       ${$('#etIng').checked?'<div style="font-size:9px;margin-top:3px;color:#555">Ingredientes: (entram na impressão)</div>':''}`;
   };
@@ -1850,6 +1850,10 @@ async function printEtiquetas(){
   const cons=($('#etCons').value||'').trim();
   const tam=$('#etTam').value; const n=Math.max(1,Math.min(200,parseInt($('#etQtd').value||'1',10)||1));
   const incIng=$('#etIng').checked; const peso=($('#etPeso').value||'').trim();
+  /* 18/08 (Mahara): o lote passou a ser obrigatório em toda etiqueta — sem
+     ele não tem rastreio do produto, então bloqueia a impressão até preencher. */
+  const loteChk=($('#etLote').value||'').trim();
+  if(!loteChk){ toast('Preencha o lote antes de imprimir — é obrigatório pra rastrear o produto.'); $('#etLote').focus(); return; }
   const val=new Date(dataP+'T00:00:00'); val.setDate(val.getDate()+dias); const dataV=val.toISOString().slice(0,10);
   let ings='';
   if(incIng){ try{ const rr=await post('rpc/central_receita_itens',{pid:r.id}); ings=(rr||[]).map(x=>x.nome).join(', '); }catch(e){} }
@@ -1869,7 +1873,7 @@ async function printEtiquetas(){
       <div class="lr"><span>Validade</span><b>${fmtData(dataV)}${dias?` (${dias}d)`:''}</b></div>
       <div class="lr pw"><span>Peso</span><b>${peso?esc(peso):''}</b></div>
       ${resp?`<div class="lr"><span>Resp.</span><b>${esc(resp)}</b></div>`:''}
-      ${lote?`<div class="lr"><span>Lote</span><b>${esc(lote)}${n>1?' · '+String(i+1).padStart(2,'0')+'/'+String(n).padStart(2,'0'):''}</b></div>`:''}
+      <div class="lr"><span>Lote</span><b>${esc(lote)}${n>1?' · '+String(i+1).padStart(2,'0')+'/'+String(n).padStart(2,'0'):''}</b></div>
       ${incIng&&ings?`<div class="li"><b>Ingr.:</b> ${esc(ings)}</div>`:''}
       ${cons?`<div class="lc">${esc(cons)}</div>`:''}
       ${roll?'':'<div class="lf">Lola · Cozinha Central</div>'}
