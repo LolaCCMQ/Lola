@@ -1161,7 +1161,7 @@ function switchModule(mod){ try{ applyCollapse(mod==='home'?userCollapsePref():t
   const NAMES={home:'',tarefas:'Reuniões & Tarefas',diario:'Diário de Gerentes',usuarios:'Usuários',compras:'Lista de Compras',loucas:'Inventário',escala:'Escala'};
   document.getElementById('phModname').textContent=NAMES[mod]||'';
   closeSidebar();
-  if(mod==='escala'){var _ef=document.getElementById('escalaFrame');if(_ef&&!_ef.getAttribute('src'))_ef.setAttribute('src','escala.html');}
+  if(mod==='escala'){var _ef=document.getElementById('escalaFrame');if(_ef&&!_ef.getAttribute('src'))_ef.setAttribute('src','/escala/');}
   if(mod==='diario'){var _df=document.getElementById('diarioFrame');if(_df&&!_df.dataset.loaded){_df.dataset.loaded='1';_df.src='/diario/?embed=1&u='+encodeURIComponent((window.__portalUser&&window.__portalUser.name)||'')+'&t='+Date.now();}} if(mod==='tarefas'&&window.__portalUser){
     // Injeta o usuário logado no portal diretamente no módulo Tarefas,
     // sem precisar esperar o loadConfig (que pode demorar).
