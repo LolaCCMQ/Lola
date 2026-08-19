@@ -1054,7 +1054,8 @@ function viewPlanilha(){
      <span style="flex:1"></span>
      <button class="chip" id="btnPlanCont" style="min-height:40px"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button>
      <button class="chip" id="btnPlanHist" style="min-height:40px"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
-     <button class="chip" id="btnSugestaoPedido" style="min-height:40px;background:#2C5AA0;color:#fff;border-color:#2C5AA0"><i class="ph-duotone ph-shopping-cart"></i> Gerar sugestão de pedido</button></div>`;
+     <button class="chip" id="btnSugestaoPedido" style="min-height:40px;background:#2C5AA0;color:#fff;border-color:#2C5AA0"><i class="ph-duotone ph-shopping-cart"></i> Gerar sugestão de pedido</button>
+     <button class="chip" id="btnFichasPendentes" style="min-height:40px"><i class="ph-duotone ph-file-dashed"></i> Fichas técnicas pendentes</button></div>`;
   h+=`<div class="toolbar" style="flex-wrap:wrap;gap:6px">
      <button class="chip ${PLAN_TIPO==='tudo'?'on':''}" data-pt="tudo">Tudo</button>
      <button class="chip ${PLAN_TIPO==='producao'?'on':''}" data-pt="producao">Pré-preparos (${totProd})</button>
@@ -1100,6 +1101,7 @@ function wirePlanilha(){
   $('#btnPlanCont')&&($('#btnPlanCont').onclick=()=>openContagemEstoque('todos'));
   $('#btnPlanHist')&&($('#btnPlanHist').onclick=()=>openContagensHist('estoque'));
   $('#btnSugestaoPedido')&&($('#btnSugestaoPedido').onclick=abrirSugestaoPedido);
+  $('#btnFichasPendentes')&&($('#btnFichasPendentes').onclick=abrirFichasPendentes);
   $$('#app .pl-tbl tbody tr[data-id]').forEach(tr=>{
     const id=tr.dataset.id, tp=tr.dataset.tp;
     const nm=tr.querySelector('.pl-name'); if(nm) nm.onclick=()=>openPlanAcoes(tp,id,nm.textContent||'');
@@ -3189,6 +3191,7 @@ async function gerarSugestaoPedido(){
     const rows=[];
     Object.keys(necInsumo).forEach(insId=>{
       const ins=ST.byId[insId]; if(!ins) return;
+      if(norm(ins.nome).indexOf('AGUA')===0) return; // 19/08 (Mahara): água não entra na sugestão de compra
       const necessidade=necInsumo[insId];
       const estoqueAtual=(ST.movs||[]).reduce((s,m)=>s+(m.insumo_id===insId?(+m.qtd||0):0),0);
       const aPedir=Math.max(0, necessidade-estoqueAtual);
@@ -3252,6 +3255,36 @@ function renderSugestaoPedido(dados){
       '\n\nTotal estimado: '+brl(itens.reduce((s,r)=>s+r.aPedir*r.custoUnit,0));
     navigator.clipboard.writeText(txt).then(()=>toast('Pedido de "'+forn+'" copiado ✓')).catch(()=>toast('Não consegui copiar — selecione manualmente.'));
   });
+}
+/* pré-preparos ATIVOS (cozinha central) sem nenhum ingrediente cadastrado em
+   lola_preproducoes_itens — sem isso a receita não entra na sugestão de
+   pedido (nem em nenhum cálculo de baixa de insumo) — lista pra correr atrás. */
+async function abrirFichasPendentes(){
+  const bg=document.createElement('div'); bg.id='fpBg';
+  bg.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
+  const mo=document.createElement('div'); mo.id='fpMo';
+  mo.style.cssText='background:var(--creme);border-radius:16px;max-width:680px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.2)';
+  mo.addEventListener('click',e=>e.stopPropagation());
+  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
+  mo.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card)">
+      <div style="flex:1;min-width:0"><div style="font-family:Fraunces,serif;font-size:18px;font-weight:600;color:var(--vinho);line-height:1.1"><i class="ph-duotone ph-file-dashed"></i> Fichas técnicas pendentes</div>
+      <div style="font-size:11.5px;color:var(--mut);margin-top:2px">Pré-preparos da Central sem nenhum ingrediente cadastrado</div></div>
+      <button id="fpX" style="width:32px;height:32px;border-radius:9px;background:var(--card);border:1px solid var(--border);color:var(--sec);font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:14px 16px" id="fpBody"><div class="spin"></div></div>`;
+  bg.appendChild(mo); document.body.appendChild(bg);
+  $('#fpX').onclick=()=>bg.remove();
+  const body=$('#fpBody');
+  try{
+    const itens=await api('lola_preproducoes_itens?select=preproducao_id');
+    const comItens=new Set((itens||[]).map(x=>x.preproducao_id));
+    const pend=(ST.receitas||[]).filter(r=>!comItens.has(r.id)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+    if(!pend.length){ body.innerHTML='<div class="empty"><i class="ph-duotone ph-check-circle"></i>Toda produção da Central tem ficha técnica cadastrada.</div>'; return; }
+    body.innerHTML=`<div class="note" style="background:#FDF0E0;color:#8A5A12;margin-bottom:10px"><i class="ph-duotone ph-warning"></i> ${pend.length} produç${pend.length===1?'ão':'ões'} sem ingredientes cadastrados — não entram na sugestão de pedido nem em nenhum cálculo de baixa de estoque até serem preenchidas.</div>
+      <div class="pl-wrap"><table class="pl-tbl"><thead><tr><th class="pl-item" style="text-align:left">Produção</th><th style="text-align:left">Rendimento</th></tr></thead><tbody>`+
+      pend.map(r=>`<tr><td class="pl-item"><span class="pl-name" style="cursor:default">${esc(r.nome)}</span></td><td style="text-align:left">${r.rendimento_qtd?num(r.rendimento_qtd)+' '+esc(r.rendimento_un||''):'—'}</td></tr>`).join('')+
+      `</tbody></table></div>`;
+  }catch(e){ body.innerHTML='<div class="note">Erro ao carregar: '+esc(e.message)+'</div>'; }
 }
 /* ══════════════════════════════════════════════════════════
    FICHA DO INSUMO — a mesma do app do Estoque.
