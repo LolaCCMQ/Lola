@@ -21,7 +21,6 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{overflow-x:hidden}
 body{background:var(--creme);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
-body.dragging{user-select:none;-webkit-user-select:none}
 .wrap{max-width:980px;margin:0 auto;padding:0 16px 110px}
 
 header{display:flex;align-items:center;gap:10px;padding:14px 0 12px;border-bottom:1px solid var(--fio);margin-bottom:14px}
@@ -89,7 +88,6 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 /* cartão dentro da célula da hora */
 .cel .pcard{padding:5px 5px 5px 0;gap:2px;border-bottom:0;border-radius:9px;background:var(--cremeDark);margin-bottom:3px;border-left-width:3px}
 .cel .pcard:last-child{margin-bottom:0}
-.cel .grip{width:18px;font-size:12px}
 .cel .pcard .body{flex-direction:column;align-items:flex-start;gap:0}
 .cel .pcard .mid b{white-space:normal;font-size:11.5px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .cel .pcard .mid span{font-size:10px;white-space:normal;line-height:1.2}
@@ -114,18 +112,11 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 .thead .sp{flex:1}
 .thead .add{width:30px;height:30px;border:1px solid var(--border);background:var(--card);border-radius:9px;color:var(--vinho);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .slot{min-height:38px;transition:background .12s}
-.slot.over{background:#EEF4FC}
 .slot .vazio{padding:9px 14px;font-size:12px;color:var(--lbl)}
 
 /* ── cartão de produção ── */
 .pcard{display:flex;align-items:center;gap:8px;padding:9px 12px 9px 0;border-bottom:1px solid var(--fio);border-left:4px solid transparent;background:var(--card)}
 .pcard:last-child{border-bottom:0}
-.grip{width:34px;flex-shrink:0;align-self:stretch;display:flex;align-items:center;justify-content:center;color:var(--lbl);font-size:16px;cursor:grab;touch-action:none;position:relative}
-.grip:active{cursor:grabbing;color:var(--vinho)}
-/* alvo de clique/toque bem maior que o ícone visível — o ícone é fino de propósito
-   (não pode ocupar espaço do card), mas a área que responde ao arraste é ampliada
-   com um ::before invisível, então não precisa acertar o pixel certo (18/08). */
-.grip::before{content:'';position:absolute;top:-6px;bottom:-6px;left:-8px;right:-2px}
 .pcard .body{flex:1;min-width:0;cursor:pointer;display:flex;align-items:center;gap:9px}
 .pcard .mid{flex:1;min-width:0}
 .pcard .mid b{display:block;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -137,8 +128,6 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 .pcard.s-atrasado{border-left-color:var(--urgFg)} .pcard.s-atrasado .st{background:var(--urgBg);color:var(--urgFg)}
 .pcard.s-cancelado{opacity:.55} .pcard.s-cancelado .st{background:#EFEAE4;color:var(--mut)}
 .pcard.livre .mid b{color:var(--sec)}
-.pcard.arrast{opacity:.32}
-.pcard.ghost{position:fixed;z-index:990;pointer-events:none;box-shadow:0 14px 30px -12px rgba(42,26,23,.5);border:1px solid var(--border);border-radius:12px;opacity:1;background:var(--card)}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--runFg);margin-right:4px;animation:pulse 1.4s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 .hchip{flex-shrink:0;font-family:Fraunces,serif;font-weight:600;font-size:12.5px;color:var(--vinho);min-width:38px}
@@ -221,7 +210,7 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 
   <div class="testbar">
     <i class="ph-duotone ph-info"></i>
-    <div>Arraste pelo <i class="ph-duotone ph-dots-six-vertical"></i> pra mudar a ordem, o turno ou o dia. <b>Concluir já baixa os insumos do estoque e soma a produção</b> — igual ao botão Produzir de hoje (menos em modo demonstração, fora do site).</div>
+    <div>Toque numa produção pra abrir e mudar o dia, turno ou horário. <b>Concluir já baixa os insumos do estoque e soma a produção</b> — igual ao botão Produzir de hoje (menos em modo demonstração, fora do site).</div>
   </div>
 
   <div class="tabs" id="tabs">
@@ -248,7 +237,9 @@ header .sub{font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.02em
 /* ══════════════════════════════════════════════════════════════════
    CRONOGRAMA DE PRODUÇÃO — Cozinha Central
    Tabelas: lola_central_cronograma / lola_central_cronograma_grade
-   Turnos (manhã/tarde/noite) + ordem, arrastar-e-soltar pelo grip.
+   Turnos (manhã/tarde/noite) + ordem. Mover pra outro dia/turno/hora é
+   pelo formulário do cartão (arrastar-e-soltar foi removido em 19/08 —
+   travava e dava erro em uso real).
    Concluir GRAVA de verdade (17/08): soma lola_central_saldo, registra
    lola_central_prod_hist e baixa lola_central_estoque_mov (origem_ref
    'prodhist:<id>', igual ao botão Produzir do app de Estoque) — exceto
@@ -514,7 +505,6 @@ function cardHTML(x){
   const t = x.status==='feito'&&x.duracao_min!=null ? fmtMin(x.duracao_min) : (x.tempo_min?'~'+fmtMin(x.tempo_min):'');
   const linha=[q, t, x.responsavel||''].filter(Boolean).join(' · ');
   return `<div class="pcard s-${s}${livre?' livre':''}" data-ag="${x.id}">
-    <div class="grip" data-drag="${x.id}"><i class="ph-duotone ph-dots-six-vertical"></i></div>
     <div class="body" data-open="${x.id}">
       ${x.hora?`<div class="hchip">${hhmm(x.hora)}</div>`:''}
       <div class="mid"><b>${esc(x.item_nome||r.nome||'—')}</b><span>${esc(linha)}</span></div>
@@ -648,7 +638,7 @@ function viewProd(){
   return h;
 }
 function viewGrade(){
-  let h=`<div class="note">A <b>grade fixa</b> é o padrão da semana. Toque em <b>Gerar da grade</b> na aba Semana e a semana nasce pronta — aí é só ajustar o que mudou. Arraste pelo <i class="ph-duotone ph-dots-six-vertical"></i> pra reordenar ou trocar de turno/dia.</div>`;
+  let h=`<div class="note">A <b>grade fixa</b> é o padrão da semana. Toque em <b>Gerar da grade</b> na aba Semana e a semana nasce pronta — aí é só ajustar o que mudou. Toque num item pra abrir e trocar dia, turno ou horário.</div>`;
   h+=`<div class="tools"><button class="btn" id="gadd"><i class="ph-duotone ph-plus"></i> Adicionar à grade</button>
       <button class="btn sec" id="gerar"><i class="ph-duotone ph-magic-wand"></i> Gerar semana atual</button></div>`;
   h+=`<div class="dias">`;
@@ -671,7 +661,6 @@ function gcardHTML(x){
   const r=ST.recById[x.preproducao_id]||{}; const livre=!x.preproducao_id;
   const linha=[dstr(x.qtd,x.unidade||r.rendimento_un||'un'), x.tempo_min?'~'+fmtMin(x.tempo_min):'', x.responsavel||''].filter(Boolean).join(' · ');
   return `<div class="pcard s-previsto${livre?' livre':''}" data-gr="${x.id}">
-    <div class="grip" data-gdrag="${x.id}"><i class="ph-duotone ph-dots-six-vertical"></i></div>
     <div class="body" data-gopen="${x.id}">
       ${x.hora?`<div class="hchip">${hhmm(x.hora)}</div>`:''}
       <div class="mid"><b>${esc(x.item_nome||r.nome||'—')}</b><span>${esc(linha)}</span></div>
@@ -694,8 +683,6 @@ function wire(){
   const ga=$('#gadd'); if(ga) ga.onclick=()=>openGrade(null,1,'manha');
   $$('[data-gadd]').forEach(b=>b.onclick=e=>{e.stopPropagation();openGrade(null,+b.dataset.gadd,b.dataset.turno);});
   $$('[data-gopen]').forEach(c=>c.onclick=()=>openGrade(c.dataset.gopen));
-  $$('[data-drag]').forEach(g=>g.addEventListener('pointerdown',e=>iniciarArraste(e,'ag')));
-  $$('[data-gdrag]').forEach(g=>g.addEventListener('pointerdown',e=>iniciarArraste(e,'gr')));
   /* em tela estreita, abre o quadro já no dia de hoje */
   const bd=$('#board');
   if(bd && bd.scrollWidth>bd.clientWidth){
@@ -704,107 +691,6 @@ function wire(){
   }
 }
 function hojeNaSemana(){const h=hoje();return (h>=ST.semana&&h<=addD(ST.semana,5))?h:ST.semana;}
-
-/* ══════ ARRASTAR E SOLTAR ══════
-   Só pelo grip (touch-action:none), então a rolagem da página continua normal.
-   O próprio cartão é movido no DOM enquanto arrasta; ao soltar, grava a
-   nova ordem/turno/dia das listas que mudaram. */
-let DRAG=null;
-function iniciarArraste(ev,modo){
-  if(ev.button!=null && ev.button!==0) return;
-  const grip=ev.currentTarget, card=grip.closest('.pcard'); if(!card) return;
-  ev.preventDefault();
-  const r=card.getBoundingClientRect();
-  const ghost=card.cloneNode(true);
-  ghost.classList.add('ghost'); ghost.style.width=r.width+'px'; ghost.style.left=r.left+'px'; ghost.style.top=r.top+'px';
-  document.body.appendChild(ghost); document.body.classList.add('dragging');
-  card.classList.add('arrast');
-  DRAG={modo, card, ghost, dx:ev.clientX-r.left, dy:ev.clientY-r.top, origem:card.parentElement, movido:false, destSlot:null, destRef:null};
-  grip.setPointerCapture(ev.pointerId);
-  grip.addEventListener('pointermove',moverArraste);
-  grip.addEventListener('pointerup',soltarArraste);
-  grip.addEventListener('pointercancel',soltarArraste);
-}
-/* 18/08: o cartão real NÃO é mais movido no DOM durante o arraste (só o
-   ghost acompanha o mouse) — ficava reparentando a cada célula sobrevoada
-   e isso soltava a captura do ponteiro no meio do gesto em uso real (mouse
-   físico), fazendo o soltar não disparar e o card "voltar" sem aviso. Agora
-   só guardamos o slot/posição-alvo e movemos o card UMA vez, ao soltar. */
-function moverArraste(ev){
-  if(!DRAG) return;
-  DRAG.movido=true;
-  DRAG.ghost.style.left=(ev.clientX-DRAG.dx)+'px';
-  DRAG.ghost.style.top=(ev.clientY-DRAG.dy)+'px';
-  /* rola a página quando chega perto da borda de cima/baixo */
-  const m=70; if(ev.clientY<m) window.scrollBy(0,-14); else if(ev.clientY>window.innerHeight-m) window.scrollBy(0,14);
-  /* e desliza o quadro da semana quando chega perto da borda lateral */
-  const bd=$('#board');
-  if(bd && bd.scrollWidth>bd.clientWidth){ const b=bd.getBoundingClientRect();
-    if(ev.clientX<b.left+52) bd.scrollLeft-=16; else if(ev.clientX>b.right-52) bd.scrollLeft+=16; }
-  DRAG.ghost.style.display='none';
-  const alvo=document.elementFromPoint(ev.clientX,ev.clientY);
-  DRAG.ghost.style.display='';
-  if(!alvo) return;
-  const slot=alvo.closest('.slot'); if(!slot) return;
-  $$('.slot.over').forEach(s=>s.classList.remove('over'));
-  slot.classList.add('over');
-  const irmaos=[...slot.querySelectorAll('.pcard:not(.arrast)')];
-  let ref=null;
-  for(const c of irmaos){ const b=c.getBoundingClientRect(); if(ev.clientY < b.top+b.height/2){ ref=c; break; } }
-  DRAG.destSlot=slot; DRAG.destRef=ref;
-}
-async function soltarArraste(ev){
-  if(!DRAG) return;
-  const {modo,card,ghost,origem,movido,destSlot,destRef}=DRAG;
-  const grip=ev.currentTarget;
-  grip.removeEventListener('pointermove',moverArraste);
-  grip.removeEventListener('pointerup',soltarArraste);
-  grip.removeEventListener('pointercancel',soltarArraste);
-  ghost.remove(); card.classList.remove('arrast');
-  document.body.classList.remove('dragging');
-  $$('.slot.over').forEach(s=>s.classList.remove('over'));
-  /* só agora, com o gesto todo já concluído, move o card de verdade pro slot-alvo */
-  if(destSlot){ const vazio=destSlot.querySelector('.vazio'); if(vazio) vazio.remove();
-    if(destRef) destSlot.insertBefore(card,destRef); else destSlot.appendChild(card); }
-  const destino=card.parentElement;
-  DRAG=null;
-  if(!movido){ render(); return; }
-  try{ await gravarOrdem(modo,[origem,destino]); }
-  catch(e){ toast('Erro ao mover: '+e.message); }
-  render();
-}
-async function gravarOrdem(modo,slots){
-  const vistos=new Set(); const mudou=[];
-  for(const slot of slots){
-    if(!slot||!slot.dataset) continue;
-    const key=(slot.dataset.slot||slot.dataset.gslot)+'|'+(slot.dataset.turno||'')+'|'+(slot.dataset.hora||'');
-    if(vistos.has(key)) continue; vistos.add(key);
-    const hora=slot.dataset.hora||null;
-    const turno=slot.dataset.turno || (hora?(parseInt(hora,10)>=12?'tarde':'manha'):'manha');
-    const cards=[...slot.querySelectorAll('.pcard')];
-    cards.forEach((c,i)=>{
-      if(modo==='ag'){
-        const x=ST.agenda.find(a=>a.id===c.dataset.ag); if(!x) return;
-        const data=slot.dataset.slot;
-        const hAtual=hhmm(x.hora)||null;
-        if(x.data!==data||x.turno!==turno||+x.ordem!==i+1||(hora&&hAtual!==hora)){
-          x.data=data; x.turno=turno; x.ordem=i+1; if(hora) x.hora=hora;
-          const body={data,turno,ordem:i+1}; if(hora) body.hora=hora;
-          mudou.push({tabela:'lola_central_cronograma',id:x.id,body});
-        }
-      }else{
-        const x=ST.grade.find(a=>a.id===c.dataset.gr); if(!x) return;
-        const ds=+slot.dataset.gslot;
-        if(+x.dia_semana!==ds||x.turno!==turno||+x.ordem!==i+1){
-          x.dia_semana=ds; x.turno=turno; x.ordem=i+1;
-          mudou.push({tabela:'lola_central_cronograma_grade',id:x.id,body:{dia_semana:ds,turno,ordem:i+1}});
-        }
-      }
-    });
-  }
-  for(const m of mudou) await patch(m.tabela+'?id=eq.'+m.id,m.body);
-  if(mudou.length) toast('Cronograma atualizado ✓');
-}
 
 /* ---------- folha de baixo ---------- */
 let onSave=null;
@@ -948,6 +834,14 @@ function openTarefa(id){
       ${x.tempo_min?`<span><i class="ph-duotone ph-timer"></i> previsto <b>${fmtMin(x.tempo_min)}</b></span>`:''}
       ${x.responsavel?`<span><i class="ph-duotone ph-user"></i> <b>${esc(x.responsavel)}</b></span>`:''}
     </div>`;
+  /* 19/08 (Mahara): o arrastar-e-soltar no quadro travava e dava erro direto
+     no uso real, então foi eliminado — mover uma produção agora é só abrir
+     o cartão (aqui) e trocar dia/turno/hora nestes campos. */
+  h+=`<div class="lbl">Mover pra outro dia/horário</div>
+    <div class="mf2"><div class="mf"><label>Dia</label><input type="date" id="fData" value="${x.data}"></div>
+      <div class="mf"><label>Turno</label>${selTurno(x.turno||'manha')}</div></div>
+    <div class="mf"><label>Hora (opcional)</label><input type="time" id="fHora" value="${hhmm(x.hora)||''}"></div>
+    <button class="btn sec" id="bMover" type="button" style="width:100%;margin-bottom:12px"><i class="ph-duotone ph-calendar-check"></i> Salvar dia/horário</button>`;
   if(x.obs) h+=`<div class="note" style="background:#FDF0E0;color:#8A5A12"><i class="ph-duotone ph-note"></i> ${esc(x.obs)}</div>`;
   if(x.status==='andamento'){
     h+=`<div class="timer"><div class="k">em produção há</div><div class="v" id="crono">00:00</div>
@@ -981,6 +875,7 @@ function openTarefa(id){
   const bi=$('#bIni'); if(bi) bi.onclick=iniciar;
   const bf=$('#bFim'); if(bf) bf.onclick=concluir;
   const br=$('#bReab'); if(br) br.onclick=reabrir;
+  const bm=$('#bMover'); if(bm) bm.onclick=()=>moverTarefa(x);
   openSheet();
   if(x.preproducao_id) carregarReceita(x);
   if(x.status==='previsto'){
@@ -988,6 +883,20 @@ function openTarefa(id){
   }
   if(x.status==='andamento') startTick(x);
   if(x.status==='feito'&&x.preproducao_id) mostrarSimulacao(x);
+}
+/* move a produção pra outro dia/turno/hora — substitui o arrastar-e-soltar (19/08) */
+async function moverTarefa(x){
+  const data=$('#fData').value||x.data;
+  const turno=$('#fTurno').value||x.turno||'manha';
+  const hora=$('#fHora').value||null;
+  if(data===x.data && turno===(x.turno||'manha') && hora===(hhmm(x.hora)||null)){ toast('Nada mudou.'); return; }
+  const body={data, turno, hora};
+  const btn=$('#bMover'); if(btn) btn.setAttribute('disabled','');
+  try{ await patch('lola_central_cronograma?id=eq.'+x.id, body);
+    x.data=data; x.turno=turno; x.hora=hora;
+    toast('Movido pra '+DIAS_C[dow(data)]+' '+fmtDM(data)+(hora?' · '+hhmm(hora):'')+' ✓');
+    closeSheet(); render();
+  }catch(e){ toast('Erro ao mover: '+e.message); if(btn) btn.removeAttribute('disabled'); }
 }
 function startTick(x){
   clearInterval(TICK);
