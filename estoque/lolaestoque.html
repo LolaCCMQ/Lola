@@ -6549,13 +6549,15 @@ function abrirNotaEN(n){
        "CHOPEIRA ELET AMSTEL" sugeria "Amstel Ultra" (errado) — pré-preenchido, alguém
        salvaria no automático. Palpite fraco tem que exigir um clique consciente. */
     else if(!_ign){ _sug=_enSugere(desc); if(_sug && _sug.forte) insNome=_sug.ins.nome; }
-    const rw=div(null);rw.style.cssText='border:1px solid var(--rb);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:'+(_sug?'#FFFBF3':'var(--rf)')+(_sug?';border-color:#F1DFB8':'');
+    /* 19/08 (Bianca): "planilha mais minimalista" — cada item vira uma linha enxuta
+       (divisória fina, sem card gordo); só um filete âmbar à esquerda quando é sugestão. */
+    const rw=div(null);rw.style.cssText='padding:10px 8px;border-bottom:1px solid #EFE6DC;background:'+(_sug?'#FFFCF6':'#fff')+';border-left:3px solid '+(_sug?'#E0A93B':'transparent');
     const _sl='font-size:9px;font-weight:800;padding:1px 6px;border-radius:5px;text-transform:uppercase;letter-spacing:.4px';
     const selo = _ign ? '<span style="background:#FBEAE7;color:#B5302E;'+_sl+'">não entra no estoque</span>'
               : mp ? '<span style="background:#DCFCE7;color:#166534;'+_sl+'">já conhecido</span>'
               : (_sug&&_sug.forte) ? '<span style="background:#FBF0DD;color:#9A6B1E;'+_sl+'">sugestão — confira</span>'
               : '<span style="background:#F3EEE9;color:#8A7A72;'+_sl+'">não sei o que é</span>';
-    rw.innerHTML='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-weight:700;font-size:13px;color:var(--tx)">'+_envEsc(desc)+'</span>'+selo+'</div><div style="font-size:11px;color:var(--ts);margin-bottom:6px">nota: '+_enQ(q)+' '+_envEsc(un)+' · '+R(ct)+'</div>';
+    rw.innerHTML='<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-weight:700;font-size:12.5px;color:var(--tx)">'+_envEsc(desc)+'</span>'+selo+'<span style="margin-left:auto;font-size:10.5px;color:var(--ts);white-space:nowrap">'+_enQ(q)+' '+_envEsc(un)+' · '+R(ct)+'</span></div>';
     const insInp=el('input','fi',null,{placeholder:'Insumo (busque ou crie novo)',value:insNome,autocomplete:'off'});insInp.style.cssText='width:100%;margin-bottom:6px;font-size:13px';
     _enAutoComplete(insInp,{desc:desc,onNovo:function(v){ insInp.value=v; insInp.dispatchEvent(new Event('input')); insInp.focus(); }});
     /* 05/08→19/08 (Bianca): os PARECIDOS e o "cadastrar novo" saíram destes chips e foram
@@ -6572,11 +6574,11 @@ function abrirNotaEN(n){
       dica.appendChild(document.createTextNode('? (palpite fraco — só clique se for)'));
       rw.appendChild(dica);
     }
-    const fatInp=el('input','fi',null,{type:'number',step:'0.0001',value:fator,inputmode:'decimal'});fatInp.style.cssText='width:88px;text-align:center';
+    const fatInp=el('input','fi',null,{type:'number',step:'0.0001',value:fator,inputmode:'decimal'});fatInp.style.cssText='width:66px;text-align:center;font-size:12.5px';
     /* 22/07 (Bianca): unidade de medida editável na linha ("o papel toalha está em
        pacote") — corrigir aqui também corrige o cadastro do insumo ao lançar. */
     const UNS_EN=['kg','g','L','ml','un','pct','cx','fd','dz'];
-    const unSelEN=el('select','fi',null,{style:'width:80px;padding:6px 2px;font-size:12px'});
+    const unSelEN=el('select','fi',null,{style:'width:66px;padding:6px 2px;font-size:12px'});
     UNS_EN.forEach(u=>unSelEN.appendChild(el('option',null,u,{value:u})));
     let _unTocada=false;
     const calc=el('span','tss');
@@ -6604,7 +6606,7 @@ function abrirNotaEN(n){
       upd(); pintaPar();
     }
     bIgn.onclick=()=>{_ign=!_ign;paintIgn();};
-    const fl=div(null);fl.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap';
+    const fl=div(null);fl.style.cssText='display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11.5px';
     fl.appendChild(el('span','tss',['Fator']));fl.appendChild(fatInp);
     fl.appendChild(el('span','tss',['entra em']));fl.appendChild(unSelEN);
     fl.appendChild(calc);fl.appendChild(bIgn);
