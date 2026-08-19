@@ -634,7 +634,7 @@ async function carregar(){
     const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo, perdas, inv] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
-      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por,conservacao,validade_dias_resfriado,validade_dias_congelado&order=categoria,nome'),
+      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por,conservacao,validade_dias_resfriado,validade_dias_congelado,fornecedor_padrao,qtd_minima&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total,origem_tipo,origem_ref'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
@@ -1053,7 +1053,8 @@ function viewPlanilha(){
      <select id="planContSel">${contOpts}</select>
      <span style="flex:1"></span>
      <button class="chip" id="btnPlanCont" style="min-height:40px"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button>
-     <button class="chip" id="btnPlanHist" style="min-height:40px"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
+     <button class="chip" id="btnPlanHist" style="min-height:40px"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
+     <button class="chip" id="btnSugestaoPedido" style="min-height:40px;background:#2C5AA0;color:#fff;border-color:#2C5AA0"><i class="ph-duotone ph-shopping-cart"></i> Gerar sugestão de pedido</button></div>`;
   h+=`<div class="toolbar" style="flex-wrap:wrap;gap:6px">
      <button class="chip ${PLAN_TIPO==='tudo'?'on':''}" data-pt="tudo">Tudo</button>
      <button class="chip ${PLAN_TIPO==='producao'?'on':''}" data-pt="producao">Pré-preparos (${totProd})</button>
@@ -1098,6 +1099,7 @@ function wirePlanilha(){
   $$('#app [data-pt]').forEach(b=>b.onclick=()=>{ PLAN_TIPO=b.dataset.pt; render(); });
   $('#btnPlanCont')&&($('#btnPlanCont').onclick=()=>openContagemEstoque('todos'));
   $('#btnPlanHist')&&($('#btnPlanHist').onclick=()=>openContagensHist('estoque'));
+  $('#btnSugestaoPedido')&&($('#btnSugestaoPedido').onclick=abrirSugestaoPedido);
   $$('#app .pl-tbl tbody tr[data-id]').forEach(tr=>{
     const id=tr.dataset.id, tp=tr.dataset.tp;
     const nm=tr.querySelector('.pl-name'); if(nm) nm.onclick=()=>openPlanAcoes(tp,id,nm.textContent||'');
@@ -3037,6 +3039,7 @@ function openEditInsumo(id){
     <label class="iml">Unidade de custo</label>
     <div id="ediUnBtns" class="unrow" style="margin-bottom:12px">${['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u===EDIT_EUN?'on':''}">${u}</button>`).join('')}</div>
     <div class="mf"><label>Custo por unidade (R$)</label><input type="number" id="ediCusto" step="0.0001" value="${i.custo_por_unidade!=null?i.custo_por_unidade:''}"></div>
+    <div class="mf"><label>Fornecedor padrão <span style="color:var(--mut);font-weight:400">(pra agrupar a sugestão de pedido)</span></label><input type="text" id="ediForn" value="${esc(i.fornecedor_padrao||'')}" placeholder="ex.: Hortifruti São José"></div>
     <label class="iml">Como é guardado</label>
     <div id="ediConsBtns" class="unrow" style="margin-bottom:12px">${['seco','resfriado','congelado'].map(c=>`<button data-c="${c}" class="${c===EDIT_CONS?'on':''}"><i class="ph-duotone ${CONS_IC[c]}"></i> ${CONS_L[c]}</button>`).join('')}</div>
     <div id="ediValRow" style="display:flex;gap:10px">
@@ -3069,10 +3072,11 @@ async function salvarEditInsumo(){
       return;
     }
   }
+  const forn=($('#ediForn').value||'').trim()||null;
   $('#shSave').setAttribute('disabled','');
   try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, evento:EDIT_EVENTO, conservacao:cons, validade_dias_resfriado:valR, validade_dias_congelado:valC, updated_at:new Date().toISOString()})});
-    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo; i.evento=EDIT_EVENTO; i.conservacao=cons; i.validade_dias_resfriado=valR; i.validade_dias_congelado=valC;
+    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, evento:EDIT_EVENTO, conservacao:cons, validade_dias_resfriado:valR, validade_dias_congelado:valC, fornecedor_padrao:forn, updated_at:new Date().toISOString()})});
+    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo; i.evento=EDIT_EVENTO; i.conservacao=cons; i.validade_dias_resfriado=valR; i.validade_dias_congelado=valC; i.fornecedor_padrao=forn;
     buildInsumoOptions(); toast('Insumo atualizado ✓'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
@@ -3082,6 +3086,172 @@ async function fundirInsumo(fromId, toId){
     try{ await fetch(SB_URL+'/rest/v1/'+t+'?insumo_id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({insumo_id:toId})}); }catch(e){}
   }
   await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({ativo:false})});
+}
+/* ══════════════════════════════════════════════════════════
+   SUGESTÃO DE PEDIDO DE COMPRA (19/08, Mahara)
+   Sábado de manhã: olha o estoque atual + o cronograma da semana
+   seguinte (que produções estão previstas) e explode as receitas
+   até os insumos-base (recursivo, descontando o que já tem de
+   pré-preparo em estoque em cada nível), pra sugerir o que pedir,
+   quanto vale e de qual fornecedor — agrupado pra mandar o pedido.
+   Não grava nada por padrão; só a coluna "fornecedor padrão" do
+   insumo é persistida, quando editada aqui ou na ficha do insumo.
+   ══════════════════════════════════════════════════════════ */
+function addD(d,n){ const dt=new Date(d+'T12:00:00'); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
+function proximaSegunda(){ const hj=new Date().toISOString().slice(0,10); const wd=new Date(hj+'T12:00:00').getDay();
+  const diff=(8-wd)%7||7; return addD(hj,diff); }
+let SUG_INI=null, SUG_FIM=null, SUG_DADOS=null, SUG_FORN_AUTO={};
+function abrirSugestaoPedido(){
+  SUG_INI=SUG_INI||proximaSegunda(); SUG_FIM=SUG_FIM||addD(SUG_INI,5);
+  const bg=document.createElement('div'); bg.id='sugBg';
+  bg.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
+  const mo=document.createElement('div'); mo.id='sugMo';
+  mo.style.cssText='background:var(--creme);border-radius:16px;max-width:980px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.2)';
+  mo.addEventListener('click',e=>e.stopPropagation());
+  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
+  mo.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card)">
+      <div style="flex:1;min-width:0"><div style="font-family:Fraunces,serif;font-size:18px;font-weight:600;color:var(--vinho);line-height:1.1"><i class="ph-duotone ph-shopping-cart"></i> Sugestão de pedido de compra</div>
+      <div style="font-size:11.5px;color:var(--mut);margin-top:2px">Estoque atual × produções previstas no cronograma da semana escolhida</div></div>
+      <button id="sugX" style="width:32px;height:32px;border-radius:9px;background:var(--card);border:1px solid var(--border);color:var(--sec);font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:14px 16px" id="sugBody">
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><div class="mf" style="flex:1;min-width:140px"><label>Semana — segunda</label><input type="date" id="sugDataIni" value="${SUG_INI}"></div>
+        <div class="mf" style="flex:1;min-width:140px"><label>até sábado</label><input type="date" id="sugDataFim" value="${SUG_FIM}"></div></div>
+      <button class="btn" id="sugGerar" style="width:100%;margin-top:6px"><i class="ph-duotone ph-magic-wand"></i> Gerar sugestão</button>
+      <div id="sugResult" style="margin-top:14px"></div>
+    </div>`;
+  bg.appendChild(mo); document.body.appendChild(bg);
+  $('#sugX').onclick=()=>bg.remove();
+  $('#sugDataIni').onchange=()=>{ SUG_INI=$('#sugDataIni').value; };
+  $('#sugDataFim').onchange=()=>{ SUG_FIM=$('#sugDataFim').value; };
+  $('#sugGerar').onclick=gerarSugestaoPedido;
+  if(SUG_DADOS) renderSugestaoPedido(SUG_DADOS);
+}
+/* soma tudo que a semana pede de um preproducao_id (várias entradas/dias somam) */
+function agrupaNecessidadeSemana(agenda){
+  const porPP={};
+  agenda.forEach(x=>{
+    if(!x.preproducao_id) return;
+    if(x.status==='cancelado') return;
+    const r=ST.recById2[x.preproducao_id]; const un=x.unidade||(r&&r.rendimento_un)||'un';
+    const g=(porPP[x.preproducao_id]=porPP[x.preproducao_id]||{qtd:0,unidade:un});
+    const c1=conv(+x.qtd_prevista||0,un), c2=conv(g.qtd,g.unidade);
+    if(g.qtd===0){ g.qtd=+x.qtd_prevista||0; g.unidade=un; }
+    else if(c1.u===c2.u){ g.qtd=c2.q+c1.q; g.unidade=c1.u; }
+    else { g.qtd+=(+x.qtd_prevista||0); } // unidades incompatíveis: soma ingênua, sinaliza depois
+  });
+  return porPP;
+}
+/* explode recursivamente uma necessidade de pré-preparo até insumos-base,
+   descontando em cada nível o que já existe em estoque daquele pré-preparo */
+function explodeNecessidade(ppId, qtdNec, unidade, itensPorPP, necInsumo, semReceita, visitado){
+  visitado=visitado||new Set(); if(visitado.has(ppId)) return; visitado=new Set(visitado); visitado.add(ppId);
+  const itens=itensPorPP[ppId]; const r=ST.recById2[ppId];
+  if(!itens||!itens.length){ if(r) semReceita.add(r.nome||ppId); return; }
+  const rendQ=+((r||{}).rendimento_qtd)||0, rendU=(r||{}).rendimento_un||'un';
+  let fator=1;
+  if(rendQ>0){ const qb=conv(qtdNec,unidade), rb=conv(rendQ,rendU);
+    fator = (qb.u===rb.u) ? qb.q/rb.q : qtdNec/rendQ; }
+  itens.forEach(it=>{
+    const qtdItem=((it.qtd_bruta!=null?+it.qtd_bruta:+it.qtd_liquida)||0)*fator;
+    if(qtdItem<=0) return;
+    if(it.insumo_id){
+      const ins=ST.byId[it.insumo_id]; if(!ins) return;
+      const qc=qtdCusto(qtdItem, it.unidade, ins);
+      necInsumo[it.insumo_id]=(necInsumo[it.insumo_id]||0)+qc;
+    } else if(it.sub_preproducao_id){
+      const sub=ST.saldo[it.sub_preproducao_id]; const estoqueSub=sub?(+sub.saldo||0):0;
+      let estoqueNaUnidade=estoqueSub;
+      if(sub&&sub.unidade&&it.unidade){ const a=conv(estoqueSub,sub.unidade), b=conv(1,it.unidade); if(a.u===b.u) estoqueNaUnidade=a.q/b.q; }
+      const faltante=Math.max(0, qtdItem-estoqueNaUnidade);
+      if(faltante>0) explodeNecessidade(it.sub_preproducao_id, faltante, it.unidade, itensPorPP, necInsumo, semReceita, visitado);
+    }
+  });
+}
+async function gerarSugestaoPedido(){
+  const ini=$('#sugDataIni').value, fim=$('#sugDataFim').value;
+  if(!ini||!fim||fim<ini){ toast('Confira as datas da semana.'); return; }
+  SUG_INI=ini; SUG_FIM=fim;
+  const box=$('#sugResult'); box.innerHTML='<div class="spin"></div>';
+  const btn=$('#sugGerar'); btn.setAttribute('disabled','');
+  try{
+    ST.recById2={}; (ST.receitas||[]).forEach(r=>ST.recById2[r.id]=r);
+    const [agenda, itensAll, fornAuto]=await Promise.all([
+      api('lola_central_cronograma?select=data,preproducao_id,item_nome,qtd_prevista,unidade,status&data=gte.'+ini+'&data=lte.'+fim),
+      api('lola_preproducoes_itens?select=preproducao_id,insumo_id,sub_preproducao_id,nome_manual,unidade,qtd_bruta,qtd_liquida,fc'),
+      api('rpc/central_ultimo_fornecedor').catch(()=>[])
+    ]);
+    SUG_FORN_AUTO={}; (fornAuto||[]).forEach(f=>{ if(f.insumo_id) SUG_FORN_AUTO[f.insumo_id]=f.fornecedor; });
+    const itensPorPP={}; (itensAll||[]).forEach(it=>{ (itensPorPP[it.preproducao_id]=itensPorPP[it.preproducao_id]||[]).push(it); });
+    const porPP=agrupaNecessidadeSemana(agenda||[]);
+    const necInsumo={}, semReceita=new Set();
+    Object.keys(porPP).forEach(ppId=>explodeNecessidade(ppId, porPP[ppId].qtd, porPP[ppId].unidade, itensPorPP, necInsumo, semReceita));
+    const rows=[];
+    Object.keys(necInsumo).forEach(insId=>{
+      const ins=ST.byId[insId]; if(!ins) return;
+      const necessidade=necInsumo[insId];
+      const estoqueAtual=(ST.movs||[]).reduce((s,m)=>s+(m.insumo_id===insId?(+m.qtd||0):0),0);
+      const aPedir=Math.max(0, necessidade-estoqueAtual);
+      const custoUnit=+ins.custo_por_unidade||0;
+      const fornecedor=ins.fornecedor_padrao||SUG_FORN_AUTO[insId]||'';
+      const obs=[];
+      if(!fornecedor && aPedir>0) obs.push('sem fornecedor definido');
+      if(estoqueAtual<0) obs.push('estoque atual negativo — confira a contagem');
+      if(ins.qtd_minima!=null && estoqueAtual<+ins.qtd_minima && aPedir<=0) obs.push('abaixo do mínimo ('+num(ins.qtd_minima)+' '+esc(ins.unidade_custo||'')+')');
+      rows.push({id:insId, nome:ins.nome, categoria:ins.categoria, un:ins.unidade_custo||'un', necessidade, estoqueAtual, aPedir, custoUnit, fornecedor, obs, semFornecedorAuto:!ins.fornecedor_padrao&&!!SUG_FORN_AUTO[insId]});
+    });
+    SUG_DADOS={rows, semReceita:[...semReceita], ini, fim};
+    renderSugestaoPedido(SUG_DADOS);
+  }catch(e){ box.innerHTML='<div class="note">Erro ao gerar: '+esc(e.message)+'</div>'; }
+  btn.removeAttribute('disabled');
+}
+function renderSugestaoPedido(dados){
+  const box=$('#sugResult'); if(!box) return;
+  const {rows, semReceita}=dados;
+  const pedir=rows.filter(r=>r.aPedir>0.0009).sort((a,b)=>(a.fornecedor||'zzz').localeCompare(b.fornecedor||'zzz','pt')||a.nome.localeCompare(b.nome,'pt'));
+  const suprido=rows.filter(r=>r.aPedir<=0.0009);
+  if(!rows.length){ box.innerHTML='<div class="empty"><i class="ph-duotone ph-calendar-blank"></i>Não achei nenhuma produção com receita prevista pra essa semana no cronograma. Gere a semana no Cronograma primeiro.</div>'; return; }
+  let h='';
+  if(semReceita.length) h+=`<div class="note" style="background:#FDF0E0;color:#8A5A12;margin-bottom:10px"><i class="ph-duotone ph-warning"></i> Sem receita/ingredientes cadastrados: <b>${semReceita.map(esc).join(', ')}</b> — não entraram no cálculo.</div>`;
+  if(!pedir.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>O estoque atual já cobre tudo que a semana precisa — nada a pedir.</div>`; box.innerHTML=h; return; }
+  const grupos={}; pedir.forEach(r=>{ const k=r.fornecedor||'— Sem fornecedor definido —'; (grupos[k]=grupos[k]||[]).push(r); });
+  const totalGeral=pedir.reduce((s,r)=>s+r.aPedir*r.custoUnit,0);
+  h+=`<div class="pl-kpi" style="margin-bottom:10px"><div><b>${pedir.length}</b><span>itens a pedir</span></div><div><b>${Object.keys(grupos).length}</b><span>fornecedores</span></div><div><b style="color:var(--vinho)">${brl(totalGeral)}</b><span>total estimado</span></div></div>`;
+  Object.keys(grupos).sort((a,b)=>a.localeCompare(b,'pt')).forEach(forn=>{
+    const itens=grupos[forn]; const totFor=itens.reduce((s,r)=>s+r.aPedir*r.custoUnit,0);
+    h+=`<div class="pl-wrap" style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--cremeDark);border-bottom:1px solid var(--border)">
+        <b style="font-family:Fraunces,serif;font-size:14.5px;color:var(--vinho)">${esc(forn)}</b>
+        <span style="font-size:11.5px;color:var(--mut)">${itens.length} ${itens.length===1?'item':'itens'} · ${brl(totFor)}</span>
+        <span class="sp" style="flex:1"></span>
+        <button class="chip sug-copiar" data-forn="${esc(forn)}" style="min-height:32px;font-size:11.5px"><i class="ph-duotone ph-copy"></i> Copiar pedido</button></div>
+      <table class="pl-tbl"><thead><tr>
+        <th class="pl-item" style="text-align:left">Item</th><th>Un</th><th>Estoque</th><th>Necessário</th><th>A pedir</th><th>Valor</th><th style="text-align:left">Observação</th>
+      </tr></thead><tbody>`+
+      itens.map(r=>`<tr data-sug="${r.id}">
+        <td class="pl-item"><span class="pl-name" style="cursor:default">${esc(r.nome)}</span></td>
+        <td class="pl-un">${esc(r.un)}</td>
+        <td>${num(r.estoqueAtual)}</td>
+        <td>${num(r.necessidade)}</td>
+        <td><input type="number" class="sug-qtd" data-id="${r.id}" step="0.001" min="0" value="${+r.aPedir.toFixed(3)}" style="width:78px;padding:4px 6px;border:1px solid var(--border);border-radius:7px;font:inherit"></td>
+        <td class="sug-valor" data-id="${r.id}">${brl(r.aPedir*r.custoUnit)}</td>
+        <td style="text-align:left;font-size:11px;color:${r.obs.length?'var(--urgFg)':'var(--mut)'}">${r.obs.map(esc).join(' · ')||'—'}</td>
+      </tr>`).join('')+
+      `</tbody></table></div>`;
+  });
+  if(suprido.length) h+=`<div class="note"><i class="ph-duotone ph-info"></i> ${suprido.length} insumo${suprido.length===1?'':'s'} usados na semana já ${suprido.length===1?'está':'estão'} cobertos pelo estoque atual — não entraram na lista acima.</div>`;
+  box.innerHTML=h;
+  $$('.sug-qtd').forEach(inp=>inp.oninput=()=>{
+    const id=inp.dataset.id, r=rows.find(x=>x.id===id); if(!r) return;
+    r.aPedir=+inp.value||0;
+    const vEl=box.querySelector('.sug-valor[data-id="'+id+'"]'); if(vEl) vEl.textContent=brl(r.aPedir*r.custoUnit);
+  });
+  $$('.sug-copiar').forEach(b=>b.onclick=()=>{
+    const forn=b.dataset.forn; const itens=(SUG_DADOS.rows||[]).filter(r=>(r.fornecedor||'— Sem fornecedor definido —')===forn && r.aPedir>0.0009);
+    const txt='Pedido — '+forn+' ('+fmtData(SUG_DADOS.ini)+' a '+fmtData(SUG_DADOS.fim)+')\n\n'+
+      itens.map(r=>'• '+r.nome+' — '+num(r.aPedir)+' '+r.un).join('\n')+
+      '\n\nTotal estimado: '+brl(itens.reduce((s,r)=>s+r.aPedir*r.custoUnit,0));
+    navigator.clipboard.writeText(txt).then(()=>toast('Pedido de "'+forn+'" copiado ✓')).catch(()=>toast('Não consegui copiar — selecione manualmente.'));
+  });
 }
 /* ══════════════════════════════════════════════════════════
    FICHA DO INSUMO — a mesma do app do Estoque.
