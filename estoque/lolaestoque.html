@@ -6743,67 +6743,90 @@ async function modalFecharPrecosEN(mes){
   mkModal('📅 Fechamento de preços do mês',[wrap],null,'mo mol');
   carrega();
 }
+/* 19/08 (Bianca): entrada manual com VÁRIOS itens e os mesmos parâmetros da nota XML
+   (insumo com dropdown, quantidade, fator de correção, unidade que entra, valor) + um
+   fornecedor/obs que vale pra todos. Cada item vira um movimento de entrada no CCMQ. */
 function modalEntradaManualEN(){
   if(!EN||!EN.insumos){ alert('Abra a tela de Entrada de Notas primeiro.'); return; }
   const wrap=div(null);
-  const insInp=el('input','fi',null,{placeholder:'Insumo (busque ou crie novo)',autocomplete:'off'});
-  _enAutoComplete(insInp);
-  const novoBox=div(null);novoBox.style.cssText='display:none;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center';
-  const catSel=el('select','fi',null,{style:'flex:1;min-width:130px;font-size:12px'});EN_CATS.forEach(cc=>catSel.appendChild(el('option',null,cc,{value:cc})));
-  const unInp=el('input','fi',null,{placeholder:'un. uso (kg, L, un…)',value:'kg'});unInp.style.cssText='width:130px;font-size:12px';
-  novoBox.appendChild(el('span','tss',['🆕 novo:']));novoBox.appendChild(catSel);novoBox.appendChild(unInp);
-  const qtdInp=el('input','fi',null,{type:'number',step:'0.001',inputmode:'decimal',placeholder:'Qtd'});
-  const unLbl=el('span',null,'—',{style:'font-size:12.5px;font-weight:800;color:var(--tx);min-width:34px'});
-  const valInp=el('input','fi',null,{type:'number',step:'0.01',inputmode:'decimal',placeholder:'opcional'});
+  const rows=[];
   const dataInp=el('input','fi',null,{type:'date',value:TD()});
-  const obsInp=el('input','fi',null,{placeholder:'Fornecedor / observação (opcional)'});
-  const calc=el('div','tss',null,{style:'margin-top:8px'});
-  function upd(){
-    const m=EN.insByName[_jnorm(insInp.value)];
-    const isNew=insInp.value.trim()&&!m;
-    novoBox.style.display=isNew?'flex':'none';
-    const unUso=m?(m.unidade_custo||'un'):(unInp.value||'un');
-    unLbl.textContent=unUso;
-    const q=+qtdInp.value||0, v=+valInp.value||0;
-    calc.innerHTML=(q>0)?('→ entra <b style="color:var(--v)">'+_enQ(q)+' '+_envEsc(unUso)+'</b>'+(v>0?(' · '+R(v/q)+'/'+_envEsc(unUso)+' <small>(guardado pro fechamento do mês)</small>'):' · sem valor informado')):'—';
+  const obsInp=el('input','fi',null,{placeholder:'Fornecedor / observação (vale pra todos os itens)'});
+  const list=div(null); list.style.cssText='border:1px solid var(--rb);border-radius:12px;overflow:hidden;margin-top:6px';
+  const UNS_EN=['kg','g','L','ml','un','pct','cx','fd','dz'];
+  function mkRow(){
+    const rw=div(null); rw.style.cssText='padding:10px 8px;border-bottom:1px solid #EFE6DC;background:#fff';
+    const insInp=el('input','fi',null,{placeholder:'Insumo (busque ou crie novo)',autocomplete:'off'}); insInp.style.cssText='width:100%;margin-bottom:6px;font-size:13px';
+    _enAutoComplete(insInp,{desc:'',onNovo:function(v){ insInp.value=v; insInp.dispatchEvent(new Event('input')); insInp.focus(); }});
+    const qtdInp=el('input','fi',null,{type:'number',step:'0.0001',inputmode:'decimal',placeholder:'Qtd'}); qtdInp.style.cssText='width:70px;text-align:right;font-size:12.5px';
+    const unCompra=el('input','fi',null,{placeholder:'un',value:''}); unCompra.style.cssText='width:52px;text-align:center;font-size:12px';
+    const fatInp=el('input','fi',null,{type:'number',step:'0.0001',value:1,inputmode:'decimal'}); fatInp.style.cssText='width:64px;text-align:center;font-size:12.5px';
+    const unSelEN=el('select','fi',null,{style:'width:66px;padding:6px 2px;font-size:12px'}); UNS_EN.forEach(u=>unSelEN.appendChild(el('option',null,u,{value:u})));
+    const valInp=el('input','fi',null,{type:'number',step:'0.01',inputmode:'decimal',placeholder:'R$ opc'}); valInp.style.cssText='width:86px;text-align:right;font-size:12.5px';
+    const calc=el('span','tss');
+    const novoBox=div(null); novoBox.style.cssText='display:none;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center';
+    const catSel=el('select','fi',null,{style:'flex:1;min-width:130px;font-size:12px'}); EN_CATS.forEach(cc=>catSel.appendChild(el('option',null,cc,{value:cc})));
+    const unInpNovo=el('input','fi',null,{placeholder:'un. uso',value:'kg'}); unInpNovo.style.cssText='width:110px;font-size:12px';
+    novoBox.appendChild(el('span','tss',['🆕 novo:']));novoBox.appendChild(catSel);novoBox.appendChild(unInpNovo);
+    let _unTocada=false;
+    function upd(){
+      const m=EN.insByName[_jnorm(insInp.value)]; const isNew=insInp.value.trim()&&!m;
+      novoBox.style.display=isNew?'flex':'none';
+      if(!_unTocada){ let alvo=String(m?(m.unidade_custo||'un'):(unInpNovo.value||'un')).trim().toLowerCase(); if(alvo==='l')alvo='L'; if(UNS_EN.includes(alvo))unSelEN.value=alvo; }
+      const q=+qtdInp.value||0, f=+fatInp.value||0, qu=q*f, v=+valInp.value||0;
+      const unUso=unSelEN.value||(m?(m.unidade_custo||'un'):(unInpNovo.value||'un'));
+      calc.innerHTML=(qu>0)?('→ entra <b style="color:var(--v)">'+_enQ(qu)+' '+_envEsc(unUso)+'</b>'+(v>0?(' · '+R(v/qu)+'/'+_envEsc(unUso)):'')):'—';
+    }
+    insInp.oninput=upd; qtdInp.oninput=upd; fatInp.oninput=upd; valInp.oninput=upd; unInpNovo.oninput=upd;
+    unSelEN.onchange=()=>{_unTocada=true;upd();};
+    const del=document.createElement('button'); del.type='button'; del.innerHTML='🗑'; del.title='Remover item'; del.style.cssText='border:0;background:none;color:#B0928A;cursor:pointer;font-size:15px;margin-left:auto';
+    const fl=div(null); fl.style.cssText='display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11.5px';
+    fl.appendChild(el('span','tss',['Qtd'])); fl.appendChild(qtdInp); fl.appendChild(unCompra);
+    fl.appendChild(el('span','tss',['Fator'])); fl.appendChild(fatInp);
+    fl.appendChild(el('span','tss',['entra em'])); fl.appendChild(unSelEN);
+    fl.appendChild(el('span','tss',['R$'])); fl.appendChild(valInp);
+    fl.appendChild(del);
+    rw.appendChild(insInp); rw.appendChild(fl); rw.appendChild(calc); rw.appendChild(novoBox);
+    const rec={insInp,qtdInp,unCompra,fatInp,unSelEN,valInp,catSel,unInpNovo,unTocada:()=>_unTocada};
+    del.onclick=()=>{ const idx=rows.indexOf(rec); if(idx>=0)rows.splice(idx,1); rw.remove(); if(!rows.length)addRow(); };
+    rows.push(rec); upd();
+    return rw;
   }
-  insInp.oninput=upd;qtdInp.oninput=upd;valInp.oninput=upd;unInp.oninput=upd;
-  upd();
+  function addRow(){ list.appendChild(mkRow()); }
+  const bAdd=btn('btn bo bsm','+ adicionar item',()=>addRow()); bAdd.style.cssText='margin-top:10px;font-weight:700';
   const bSave=btn('btn bp','✓ Lançar entrada manual',async()=>{
-    const nome=insInp.value.trim();
-    if(!nome){alert('Diga qual é o insumo.');insInp.focus();return;}
-    const q=+qtdInp.value||0;
-    if(!(q>0)){alert('Quantidade inválida.');qtdInp.focus();return;}
-    const v=+valInp.value||0;
-    if(!confirm('Lançar '+_enQ(q)+' no estoque do CCMQ'+(v>0?(' por '+R(v)):'')+'?'))return;
+    const forn=obsInp.value.trim();
+    const ativos=rows.filter(r=>r.insInp.value.trim());
+    if(!ativos.length){alert('Adicione ao menos 1 item (insumo).');return;}
+    for(const r of ativos){ if(!(+r.qtdInp.value>0)){alert('Quantidade inválida em: '+(r.insInp.value||'item'));r.qtdInp.focus();return;} if(!(+r.fatInp.value>0)){alert('Fator inválido em: '+r.insInp.value);return;} }
+    if(!confirm('Lançar '+ativos.length+' item(ns) no estoque do CCMQ'+(forn?(' — '+forn):'')+'?'))return;
     bSave.disabled=true;bSave.textContent='Lançando...';
     try{
-      let ins=EN.insByName[_jnorm(nome)];
-      if(!ins){
-        const novo=await db('lola_insumos','POST',{nome:nome,categoria:catSel.value,unidade_compra:(unInp.value||'un'),unidade_custo:(unInp.value||'un'),custo_por_unidade:0,destinos:['ccmq'],ativo:true});
-        ins=Array.isArray(novo)?novo[0]:novo;EN.insByName[_jnorm(ins.nome)]=ins;EN.insById[ins.id]=ins;EN.insumos.push(ins);
+      const data=dataInp.value||TD();
+      for(const r of ativos){
+        let ins=EN.insByName[_jnorm(r.insInp.value)];
+        if(!ins){
+          const novo=await db('lola_insumos','POST',{nome:r.insInp.value.trim(),categoria:r.catSel.value,unidade_compra:(r.unCompra.value||r.unInpNovo.value||'un'),unidade_custo:(r.unInpNovo.value||r.unCompra.value||'un'),custo_por_unidade:0,destinos:['ccmq'],ativo:true});
+          ins=Array.isArray(novo)?novo[0]:novo;EN.insByName[_jnorm(ins.nome)]=ins;EN.insById[ins.id]=ins;EN.insumos.push(ins);
+        }
+        if(r.unTocada&&r.unTocada()&&r.unSelEN.value&&ins.unidade_custo!==r.unSelEN.value){ await db('lola_insumos','PATCH',{unidade_custo:r.unSelEN.value},'?id=eq.'+ins.id); ins.unidade_custo=r.unSelEN.value; }
+        const q=+r.qtdInp.value||0, f=+r.fatInp.value||1, qu=q*f, v=+r.valInp.value||0, cu=qu>0?v/qu:0;
+        const unUso=(r.unSelEN.value)||ins.unidade_custo||'un';
+        await db('lola_ccmq_estoque_mov','POST',{insumo_id:ins.id,tipo:'entrada',qtd:qu,unidade:unUso,custo_unit:cu,custo_total:(v||null),origem_tipo:'manual',origem_ref:(forn||null),data:data,criado_por:ME||null});
+        /* 22/07: preço do insumo NÃO muda na entrada — só no fechamento do mês (média). */
       }
-      const unUso=ins.unidade_custo||unInp.value||'un';
-      const cu=v>0?v/q:0;
-      await db('lola_ccmq_estoque_mov','POST',{insumo_id:ins.id,tipo:'entrada',qtd:q,unidade:unUso,custo_unit:cu,custo_total:(v||null),origem_tipo:'manual',origem_ref:(obsInp.value.trim()||null),data:(dataInp.value||TD()),criado_por:ME||null});
-      /* 22/07: preço do insumo NÃO muda na entrada — só no fechamento do mês (média). */
       document.querySelectorAll('.ov').forEach(o=>o.remove());
-      alert('✓ Entrada lançada no estoque do CCMQ.');
+      alert('✓ '+ativos.length+' entrada(s) lançada(s) no estoque do CCMQ.');
     }catch(e){ alert('Erro: '+e.message); bSave.disabled=false; bSave.textContent='✓ Lançar entrada manual'; }
   });
   bSave.style.cssText='width:100%;margin-top:12px;padding:13px;font-weight:800;font-size:14px';
-  wrap.appendChild(fgrp('Insumo',insInp));
-  wrap.appendChild(novoBox);
-  wrap.appendChild(el('div',null,null,{style:'height:10px'}));
-  wrap.appendChild(div('fg2',[
-    fgrp('Quantidade (na unidade de uso)',div(null,[qtdInp,unLbl],{style:'display:flex;gap:8px;align-items:center'})),
-    fgrp('Valor total pago (R$)',valInp)
-  ]));
-  wrap.appendChild(el('div',null,null,{style:'height:10px'}));
-  wrap.appendChild(div('fg2',[fgrp('Data',dataInp),fgrp('Fornecedor / obs.',obsInp)]));
-  wrap.appendChild(calc);
+  wrap.appendChild(div('fg2',[fgrp('Fornecedor / obs.',obsInp),fgrp('Data',dataInp)]));
+  wrap.appendChild(el('div',null,['Itens'],{style:'font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl,#B79A8E);font-weight:800;margin:14px 0 0'}));
+  wrap.appendChild(list);
+  wrap.appendChild(bAdd);
   wrap.appendChild(bSave);
-  mkModal('➕ Entrada manual — estoque CCMQ',[wrap],null,'mo mol');
+  addRow();
+  mkModal('➕ Entrada manual — estoque CCMQ',[wrap],null,'mo moxl');
 }
 /* ═════════ 19/07 · PEDIDOS UNIFICADA (Bianca): "deve ser exatamente integrado ao
    PEDIDOS A CENTRAL - mas renomeado PEDIDOS - e de lá, além de pedidos a central
