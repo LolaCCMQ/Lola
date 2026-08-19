@@ -2231,6 +2231,35 @@ function renderDRE(){
   el.innerHTML=html;
 }
 /* ========================= RELATÓRIO (por competência + plano de contas) ========================= */
+/* 19/08 (Bianca): REGIME DE COMPETÊNCIA (aditivo). A nota é despesa da competência da
+   sua EMISSÃO, paga ou não. Aqui trazemos as notas emitidas no mês que ainda NÃO têm
+   pagamento conciliado (as pagas já entram pelo lançamento). Categoria: aprende pelo
+   histórico do MESMO fornecedor (notas já conciliadas); senão regra por nome; senão fica
+   "a classificar". NÃO altera nenhum lançamento existente — só soma o que faltava. */
+function _emitKey(s){ return normSearch(s||''); }
+function notaCatMemory(){
+  const m={};
+  (ST.notas||[]).forEach(n=>{
+    if(!n.emitente) return;
+    const cat=pagsDaNota(n.chave).map(id=>ST.lanc.find(l=>String(l.id)===String(id))).filter(Boolean).map(l=>l.category).find(Boolean);
+    if(cat){ const k=_emitKey(n.emitente); if(!m[k]) m[k]=cat; }
+  });
+  return m;
+}
+function relNotasAccrual(comp){
+  const mem=notaCatMemory(); const out=[];
+  (ST.notas||[]).forEach(n=>{
+    const mesN=(n.data_emissao||'').slice(0,7); if(!mesN) return;
+    if(comp!=='todas' && mesN!==comp) return;
+    if(pagsDaNota(n.chave).length) return;             // já tem pagamento -> conta pelo lançamento
+    if(n.xml_motivo==='nfe_cancelada') return;         // nota cancelada não é despesa
+    const val=+n.valor_total||0; if(!(val>0)) return;
+    const cat = mem[_emitKey(n.emitente)] || applyRules(n.emitente||'') || null;
+    out.push({ id:'nota:'+n.chave, chave:n.chave, memo:(n.emitente||('Nota '+(n.numero||''))),
+               date:n.data_emissao, amount:-val, competencia:mesN, category:cat, _nota:true });
+  });
+  return out;
+}
 function relData(){
   const comp=ST.relComp||ST.comp;
   const base=ST.lanc.filter(l=>!isNeutro(l) && (comp==='todas'||l.competencia===comp));
@@ -2239,10 +2268,19 @@ function relData(){
   const pendTot=pend.reduce((s,l)=>s+ +l.amount,0);
   const scope=ST.relSoConc ? base.filter(l=>l.conciliado || !l.category) : base;
   const byCat={}; scope.forEach(l=>{ const k=l.category||'__none'; (byCat[k]=byCat[k]||[]).push(l); });
-  return {comp, byCat, pendN:pend.length, pendTot};
+  const accrual=relNotasAccrual(comp);
+  accrual.forEach(it=>{ const k=it.category||'__none'; (byCat[k]=byCat[k]||[]).push(it); });
+  return {comp, byCat, pendN:pend.length, pendTot, accrualN:accrual.length, accrualTot:accrual.reduce((s,l)=>s+ +l.amount,0)};
+}
+function verNotaAccrual(chave){
+  const n=notaObj(chave); if(!n){ if(typeof toast==='function')toast('Nota não encontrada'); return; }
+  openSheet(`<h3>${esc(n.emitente||('Nota '+(n.numero||'')))}</h3>
+    <div class="hint">Emitida em ${fmtDate(n.data_emissao)} · ${brl(-(+n.valor_total||0))} · competência ${compLabel((n.data_emissao||'').slice(0,7))}</div>
+    <div class="note" style="font-size:12.5px">Esta nota entra na despesa <b>por competência</b> (mês da emissão) mesmo sem pagamento. Quando você <b>conciliar o pagamento</b> na aba Lançamentos, ela passa a contar pelo lançamento e sai desta linha automaticamente.</div>
+    <div style="margin-top:12px"><button class="btn" onclick="closeSheet()">Fechar</button></div>`);
 }
 function renderRelatorio(){
-  const {comp,byCat,pendN,pendTot}=relData();
+  const {comp,byCat,pendN,pendTot,accrualN,accrualTot}=relData();
   const q=normSearch(ST.relSearch||'');
   ST.relExp=ST.relExp||new Set();
   let html=''; let grandR=0,grandD=0;
@@ -2250,6 +2288,11 @@ function renderRelatorio(){
     html+=`<div class="note" style="background:var(--amberBg);color:var(--amber);display:flex;align-items:center;gap:8px;cursor:pointer" id="relPendBanner">
       <i class="ph-duotone ph-warning-circle" style="font-size:20px"></i>
       <span style="flex:1"><b>${pendN} lançamento(s)</b> com categoria ainda não conciliados (${brl(pendTot)}) — <b>não entram</b> neste fechamento. Toque para conferir na aba Lançamentos.</span></div>`;
+  }
+  if(accrualN){
+    html+=`<div class="note" style="background:#FBF7EE;color:#9A6B1E;display:flex;align-items:center;gap:8px">
+      <i class="ph-duotone ph-receipt" style="font-size:20px"></i>
+      <span style="flex:1"><b>${accrualN} nota(s)</b> sem pagamento entraram por <b>competência</b> (${brl(accrualTot)}). Ao conciliar o pagamento, cada uma passa a contar pelo lançamento.</span></div>`;
   }
   GRUPOS.forEach(g=>{
     const cats=ST.plano.filter(p=>p.group_id===g.id).filter(c=>!q||normSearch(c.label).includes(q));
@@ -2267,7 +2310,7 @@ function renderRelatorio(){
           <div class="amt ${tot<0?'neg':'pos'}">${brl(tot)}</div>
           <i class="ph-duotone ph-caret-${exp?'up':'down'}" style="margin-left:8px;color:var(--mut)"></i>
         </div>
-        ${exp?`<div style="border-top:1px solid var(--fio);margin-top:8px;padding-top:6px">${r.items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(l=>`<div class="relrow" data-relanc="${l.id}" style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;font-size:12.5px;border-bottom:1px solid var(--fio);cursor:pointer"><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div><div class="date" style="font-size:11px">${fmtDate(l.date)} · ${compLabel(l.competencia)}</div>${l.note?`<div style="font-size:11.5px;color:var(--amber);background:var(--amberBg);border-radius:8px;padding:4px 8px;margin-top:5px;white-space:normal"><i class="ph-duotone ph-note-pencil"></i> ${esc(l.note)}</div>`:''}</div><div style="display:flex;align-items:center;gap:8px"><div class="amt ${+l.amount<0?'neg':'pos'}" style="font-size:12.5px">${brl(+l.amount)}</div><i class="ph-duotone ph-pencil-simple" style="color:var(--mut)"></i></div></div>`).join('')}<div class="note" style="font-size:11px;margin:8px 0 0">Toque num lançamento para editar competência, valor, categoria…</div></div>`:''}
+        ${exp?`<div style="border-top:1px solid var(--fio);margin-top:8px;padding-top:6px">${r.items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(l=>`<div class="relrow" data-relanc="${l.id}" style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;font-size:12.5px;border-bottom:1px solid var(--fio);cursor:pointer"><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div><div class="date" style="font-size:11px">${fmtDate(l.date)} · ${compLabel(l.competencia)}${l._nota?' · <span style="color:#9A6B1E;font-weight:700">📄 nota sem pagamento</span>':''}</div>${l.note?`<div style="font-size:11.5px;color:var(--amber);background:var(--amberBg);border-radius:8px;padding:4px 8px;margin-top:5px;white-space:normal"><i class="ph-duotone ph-note-pencil"></i> ${esc(l.note)}</div>`:''}</div><div style="display:flex;align-items:center;gap:8px"><div class="amt ${+l.amount<0?'neg':'pos'}" style="font-size:12.5px">${brl(+l.amount)}</div>${l._nota?'<i class="ph-duotone ph-receipt" style="color:#9A6B1E"></i>':'<i class="ph-duotone ph-pencil-simple" style="color:var(--mut)"></i>'}</div></div>`).join('')}<div class="note" style="font-size:11px;margin:8px 0 0">Toque num lançamento para editar competência, valor, categoria…</div></div>`:''}
       </div>`;
     });
   });
@@ -2278,7 +2321,7 @@ function renderRelatorio(){
   const head=`<div class="sum" style="margin-bottom:12px"><div><div class="v" style="color:var(--pos)">${brl(grandR)}</div><div class="k">Receitas</div></div><div><div class="v" style="color:var(--neg)">${brl(grandD)}</div><div class="k">Despesas</div></div><div><div class="v">${brl(grandR+grandD)}</div><div class="k">Resultado</div></div></div>`;
   $('#relBody').innerHTML=head+(html||'<div class="empty"><i class="ph-duotone ph-list-magnifying-glass"></i>Nada nesta competência.</div>');
   $$('#relBody [data-rel]').forEach(b=>b.onclick=()=>{const k=b.dataset.rel;ST.relExp.has(k)?ST.relExp.delete(k):ST.relExp.add(k);renderRelatorio();});
-  $$('#relBody [data-relanc]').forEach(b=>b.onclick=e=>{e.stopPropagation();openEdit(b.dataset.relanc);});
+  $$('#relBody [data-relanc]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.relanc;if(String(id).indexOf('nota:')===0){verNotaAccrual(id.slice(5));}else{openEdit(id);}});
   { const pb=$('#relPendBanner'); if(pb) pb.onclick=()=>{ // vai conferir os pendentes na aba Lançamentos
       ST.lancComp=comp==='todas'?'todas':comp; ST.statusF='naoconc';
       $('#compSel').value=ST.lancComp;
@@ -2315,13 +2358,13 @@ function printRelatorioDetalhado(){
     cats.forEach(r=>{ const tot=r.items.reduce((a,l)=>a+ +l.amount,0); if(tot>0)grandR+=tot;else grandD+=tot;
       rows+=`<tr style="font-weight:700"><td colspan="2" style="padding-left:14px">${esc(r.c.label)} <span style="color:#8A7A72;font-weight:400">(${r.items.length})</span></td><td style="text-align:right">${brl(tot)}</td></tr>`;
       r.items.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(l=>{
-        rows+=`<tr><td style="padding-left:26px;color:#5A463E;white-space:nowrap">${fmtDate(l.date)}</td><td style="color:#5A463E">${esc(l.memo||'—')}${l.note?' · <i>'+esc(l.note)+'</i>':''}</td><td style="text-align:right;white-space:nowrap">${brl(+l.amount)}</td></tr>`;
+        rows+=`<tr><td style="padding-left:26px;color:#5A463E;white-space:nowrap">${fmtDate(l.date)}</td><td style="color:#5A463E">${esc(l.memo||'—')}${l._nota?' <b style="color:#9A6B1E">(nota sem pagamento)</b>':''}${l.note?' · <i>'+esc(l.note)+'</i>':''}</td><td style="text-align:right;white-space:nowrap">${brl(+l.amount)}</td></tr>`;
       });
     });
   });
   if(byCat['__none']){ const its=byCat['__none']; const tot=its.reduce((a,l)=>a+ +l.amount,0);
     rows+=`<tr style="font-weight:700;color:#B5302E;border-top:2px solid #A82A2A"><td colspan="2">SEM CATEGORIA (${its.length})</td><td style="text-align:right">${brl(tot)}</td></tr>`;
-    its.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(l=>{ rows+=`<tr><td style="padding-left:26px;color:#5A463E;white-space:nowrap">${fmtDate(l.date)}</td><td style="color:#5A463E">${esc(l.memo||'—')}</td><td style="text-align:right;white-space:nowrap">${brl(+l.amount)}</td></tr>`; });
+    its.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(l=>{ rows+=`<tr><td style="padding-left:26px;color:#5A463E;white-space:nowrap">${fmtDate(l.date)}</td><td style="color:#5A463E">${esc(l.memo||'—')}${l._nota?' <b style="color:#9A6B1E">(nota sem pagamento)</b>':''}</td><td style="text-align:right;white-space:nowrap">${brl(+l.amount)}</td></tr>`; });
   }
   const w=window.open('','_print');
   w.document.write(`<html><head><title>Relatório detalhado ${U(ST.unit).nome} ${comp==='todas'?'Todas':compLabel(comp)}</title>
