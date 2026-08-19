@@ -2090,7 +2090,7 @@ function cartaoGrid(){
 var CART_INS=[], CART_UN=['un','kg','g','L','ml','pct','cx','fd','dz'];
 var CART_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Bebidas Não Alcoólicas','Bebidas Alcoólicas','Cervejas','Vinhos','Pães','Limpeza','Descartáveis e Embalagens','Material de Expediente e Gráfico'];
 async function cartLoadInsumos(){ if(CART_INS.length) return; try{ CART_INS=await api.get('lola_insumos','select=id,nome,destinos,unidade_custo&ativo=eq.true&order=nome.asc')||[]; }catch(e){ CART_INS=[]; } }
-function cartInsUnid(u){ return CART_INS.filter(function(i){ var d=i.destinos||[]; return Array.isArray(d)?(d.indexOf(u)>=0):true; }); }
+function cartInsUnid(u){ return CART_INS.filter(function(i){ var d=i.destinos; if(!Array.isArray(d)||!d.length)return true; return d.indexOf(u)>=0; }); }
 function _cjn(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
 async function cartEntradaEstoque(id){
   var c=COMPRAS.find(function(x){return x.id===id;}); if(!c) return;
