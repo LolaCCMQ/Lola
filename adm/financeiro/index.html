@@ -288,6 +288,10 @@ section.view{display:none} section.view.on{display:block}
     <section class="view" id="v-relatorio">
       <div class="note"><b>Relatório por plano de contas.</b> Este é o fechamento do mês: entram só os lançamentos <b>conciliados</b> (que você conferiu). Toque na categoria para ver os lançamentos.</div>
       <div class="monthsel"><span class="lblcap">Competência</span><select id="relComp"></select></div>
+      <div class="filters" id="relBaseTog" style="margin-bottom:12px">
+        <button class="chip on" data-rb="pagamento">Por pagamento</button>
+        <button class="chip" data-rb="competencia">Por competência (nota)</button>
+      </div>
       <div class="filters" id="relConcTog" style="margin-bottom:12px">
         <button class="chip on" data-rc="1">Só conciliados</button>
         <button class="chip" data-rc="0">Todos (prévia)</button>
@@ -2260,8 +2264,39 @@ function relNotasAccrual(comp){
   });
   return out;
 }
+/* categoria da nota: preserva o que você já classificou no pagamento conciliado;
+   senão aprende pelo fornecedor; senão regra por nome; senão "a classificar". */
+function notaCategory(n, memMap){
+  const paidCat=pagsDaNota(n.chave).map(id=>ST.lanc.find(l=>String(l.id)===String(id))).filter(Boolean).map(l=>l.category).find(Boolean);
+  if(paidCat) return paidCat;
+  return (memMap||{})[_emitKey(n.emitente)] || applyRules(n.emitente||'') || null;
+}
+/* MODO "por competência" (Opção 2): a base é a NOTA (mês de emissão), paga ou não.
+   O pagamento ligado à nota NÃO conta (a nota já contou). Lançamentos SEM nota
+   (salários, impostos, taxas, receitas, Pix avulso) contam pela competência deles. */
+function relDataCompetencia(comp){
+  const mem=notaCatMemory(); const byCat={};
+  (ST.notas||[]).forEach(n=>{
+    const mesN=(n.data_emissao||'').slice(0,7); if(!mesN) return;
+    if(comp!=='todas' && mesN!==comp) return;
+    if(n.xml_motivo==='nfe_cancelada') return;
+    const val=+n.valor_total||0; if(!(val>0)) return;
+    const cat=notaCategory(n,mem);
+    const it={id:'nota:'+n.chave, chave:n.chave, memo:(n.emitente||('Nota '+(n.numero||''))),
+              date:n.data_emissao, amount:-val, competencia:mesN, category:cat, _nota:true, _paga:pagsDaNota(n.chave).length>0};
+    (byCat[cat||'__none']=byCat[cat||'__none']||[]).push(it);
+  });
+  (ST.lanc||[]).forEach(l=>{
+    if(isNeutro(l)) return;
+    if(comp!=='todas' && l.competencia!==comp) return;
+    if(notasDoLanc(l.id).length>0) return;   // tem nota -> já contou pela nota
+    (byCat[l.category||'__none']=byCat[l.category||'__none']||[]).push(l);
+  });
+  return {comp, byCat, pendN:0, pendTot:0, accrualN:0, accrualTot:0, modo:'competencia'};
+}
 function relData(){
   const comp=ST.relComp||ST.comp;
+  if((ST.relBase||'pagamento')==='competencia') return relDataCompetencia(comp);
   const base=ST.lanc.filter(l=>!isNeutro(l) && (comp==='todas'||l.competencia===comp));
   // pendências de conciliação = tem categoria mas não foi conferido (não entra no fechamento)
   const pend=base.filter(l=>l.category && !l.conciliado);
@@ -2274,9 +2309,13 @@ function relData(){
 }
 function verNotaAccrual(chave){
   const n=notaObj(chave); if(!n){ if(typeof toast==='function')toast('Nota não encontrada'); return; }
+  const paga=pagsDaNota(chave).length>0;
+  const msg = paga
+    ? 'Esta nota é despesa da competência da <b>emissão</b>. Ela já tem pagamento conciliado — a categoria vem do que você classificou no pagamento.'
+    : 'Esta nota entra na despesa <b>por competência</b> (mês da emissão) mesmo sem pagamento. Ao <b>conciliar o pagamento</b> na aba Lançamentos, a categoria dela passa a ser a que você marcar no pagamento.';
   openSheet(`<h3>${esc(n.emitente||('Nota '+(n.numero||'')))}</h3>
-    <div class="hint">Emitida em ${fmtDate(n.data_emissao)} · ${brl(-(+n.valor_total||0))} · competência ${compLabel((n.data_emissao||'').slice(0,7))}</div>
-    <div class="note" style="font-size:12.5px">Esta nota entra na despesa <b>por competência</b> (mês da emissão) mesmo sem pagamento. Quando você <b>conciliar o pagamento</b> na aba Lançamentos, ela passa a contar pelo lançamento e sai desta linha automaticamente.</div>
+    <div class="hint">Emitida em ${fmtDate(n.data_emissao)} · ${brl(-(+n.valor_total||0))} · competência ${compLabel((n.data_emissao||'').slice(0,7))} · ${paga?'paga':'sem pagamento'}</div>
+    <div class="note" style="font-size:12.5px">${msg}</div>
     <div style="margin-top:12px"><button class="btn" onclick="closeSheet()">Fechar</button></div>`);
 }
 function renderRelatorio(){
@@ -2293,6 +2332,9 @@ function renderRelatorio(){
     html+=`<div class="note" style="background:#FBF7EE;color:#9A6B1E;display:flex;align-items:center;gap:8px">
       <i class="ph-duotone ph-receipt" style="font-size:20px"></i>
       <span style="flex:1"><b>${accrualN} nota(s)</b> sem pagamento entraram por <b>competência</b> (${brl(accrualTot)}). Ao conciliar o pagamento, cada uma passa a contar pelo lançamento.</span></div>`;
+  }
+  if((ST.relBase||'pagamento')==='competencia'){
+    html+=`<div class="note" style="font-size:12px;background:#EAF1F7;color:#2C5AA0"><i class="ph-duotone ph-receipt"></i> <b>Base: competência da nota.</b> Cada nota conta no mês da emissão (paga ou não); lançamentos sem nota (salários, impostos, taxas, receitas) contam pela competência deles.</div>`;
   }
   GRUPOS.forEach(g=>{
     const cats=ST.plano.filter(p=>p.group_id===g.id).filter(c=>!q||normSearch(c.label).includes(q));
@@ -2455,6 +2497,14 @@ $('#compSel').onchange=e=>{ST.lancComp=e.target.value;ST.sel.clear();renderLanc(
 $('#dreComp').onchange=e=>{ST.comp=e.target.value;renderDRE();};
 $('#relComp').onchange=e=>{ST.relComp=e.target.value;renderRelatorio();};
 $$('#relConcTog .chip').forEach(c=>c.onclick=()=>{$$('#relConcTog .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.relSoConc=c.dataset.rc==='1';renderRelatorio();});
+/* 19/08 (Bianca): toggle da BASE do relatório — por pagamento (atual) x por competência da nota (Opção 2). Escolha fica salva. */
+try{ ST.relBase=localStorage.getItem('lola_fin_relbase')||'pagamento'; }catch(e){ ST.relBase='pagamento'; }
+function syncRelBaseUI(){
+  $$('#relBaseTog .chip').forEach(x=>x.classList.toggle('on', x.dataset.rb===(ST.relBase||'pagamento')));
+  const ct=$('#relConcTog'); if(ct) ct.style.display=(ST.relBase==='competencia')?'none':'';
+}
+$$('#relBaseTog .chip').forEach(c=>c.onclick=()=>{ ST.relBase=c.dataset.rb; try{localStorage.setItem('lola_fin_relbase',ST.relBase);}catch(e){} syncRelBaseUI(); renderRelatorio(); });
+syncRelBaseUI();
 $('#relSearch').oninput=e=>{ST.relSearch=e.target.value;renderRelatorio();};
 $('#relPrint').onclick=printRelatorio;
 $('#relPrintDet')&&($('#relPrintDet').onclick=printRelatorioDetalhado);
