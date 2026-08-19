@@ -406,7 +406,29 @@ var sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 var UNIDADES=['Lola CCMQ','Lola MAC','Cozinha Central'];
 var CATS=['Cozinha','Salão','Bar','Compras','Entregas','Eventos','RH','Marketing','Manutenções','Financeiro','Operacional','Processos','Reunião'];
-var TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Charles','Dudinha','Fernanda','Giulia','Intelecta','Juliana','Luana','Lucas','Mahara','Paola','Tatiane Intelecta'];
+/* Lista de reserva — só vale se a leitura do banco falhar. */
+var TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Cacy','Charles','Dudinha','Fernanda','Giulia','Intelecta','Juliana','Luana','Lucas','Mahara','Paola','Tatiane Intelecta'];
+/* A equipe vem da tela Usuários do portal (view portal_equipe = portal_users ativos).
+   Pessoa nova entra sozinha no @ e em Responsáveis — não precisa republicar este arquivo. */
+async function carregarEquipe(){
+  try{
+    var r=await sb.from('portal_equipe').select('name');
+    if(r.error||!r.data||!r.data.length)return false;
+    var nomes=[];
+    r.data.forEach(function(u){var n=String(u.name||'').trim();
+      if(n&&nomes.indexOf(n)<0)nomes.push(n);});
+    if(!nomes.length)return false;
+    nomes.sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+    TEAM.length=0;nomes.forEach(function(n){TEAM.push(n);});
+    return true;
+  }catch(e){return false;}
+}
+carregarEquipe().then(function(ok){
+  if(!ok)return;
+  try{if(typeof initQuick==='function')initQuick();}catch(e){}
+  try{if(typeof popFiltros==='function')popFiltros();}catch(e){}
+  try{if(typeof render==='function')render();}catch(e){}
+});
 
 /* cor por assunto (categoria) — fixa em todo o portal; texto branco sobre a cor */
 var CAT_COLORS={'Operacional':'#2C7A4B','Manutenções':'#6B6258','Compras':'#2C5AA0','Cozinha':'#B5302E','Salão':'#9A6B1E','Bar':'#7A4FA3','Eventos':'#B23A6B','Financeiro':'#0F766E','RH':'#8A6A2B','Marketing':'#B24A8A','Entregas':'#1F7A6E','Processos':'#4858A8','Reunião':'#6B4FA8'};
