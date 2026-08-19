@@ -2077,10 +2077,97 @@ function cartaoGrid(){
       +'<td style="min-width:118px">'+_cartSelCell(c.id,'cartao',CART_CARTOES,c.cartao)+'</td>'
       +'<td class="g-val">'+cartBRL(c.valor)+'</td>'
       +'<td style="white-space:nowrap;color:var(--muted);font-size:.78rem">'+cartMesShort(c.competencia)+'</td>'
-      +'<td style="text-align:center;white-space:nowrap"><button title="Editar" onclick="cartaoEditar('+c.id+')" style="border:0;background:transparent;color:#2C5AA0;cursor:pointer;font-size:1.05rem">✏️</button> <button title="Excluir" onclick="cartaoExcluir('+c.id+')" style="border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1.05rem">🗑</button></td>'
+      +'<td style="text-align:center;white-space:nowrap"><button title="'+(c.estoque_dado?('Entrada dada no estoque ('+(c.estoque_unit==='central'?'Central':'CCMQ')+') — ver/refazer'):'Dar entrada no estoque')+'" onclick="cartEntradaEstoque('+c.id+')" style="border:0;background:transparent;color:'+(c.estoque_dado?'#2C7A4B':'#8A7A72')+';cursor:pointer;font-size:1.05rem">'+(c.estoque_dado?'📦✅':'📦')+'</button> <button title="Editar" onclick="cartaoEditar('+c.id+')" style="border:0;background:transparent;color:#2C5AA0;cursor:pointer;font-size:1.05rem">✏️</button> <button title="Excluir" onclick="cartaoExcluir('+c.id+')" style="border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1.05rem">🗑</button></td>'
       +'</tr>';
   });
   h+='</tbody></table></div>'; h+=resumo; return h;
+}
+
+/* ===== 19/08 (Bianca): Compras no Cartão -> DAR ENTRADA NO ESTOQUE =====
+   Botão por compra abre um modal: escolhe a unidade (CCMQ/Central; MAC não tem estoque)
+   e adiciona vários itens (insumo, qtd, unidade, valor). Grava via rpc idempotente
+   cartao_estoque_entrada (refazer substitui). unidade+itens ficam salvos na compra. */
+var CART_INS=[], CART_UN=['un','kg','g','L','ml','pct','cx','fd','dz'];
+var CART_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Bebidas Não Alcoólicas','Bebidas Alcoólicas','Cervejas','Vinhos','Pães','Limpeza','Descartáveis e Embalagens','Material de Expediente e Gráfico'];
+async function cartLoadInsumos(){ if(CART_INS.length) return; try{ CART_INS=await api.get('lola_insumos','select=id,nome,destinos,unidade_custo&ativo=eq.true&order=nome.asc')||[]; }catch(e){ CART_INS=[]; } }
+function cartInsUnid(u){ return CART_INS.filter(function(i){ var d=i.destinos||[]; return Array.isArray(d)?(d.indexOf(u)>=0):true; }); }
+function _cjn(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+async function cartEntradaEstoque(id){
+  var c=COMPRAS.find(function(x){return x.id===id;}); if(!c) return;
+  await cartLoadInsumos();
+  var itens=(c.estoque_itens&&c.estoque_itens.length)?JSON.parse(JSON.stringify(c.estoque_itens)):null;
+  if(!itens){ itens=[{insumo_id:'',nome:'',qtd:'',unidade:'un',custo_total:(c.valor!=null?String(c.valor).replace('.',','):'')}]; }
+  itens.forEach(function(it){ if(it.custo_total!=null&&typeof it.custo_total==='number')it.custo_total=String(it.custo_total).replace('.',','); });
+  window.__cartEnt={id:id,unit:(c.estoque_unit||'ccmq'),itens:itens,valor:Number(c.valor)||0,desc:c.descricao||'',data:c.data,sug:{}};
+  cartEntRender();
+}
+function cartEntClose(){ var o=document.getElementById('cartEntOv'); if(o)o.remove(); window.__cartEnt=null; }
+function cartEntSetUnit(u){ var s=window.__cartEnt; if(!s||s.unit===u)return; s.unit=u; s.itens.forEach(function(it){it.insumo_id='';it.nome='';it._novo=false;}); cartEntRender(); }
+function cartEntAdd(){ window.__cartEnt.itens.push({insumo_id:'',nome:'',qtd:'',unidade:'un',custo_total:''}); cartEntRender(); }
+function cartEntDel(i){ var s=window.__cartEnt; s.itens.splice(i,1); if(!s.itens.length)s.itens.push({insumo_id:'',nome:'',qtd:'',unidade:'un',custo_total:''}); cartEntRender(); }
+function cartEntFld(i,f,v){ if(window.__cartEnt&&window.__cartEnt.itens[i]){ window.__cartEnt.itens[i][f]=v; if(f==='custo_total')cartEntTot(); } }
+function cartEntTot(){ var s=window.__cartEnt; if(!s)return; var soma=0; s.itens.forEach(function(it){soma+=(_cartNum(it.custo_total)||0);}); var el=document.getElementById('cartEntSoma'); if(el){ var a=s.valor; el.innerHTML='Soma dos itens: <b>'+cartBRL(soma)+'</b>'+(a>0?(' · compra '+cartBRL(a)+(Math.abs(soma-a)<0.005?' <span style="color:#2C7A4B;font-weight:800">confere ✓</span>':' <span style="color:#9A6B1E;font-weight:800">difere</span>')):''); } }
+function cartEntSug(i){ var s=window.__cartEnt; if(!s)return; var inp=document.getElementById('ceIns'+i); var dd=document.getElementById('ceDd'+i); if(!inp||!dd)return; var q=_cjn(inp.value); var list=cartInsUnid(s.unit); if(q.length>=1)list=list.filter(function(x){return _cjn(x.nome).indexOf(q)>=0;}); list=list.slice(0,10); s.sug[i]=list; var h=''; if(list.length){ list.forEach(function(x,k){ h+='<div onmousedown="cartEntPick('+i+','+k+')" style="padding:7px 10px;font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:1px solid #F3EBE2">'+_escC(x.nome)+'</div>'; }); } else { h+='<div style="padding:7px 10px;font-size:11.5px;color:#8A7A72">nenhum insumo com esse nome</div>'; } h+='<div onmousedown="cartEntNovo('+i+')" style="padding:7px 10px;font-size:12px;font-weight:800;color:#7A4FA3;background:#FBF8FE;cursor:pointer">🆕 cadastrar novo insumo</div>'; dd.innerHTML=h; dd.style.display='block'; }
+function cartEntHide(i){ var dd=document.getElementById('ceDd'+i); if(dd)setTimeout(function(){dd.style.display='none';},180); }
+function cartEntPick(i,k){ var s=window.__cartEnt; if(!s)return; var x=(s.sug[i]||[])[k]; if(!x)return; s.itens[i].insumo_id=x.id; s.itens[i].nome=x.nome; s.itens[i]._novo=false; if(x.unidade_custo){ var u=String(x.unidade_custo).trim(); if(u.toLowerCase()==='l')u='L'; if(CART_UN.indexOf(u)>=0)s.itens[i].unidade=u; } cartEntRender(); }
+function cartEntNovo(i){ var s=window.__cartEnt; if(!s)return; var inp=document.getElementById('ceIns'+i); s.itens[i]._novo=true; s.itens[i].nome=(inp?inp.value.trim():'')||s.itens[i].nome||''; s.itens[i].insumo_id=''; cartEntRender(); }
+async function cartEntCriar(i){ var s=window.__cartEnt; if(!s)return; var it=s.itens[i]; var nome=((document.getElementById('ceNome'+i)||{}).value||'').trim(); var cat=(document.getElementById('ceCat'+i)||{}).value||''; if(!nome){showToast('Dê um nome ao insumo');return;} if(!cat){showToast('Escolha a categoria');return;} try{ var novo=await api.post('lola_insumos',{nome:nome,categoria:cat,unidade_compra:(it.unidade||'un'),unidade_custo:(it.unidade||'un'),destinos:[s.unit],ativo:true}); var ins=Array.isArray(novo)?novo[0]:novo; if(ins&&ins.id){ CART_INS.push(ins); it.insumo_id=ins.id; it.nome=ins.nome; } it._novo=false; cartEntRender(); showToast('✓ Insumo criado'); }catch(e){ showToast('Erro ao criar insumo'); } }
+async function cartEntSalvar(desfazer){
+  var s=window.__cartEnt; if(!s)return;
+  var itens = desfazer? [] : s.itens.filter(function(it){return it.insumo_id && (_cartNum(it.qtd)||0)>0;}).map(function(it){return {insumo_id:it.insumo_id,nome:it.nome,qtd:(_cartNum(it.qtd)||0),unidade:it.unidade||'un',custo_total:(_cartNum(it.custo_total)||0)};});
+  if(!desfazer && !itens.length){ showToast('Adicione ao menos 1 item com insumo e quantidade'); return; }
+  var quem=(typeof currentUser!=='undefined'&&currentUser&&currentUser.name)?currentUser.name:((window.__portalUser&&window.__portalUser.name)||null);
+  try{
+    var r=await fetch(SUPA_URL+'/rest/v1/rpc/cartao_estoque_entrada',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},body:JSON.stringify({p_compra_id:s.id,p_unit:s.unit,p_itens:itens,p_quem:quem})});
+    if(!r.ok){ throw new Error(await r.text()); }
+    var c=COMPRAS.find(function(x){return x.id===s.id;}); if(c){ c.estoque_dado=itens.length>0; c.estoque_unit=itens.length?s.unit:null; c.estoque_itens=itens.length?itens:null; }
+    cartEntClose(); var el=document.getElementById('cartLista'); if(el)el.innerHTML=cartaoGrid(); showToast(desfazer?'Entrada desfeita':'✓ Entrada no estoque registrada');
+  }catch(e){ showToast('Erro ao dar entrada no estoque'); }
+}
+function cartEntRender(){
+  var s=window.__cartEnt; if(!s)return;
+  var ov=document.getElementById('cartEntOv'); if(!ov){ ov=document.createElement('div'); ov.id='cartEntOv'; ov.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto'; ov.onclick=function(e){ if(e.target===ov)cartEntClose(); }; document.body.appendChild(ov); }
+  var UNI=[['ccmq','Cozinha CCMQ'],['central','Cozinha Central']];
+  var inb='width:100%;border:1px solid #ECE3D9;border-radius:8px;padding:7px 8px;font-family:inherit;font-size:12.5px;background:#fff;box-sizing:border-box';
+  var h='<div style="background:#FBF7F1;border:1px solid #ECE3D9;border-radius:18px;max-width:640px;width:100%;padding:20px 22px;box-shadow:0 18px 46px rgba(60,30,20,.2);font-family:Manrope,sans-serif;color:#2A1A17">';
+  h+='<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1"><div style="font-family:Fraunces,serif;font-weight:600;font-size:19px;color:#A82A2A">Entrada no estoque</div><div style="font-size:12px;color:#8A7A72;margin-top:2px">Compra: <b>'+_escC(s.desc||'—')+'</b>'+(s.valor>0?(' · '+cartBRL(s.valor)):'')+'</div></div><button onclick="cartEntClose()" style="border:0;background:#fff;border:1px solid #ECE3D9;color:#A82A2A;border-radius:12px;width:34px;height:34px;cursor:pointer;font-size:16px">✕</button></div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0"><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#B79A8E">Estoque:</span>';
+  UNI.forEach(function(u){ var on=s.unit===u[0]; h+='<button onclick="cartEntSetUnit(\''+u[0]+'\')" style="padding:8px 15px;border-radius:50px;font-size:12.5px;font-weight:800;cursor:pointer;border:2px solid '+(on?'#A82A2A':'#ECE3D9')+';background:'+(on?'#A82A2A':'#fff')+';color:'+(on?'#fff':'#2A1A17')+'">'+u[1]+'</button>'; });
+  h+='</div>';
+  h+='<table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid #ECE3D9;border-radius:12px;overflow:hidden;table-layout:fixed"><colgroup><col><col style="width:60px"><col style="width:64px"><col style="width:86px"><col style="width:30px"></colgroup>';
+  h+='<thead><tr>'+['Insumo','Qtd','Unid.','Valor R$',''].map(function(t,ix){return '<th style="font-size:9.5px;text-transform:uppercase;letter-spacing:.03em;color:#8A7A72;font-weight:800;text-align:'+(ix===3?'right':'left')+';padding:7px 7px;background:#F7EFE6;border-bottom:1px solid #ECE3D9">'+t+'</th>';}).join('')+'</tr></thead><tbody>';
+  s.itens.forEach(function(it,i){
+    var tds='padding:5px 7px;border-bottom:1px solid #F3EBE2;vertical-align:top';
+    if(it._novo){
+      var catopt='<option value="">categoria…</option>'+CART_CATS.map(function(cc){return '<option>'+_escC(cc)+'</option>';}).join('');
+      h+='<tr><td colspan="5" style="'+tds+';background:#FBF8FE">'
+        +'<div style="font-size:11px;font-weight:800;color:#7A4FA3;margin-bottom:6px">🆕 Novo insumo (entra na '+(s.unit==='ccmq'?'CCMQ':'Central')+')</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
+        +'<input id="ceNome'+i+'" value="'+_escA(it.nome||'')+'" placeholder="nome do insumo" style="'+inb+';flex:2;min-width:150px">'
+        +'<select id="ceCat'+i+'" style="'+inb+';flex:1;min-width:150px">'+catopt+'</select>'
+        +'<button onclick="cartEntCriar('+i+')" style="border:0;background:#7A4FA3;color:#fff;border-radius:9px;padding:8px 12px;font-weight:800;font-size:12px;cursor:pointer">Criar</button>'
+        +'<button onclick="cartEntFld('+i+',\'_novo\',false);cartEntRender()" style="border:1px solid #ECE3D9;background:#fff;color:#8A7A72;border-radius:9px;padding:8px 12px;font-weight:700;font-size:12px;cursor:pointer">Cancelar</button>'
+        +'</div></td></tr>';
+      return;
+    }
+    var unopt=CART_UN.map(function(u){return '<option'+(u===it.unidade?' selected':'')+'>'+u+'</option>';}).join('');
+    h+='<tr>'
+      +'<td style="'+tds+'"><div style="position:relative"><input id="ceIns'+i+'" value="'+_escA(it.nome||'')+'" placeholder="buscar insumo…" autocomplete="off" oninput="cartEntSug('+i+')" onfocus="cartEntSug('+i+')" onblur="cartEntHide('+i+')" style="'+inb+'"><div id="ceDd'+i+'" style="position:absolute;left:0;right:0;top:100%;margin-top:3px;background:#fff;border:1.5px solid #ECE3D9;border-radius:10px;box-shadow:0 8px 20px rgba(42,26,23,.14);z-index:5;display:none;max-height:220px;overflow:auto"></div></div>'+(it.insumo_id?'':'<div style="font-size:10px;color:#B0928A;margin-top:3px">escolha um insumo</div>')+'</td>'
+      +'<td style="'+tds+'"><input value="'+_escA(it.qtd||'')+'" inputmode="decimal" oninput="cartEntFld('+i+',\'qtd\',this.value)" style="'+inb+';text-align:right"></td>'
+      +'<td style="'+tds+'"><select onchange="cartEntFld('+i+',\'unidade\',this.value)" style="'+inb+'">'+unopt+'</select></td>'
+      +'<td style="'+tds+'"><input value="'+_escA(it.custo_total||'')+'" inputmode="decimal" oninput="cartEntFld('+i+',\'custo_total\',this.value)" placeholder="0,00" style="'+inb+';text-align:right"></td>'
+      +'<td style="'+tds+';text-align:center"><button onclick="cartEntDel('+i+')" title="Remover" style="border:0;background:none;color:#B0928A;cursor:pointer;font-size:15px">🗑</button></td>'
+      +'</tr>';
+  });
+  h+='</tbody></table>';
+  h+='<button onclick="cartEntAdd()" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:12.5px;font-weight:800;color:#A82A2A;background:#fff;border:1.5px dashed #A82A2A;border-radius:10px;padding:8px 13px;cursor:pointer">+ adicionar item</button>';
+  h+='<div id="cartEntSoma" style="font-size:12px;color:#8A7A72;margin-top:12px"></div>';
+  h+='<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button onclick="cartEntSalvar(false)" style="flex:1;min-width:180px;background:#A82A2A;color:#fff;border:0;border-radius:12px;padding:13px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer">✓ Dar entrada no estoque</button>';
+  h+='<button onclick="cartEntClose()" style="background:#fff;border:1.5px solid #ECE3D9;border-radius:12px;padding:13px 18px;font-family:inherit;font-weight:700;color:#8A7A72;cursor:pointer">Cancelar</button></div>';
+  var cc=COMPRAS.find(function(x){return x.id===s.id;});
+  if(cc&&cc.estoque_dado){ h+='<div style="margin-top:10px;text-align:center"><button onclick="cartEntSalvar(true)" style="border:0;background:none;color:#9A2A2A;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">desfazer entrada do estoque</button></div>'; }
+  h+='</div>';
+  ov.innerHTML=h; cartEntTot();
 }
 
 function cartaoFiltro(){
