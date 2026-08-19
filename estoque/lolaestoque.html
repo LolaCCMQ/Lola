@@ -6416,15 +6416,20 @@ async function pgEntradaNotas(c){
       else list=visiveis;
       listBox.innerHTML='';
       if(!list.length){ listBox.appendChild(div('tss',null,{style:'padding:16px',html:_enSt==='ocultas'?'Nenhuma nota oculta.':(q?'Nenhuma nota desse fornecedor.':'Sem notas nessa competência.')})); return; }
-      const scroll=div(null,null,{style:'overflow-x:auto;border:1px solid var(--rb);border-radius:14px'});
-      const tbl=el('table',null,null,{style:'width:100%;border-collapse:separate;border-spacing:0;background:#fff;min-width:560px'});
-      tbl.innerHTML='<thead><tr>'
-        +'<th style="'+_thCss+';width:118px">Status</th>'
-        +'<th style="'+_thCss+'">Data</th>'
-        +'<th style="'+_thCss+'">Fornecedor</th>'
-        +'<th style="'+_thCss+';text-align:center">Itens</th>'
-        +'<th style="'+_thCss+';text-align:right">Valor</th>'
-        +'<th style="'+_thCss+';text-align:right">Ações</th>'
+      /* 19/08 (Bianca): "mais clean, sem barra de rolagem lateral, tem que caber tudo na
+         largura". table-layout:fixed nunca estoura a largura; a linha inteira abre a nota
+         (sumiu o botão largo "Lançar/Ver"); status virou pontinho + palavra; só a lixeira
+         (ou restaurar) fica visível, como ícone leve. */
+      const tbl=el('table',null,null,{style:'width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--rb);border-radius:14px;overflow:hidden;table-layout:fixed'});
+      const _th2='font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--ts);font-weight:800;text-align:left;padding:8px 8px;background:var(--rf);border-bottom:1px solid var(--rb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      tbl.innerHTML='<colgroup><col style="width:88px"><col style="width:48px"><col><col style="width:36px"><col style="width:82px"><col style="width:38px"></colgroup>'
+        +'<thead><tr>'
+        +'<th style="'+_th2+'">Status</th>'
+        +'<th style="'+_th2+'">Data</th>'
+        +'<th style="'+_th2+'">Fornecedor</th>'
+        +'<th style="'+_th2+';text-align:center">Itens</th>'
+        +'<th style="'+_th2+';text-align:right">Valor</th>'
+        +'<th style="'+_th2+'"></th>'
         +'</tr></thead>';
       const tb=el('tbody');
       list.forEach(n=>{
@@ -6432,33 +6437,33 @@ async function pgEntradaNotas(c){
         const oculta=!!n.oculta_entrada;
         const bloq=!!n.xml_indisponivel && !done;
         const cancel=bloq && n.xml_motivo==='nfe_cancelada';
-        let barra,rowBg,badge;
-        if(oculta){ barra='#B0A79E'; rowBg='#F5F1EC'; badge='<span style="'+_bd+';background:#ECE3D9;color:#6B5D54"><i class="ph-duotone ph-eye-slash"></i> oculta</span>'; }
-        else if(done){ barra=_C.verde; rowBg=_C.verdeBg; badge='<span style="'+_bd+';background:#DCFCE7;color:#166534"><i class="ph-duotone ph-check-circle"></i> lançada</span>'; }
-        else if(cancel){ barra=_C.verm; rowBg=_C.vermBg; badge='<span style="'+_bd+';background:#FDECEA;color:#9A2A2A"><i class="ph-duotone ph-x-circle"></i> cancelada</span>'; }
-        else if(bloq){ barra=_C.laranja; rowBg=_C.laranjaBg; badge='<span style="'+_bd+';background:#F7E4C9;color:#7A4B12"><i class="ph-duotone ph-file-x"></i> sem XML</span>'; }
-        else { barra='#E0A93B'; rowBg='#fff'; badge='<span style="'+_bd+';background:#FBF7EE;color:#9A6B1E;border:1px solid #EBDCC0"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#E0A93B"></span> a lançar</span>'; }
-        const tdCss='padding:10px 12px;border-bottom:1px solid #F3EBE2;font-size:13px;vertical-align:middle;background:'+rowBg;
+        let barra,rowBg,dot,txtCor,rot;
+        if(oculta){ barra='#B0A79E'; rowBg='#F7F3EE'; dot='#B0A79E'; txtCor='#6B5D54'; rot='oculta'; }
+        else if(done){ barra=_C.verde; rowBg=_C.verdeBg; dot=_C.verde; txtCor='#166534'; rot='lançada'; }
+        else if(cancel){ barra=_C.verm; rowBg=_C.vermBg; dot=_C.verm; txtCor='#9A2A2A'; rot='cancelada'; }
+        else if(bloq){ barra=_C.laranja; rowBg=_C.laranjaBg; dot=_C.laranja; txtCor='#7A4B12'; rot='sem XML'; }
+        else { barra='#E0A93B'; rowBg='#fff'; dot='#E0A93B'; txtCor='#9A6B1E'; rot='a lançar'; }
+        const clic=!oculta && !cancel;
+        const tdCss='padding:9px 8px;border-bottom:1px solid #F3EBE2;font-size:12.5px;vertical-align:middle;background:'+rowBg;
         const forn=_envEsc(n.emitente||('Nota '+(n.numero||'')));
-        const sub=cancel?'NF-e cancelada — não precisa lançar':(bloq?'passou o prazo de 10 dias — lançar manual':('NF '+_envEsc(n.numero||'—')));
+        const dataC=String(DBR(n.data_emissao)||'').slice(0,5);
+        const status='<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:'+txtCor+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:'+dot+'"></span>'+rot+'</span>';
         const tr=el('tr');
+        if(clic){ tr.style.cursor='pointer'; tr.title='Abrir nota'; tr.addEventListener('click',()=>abrirNotaEN(n)); tr.addEventListener('mouseenter',()=>{tr.style.filter='brightness(.98)';}); tr.addEventListener('mouseleave',()=>{tr.style.filter='none';}); }
         tr.innerHTML=
-           '<td style="'+tdCss+';border-left:5px solid '+barra+'">'+badge+'</td>'
-          +'<td style="'+tdCss+';white-space:nowrap;font-variant-numeric:tabular-nums">'+DBR(n.data_emissao)+'</td>'
-          +'<td style="'+tdCss+'"><div style="font-weight:700;color:var(--tx)'+(cancel?';text-decoration:line-through;color:var(--ts)':'')+'">'+forn+'</div><div style="font-size:11px;color:var(--ts)">'+sub+'</div></td>'
-          +'<td style="'+tdCss+';text-align:center;font-variant-numeric:tabular-nums">'+(bloq?'—':nit)+'</td>'
-          +'<td style="'+tdCss+';text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums">'+R(n.valor_total)+'</td>';
-        const tdAc=el('td',null,null,{style:tdCss+';text-align:right;white-space:nowrap'});
-        const acWrap=div(null,null,{style:'display:flex;gap:6px;align-items:center;justify-content:flex-end'});
-        if(oculta){
-          const bRest=btn('','↩︎ Restaurar',()=>_setOculta(n,false)); bRest.style.cssText=_acGhost; acWrap.appendChild(bRest);
-        }else{
-          if(!cancel){ const bL=btn('',done?'Ver / relançar':(bloq?'Lançar manual':'Lançar'),()=>abrirNotaEN(n)); bL.style.cssText=done?_acGhost:_acPrim; acWrap.appendChild(bL); }
-          const bX=btn('','',()=>_excluirNota(n)); bX.innerHTML='<i class="ph-duotone ph-trash"></i>'; bX.title='Excluir da lista'; bX.style.cssText=_acTrash; acWrap.appendChild(bX);
-        }
-        tdAc.appendChild(acWrap); tr.appendChild(tdAc); tb.appendChild(tr);
+           '<td style="'+tdCss+';border-left:4px solid '+barra+';overflow:hidden">'+status+'</td>'
+          +'<td style="'+tdCss+';white-space:nowrap;color:var(--ts);font-variant-numeric:tabular-nums">'+dataC+'</td>'
+          +'<td style="'+tdCss+';overflow:hidden"><span style="display:block;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'+(cancel?';text-decoration:line-through;color:var(--ts)':'')+'">'+forn+'</span></td>'
+          +'<td style="'+tdCss+';text-align:center;color:var(--ts);font-variant-numeric:tabular-nums">'+(bloq?'—':nit)+'</td>'
+          +'<td style="'+tdCss+';text-align:right;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums">'+R(n.valor_total)+'</td>';
+        const tdAc=el('td',null,null,{style:tdCss+';text-align:right'});
+        const ic=btn('','',(ev)=>{ if(ev&&ev.stopPropagation)ev.stopPropagation(); oculta?_setOculta(n,false):_excluirNota(n); });
+        ic.innerHTML='<i class="ph-duotone '+(oculta?'ph-arrow-counter-clockwise':'ph-trash')+'"></i>';
+        ic.title=oculta?'Restaurar':'Excluir da lista';
+        ic.style.cssText='border:0;background:none;cursor:pointer;color:'+(oculta?'var(--v)':'#B0928A')+';font-size:16px;padding:4px;line-height:1;border-radius:8px';
+        tdAc.appendChild(ic); tr.appendChild(tdAc); tb.appendChild(tr);
       });
-      tbl.appendChild(tb); scroll.appendChild(tbl); listBox.appendChild(scroll);
+      tbl.appendChild(tb); listBox.appendChild(tbl);
     }
     buscaEN.oninput=desenhaNotas;
     sel.onchange=e=>{_enComp=e.target.value;desenhaNotas();};
