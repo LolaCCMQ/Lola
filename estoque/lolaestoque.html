@@ -6299,6 +6299,29 @@ async function pgEntradaNotas(c){
     });
     bEspiao.style.cssText='margin-bottom:12px;font-weight:700;margin-right:8px';
     c.appendChild(bEspiao);
+    /* 19/08 (Bianca): puxar Central e MAC do Espião aqui mesmo (pagamos o Espião pelas 3).
+       NÃO lançam no estoque do CCMQ — só buscam as notas na SEFAZ: a Central alimenta o
+       app /central e o MAC vai pro Financeiro. O gateway já roda sozinho a cada poucos
+       minutos; estes botões são o "puxar agora". */
+    function _mkPuxar(unit,nome,emoji){
+      const b=btn('btn bo bsm',emoji+' Puxar '+nome,async()=>{
+        if(!confirm('Buscar agora as notas da '+nome+' na SEFAZ (via Espião)?'))return;
+        b.disabled=true; const _t=b.innerHTML; b.textContent='Buscando '+nome+'…';
+        try{
+          const r=await fetch(SB+'/functions/v1/notas-espiao',{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({unit:unit})});
+          const j=await r.json().catch(()=>({}));
+          if(!r.ok||j.error){ alert('Espião ('+nome+'): '+(j.error||('erro '+r.status))); b.disabled=false; b.innerHTML=_t; return; }
+          var msg='✓ '+nome+': '+(j.total||0)+' nota(s) no período · '+(j.novas||0)+' nova(s).';
+          if(j.resgate_pedidas) msg+='\n📥 '+j.resgate_pedidas+' sem XML ainda — pedi o download (leva alguns min).';
+          msg+='\n\nAs notas da '+nome+' aparecem '+(unit==='central'?'no app da Central':'no Financeiro')+', não aqui no CCMQ.';
+          alert(msg); b.disabled=false; b.innerHTML=_t;
+        }catch(e){ alert('Erro ('+nome+'): '+e.message); b.disabled=false; b.innerHTML=_t; }
+      });
+      b.style.cssText='margin-bottom:12px;font-weight:700;margin-right:8px';
+      return b;
+    }
+    c.appendChild(_mkPuxar('central','Central','🍲'));
+    c.appendChild(_mkPuxar('mac','MAC','🏪'));
     /* 22/07 (Bianca): "precisamos poder fazer lançamentos manuais também no ccmq" */
     const bManual=btn('btn bo bsm','➕ Entrada manual (sem nota)',()=>modalEntradaManualEN());
     bManual.style.cssText='margin-bottom:12px;font-weight:700;margin-right:8px';
@@ -6347,7 +6370,7 @@ async function pgEntradaNotas(c){
     const stWrap=div(null,null,{style:'display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap'});
     function paintSt(){
       stWrap.innerHTML='';
-      [['pend','A lançar'],['ok','Lançadas'],['todas','Todas']].forEach(s=>{
+      [['pend','A lançar'],['ok','Lançadas'],['ocultas','Ocultas'],['todas','Todas']].forEach(s=>{
         const on=_enSt===s[0];
         const b=document.createElement('button'); b.type='button'; b.textContent=s[1];
         b.style.cssText='padding:7px 16px;border-radius:50px;font-family:Manrope,sans-serif;font-size:12px;font-weight:800;cursor:pointer;border:2px solid '+(on?'var(--v)':'var(--rb)')+';background:'+(on?'var(--v)':'#fff')+';color:'+(on?'#fff':'var(--tx)');
@@ -6360,41 +6383,82 @@ async function pgEntradaNotas(c){
     const infoEN=el('div',null,null,{style:'font-size:12px;font-weight:800;color:var(--v);margin:2px 0 10px;text-transform:uppercase;letter-spacing:.5px'});
     c.appendChild(infoEN);
     const listBox=div(null); c.appendChild(listBox);
+    /* 19/08 (Bianca): visão PLANILHA — linhas densas, cor por status (faixa + selo),
+       excluir (soft-hide via rpc ccmq_nota_ocultar) e relançar visível. O relançar já
+       SUBSTITUI a entrada anterior no estoque (lancarNotaEN apaga os movimentos da nota
+       antes de gravar de novo — corrige fator sem duplicar). */
+    const _thCss='font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ts);font-weight:800;text-align:left;padding:9px 12px;background:var(--rf);border-bottom:1px solid var(--rb);white-space:nowrap';
+    const _bd='display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:50px;white-space:nowrap';
+    const _C={verde:'#2C7A4B',verdeBg:'#EFF7F0',laranja:'#B5651D',laranjaBg:'#FBF1E6',verm:'#9A2A2A',vermBg:'#FBF1F0'};
+    const _acPrim='display:inline-flex;align-items:center;gap:5px;font-family:Manrope,sans-serif;font-size:11.5px;font-weight:800;border-radius:9px;padding:7px 12px;cursor:pointer;border:1.5px solid var(--v);background:var(--v);color:#fff;white-space:nowrap';
+    const _acGhost='display:inline-flex;align-items:center;gap:5px;font-family:Manrope,sans-serif;font-size:11.5px;font-weight:800;border-radius:9px;padding:7px 12px;cursor:pointer;border:1.5px solid var(--v);background:#fff;color:var(--v);white-space:nowrap';
+    const _acTrash='border:1.5px solid #EBC7C2;background:#fff;color:#9A2A2A;border-radius:9px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px';
+    function _setOculta(n,val){
+      const prev=n.oculta_entrada; n.oculta_entrada=val; desenhaNotas();
+      db('rpc/ccmq_nota_ocultar','POST',{p_chave:n.chave,p_oculta:val}).catch(e=>{ n.oculta_entrada=prev; alert('Erro ao '+(val?'excluir':'restaurar')+': '+e.message); desenhaNotas(); });
+    }
+    function _excluirNota(n){
+      if(!confirm('Excluir "'+(n.emitente||('Nota '+(n.numero||'')))+'" da lista?\n\nEla sai daqui (fica no filtro "Ocultas" pra desfazer) e não volta na próxima busca do Espião. Não altera o Financeiro.'))return;
+      _setOculta(n,true);
+    }
     function desenhaNotas(){
       const q=_jnorm(buscaEN.value||'');
-      let list=(_enComp==='todas')?notas.slice():notas.filter(n=>String(n.data_emissao||'').slice(0,7)===_enComp);
-      if(q) list=list.filter(n=>_jnorm(n.emitente||'').includes(q)||String(n.numero||'').includes(q));
-      const pend=list.filter(n=>!lanSet.has(n.chave)).length;
-      infoEN.innerHTML=pend+' nota'+(pend!==1?'s':'')+' a lançar · '+list.length+(_enComp==='todas'?' em todos os meses':' no mês')+(q?' · fornecedor "'+_envEsc(buscaEN.value)+'"':'');
-      if(_enSt==='pend') list=list.filter(n=>!lanSet.has(n.chave));
-      else if(_enSt==='ok') list=list.filter(n=>lanSet.has(n.chave));
+      let base=(_enComp==='todas')?notas.slice():notas.filter(n=>String(n.data_emissao||'').slice(0,7)===_enComp);
+      if(q) base=base.filter(n=>_jnorm(n.emitente||'').includes(q)||String(n.numero||'').includes(q));
+      const visiveis=base.filter(n=>!n.oculta_entrada);
+      const pend=visiveis.filter(n=>!lanSet.has(n.chave)).length;
+      const nOc=base.filter(n=>n.oculta_entrada).length;
+      infoEN.innerHTML=pend+' nota'+(pend!==1?'s':'')+' a lançar · '+visiveis.length+(_enComp==='todas'?' em todos os meses':' no mês')+(nOc?' · '+nOc+' oculta'+(nOc>1?'s':''):'')+(q?' · "'+_envEsc(buscaEN.value)+'"':'');
+      let list;
+      if(_enSt==='ocultas') list=base.filter(n=>n.oculta_entrada);
+      else if(_enSt==='pend') list=visiveis.filter(n=>!lanSet.has(n.chave));
+      else if(_enSt==='ok') list=visiveis.filter(n=>lanSet.has(n.chave));
+      else list=visiveis;
       listBox.innerHTML='';
-      if(!list.length){listBox.appendChild(div('tss',null,{style:'padding:16px',html:q?'Nenhuma nota desse fornecedor.':'Sem notas nessa competência.'}));return;}
+      if(!list.length){ listBox.appendChild(div('tss',null,{style:'padding:16px',html:_enSt==='ocultas'?'Nenhuma nota oculta.':(q?'Nenhuma nota desse fornecedor.':'Sem notas nessa competência.')})); return; }
+      const scroll=div(null,null,{style:'overflow-x:auto;border:1px solid var(--rb);border-radius:14px'});
+      const tbl=el('table',null,null,{style:'width:100%;border-collapse:separate;border-spacing:0;background:#fff;min-width:560px'});
+      tbl.innerHTML='<thead><tr>'
+        +'<th style="'+_thCss+';width:118px">Status</th>'
+        +'<th style="'+_thCss+'">Data</th>'
+        +'<th style="'+_thCss+'">Fornecedor</th>'
+        +'<th style="'+_thCss+';text-align:center">Itens</th>'
+        +'<th style="'+_thCss+';text-align:right">Valor</th>'
+        +'<th style="'+_thCss+';text-align:right">Ações</th>'
+        +'</tr></thead>';
+      const tb=el('tbody');
       list.forEach(n=>{
         const done=lanSet.has(n.chave);const nit=Array.isArray(n.itens)?n.itens.length:0;
-        /* 13/08 (Bianca): notas sem XML (passou o prazo de 10 dias da Ciência na SEFAZ,
-           ou NF-e cancelada) não preenchem sozinhas — selo pra separar das que ainda
-           estão processando. Só marca as ainda não lançadas. */
+        const oculta=!!n.oculta_entrada;
         const bloq=!!n.xml_indisponivel && !done;
         const cancel=bloq && n.xml_motivo==='nfe_cancelada';
-        const card=div(null);
-        card.style.cssText='background:'+(cancel?'#FDF3F2':(bloq?'#FFF8EE':'#fff'))+';border:1.5px solid '+(cancel?'#EBC7C2':(bloq?'#F1DFB8':'var(--rb)'))+';border-radius:14px;padding:13px 15px;margin-bottom:9px'+(done?';opacity:.72':'');
-        const selo = done
-          ? '<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">lançada</span>'
-          : (cancel
-             ? '<span style="background:#FDECEA;color:#9A2A2A;font-size:11px;font-weight:800;padding:3px 9px;border-radius:50px">nota cancelada</span>'
-             : (bloq
-                ? '<span style="background:#F4C77E;color:#5A3B00;font-size:11px;font-weight:800;padding:3px 9px;border-radius:50px">sem XML · lançar manual</span>'
-                : '<span style="background:#FBF0DD;color:#9A6B1E;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px">a lançar</span>'));
-        const hint = bloq
-          ? '<div style="font-size:11px;color:'+(cancel?'#9A2A2A':'#9A5B00')+';margin-top:5px;font-weight:600;line-height:1.35">'+(cancel
-              ? 'NF-e cancelada pelo fornecedor — não precisa lançar.'
-              : 'A SEFAZ não libera mais o XML (passou o prazo de 10 dias). Digite os itens manualmente no botão abaixo.')+'</div>'
-          : '';
-        card.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--tx);flex:1;min-width:0">'+_envEsc(n.emitente||('Nota '+(n.numero||'')))+'</b>'+selo+'</div><div style="font-size:11.5px;color:var(--ts);margin-top:3px">'+DBR(n.data_emissao)+' · '+nit+' itens · '+R(n.valor_total)+'</div>'+hint;
-        const b=btn('btn '+(done?'bo':'bp')+' bsm',done?'Ver / relançar':'Lançar itens',()=>abrirNotaEN(n));
-        b.style.cssText='margin-top:10px;font-size:12px;font-weight:700';card.appendChild(b);listBox.appendChild(card);
+        let barra,rowBg,badge;
+        if(oculta){ barra='#B0A79E'; rowBg='#F5F1EC'; badge='<span style="'+_bd+';background:#ECE3D9;color:#6B5D54"><i class="ph-duotone ph-eye-slash"></i> oculta</span>'; }
+        else if(done){ barra=_C.verde; rowBg=_C.verdeBg; badge='<span style="'+_bd+';background:#DCFCE7;color:#166534"><i class="ph-duotone ph-check-circle"></i> lançada</span>'; }
+        else if(cancel){ barra=_C.verm; rowBg=_C.vermBg; badge='<span style="'+_bd+';background:#FDECEA;color:#9A2A2A"><i class="ph-duotone ph-x-circle"></i> cancelada</span>'; }
+        else if(bloq){ barra=_C.laranja; rowBg=_C.laranjaBg; badge='<span style="'+_bd+';background:#F7E4C9;color:#7A4B12"><i class="ph-duotone ph-file-x"></i> sem XML</span>'; }
+        else { barra='#E0A93B'; rowBg='#fff'; badge='<span style="'+_bd+';background:#FBF7EE;color:#9A6B1E;border:1px solid #EBDCC0"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#E0A93B"></span> a lançar</span>'; }
+        const tdCss='padding:10px 12px;border-bottom:1px solid #F3EBE2;font-size:13px;vertical-align:middle;background:'+rowBg;
+        const forn=_envEsc(n.emitente||('Nota '+(n.numero||'')));
+        const sub=cancel?'NF-e cancelada — não precisa lançar':(bloq?'passou o prazo de 10 dias — lançar manual':('NF '+_envEsc(n.numero||'—')));
+        const tr=el('tr');
+        tr.innerHTML=
+           '<td style="'+tdCss+';border-left:5px solid '+barra+'">'+badge+'</td>'
+          +'<td style="'+tdCss+';white-space:nowrap;font-variant-numeric:tabular-nums">'+DBR(n.data_emissao)+'</td>'
+          +'<td style="'+tdCss+'"><div style="font-weight:700;color:var(--tx)'+(cancel?';text-decoration:line-through;color:var(--ts)':'')+'">'+forn+'</div><div style="font-size:11px;color:var(--ts)">'+sub+'</div></td>'
+          +'<td style="'+tdCss+';text-align:center;font-variant-numeric:tabular-nums">'+(bloq?'—':nit)+'</td>'
+          +'<td style="'+tdCss+';text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums">'+R(n.valor_total)+'</td>';
+        const tdAc=el('td',null,null,{style:tdCss+';text-align:right;white-space:nowrap'});
+        const acWrap=div(null,null,{style:'display:flex;gap:6px;align-items:center;justify-content:flex-end'});
+        if(oculta){
+          const bRest=btn('','↩︎ Restaurar',()=>_setOculta(n,false)); bRest.style.cssText=_acGhost; acWrap.appendChild(bRest);
+        }else{
+          if(!cancel){ const bL=btn('',done?'Ver / relançar':(bloq?'Lançar manual':'Lançar'),()=>abrirNotaEN(n)); bL.style.cssText=done?_acGhost:_acPrim; acWrap.appendChild(bL); }
+          const bX=btn('','',()=>_excluirNota(n)); bX.innerHTML='<i class="ph-duotone ph-trash"></i>'; bX.title='Excluir da lista'; bX.style.cssText=_acTrash; acWrap.appendChild(bX);
+        }
+        tdAc.appendChild(acWrap); tr.appendChild(tdAc); tb.appendChild(tr);
       });
+      tbl.appendChild(tb); scroll.appendChild(tbl); listBox.appendChild(scroll);
     }
     buscaEN.oninput=desenhaNotas;
     sel.onchange=e=>{_enComp=e.target.value;desenhaNotas();};
@@ -6403,31 +6467,63 @@ async function pgEntradaNotas(c){
 }
 /* 22/07 (Bianca): "quando eu estou digitando já deveria aparecer os itens parecidos,
    mas ele está mostrando todos os insumos" — o datalist nativo abre a lista inteira.
-   Autocomplete de verdade: filtra por pedaço do nome (sem acento), até 12 opções. */
-function _enAutoComplete(inp){
+   Autocomplete de verdade: filtra por pedaço do nome (sem acento), até 12 opções.
+   19/08 (Bianca): "dá as opções de buscar pelo dropdown, sugerindo os parecidos" — os
+   parecidos e o "cadastrar novo" saíram dos chips na tela e entraram AQUI no dropdown:
+   ao focar (campo vazio) ele já sugere os parecidos da descrição da nota; ao digitar,
+   filtra; e a última opção é sempre "cadastrar novo insumo". Tela mais limpa. */
+function _enAutoComplete(inp,opts){
+  opts=opts||{};
+  const desc=opts.desc||'';
+  const onNovo=opts.onNovo||function(v){ inp.value=v; inp.dispatchEvent(new Event('input',{bubbles:false})); inp.focus(); };
   inp.removeAttribute('list');
   inp.setAttribute('autocomplete','off');
   const box=document.createElement('div');
-  box.style.cssText='position:fixed;z-index:900;background:#fff;border:1.5px solid var(--rb);border-radius:12px;box-shadow:0 8px 24px rgba(42,26,23,.15);max-height:240px;overflow-y:auto;display:none';
+  box.style.cssText='position:fixed;z-index:900;background:#fff;border:1.5px solid var(--rb);border-radius:12px;box-shadow:0 8px 24px rgba(42,26,23,.15);max-height:280px;overflow-y:auto;display:none';
   document.body.appendChild(box);
   let _skip=false;
   function fechar(){ box.style.display='none'; }
+  function _novoLabel(){
+    const t=(inp.value&&inp.value.trim())?inp.value.trim():String(desc||'').replace(/\s+/g,' ').trim().slice(0,60);
+    return t;
+  }
+  function _mkOpt(label,onPick,extra){
+    extra=extra||{};
+    const it=document.createElement('div');
+    it.style.cssText='padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid #F3EBE2;'+(extra.css||'');
+    it.innerHTML=label;
+    it.onmouseenter=()=>{it.style.background=extra.hover||'var(--rf)';};
+    it.onmouseleave=()=>{it.style.background=extra.bg||'#fff';};
+    it.onmousedown=(e)=>{ e.preventDefault(); _skip=true; onPick(); fechar(); };
+    return it;
+  }
+  function _hdr(txt){
+    const h=document.createElement('div');
+    h.textContent=txt;
+    h.style.cssText='padding:7px 14px 5px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ts)';
+    return h;
+  }
   function render(){
     if(_skip){ _skip=false; fechar(); return; }
+    if(!EN||!EN.insumos){ fechar(); return; }
     const q=_jnorm(inp.value||'');
-    if(q.length<2||!EN||!EN.insumos){ fechar(); return; }
-    const hits=EN.insumos.filter(i=>_jnorm(i.nome).includes(q)).slice(0,12);
-    if(!hits.length){ fechar(); return; }
     box.innerHTML='';
-    hits.forEach(i=>{
-      const it=document.createElement('div');
-      it.textContent=i.nome;
-      it.style.cssText='padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid #F3EBE2';
-      it.onmouseenter=()=>{it.style.background='var(--rf)';};
-      it.onmouseleave=()=>{it.style.background='#fff';};
-      it.onmousedown=(e)=>{ e.preventDefault(); _skip=true; inp.value=i.nome; inp.dispatchEvent(new Event('input',{bubbles:false})); fechar(); };
-      box.appendChild(it);
-    });
+    if(q.length<2){
+      const cands=desc?_enSugereTop(desc,6).filter(o=>o.ins):[];
+      if(cands.length){
+        box.appendChild(_hdr('parecidos com a nota'));
+        cands.forEach(o=>{ box.appendChild(_mkOpt(_envEsc(o.ins.nome),()=>{ inp.value=o.ins.nome; inp.dispatchEvent(new Event('input',{bubbles:false})); })); });
+      }else{
+        const h=document.createElement('div'); h.textContent='digite pra buscar um insumo';
+        h.style.cssText='padding:9px 14px;font-size:12px;color:var(--ts)'; box.appendChild(h);
+      }
+    }else{
+      const hits=EN.insumos.filter(i=>_jnorm(i.nome).includes(q)).slice(0,12);
+      if(hits.length){ hits.forEach(i=>{ box.appendChild(_mkOpt(_envEsc(i.nome),()=>{ inp.value=i.nome; inp.dispatchEvent(new Event('input',{bubbles:false})); })); }); }
+      else{ const h=document.createElement('div'); h.textContent='nenhum insumo com esse nome'; h.style.cssText='padding:9px 14px;font-size:12px;color:var(--ts)'; box.appendChild(h); }
+    }
+    const nl=_novoLabel();
+    box.appendChild(_mkOpt('🆕 cadastrar novo insumo'+(nl?' <span style="color:var(--ts);font-weight:600">— “'+_envEsc(nl)+'”</span>':''),()=>{ onNovo(_novoLabel()); },{css:'border-bottom:0;color:#7A4FA3;font-weight:700;background:#FBF8FE',bg:'#FBF8FE',hover:'#F3EAFB'}));
     const r=inp.getBoundingClientRect();
     box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.width=Math.max(r.width,240)+'px';
     box.style.display='block';
@@ -6456,28 +6552,13 @@ function abrirNotaEN(n){
               : '<span style="background:#F3EEE9;color:#8A7A72;'+_sl+'">não sei o que é</span>';
     rw.innerHTML='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-weight:700;font-size:13px;color:var(--tx)">'+_envEsc(desc)+'</span>'+selo+'</div><div style="font-size:11px;color:var(--ts);margin-bottom:6px">nota: '+_enQ(q)+' '+_envEsc(un)+' · '+R(ct)+'</div>';
     const insInp=el('input','fi',null,{placeholder:'Insumo (busque ou crie novo)',value:insNome,autocomplete:'off'});insInp.style.cssText='width:100%;margin-bottom:6px;font-size:13px';
-    _enAutoComplete(insInp);
-    /* 05/08 (Bianca): chips com os insumos PARECIDOS (escolher com 1 toque) + criar novo.
-       Some quando já é "não é insumo". Não muda nada se não achar parecidos. */
-    const parRow=div(null); parRow.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin:-2px 0 7px;align-items:center';
-    function pintaPar(){
-      parRow.innerHTML='';
-      if(_ign){ parRow.style.display='none'; return; }
-      parRow.style.display='flex';
-      const atual=_jnorm(insInp.value);
-      const cands=_enSugereTop(desc,6).filter(o=>o.ins && _jnorm(o.ins.nome)!==atual);
-      if(cands.length){
-        parRow.appendChild(el('span','tss',['parecidos:']));
-        cands.forEach(o=>{ const ch=el('button','',o.ins.nome,{type:'button'});
-          ch.style.cssText='padding:4px 10px;border-radius:50px;border:1px solid #D9CBE8;background:#fff;color:#5A463E;font-size:11.5px;font-weight:600;cursor:pointer';
-          ch.onclick=()=>{ insInp.value=o.ins.nome; insInp.dispatchEvent(new Event('input')); };
-          parRow.appendChild(ch); });
-      }
-      const novo=el('button','','🆕 cadastrar novo',{type:'button'});
-      novo.style.cssText='padding:4px 10px;border-radius:50px;border:1.5px dashed #7A4FA3;background:#F6F0FB;color:#7A4FA3;font-size:11.5px;font-weight:700;cursor:pointer';
-      novo.onclick=()=>{ insInp.value=String(desc||'').replace(/\s+/g,' ').trim().slice(0,60); insInp.dispatchEvent(new Event('input')); insInp.focus(); };
-      parRow.appendChild(novo);
-    }
+    _enAutoComplete(insInp,{desc:desc,onNovo:function(v){ insInp.value=v; insInp.dispatchEvent(new Event('input')); insInp.focus(); }});
+    /* 05/08→19/08 (Bianca): os PARECIDOS e o "cadastrar novo" saíram destes chips e foram
+       pro dropdown do próprio campo de insumo (mais limpo — "dá as opções de buscar pelo
+       dropdown, sugerindo os parecidos"). parRow vira no-op só pra não quebrar as chamadas
+       de pintaPar() espalhadas no restante do fluxo. */
+    const parRow=div(null); parRow.style.display='none';
+    function pintaPar(){ parRow.style.display='none'; }
     if(_sug && !_sug.forte){   // palpite fraco: dica, não preenchimento
       const dica=el('div',null,null,{style:'font-size:11px;color:#9A6B1E;margin:-2px 0 6px'});
       const lk=el('span',null,_sug.ins.nome,{style:'text-decoration:underline;cursor:pointer;font-weight:700'});
