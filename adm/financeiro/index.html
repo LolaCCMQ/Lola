@@ -286,11 +286,11 @@ section.view{display:none} section.view.on{display:block}
 
     <!-- RELATÓRIO por competência + plano de contas -->
     <section class="view" id="v-relatorio">
-      <div class="note"><b>Relatório por plano de contas.</b> Este é o fechamento do mês: entram só os lançamentos <b>conciliados</b> (que você conferiu). Toque na categoria para ver os lançamentos.</div>
+      <div class="note"><b>Relatório por plano de contas · competência.</b> Padrão: <b>por competência da nota</b> — cada nota conta no mês da emissão (paga ou não). Dá pra alternar pra "por pagamento" no botão. Toque na categoria para ver os itens.</div>
       <div class="monthsel"><span class="lblcap">Competência</span><select id="relComp"></select></div>
       <div class="filters" id="relBaseTog" style="margin-bottom:12px">
-        <button class="chip on" data-rb="pagamento">Por pagamento</button>
-        <button class="chip" data-rb="competencia">Por competência (nota)</button>
+        <button class="chip" data-rb="pagamento">Por pagamento</button>
+        <button class="chip on" data-rb="competencia">Por competência (nota)</button>
       </div>
       <div class="filters" id="relConcTog" style="margin-bottom:12px">
         <button class="chip on" data-rc="1">Só conciliados</button>
@@ -2498,7 +2498,7 @@ $('#dreComp').onchange=e=>{ST.comp=e.target.value;renderDRE();};
 $('#relComp').onchange=e=>{ST.relComp=e.target.value;renderRelatorio();};
 $$('#relConcTog .chip').forEach(c=>c.onclick=()=>{$$('#relConcTog .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');ST.relSoConc=c.dataset.rc==='1';renderRelatorio();});
 /* 19/08 (Bianca): toggle da BASE do relatório — por pagamento (atual) x por competência da nota (Opção 2). Escolha fica salva. */
-try{ ST.relBase=localStorage.getItem('lola_fin_relbase')||'pagamento'; }catch(e){ ST.relBase='pagamento'; }
+try{ ST.relBase=localStorage.getItem('lola_fin_relbase')||'competencia'; }catch(e){ ST.relBase='competencia'; }
 function syncRelBaseUI(){
   $$('#relBaseTog .chip').forEach(x=>x.classList.toggle('on', x.dataset.rb===(ST.relBase||'pagamento')));
   const ct=$('#relConcTog'); if(ct) ct.style.display=(ST.relBase==='competencia')?'none':'';
