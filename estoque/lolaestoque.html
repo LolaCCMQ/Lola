@@ -729,6 +729,7 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
       {id:'entnotas',ic:'ph-receipt',lb:'Entrada de Notas'},
       {id:'compras',ic:'ph-chart-line-up',lb:'Compras / CMV'},
       {id:'saidas',ic:'ph-arrow-square-out',lb:'Saída de Estoque'},
+      {id:'descartes',ic:'ph-trash',lb:'Descartes'},
       {id:'fornecedores',ic:'ph-storefront',lb:'Fornecedores'},
       {id:'pedidos',ic:'ph-shopping-cart',lb:'Pedidos'},
       /* 19/07: "Envios da Central" saiu do menu — virou a seção Recebimentos dentro de PEDIDOS */
@@ -752,8 +753,8 @@ const LOGO_SVG=`<?xml version="1.0" encoding="utf-8"?>
 
 /* 19/07 (Bianca): "Pedidos à Central" virou PEDIDOS — página única com Pedidos à
    Central + Enviar pra outras unidades + Recebimentos (a antiga Envios da Central). */
-const TITLES={dashboard:'Cozinha',insumos:'Estoque Lola',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',fornecedores:'Fornecedores',pedidos:'Pedidos',envios:'Envios da Central',entnotas:'Entrada de Notas',compras:'Compras / CMV'};
-const SUBS={dashboard:'Visão geral das operações',compras:'Tudo que foi comprado no mês, por plano de contas e insumo',insumos:'Ingredientes e matérias-primas com custo real',conferencia:'Suba a planilha do mês e confira preço por preço antes de aplicar',preproducoes:'Fichas técnicas dos preparos da cozinha',fichas:'Composição e custo dos pratos do cardápio',producao:'O que a Cozinha Central produziu hoje',contagem:'Registro de estoque do CCMQ e Mac',saidas:'Registro de saídas de insumos do estoque',fornecedores:'Cadastro e gestão de fornecedores',pedidos:'Pedidos entre unidades e Cozinha Central',envios:'Ingredientes e produções que a Central mandou pra cá',entnotas:'Puxa as notas do Financeiro e lança no estoque'};
+const TITLES={dashboard:'Cozinha',insumos:'Estoque Lola',conferencia:'Conferência de Preços',preproducoes:'Pré-produções',fichas:'Fichas Técnicas',receitas:'Receitas',producao:'Produção do dia',contagem:'Contagem de Estoque',saidas:'Saída de Estoque',descartes:'Descartes',fornecedores:'Fornecedores',pedidos:'Pedidos',envios:'Envios da Central',entnotas:'Entrada de Notas',compras:'Compras / CMV'};
+const SUBS={dashboard:'Visão geral das operações',compras:'Tudo que foi comprado no mês, por plano de contas e insumo',insumos:'Ingredientes e matérias-primas com custo real',conferencia:'Suba a planilha do mês e confira preço por preço antes de aplicar',preproducoes:'Fichas técnicas dos preparos da cozinha',fichas:'Composição e custo dos pratos do cardápio',producao:'O que a Cozinha Central produziu hoje',contagem:'Registro de estoque do CCMQ e Mac',saidas:'Registro de saídas de insumos do estoque',descartes:'Vencidos, estragados, quebras — dá baixa no estoque',fornecedores:'Cadastro e gestão de fornecedores',pedidos:'Pedidos entre unidades e Cozinha Central',envios:'Ingredientes e produções que a Central mandou pra cá',entnotas:'Puxa as notas do Financeiro e lança no estoque'};
 
 function nav(p){window._navBack=null;PAGE=p;document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.page===p));renderPage();}
 
@@ -781,7 +782,7 @@ async function renderPage(){
   main.innerHTML='';
   main.appendChild(brandHead(TITLES[PAGE],SUBS[PAGE]));
   const body=div(null,null,{id:'pb'});main.appendChild(body);
-  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgIns,saidas:pgSaidas,fornecedores:pgFornecedores,pedidos:pgPedU,envios:pgEnvios,entnotas:pgEntradaNotas,compras:pgComprasCMV};
+  const map={dashboard:pgDash,insumos:pgIns,conferencia:pgConferencia,preproducoes:pgPreps,fichas:pgFichas,receitas:pgReceitas,producao:pgProducao,contagem:pgIns,saidas:pgSaidas,descartes:pgDescartes,fornecedores:pgFornecedores,pedidos:pgPedU,envios:pgEnvios,entnotas:pgEntradaNotas,compras:pgComprasCMV};
   if(map[PAGE])await map[PAGE](body);
 }
 
@@ -965,6 +966,12 @@ async function carregarSaldoInsumos(){
     const ent={};
     (mv||[]).forEach(r=>{ const id=r.insumo_id; if(!id)return;
       (ent[id]=ent[id]||[]).push({q:parseFloat(r.qtd)||0,un:r.unidade,data:r.data}); });
+    // 19/08 (Bianca): descartes (vencido/estragado/quebra/sobra) DÃO BAIXA no saldo.
+    const mvd=await db('lola_ccmq_estoque_mov','GET',null,
+      '?origem_tipo=eq.descarte&select=insumo_id,qtd,unidade,data&limit=20000');
+    const des={};
+    (mvd||[]).forEach(r=>{ const id=r.insumo_id; if(!id)return;
+      (des[id]=des[id]||[]).push({q:parseFloat(r.qtd)||0,un:r.unidade,data:r.data}); });
     (_ins||[]).forEach(i=>{
       const un=i.unidade_custo||'kg';
       const uc=ult[i.id];
@@ -976,10 +983,16 @@ async function carregarSaldoInsumos(){
         const c=_convUnid(e.q, e.un, un);
         if(c!=null){ somaEnt+=c; temEnt=true; } else { pulou=true; }
       });
+      let somaDes=0;
+      (des[i.id]||[]).forEach(e=>{
+        if(desde && e.data && e.data < desde) return; // só descarte depois da contagem
+        const c=_convUnid(e.q, e.un, un);
+        if(c!=null){ somaDes+=c; } else { pulou=true; }
+      });
       let saldo=null, semBase=false;
-      if(baseQ!=null){ saldo = baseQ + somaEnt; }
-      else if(temEnt){ saldo = somaEnt; semBase=true; }
-      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, entr: somaEnt, semBase, aprox: pulou };
+      if(baseQ!=null){ saldo = baseQ + somaEnt - somaDes; }
+      else if(temEnt||somaDes){ saldo = somaEnt - somaDes; semBase=true; }
+      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, entr: somaEnt, desc: somaDes, semBase, aprox: pulou };
     });
   }catch(e){ /* saldo é informativo — nunca derruba a tela */ }
   return map;
@@ -4047,6 +4060,116 @@ function _delProducao(reg,parentOv,onSave){
   document.body.appendChild(ov);
 }
 
+/* 19/08 (Bianca): DESCARTES — planilha de insumos jogados fora (vencido/estragado/quebra/
+   sobra). Cada descarte grava um movimento origem_tipo='descarte' que DÁ BAIXA no saldo
+   (carregarSaldoInsumos subtrai) e guarda o custo perdido. Só CCMQ por enquanto. */
+const DESC_MOTIVOS=[['vencido','Vencido'],['estragado','Estragado / deteriorado'],['quebra','Quebra / derramamento'],['sobra','Sobra de produção']];
+function _descMotLb(k){ const base=String(k||'').split(' · ')[0]; const m=DESC_MOTIVOS.find(x=>x[0]===base); return m?m[1]:(base||'—'); }
+let DESC_ST=null;
+async function pgDescartes(c){
+  c.appendChild(ld());
+  try{
+    const [insumos, movs]=await Promise.all([
+      db('lola_insumos','GET',null,'?select=id,nome,categoria,unidade_custo,custo_por_unidade&ativo=eq.true&order=nome.asc'),
+      db('lola_ccmq_estoque_mov','GET',null,'?origem_tipo=eq.descarte&select=id,insumo_id,qtd,unidade,custo_total,origem_ref,data,criado_por&order=data.desc,criado_em.desc&limit=500')
+    ]);
+    const insById={}; insumos.forEach(i=>insById[i.id]=i);
+    DESC_ST={insumos, insById};
+    c.innerHTML='';
+    const note=div(null); note.style.cssText='background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5';
+    note.innerHTML='<i class="ph-duotone ph-info" style="color:var(--v)"></i> Registre o que foi <b>jogado fora</b> (vencido, estragado, quebra, sobra). Cada descarte <b>dá baixa no saldo</b> do estoque e guarda o custo perdido.';
+    c.appendChild(note);
+    const bNovo=btn('btn bp','＋ Novo descarte',()=>modalNovoDescarte(()=>pgDescartes(c)));
+    bNovo.style.cssText='margin-bottom:12px;font-weight:700';
+    c.appendChild(bNovo);
+    const mes=(TD()||'').slice(0,7);
+    const doMes=movs.filter(m=>String(m.data||'').slice(0,7)===mes);
+    const custoMes=doMes.reduce((s,m)=>s+(+m.custo_total||0),0);
+    const resumo=div(null); resumo.style.cssText='font-size:12px;font-weight:800;color:var(--v);text-transform:uppercase;letter-spacing:.05em;margin:2px 0 10px';
+    resumo.textContent=movs.length+' descarte(s) · '+doMes.length+' no mês · perda no mês '+R(custoMes);
+    c.appendChild(resumo);
+    const listBox=div(null); c.appendChild(listBox);
+    if(!movs.length){ listBox.appendChild(div('tss',null,{style:'padding:16px',html:'Nenhum descarte registrado ainda.'})); return; }
+    const tbl=el('table',null,null,{style:'width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--rb);border-radius:14px;overflow:hidden;table-layout:fixed'});
+    const th='font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--ts);font-weight:800;text-align:left;padding:8px;background:var(--rf);border-bottom:1px solid var(--rb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    tbl.innerHTML='<colgroup><col style="width:52px"><col><col style="width:74px"><col style="width:92px"><col style="width:78px"><col style="width:32px"></colgroup>'
+      +'<thead><tr><th style="'+th+'">Data</th><th style="'+th+'">Insumo</th><th style="'+th+';text-align:right">Qtd</th><th style="'+th+'">Motivo</th><th style="'+th+';text-align:right">Perda</th><th style="'+th+'"></th></tr></thead>';
+    const tb=el('tbody');
+    movs.forEach(m=>{
+      const ins=insById[m.insumo_id]||{}; const td='padding:8px;border-bottom:1px solid #F3EBE2;font-size:12.5px;vertical-align:middle;background:#fff';
+      const tr=el('tr');
+      tr.innerHTML='<td style="'+td+';white-space:nowrap;color:var(--ts)">'+String(DBR(m.data)||'').slice(0,5)+'</td>'
+        +'<td style="'+td+';overflow:hidden"><span style="display:block;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_envEsc(ins.nome||'?')+'</span></td>'
+        +'<td style="'+td+';text-align:right;white-space:nowrap">'+_enQ(+m.qtd||0)+' '+_envEsc(m.unidade||'')+'</td>'
+        +'<td style="'+td+'"><span style="font-size:10.5px;font-weight:800;color:#9A6B1E">'+_descMotLb(m.origem_ref)+'</span></td>'
+        +'<td style="'+td+';text-align:right;white-space:nowrap;font-weight:700">'+R(+m.custo_total||0)+'</td>';
+      const tdAc=el('td',null,null,{style:td+';text-align:center'});
+      const bx=btn('','',()=>excluirDescarte(m,()=>pgDescartes(c))); bx.innerHTML='<i class="ph-duotone ph-trash"></i>'; bx.title='Excluir (devolve ao saldo)'; bx.style.cssText='border:0;background:none;color:#B0928A;cursor:pointer;font-size:15px;padding:4px';
+      tdAc.appendChild(bx); tr.appendChild(tdAc); tb.appendChild(tr);
+    });
+    tbl.appendChild(tb); listBox.appendChild(tbl);
+  }catch(e){ c.innerHTML='<div style="padding:20px;color:red;font-weight:700">❌ Erro ao carregar.<br><small>'+_envEsc(e.message)+'</small></div>'; }
+}
+async function excluirDescarte(m,onDone){
+  const ins=(DESC_ST&&DESC_ST.insById[m.insumo_id])||{};
+  if(!confirm('Excluir o descarte de '+_enQ(+m.qtd||0)+' '+(m.unidade||'')+' de "'+(ins.nome||'?')+'"?\n\nA quantidade volta pro saldo do estoque.'))return;
+  try{ await db('lola_ccmq_estoque_mov','DELETE',null,'?id=eq.'+m.id); if(onDone)onDone(); }
+  catch(e){ alert('Erro ao excluir: '+e.message); }
+}
+function modalNovoDescarte(onDone){
+  const insumos=(DESC_ST&&DESC_ST.insumos)||[];
+  const UNS=['kg','g','L','ml','un','pct','cx','fd','dz'];
+  const wrap=div(null);
+  const insInp=el('input','fi',null,{placeholder:'Buscar insumo…',autocomplete:'off'}); insInp.style.cssText='width:100%;font-size:13px';
+  const qtdInp=el('input','fi',null,{type:'number',step:'0.001',inputmode:'decimal',placeholder:'Qtd'});
+  const unSel=el('select','fi',null,{style:'width:90px'}); UNS.forEach(u=>unSel.appendChild(el('option',null,u,{value:u})));
+  const motSel=el('select','fi',null,{}); DESC_MOTIVOS.forEach(mm=>motSel.appendChild(el('option',null,mm[1],{value:mm[0]})));
+  const dataInp=el('input','fi',null,{type:'date',value:TD()});
+  const obsInp=el('input','fi',null,{placeholder:'Observação (opcional)'});
+  const calc=el('div','tss',null,{style:'margin-top:8px'});
+  let selId=null, _skip=false;
+  const box=document.createElement('div'); box.style.cssText='position:fixed;z-index:900;background:#fff;border:1.5px solid var(--rb);border-radius:12px;box-shadow:0 8px 24px rgba(42,26,23,.15);max-height:240px;overflow-y:auto;display:none'; document.body.appendChild(box);
+  function fechar(){ box.style.display='none'; }
+  function upd(){ const ins=insumos.find(i=>i.id===selId); const q=+qtdInp.value||0; const cu=ins?(+ins.custo_por_unidade||0):0; const perda=cu*q;
+    calc.innerHTML=(selId&&q>0)?('Perda estimada: <b style="color:var(--v)">'+R(perda)+'</b>'+(ins&&ins.unidade_custo&&unSel.value!==ins.unidade_custo?(' <small>(insumo cadastrado em '+_envEsc(ins.unidade_custo)+')</small>'):'')):(selId?'informe a quantidade':'escolha o insumo'); }
+  function render(){
+    if(_skip){_skip=false;fechar();return;}
+    const q=_jnorm(insInp.value||''); if(q.length<1){ fechar(); return; }
+    const hits=insumos.filter(i=>_jnorm(i.nome).includes(q)).slice(0,12);
+    if(!hits.length){ fechar(); return; }
+    box.innerHTML=''; hits.forEach(i=>{ const it=document.createElement('div'); it.textContent=i.nome; it.style.cssText='padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid #F3EBE2';
+      it.onmouseenter=()=>it.style.background='var(--rf)'; it.onmouseleave=()=>it.style.background='#fff';
+      it.onmousedown=(e)=>{ e.preventDefault(); _skip=true; selId=i.id; insInp.value=i.nome; if(i.unidade_custo){ let u=String(i.unidade_custo).trim(); if(u.toLowerCase()==='l')u='L'; if(UNS.includes(u))unSel.value=u; } upd(); fechar(); };
+      box.appendChild(it); });
+    const r=insInp.getBoundingClientRect(); box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.width=Math.max(r.width,240)+'px'; box.style.display='block';
+  }
+  insInp.addEventListener('input',()=>{ selId=null; upd(); render(); });
+  insInp.addEventListener('focus',render); insInp.addEventListener('blur',()=>setTimeout(fechar,150));
+  qtdInp.oninput=upd; unSel.onchange=upd;
+  const bSave=btn('btn bp','✓ Registrar descarte',async()=>{
+    if(!selId){ alert('Escolha um insumo da lista.'); insInp.focus(); return; }
+    const q=+qtdInp.value||0; if(!(q>0)){ alert('Quantidade inválida.'); qtdInp.focus(); return; }
+    const ins=insumos.find(i=>i.id===selId)||{}; const cu=+ins.custo_por_unidade||0; const custo=+(cu*q).toFixed(2);
+    const obs=obsInp.value.trim();
+    if(!confirm('Dar baixa de '+_enQ(q)+' '+unSel.value+' de "'+(ins.nome||'')+'" ('+motSel.options[motSel.selectedIndex].text+')?\n\nSai do saldo do estoque'+(custo>0?(' · perda '+R(custo)):'')+'.'))return;
+    bSave.disabled=true; bSave.textContent='Registrando...';
+    try{
+      await db('lola_ccmq_estoque_mov','POST',{insumo_id:selId,tipo:'saida',qtd:q,unidade:unSel.value,custo_unit:(cu||null),custo_total:(custo||null),origem_tipo:'descarte',origem_ref:motSel.value+(obs?' · '+obs:''),data:(dataInp.value||TD()),criado_por:ME||null});
+      fechar(); box.remove(); document.querySelectorAll('.ov').forEach(o=>o.remove());
+      if(onDone)onDone();
+    }catch(e){ alert('Erro: '+e.message); bSave.disabled=false; bSave.textContent='✓ Registrar descarte'; }
+  });
+  bSave.style.cssText='width:100%;margin-top:12px;padding:13px;font-weight:800;font-size:14px';
+  wrap.appendChild(fgrp('Insumo',insInp));
+  wrap.appendChild(el('div',null,null,{style:'height:10px'}));
+  wrap.appendChild(div('fg2',[fgrp('Quantidade',div(null,[qtdInp,unSel],{style:'display:flex;gap:8px;align-items:center'})),fgrp('Motivo',motSel)]));
+  wrap.appendChild(el('div',null,null,{style:'height:10px'}));
+  wrap.appendChild(div('fg2',[fgrp('Data',dataInp),fgrp('Observação',obsInp)]));
+  wrap.appendChild(calc);
+  wrap.appendChild(bSave);
+  mkModal('🗑️ Novo descarte — estoque CCMQ',[wrap],null,'mo mol');
+  upd();
+}
 async function pgSaidas(c){
   c.appendChild(ld());
   try{
