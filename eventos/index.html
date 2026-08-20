@@ -916,7 +916,7 @@ function estoqueHTML(ev){
     <table><thead><tr><th>Item</th><th>Qtd estimada</th></tr></thead><tbody>
     ${bebidas.map(m=>`<tr><td data-l="Item">${esc(m.nome)}</td><td data-l="Qtd">${m.perPax?((Number(m.qtd)||0)*pax):(Number(m.qtd)||0)} ${esc(m.un||'')}</td></tr>`).join('')}
     </tbody></table></div>`:`<div class="intro" style="margin:0 0 10px">Nenhuma bebida no menu ainda.</div>`}
-  <a class="btn-primary btn-sm" style="display:inline-block;text-decoration:none" href="https://lolaccmq.github.io/LolaEstoque/" target="_blank" rel="noopener">📦 Registrar saída no app de Estoque →</a>`;
+  <a class="btn-primary btn-sm" style="display:inline-block;text-decoration:none" href="/cozinha/" target="_blank" rel="noopener">📦 Registrar saída no app de Estoque →</a>`;
 }
 function contagemHTML(ev){
   const ct=ev.contagem||[];
