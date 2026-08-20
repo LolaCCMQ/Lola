@@ -1944,17 +1944,18 @@ function cartEnsureGridCss(){ if(document.getElementById('cartGridCss')) return;
   '#module-comprascartao table.cart-grid td.g-chk{text-align:center;width:30px}'+
   '#module-comprascartao table.cart-grid td.g-chk input{width:17px;height:17px;padding:0;cursor:pointer}'+
   '#module-comprascartao .cart-wrap{padding:14px 18px !important}'+
-  '#module-comprascartao .cart-form-row label{font-size:.58rem !important;margin-bottom:2px !important}'+
-  '#module-comprascartao .cart-form-row input,#module-comprascartao .cart-form-row select{font-size:.78rem !important;padding:6px 8px !important}'+
+  '#module-comprascartao .cart-form-row label{font-size:.56rem !important;letter-spacing:.03em;margin-bottom:2px !important}'+
+  '#module-comprascartao .cart-form-row input,#module-comprascartao .cart-form-row select,#module-comprascartao .cart-item-lin input,#module-comprascartao .cart-item-lin select{font-size:.76rem !important;padding:5px 8px !important;border-width:1px !important;border-radius:8px !important}'+
   '#module-comprascartao .cart-filtros{align-items:flex-end !important;gap:8px !important;margin-bottom:12px !important}'+
   '#module-comprascartao .cart-filtros label{font-size:.56rem !important;margin-bottom:3px !important;white-space:nowrap}'+
   '#module-comprascartao .cart-filtros input,#module-comprascartao .cart-filtros select{font-size:.76rem !important;padding:6px 8px !important;box-sizing:border-box;height:34px}'+
   '#module-comprascartao .cart-filtros .btn-sm{font-size:.72rem !important;padding:0 12px !important;height:34px;display:inline-flex;align-items:center}'+
   /* 19/08: lista de itens dentro do formulario */
-  '#module-comprascartao .cart-item-lin{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding:9px 0}'+
-  '#module-comprascartao .cart-item-lin label{display:block;font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px;white-space:nowrap}'+
+  '#module-comprascartao .cart-item-lin{display:flex;gap:7px;align-items:flex-end;flex-wrap:wrap;padding:4px 0}'+
+  '#module-comprascartao .cart-item-lin label{display:block;font-size:.56rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;white-space:nowrap}'+
   '#module-comprascartao .cart-item-lin.semlbl label{display:none}'+
-  '#module-comprascartao .cart-item-del{border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1rem;height:34px;width:32px;flex:0 0 auto}'+
+  '#module-comprascartao .cart-item-del{border:0;background:transparent;color:#DCC3BE;cursor:pointer;font-size:.82rem;height:28px;width:24px;flex:0 0 auto;padding:0}'+
+  '#module-comprascartao .cart-item-del:hover{color:#C0392B}'+
   '#module-comprascartao table.cart-grid td.g-itens{background:#FAF6F0;padding:0}'+
   '@media(max-width:560px){#module-comprascartao .cart-item-lin.semlbl label{display:block}#module-comprascartao .cart-item-lin{border-top:1px solid #EFE6DC}}';
   document.head.appendChild(st); }
@@ -1976,9 +1977,9 @@ function _cartItensHtml(){
   var its=window.__cartItens||[]; var multi=its.length>1;
   return its.map(function(it,i){
     return '<div class="cart-item-lin'+(i?' semlbl':'')+'">'
-      +'<div style="flex:2;min-width:150px"><label>O que comprou</label><input type="text" id="cIt_d_'+i+'" value="'+_escA(it.d||'')+'" placeholder="Ex: hortifr\u00fati, material de limpeza..." style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
-      +'<div style="flex:0 0 116px;min-width:96px"><label>Valor (R$)</label><input type="text" inputmode="decimal" id="cIt_v_'+i+'" value="'+_escA(it.v!=null?it.v:'')+'" oninput="_cartTotalUpd()" placeholder="0,00" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
-      +'<div style="flex:1.6;min-width:180px"><label>Categoria <span style="text-transform:none;font-weight:600;color:var(--label,#B79A8E)">\u00b7 entra no Financeiro</span></label>'+cartCatSelect('cIt_c_'+i, it.cat||'')+'</div>'
+      +'<div style="flex:2;min-width:140px"><label>O que comprou</label><input type="text" id="cIt_d_'+i+'" value="'+_escA(it.d||'')+'" placeholder="Ex: hortifr\u00fati, material de limpeza..." style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+      +'<div style="flex:0 0 96px;min-width:84px"><label>Valor (R$)</label><input type="text" inputmode="decimal" id="cIt_v_'+i+'" value="'+_escA(it.v!=null?it.v:'')+'" oninput="_cartTotalUpd()" placeholder="0,00" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+      +'<div style="flex:1.6;min-width:160px"><label>Categoria <span style="text-transform:none;font-weight:600;color:var(--label,#B79A8E)">\u00b7 no Financeiro</span></label>'+cartCatSelect('cIt_c_'+i, it.cat||'')+'</div>'
       +'<button type="button" class="cart-item-del" title="Tirar este item" onclick="cartItemDel('+i+')"'+(multi?'':' style="visibility:hidden"')+'>\ud83d\uddd1</button>'
       +'</div>';
   }).join('');
@@ -2045,7 +2046,7 @@ function cartaoRender(){
   var h=cartaoCab()+'<div class="cart-wrap" style="padding:22px 26px;max-width:980px;margin:0 auto">';
   // formulário
   h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px;margin:14px 0 16px">';
-  h+='<div style="font-weight:700;margin-bottom:10px;color:var(--vinho-deep)">'+(ed?('✏️ Editando compra'):'➕ Nova compra')+'</div>';
+  h+='<div style="font-weight:700;font-size:.92rem;margin-bottom:9px;color:var(--vinho-deep)">'+(ed?('✏️ Editando compra'):'➕ Nova compra')+'</div>';
   h+='<div class="cart-form-row" style="display:flex;gap:10px;flex-wrap:wrap">'
     +'<div style="flex:1;min-width:120px"><label style="display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Data</label><input type="date" id="cData" value="'+_escA(ed?(ed.data||'').slice(0,10):hoje)+'" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
     +'<div style="flex:1;min-width:120px"><label style="display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Competência</label><input type="month" id="cComp" value="'+_escA(ed?ed.competencia:mesAtual)+'" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
@@ -2055,15 +2056,15 @@ function cartaoRender(){
   // 19/08: itens da compra (1 ou varios, cada um com a sua categoria)
   var _alvo=ed?('id'+ed.id):'novo';
   if(window.__cartItensFor!==_alvo){ window.__cartItensFor=_alvo; window.__cartItens=ed?cartItens(ed).map(function(i){return {d:i.d||'',v:(i.v==null?null:Number(i.v)),cat:i.cat||'',cl:i.cl||''};}):[{d:'',v:null,cat:'',cl:''}]; }
-  h+='<div style="margin-top:12px;border-top:1px solid #EFE6DC;padding-top:8px">'
+  h+='<div style="margin-top:10px;border-top:1px solid #EFE6DC;padding-top:7px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
-      +'<div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700">Itens da compra</div>'
-      +'<button type="button" class="btn btn-ghost btn-sm" onclick="cartItemAdd()">\u2795 Adicionar item</button>'
+      +'<div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700">Itens da compra</div>'
+      +'<button type="button" class="btn btn-ghost btn-sm" onclick="cartItemAdd()" style="font-size:.7rem;padding:0 10px;height:28px">\u2795 Adicionar item</button>'
     +'</div>'
     +'<div id="cartItensBox">'+_cartItensHtml()+'</div>'
     +'<div id="cartTotalBox" style="display:'+((window.__cartItens.length>1)?'flex':'none')+';justify-content:flex-end;align-items:baseline;gap:8px;border-top:1px solid #EFE6DC;padding-top:8px;margin-top:2px">'
-      +'<span style="font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700">Total da compra</span>'
-      +'<span id="cartTotal" style="font-family:\'Fraunces\',serif;font-weight:600;font-size:1.15rem;color:var(--vinho)">'+cartBRL(window.__cartItens.reduce(function(t,i){return t+(Number(i.v)||0);},0))+'</span>'
+      +'<span style="font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700">Total da compra</span>'
+      +'<span id="cartTotal" style="font-family:\'Fraunces\',serif;font-weight:600;font-size:1rem;color:var(--vinho)">'+cartBRL(window.__cartItens.reduce(function(t,i){return t+(Number(i.v)||0);},0))+'</span>'
     +'</div>'
     +'</div>';
   h+='<div style="display:flex;gap:9px;margin-top:12px">'+(ed?('<button class="btn btn-primary" onclick="cartaoSalvar()">💾 Salvar alteração</button><button class="btn btn-ghost" onclick="cartaoCancelEdit()">Cancelar</button>'):'<button class="btn btn-primary" onclick="cartaoSalvar()">➕ Adicionar compra</button>')+'</div>';
@@ -2177,22 +2178,67 @@ var CART_CATS=['Insumos Alimentos','Hortifruti','Carnes e Pescados','Bebidas Nã
 async function cartLoadInsumos(){ if(CART_INS.length) return; try{ CART_INS=await api.get('lola_insumos','select=id,nome,destinos,unidade_custo&ativo=eq.true&order=nome.asc')||[]; }catch(e){ CART_INS=[]; } }
 function cartInsUnid(u){ return CART_INS.filter(function(i){ var d=i.destinos; if(!Array.isArray(d)||!d.length)return true; return d.indexOf(u)>=0; }); }
 function _cjn(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+/* 20/08 (Bianca): a entrada no estoque ja abre com UMA LINHA POR ITEM da compra,
+   com o valor preenchido, e tenta adivinhar o insumo pela descricao. */
+var _CART_STOP=['de','do','da','das','dos','com','por','para','tipo','uma','sem'];
+function _cartLimpaDesc(t){
+  return String(t||'').toLowerCase()
+    .replace(/r\$/g,' ')
+    .replace(/[0-9]+([.,][0-9]+)?/g,' ')
+    .replace(/[^a-z\u00e0-\u00fc ]/g,' ')
+    .replace(/\b(un|und|unid|unidade|unidades|kg|kgs|g|gr|gramas|grama|l|lt|ml|pct|cx|fd|dz|litro|litros)\b/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+function _cartToks(t){
+  return _cjn(t).replace(/[^a-z ]/g,' ').split(' ').filter(function(w){ return w.length>=3 && _CART_STOP.indexOf(w)<0; });
+}
+/* palpite de insumo: todas as palavras do nome do insumo tem que aparecer na descricao
+   da compra (aceitando prefixo, pra pegar plural). Entre varios, vence o nome mais longo. */
+function _cartCasaInsumo(desc,unit){
+  var q=_cartToks(_cartLimpaDesc(desc)); if(!q.length) return null;
+  var melhor=null, peso=0;
+  cartInsUnid(unit).forEach(function(x){
+    var toks=_cartToks(x.nome); if(!toks.length) return;
+    var ok=toks.every(function(w){ return q.some(function(v){ return v===w || v.indexOf(w)===0 || w.indexOf(v)===0; }); });
+    var pw=toks.join('').length;
+    if(ok && pw>peso){ melhor=x; peso=pw; }
+  });
+  return melhor;
+}
+function _cartUnOk(u){ u=String(u||'').trim(); if(u.toLowerCase()==='l')u='L'; return (CART_UN.indexOf(u)>=0)?u:'un'; }
+function _cartLinhaEstoque(it,unit){
+  var m=_cartCasaInsumo(it.d,unit);
+  return { insumo_id:m?m.id:'', nome:m?m.nome:_cartLimpaDesc(it.d), qtd:'',
+           unidade:m?_cartUnOk(m.unidade_custo):'un',
+           custo_total:(it.v!=null&&it.v!==''?String(it.v).replace('.',','):''),
+           _de:(it.d||''), _auto:!!m };
+}
 async function cartEntradaEstoque(id){
   var c=COMPRAS.find(function(x){return x.id===id;}); if(!c) return;
   await cartLoadInsumos();
   var itens=(c.estoque_itens&&c.estoque_itens.length)?JSON.parse(JSON.stringify(c.estoque_itens)):null;
-  if(!itens){ itens=[{insumo_id:'',nome:'',qtd:'',unidade:'un',custo_total:(c.valor!=null?String(c.valor).replace('.',','):'')}]; }
+  if(!itens){ var _u0=(c.estoque_unit||'ccmq'); itens=cartItens(c).map(function(it){ return _cartLinhaEstoque(it,_u0); }); }
   itens.forEach(function(it){ if(it.custo_total!=null&&typeof it.custo_total==='number')it.custo_total=String(it.custo_total).replace('.',','); });
   window.__cartEnt={id:id,unit:(c.estoque_unit||'ccmq'),itens:itens,valor:Number(c.valor)||0,desc:c.descricao||'',data:c.data,sug:{}};
   cartEntRender();
 }
 function cartEntClose(){ var o=document.getElementById('cartEntOv'); if(o)o.remove(); window.__cartEnt=null; }
-function cartEntSetUnit(u){ var s=window.__cartEnt; if(!s||s.unit===u)return; s.unit=u; s.itens.forEach(function(it){it.insumo_id='';it.nome='';it._novo=false;}); cartEntRender(); }
+function cartEntSetUnit(u){ var s=window.__cartEnt; if(!s||s.unit===u)return; s.unit=u;
+  s.itens.forEach(function(it){ it._novo=false;
+    if(it._de){ var n=_cartLinhaEstoque({d:it._de,v:null},u); it.insumo_id=n.insumo_id; it.nome=n.nome; it._auto=n._auto; if(n.insumo_id) it.unidade=n.unidade; }
+    else { it.insumo_id=''; it.nome=''; it._auto=false; }
+  });
+  cartEntRender(); }
 function cartEntAdd(){ window.__cartEnt.itens.push({insumo_id:'',nome:'',qtd:'',unidade:'un',custo_total:''}); cartEntRender(); }
 function cartEntDel(i){ var s=window.__cartEnt; s.itens.splice(i,1); if(!s.itens.length)s.itens.push({insumo_id:'',nome:'',qtd:'',unidade:'un',custo_total:''}); cartEntRender(); }
 function cartEntFld(i,f,v){ if(window.__cartEnt&&window.__cartEnt.itens[i]){ window.__cartEnt.itens[i][f]=v; if(f==='custo_total')cartEntTot(); } }
 function cartEntTot(){ var s=window.__cartEnt; if(!s)return; var soma=0; s.itens.forEach(function(it){soma+=(_cartNum(it.custo_total)||0);}); var el=document.getElementById('cartEntSoma'); if(el){ var a=s.valor; el.innerHTML='Soma dos itens: <b>'+cartBRL(soma)+'</b>'+(a>0?(' · compra '+cartBRL(a)+(Math.abs(soma-a)<0.005?' <span style="color:#2C7A4B;font-weight:800">confere ✓</span>':' <span style="color:#9A6B1E;font-weight:800">difere</span>')):''); } }
-function cartEntSug(i){ var s=window.__cartEnt; if(!s)return; var inp=document.getElementById('ceIns'+i); var dd=document.getElementById('ceDd'+i); if(!inp||!dd)return; var q=_cjn(inp.value); var list=cartInsUnid(s.unit); if(q.length>=1)list=list.filter(function(x){return _cjn(x.nome).indexOf(q)>=0;}); list=list.slice(0,10); s.sug[i]=list; var h=''; if(list.length){ list.forEach(function(x,k){ h+='<div onmousedown="cartEntPick('+i+','+k+')" style="padding:7px 10px;font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:1px solid #F3EBE2">'+_escC(x.nome)+'</div>'; }); } else { h+='<div style="padding:7px 10px;font-size:11.5px;color:#8A7A72">nenhum insumo com esse nome</div>'; } h+='<div onmousedown="cartEntNovo('+i+')" style="padding:7px 10px;font-size:12px;font-weight:800;color:#7A4FA3;background:#FBF8FE;cursor:pointer">🆕 cadastrar novo insumo</div>'; dd.innerHTML=h; dd.style.display='block'; }
+function cartEntSug(i){ var s=window.__cartEnt; if(!s)return; var inp=document.getElementById('ceIns'+i); var dd=document.getElementById('ceDd'+i); if(!inp||!dd)return; var q=_cjn(inp.value); var list=cartInsUnid(s.unit);
+  if(q.length>=1){ var f=list.filter(function(x){return _cjn(x.nome).indexOf(q)>=0;});
+    /* 20/08: se o texto inteiro nao acha nada, tenta so a primeira palavra */
+    if(!f.length && q.indexOf(' ')>0){ var q1=q.split(' ')[0]; if(q1.length>=3) f=list.filter(function(x){return _cjn(x.nome).indexOf(q1)>=0;}); }
+    list=f; }
+  list=list.slice(0,10); s.sug[i]=list; var h=''; if(list.length){ list.forEach(function(x,k){ h+='<div onmousedown="cartEntPick('+i+','+k+')" style="padding:7px 10px;font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:1px solid #F3EBE2">'+_escC(x.nome)+'</div>'; }); } else { h+='<div style="padding:7px 10px;font-size:11.5px;color:#8A7A72">nenhum insumo com esse nome</div>'; } h+='<div onmousedown="cartEntNovo('+i+')" style="padding:7px 10px;font-size:12px;font-weight:800;color:#7A4FA3;background:#FBF8FE;cursor:pointer">🆕 cadastrar novo insumo</div>'; dd.innerHTML=h; dd.style.display='block'; }
 function cartEntHide(i){ var dd=document.getElementById('ceDd'+i); if(dd)setTimeout(function(){dd.style.display='none';},180); }
 function cartEntPick(i,k){ var s=window.__cartEnt; if(!s)return; var x=(s.sug[i]||[])[k]; if(!x)return; s.itens[i].insumo_id=x.id; s.itens[i].nome=x.nome; s.itens[i]._novo=false; if(x.unidade_custo){ var u=String(x.unidade_custo).trim(); if(u.toLowerCase()==='l')u='L'; if(CART_UN.indexOf(u)>=0)s.itens[i].unidade=u; } cartEntRender(); }
 function cartEntNovo(i){ var s=window.__cartEnt; if(!s)return; var inp=document.getElementById('ceIns'+i); s.itens[i]._novo=true; s.itens[i].nome=(inp?inp.value.trim():'')||s.itens[i].nome||''; s.itens[i].insumo_id=''; cartEntRender(); }
@@ -2237,7 +2283,7 @@ function cartEntRender(){
     }
     var unopt=CART_UN.map(function(u){return '<option'+(u===it.unidade?' selected':'')+'>'+u+'</option>';}).join('');
     h+='<tr>'
-      +'<td style="'+tds+'"><div style="position:relative"><input id="ceIns'+i+'" value="'+_escA(it.nome||'')+'" placeholder="buscar insumo…" autocomplete="off" oninput="cartEntSug('+i+')" onfocus="cartEntSug('+i+')" onblur="cartEntHide('+i+')" style="'+inb+'"><div id="ceDd'+i+'" style="position:absolute;left:0;right:0;top:100%;margin-top:3px;background:#fff;border:1.5px solid #ECE3D9;border-radius:10px;box-shadow:0 8px 20px rgba(42,26,23,.14);z-index:5;display:none;max-height:220px;overflow:auto"></div></div>'+(it.insumo_id?'':'<div style="font-size:10px;color:#B0928A;margin-top:3px">escolha um insumo</div>')+'</td>'
+      +'<td style="'+tds+'"><div style="position:relative"><input id="ceIns'+i+'" value="'+_escA(it.nome||'')+'" placeholder="buscar insumo…" autocomplete="off" oninput="cartEntSug('+i+')" onfocus="cartEntSug('+i+')" onblur="cartEntHide('+i+')" style="'+inb+'"><div id="ceDd'+i+'" style="position:absolute;left:0;right:0;top:100%;margin-top:3px;background:#fff;border:1.5px solid #ECE3D9;border-radius:10px;box-shadow:0 8px 20px rgba(42,26,23,.14);z-index:5;display:none;max-height:220px;overflow:auto"></div></div>'+(it._de?('<div style="font-size:10px;color:#8A7A72;margin-top:3px">da compra: <b>'+_escC(it._de)+'</b>'+((it._auto&&it.insumo_id)?' \u00b7 <span style="color:#7A4FA3;font-weight:800">insumo sugerido, confira</span>':'')+'</div>'):'')+(it.insumo_id?'':'<div style="font-size:10px;color:#B0928A;margin-top:3px">escolha um insumo</div>')+'</td>'
       +'<td style="'+tds+'"><input value="'+_escA(it.qtd||'')+'" inputmode="decimal" oninput="cartEntFld('+i+',\'qtd\',this.value)" style="'+inb+';text-align:right"></td>'
       +'<td style="'+tds+'"><select onchange="cartEntFld('+i+',\'unidade\',this.value)" style="'+inb+'">'+unopt+'</select></td>'
       +'<td style="'+tds+'"><input value="'+_escA(it.custo_total||'')+'" inputmode="decimal" oninput="cartEntFld('+i+',\'custo_total\',this.value)" placeholder="0,00" style="'+inb+';text-align:right"></td>'
