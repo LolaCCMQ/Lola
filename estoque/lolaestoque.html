@@ -4154,7 +4154,7 @@ function modalNovoDescarte(onDone){
     if(!confirm('Dar baixa de '+_enQ(q)+' '+unSel.value+' de "'+(ins.nome||'')+'" ('+motSel.options[motSel.selectedIndex].text+')?\n\nSai do saldo do estoque'+(custo>0?(' · perda '+R(custo)):'')+'.'))return;
     bSave.disabled=true; bSave.textContent='Registrando...';
     try{
-      await db('lola_ccmq_estoque_mov','POST',{insumo_id:selId,tipo:'saida',qtd:q,unidade:unSel.value,custo_unit:(cu||null),custo_total:(custo||null),origem_tipo:'descarte',origem_ref:motSel.value+(obs?' · '+obs:''),data:(dataInp.value||TD()),criado_por:ME||null});
+      await db('lola_ccmq_estoque_mov','POST',{insumo_id:selId,tipo:'perda',qtd:q,unidade:unSel.value,custo_unit:(cu||null),custo_total:(custo||null),origem_tipo:'descarte',origem_ref:motSel.value+(obs?' · '+obs:''),data:(dataInp.value||TD()),criado_por:ME||null});
       fechar(); box.remove(); document.querySelectorAll('.ov').forEach(o=>o.remove());
       if(onDone)onDone();
     }catch(e){ alert('Erro: '+e.message); bSave.disabled=false; bSave.textContent='✓ Registrar descarte'; }
