@@ -865,12 +865,13 @@ function openTarefa(id){
   h+=`<div id="simBox"></div>`;
   $('#shBody').innerHTML=h;
 
-  let foot='';
+  let foot='<button class="btn dan" id="bDel"><i class="ph-duotone ph-trash"></i> Remover</button>';
   const pr=x.preproducao_id?`<button class="btn sec" id="bPrint"><i class="ph-duotone ph-printer"></i> Imprimir</button>`:'';
-  if(x.status==='previsto') foot=pr+`<button class="btn" id="bIni"><i class="ph-duotone ph-play"></i> Iniciar</button>`;
-  else if(x.status==='andamento') foot=pr+`<button class="btn ok" id="bFim"><i class="ph-duotone ph-check-circle"></i> Concluir</button>`;
-  else foot=pr+`<button class="btn sec" id="bReab"><i class="ph-duotone ph-arrow-counter-clockwise"></i> Reabrir</button>`;
+  if(x.status==='previsto') foot+=pr+`<button class="btn" id="bIni"><i class="ph-duotone ph-play"></i> Iniciar</button>`;
+  else if(x.status==='andamento') foot+=pr+`<button class="btn ok" id="bFim"><i class="ph-duotone ph-check-circle"></i> Concluir</button>`;
+  else foot+=pr+`<button class="btn sec" id="bReab"><i class="ph-duotone ph-arrow-counter-clockwise"></i> Reabrir</button>`;
   $('#shFoot').innerHTML=foot;
+  const bd=$('#bDel'); if(bd) bd.onclick=()=>removerTarefa(x);
   const bp=$('#bPrint'); if(bp) bp.onclick=()=>imprimir(x);
   const bi=$('#bIni'); if(bi) bi.onclick=iniciar;
   const bf=$('#bFim'); if(bf) bf.onclick=concluir;
@@ -1124,6 +1125,24 @@ async function reabrir(){
   try{ await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
     toast('Produção reaberta'); openTarefa(x.id); render();
   }catch(e){ toast('Erro: '+e.message); }
+}
+/* remover uma produção do cronograma (20/08 — Mahara pediu: faltava um jeito
+   de apagar item errado/duplicado da semana). Se já tinha sido concluída e
+   baixou insumo de verdade, desfaz a baixa primeiro (mesmo caminho do
+   Reabrir) antes de tirar da agenda — senão o saldo fica errado pra sempre. */
+async function removerTarefa(x){
+  const feito = x.status==='feito' && x.prod_hist_id;
+  const msg = feito
+    ? 'Esta produção já foi concluída e baixou insumos do estoque. Remover vai desfazer essa baixa (devolver insumos e saldo) e tirar a produção do cronograma. Continuar?'
+    : 'Remover esta produção do cronograma?';
+  if(!confirm(msg)) return;
+  try{
+    if(feito && !DEMO){ await reverterProducao(x); }
+    await patch('lola_central_cronograma?id=eq.'+x.id,{ativo:false});
+    ST.agenda=ST.agenda.filter(a=>a.id!==x.id);
+    toast('Removido do cronograma');
+    closeSheet(); render();
+  }catch(e){ toast('Erro ao remover: '+e.message); }
 }
 /* ---------- imprimir a receita pra quem vai executar ---------- */
 async function imprimir(x){
