@@ -2284,10 +2284,24 @@ function relDataCompetencia(comp){
     if(comp!=='todas' && mesN!==comp) return;
     if(n.xml_motivo==='nfe_cancelada') return;
     const val=+n.valor_total||0; if(!(val>0)) return;
-    const cat=notaCategory(n,mem);
-    const it={id:'nota:'+n.chave, chave:n.chave, memo:(n.emitente||('Nota '+(n.numero||''))),
-              date:n.data_emissao, amount:-val, competencia:mesN, category:cat, _nota:true, _paga:pagsDaNota(n.chave).length>0};
-    (byCat[cat||'__none']=byCat[cat||'__none']||[]).push(it);
+    const paga=pagsDaNota(n.chave).length>0;
+    /* 26/08 (Bianca): fornecedor misto (ex.: Italia) — se você classificou os produtos por
+       categoria (botão "Categorias"), a nota é REPARTIDA pelas categorias dos produtos no
+       relatório por competência. Senão, cai numa categoria só (regra/memória do fornecedor). */
+    const rat=rateioDaNota(n); // >1 categoria pelos produtos, ou null
+    if(rat){
+      const catGeral=notaCategory(n,mem); // parte sem categoria cai na categoria geral do fornecedor
+      rat.forEach(p=>{ const c=p.cat||catGeral||null; const lab=(p.cat&&ST.planoById[p.cat])?ST.planoById[p.cat].label:null;
+        (byCat[c||'__none']=byCat[c||'__none']||[]).push({id:'nota:'+n.chave, chave:n.chave,
+          memo:(n.emitente||('Nota '+(n.numero||'')))+(lab?' · '+lab:''),
+          date:n.data_emissao, amount:-p.valor, competencia:mesN, category:c, _nota:true, _paga:paga, _rateio:true}); });
+    } else {
+      // se os produtos foram classificados numa ÚNICA categoria, usa ela; senão regra/memória do fornecedor
+      const _its=Array.isArray(n.itens)?n.itens:[]; const _cs=[...new Set(_its.map(i=>i.cat).filter(Boolean))];
+      const cat=(_cs.length===1?_cs[0]:notaCategory(n,mem));
+      (byCat[cat||'__none']=byCat[cat||'__none']||[]).push({id:'nota:'+n.chave, chave:n.chave, memo:(n.emitente||('Nota '+(n.numero||''))),
+        date:n.data_emissao, amount:-val, competencia:mesN, category:cat, _nota:true, _paga:paga});
+    }
   });
   (ST.lanc||[]).forEach(l=>{
     if(isNeutro(l)) return;
