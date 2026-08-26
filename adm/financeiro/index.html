@@ -1798,11 +1798,11 @@ function scoreCands(n){ // pagamentos candidatos p/ uma NOTA (sem nota vinculada
     .map(l=>{ let nm=matchScore(emitTok,normSearch(l.memo||'')); if(!nm && aliasMatch(l.memo,n.emitente)) nm=2;
       return {l, nm, vd:Math.abs(Math.abs(+l.amount)-vtot)}; });
 }
-function scoreNotas(l){ // notas candidatas p/ um PAGAMENTO (sem pagamento vinculado)
+function scoreNotas(l){ // notas candidatas p/ um PAGAMENTO — inclui as JÁ ASSOCIADAS (marcadas), p/ permitir parcelas (1 nota ↔ vários pagamentos)
   const vlanc=Math.abs(+l.amount||0); const memo=normSearch(l.memo||'');
-  return ST.notas.filter(n=>pagsDaNota(n.chave).length===0)
+  return ST.notas
     .map(n=>{ let nm=matchScore(nfTokens(n.emitente),memo); if(!nm && aliasMatch(l.memo,n.emitente)) nm=2;
-      return {n, nm, vd:Math.abs((+n.valor_total||0)-vlanc)}; });
+      return {n, nm, vd:Math.abs((+n.valor_total||0)-vlanc), pags:pagsDaNota(n.chave).length}; });
 }
 /* ===== ASSOCIAÇÃO N:N (multi-seleção): 1 nota↔vários pagamentos e 1 pagamento↔várias notas ===== */
 // A PARTIR DA NOTA: marca 1+ pagamentos (ex.: boleto parcelado)
@@ -1895,6 +1895,7 @@ function openLinkPagamento(lancId, forcePicker){
       <span class="lnkbox" style="width:22px;height:22px;border:2px solid var(--border);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0"></span>
       <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'(sem emitente)')}</div>
       <div class="date" style="font-size:11px;color:var(--mut)">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</div>
+      ${pagsDaNota(n.chave).length?`<div style="font-size:10.5px;color:#166534;font-weight:700;margin-top:3px"><i class="ph-duotone ph-check-circle"></i> já associada a ${pagsDaNota(n.chave).length} pagamento(s)</div>`:''}
       ${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:5px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
         <div class="amt neg">${brl(-(+n.valor_total||0))}</div>
@@ -1913,12 +1914,12 @@ function openLinkPagamento(lancId, forcePicker){
     const q=normSearch(query||''), qd=q.replace(/\D/g,'');
     if(q){ const f=allCands.filter(c=>{const n=c.n; const vd=Math.abs(+n.valor_total||0).toFixed(2).replace(/\D/g,'');
         return normSearch(n.emitente||'').includes(q) || (''+(n.numero||'')).includes(q) || (qd && vd.includes(qd)); })
-        .sort((a,b)=>a.vd-b.vd).slice(0,60);
+        .sort((a,b)=>(a.pags-b.pags)||(a.vd-b.vd)).slice(0,60); /* não-associadas primeiro; associadas aparecem com selo */
       return f.length?`<div class="cg">Busca — ${f.length} nota(s)</div>`+f.map(({n})=>nrow(n,false)).join(''):'<div class="note">Nada encontrado com esse texto/valor.</div>'; }
     let a=allCands; if(soMes) a=a.filter(c=>((c.n.data_emissao||'').slice(0,7))===pcomp);
-    const mesmo=a.filter(c=>c.nm>0).sort((x,y)=>x.vd-y.vd);
-    const prox=a.filter(c=>c.nm===0 && c.vd<=Math.max(5,vlanc*0.05)).sort((x,y)=>x.vd-y.vd);
-    const out=a.filter(c=>c.nm===0 && c.vd>Math.max(5,vlanc*0.05)).sort((x,y)=>x.vd-y.vd).slice(0,15);
+    const mesmo=a.filter(c=>c.nm>0).sort((x,y)=>(x.pags-y.pags)||(x.vd-y.vd)); /* mesmo fornecedor: mostra até as já associadas (com selo), não-associadas primeiro */
+    const prox=a.filter(c=>c.nm===0 && c.pags===0 && c.vd<=Math.max(5,vlanc*0.05)).sort((x,y)=>x.vd-y.vd);
+    const out=a.filter(c=>c.nm===0 && c.pags===0 && c.vd>Math.max(5,vlanc*0.05)).sort((x,y)=>x.vd-y.vd).slice(0,15);
     let h='';
     if(mesmo.length) h+=`<div class="cg">Mesmo fornecedor</div>`+mesmo.map(({n})=>nrow(n,false)).join('');
     if(prox.length) h+=`<div class="cg">Valor idêntico ou parecido</div>`+prox.map(({n})=>nrow(n,true)).join('');
