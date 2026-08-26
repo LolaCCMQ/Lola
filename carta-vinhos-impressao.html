@@ -25,7 +25,14 @@ html,body{background:#efe7d8;color:var(--ink);font-family:'Manrope',Arial,sans-s
 .cat{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:6px;}
 .cat .ln{height:1px;background:var(--gold);opacity:.55;flex:1;max-width:70px;}
 .cat .cn{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:600;color:var(--red);font-size:29px;font-variation-settings:"opsz" 144;white-space:nowrap;}
-.sub{text-align:center;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#a99a86;margin:9px 0 20px;font-weight:600;}
+.sub{text-align:center;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--red);margin:9px 0 20px;font-weight:700;}
+/* Capa */
+.cover{min-height:180mm;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:0 6mm;}
+.cover .ck{font-family:'Manrope',Arial,sans-serif;letter-spacing:5px;text-transform:uppercase;font-size:10px;color:var(--gold);font-weight:600;}
+.cover h1{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:600;color:var(--red);font-size:46px;margin:14px 0 0;font-variation-settings:"opsz" 144;line-height:1;}
+.cover .crule{width:60px;height:2px;background:var(--gold);opacity:.7;margin:18px 0;}
+.cover .csub{font-size:12.5px;color:var(--desc);line-height:1.6;max-width:74%;}
+.cover .cglass{font-size:26px;margin-bottom:14px;filter:saturate(.9);}
 .w{margin:0 0 18px;break-inside:avoid;}
 .wh{display:flex;justify-content:space-between;align-items:baseline;gap:12px;}
 .wn{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:15px;color:var(--ink);line-height:1.2;font-variation-settings:"opsz" 60;}
@@ -43,6 +50,7 @@ html,body{background:#efe7d8;color:var(--ink);font-family:'Manrope',Arial,sans-s
   .bar{display:none!important;}
   .sheet{width:auto;min-height:0;margin:0;padding:0;box-shadow:none;background:#fff;}
   .rhead{position:fixed;top:0;left:0;right:0;}
+  .cover{break-after:page;min-height:175mm;}
   .sec.brk{break-before:page;}
 }
 </style></head><body>
@@ -53,6 +61,13 @@ html,body{background:#efe7d8;color:var(--ink);font-family:'Manrope',Arial,sans-s
 
 <div class="sheet">
   <div class="rhead">Lola CCMQ &nbsp;·&nbsp; Carta de Vinhos</div>
+  <section class="cover">
+    <div class="cglass">🍷</div>
+    <div class="ck">Vindima · Terraço · No alto</div>
+    <h1>Carta de Vinhos</h1>
+    <div class="crule"></div>
+    <div class="csub">Uma seleção de rótulos gaúchos, escolhidos pra harmonizar com a nossa cozinha.</div>
+  </section>
   <div id="app"><div class="state">Carregando a carta…</div></div>
   <div class="foot" id="foot"></div>
 </div>
