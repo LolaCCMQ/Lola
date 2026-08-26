@@ -3567,13 +3567,20 @@ async function modalEditarItemEstoque(item, onSave){
 async function gerarPedidoDeContagem(contagemId){
   // Buscar itens da contagem que têm pedido > 0
   const itens=await db('lola_contagem_itens','GET',null,
-    '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
+    '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor),lola_insumos!insumo_id(nome,unidade_custo,unidade_compra,categoria,fornecedor_padrao)');
   if(!itens.length){alert('Nenhum item com pedido nesta contagem.');return;}
+  // Prefere o cadastro único de Insumos; cai pro item de estoque legado
+  const _pi=it=>{const ins=it.lola_insumos,es=it.lola_estoque_itens;return{
+    nome: ins?.nome||es?.nome||'—',
+    unidade: (ins?(ins.unidade_custo||ins.unidade_compra):es?.unidade)||'—',
+    fornecedor: (ins?ins.fornecedor_padrao:es?.fornecedor)||'—',
+    categoria: ins?.categoria||es?.categoria||'outros'
+  };};
 
   // Agrupar por categoria
   const grupos={};
   itens.forEach(it=>{
-    const cat=it.lola_estoque_itens?.categoria||'outros';
+    const cat=_pi(it).categoria;
     if(!grupos[cat])grupos[cat]=[];
     grupos[cat].push(it);
   });
@@ -3596,12 +3603,12 @@ async function gerarPedidoDeContagem(contagemId){
     mb2.appendChild(t);
     mb2.appendChild(div('tw mb2',mkTable(
       ['Produto','Un','Qtd pedido','Fornecedor'],
-      gItens.map(it=>[
-        el('strong',null,it.lola_estoque_itens?.nome||'—'),
-        it.lola_estoque_itens?.unidade||'—',
+      gItens.map(it=>{const pi=_pi(it);return[
+        el('strong',null,pi.nome),
+        pi.unidade,
         el('span','bold tv',N(it.pedido,1)),
-        el('span','tss',it.lola_estoque_itens?.fornecedor||'—'),
-      ]),
+        el('span','tss',pi.fornecedor),
+      ];}),
       [null,'tr','tr',null]
     )));
   });
@@ -3610,7 +3617,7 @@ async function gerarPedidoDeContagem(contagemId){
     btn('btn bg','Fechar',()=>ov.remove()),
     btn('btn bp','🖨️ Imprimir lista',()=>{
       const w=window.open('','_blank');
-      const rows=itens.map(it=>'<tr><td>'+it.lola_estoque_itens?.nome+'</td><td>'+it.lola_estoque_itens?.unidade+'</td><td>'+N(it.pedido,1)+'</td><td>'+(it.lola_estoque_itens?.fornecedor||'')+'</td></tr>').join('');
+      const rows=itens.map(it=>{const pi=_pi(it);return'<tr><td>'+pi.nome+'</td><td>'+pi.unidade+'</td><td>'+N(it.pedido,1)+'</td><td>'+(pi.fornecedor==='—'?'':pi.fornecedor)+'</td></tr>';}).join('');
       w.document.write('<html><body style="font-family:sans-serif"><h2>Lista de Pedido — Contagem de Estoque</h2><p>'+new Date().toLocaleDateString('pt-BR')+'</p><table border="1" cellpadding="6" style="border-collapse:collapse;width:100%"><tr><th>Produto</th><th>Un</th><th>Qtd</th><th>Fornecedor</th></tr>'+rows+'</table></body></html>');
       w.print();
     }),
@@ -5165,11 +5172,11 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
 
   try{
     const itens=await db('lola_contagem_itens','GET',null,
-      '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
+      '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
     const _cnome=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'—';
     const _cun=it=>(it.lola_insumos&&it.lola_insumos.unidade_custo)||(it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'';
     const _ccat=it=>(it.lola_insumos&&it.lola_insumos.categoria)||CONT_CATS[it.lola_estoque_itens&&it.lola_estoque_itens.categoria]||(it.lola_estoque_itens&&it.lola_estoque_itens.categoria)||'—';
-    const _cforn=it=>(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||'Sem fornecedor';
+    const _cforn=it=>(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||(it.lola_insumos&&it.lola_insumos.fornecedor_padrao)||'Sem fornecedor';
     mb2.innerHTML='';
 
     if(!itens.length){
@@ -5248,10 +5255,10 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
   // Imprimir
   const btnImp=btn('btn bo bsm','🖨️ Imprimir',()=>{
     const w=window.open('','_blank');
-    db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)').then(allItens=>{
+    db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)').then(allItens=>{
       const _pn=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'';
       const _pu=it=>(it.lola_insumos&&it.lola_insumos.unidade_custo)||(it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'';
-      const grps={};allItens.forEach(it=>{const fn2=(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||'Sem fornecedor';if(!grps[fn2])grps[fn2]=[];grps[fn2].push(it);});
+      const grps={};allItens.forEach(it=>{const fn2=(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||(it.lola_insumos&&it.lola_insumos.fornecedor_padrao)||'Sem fornecedor';if(!grps[fn2])grps[fn2]=[];grps[fn2].push(it);});
       let h2='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#AA2B2B}h2{background:#fdf3f3;padding:8px;border-left:4px solid #AA2B2B}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#AA2B2B;color:#fff;padding:6px 10px;text-align:left}td{padding:6px 10px;border-bottom:1px solid #eee}</style></head><body>';
       h2+='<h1>📋 Lista de Pedidos — '+dataFmt+'</h1>';
       Object.entries(grps).sort(([a],[b])=>a.localeCompare(b,'pt')).forEach(([fn3,fi])=>{
