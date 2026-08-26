@@ -433,27 +433,29 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .imnote{background:var(--cremeDark);border-radius:10px;padding:9px 11px;font-size:11.5px;color:var(--sec);margin:12px 0 2px}
 .im-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--fio)}
 
-.item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-card);padding:12px;margin-bottom:10px}
+/* 26/08 (Bianca): "estilo planilha, mais minimalista" — item deixa de ser card gordo e
+   vira linha enxuta (divisória fina + acento fino à esquerda). */
+.item{background:#fff;border:0;border-bottom:1px solid var(--fio);border-left:3px solid transparent;border-radius:0;padding:9px 8px;margin-bottom:0}
 .item.ign{opacity:.55}
-.item .top{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px}
-.item .top b{font-size:13px;font-weight:700;line-height:1.25}
-.item .top .q{font-size:12px;color:var(--mut);white-space:nowrap;flex-shrink:0;text-align:right}
-.item select{width:100%;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;color:var(--ink);min-height:44px}
-.item .l2{display:flex;gap:8px;margin-top:8px;align-items:center}
+.item .top{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}
+.item .top b{font-size:12.5px;font-weight:700;line-height:1.25}
+.item .top .q{font-size:11px;color:var(--mut);white-space:nowrap;flex-shrink:0;text-align:right}
+.item select{width:100%;background:var(--creme);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;color:var(--ink);min-height:38px}
+.item .l2{display:flex;gap:8px;margin-top:7px;align-items:center}
 .item .l2 label{font-size:11px;color:var(--mut);font-weight:600}
-.item .l2 input{width:64px;background:var(--creme);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;font-size:13px;text-align:center;min-height:40px}
-.item .l2 .ignbtn{margin-left:auto;background:none;border:1px solid var(--border);border-radius:10px;padding:8px 11px;font:inherit;font-size:12px;font-weight:700;color:var(--sec);cursor:pointer;min-height:40px}
+.item .l2 input{width:60px;background:var(--creme);border:1px solid var(--border);border-radius:9px;padding:6px;font:inherit;font-size:12.5px;text-align:center;min-height:34px}
+.item .l2 .ignbtn{margin-left:auto;background:none;border:1px solid var(--border);border-radius:9px;padding:6px 10px;font:inherit;font-size:11.5px;font-weight:700;color:var(--sec);cursor:pointer;min-height:34px}
 .item .l2 .ignbtn.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
-.item .auto{font-size:11px;color:var(--okFg);font-weight:700;margin-top:6px;display:none}
+.item .auto{font-size:10.5px;color:var(--okFg);font-weight:700;margin-top:5px;display:none}
 .item .auto.on{display:block}
-.item.alerta{border-color:#EFD9AE;background:#FDF7EC}
-.item .fchint{display:none;font-size:11.5px;color:var(--okFg);font-weight:600;margin-top:7px;line-height:1.35}
+.item.alerta{border-left-color:#E0A93B;background:#FDF7EC}
+.item .fchint{display:none;font-size:11px;color:var(--okFg);font-weight:600;margin-top:6px;line-height:1.35}
 .item .fchint.on{display:block}
 .item .fchint.warn{color:var(--pendFg)}
-.item .entra{display:none;font-size:12px;color:var(--sec);margin-top:7px;background:var(--cremeDark);border-radius:9px;padding:7px 10px}
+.item .entra{display:none;font-size:11.5px;color:var(--sec);margin-top:6px;background:var(--cremeDark);border-radius:8px;padding:6px 9px}
 .item .entra.on{display:block}
 .item .entra b{color:var(--ink);font-weight:700}
-.item.falta{border-color:#E9A8A2;box-shadow:0 0 0 2px #FBEAE7}
+.item.falta{border-left-color:#E9A8A2;background:#FBEAE7;box-shadow:none}
 .falta-banner{background:var(--urgBg);color:var(--urgFg);border:1px solid #E9A8A2;border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.4;margin-bottom:12px}
 .falta-banner b{font-weight:700}
 .movbtn{min-height:40px;font-size:12.5px;margin-bottom:12px}
@@ -463,13 +465,13 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .movsel button.cancel{background:var(--card);color:var(--sec);border:1px solid var(--border)}
 .item .l2 .unit{font-size:12px;color:var(--mut);font-weight:700}
 /* chips pequenos no canto (redesign 18/07/2026 — mockup aprovado pela Bianca) */
-.item .l3{display:flex;gap:6px;margin-top:9px;justify-content:flex-end;flex-wrap:wrap}
-.item .l3 button{background:none;border:1px solid var(--border);border-radius:50px;padding:6px 12px;font:inherit;font-size:11px;font-weight:700;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:4px;min-height:30px}
+.item .l3{display:flex;gap:6px;margin-top:8px;justify-content:flex-end;flex-wrap:wrap}
+.item .l3 button{background:none;border:1px solid var(--border);border-radius:50px;padding:5px 11px;font:inherit;font-size:10.5px;font-weight:700;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:4px;min-height:28px}
 .item .l3 .usbtn.on{background:var(--pendBg);color:var(--pendFg);border-color:#EFD9AE}
 .item .l3 .ignbtn.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
 .item .l3 .okbtn{color:var(--okFg)}
 /* item resolvido colapsa numa linha */
-.item.mini{display:flex;align-items:center;gap:8px;padding:11px 12px;cursor:pointer;margin-bottom:6px}
+.item.mini{display:flex;align-items:center;gap:8px;padding:9px 8px;cursor:pointer;margin-bottom:0}
 .item.mini .mic{flex-shrink:0;font-size:16px;color:var(--okFg)}
 .item.mini.alerta .mic{color:var(--pendFg)}
 .item.mini.ign .mic{color:var(--mut)}
