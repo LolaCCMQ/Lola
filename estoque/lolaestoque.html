@@ -4346,8 +4346,17 @@ async function verSaida(saida){
 }
 
 async function modalNovaSaida(onSave){
-  // Buscar todos os itens de estoque
-  const todosItens=await db('lola_estoque_itens','GET',null,'?ativo=eq.true&order=categoria.asc,nome.asc');
+  // 26/08 (Bianca): a Saída puxava só de lola_estoque_itens — insumos novos (ex.: vinhos
+  // recém-cadastrados) ficavam de fora. Agora une os itens de estoque + TODOS os insumos
+  // (dedup por nome), pra tudo que existe em insumos aparecer aqui. estoque_item_id fica null
+  // pra item que só existe em insumos (a saída grava pelo nome_item).
+  const _snorm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  const _estItens=await db('lola_estoque_itens','GET',null,'?ativo=eq.true&order=categoria.asc,nome.asc');
+  let _insAll=[]; try{ _insAll=await db('lola_insumos','GET',null,'?ativo=eq.true&select=id,nome,categoria,unidade_custo,unidade_compra&order=nome.asc'); }catch(e){}
+  const _haveNomes=new Set((_estItens||[]).map(i=>_snorm(i.nome)));
+  const _insExtra=(_insAll||[]).filter(i=>i.nome && !_haveNomes.has(_snorm(i.nome)))
+    .map(i=>({id:null, nome:i.nome, categoria:i.categoria, unidade:(i.unidade_custo||i.unidade_compra||'')}));
+  const todosItens=(_estItens||[]).concat(_insExtra);
 
   const f={responsavel:'',destino:'venda',data:new Date().toISOString().split('T')[0],observacoes:''};
   const itensSaida=[]; // {estoque_item_id, nome_item, quantidade, unidade, observacoes, setor}
@@ -4425,7 +4434,7 @@ async function modalNovaSaida(onSave){
     scored.sort((a,b)=> a.sc-b.sc || a.nn.localeCompare(b.nn));
     if(!scored.length){ resultsWrap.appendChild(div('tss','Nenhum insumo encontrado.')); return; }
     scored.slice(0,15).forEach(o=>{ const it=o.it;
-      const ja=itensSaida.find(i=>i.estoque_item_id===it.id);
+      const ja=itensSaida.find(i=> it.id ? (i.estoque_item_id===it.id) : (i.estoque_item_id==null && _saidaNorm(i.nome_item)===_saidaNorm(it.nome)) );
       const row=document.createElement('button'); row.type='button';
       row.style.cssText='display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;gap:10px;padding:10px 13px;border:1.5px solid var(--rb);border-radius:10px;background:'+(ja?'#f1f1f1':'#fff')+';margin-bottom:6px;cursor:'+(ja?'default':'pointer')+';font-family:Manrope,sans-serif;font-size:13px';
       const cat=(typeof CONT_CATS!=='undefined'&&CONT_CATS[it.categoria])||it.categoria||'';
