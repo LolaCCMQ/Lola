@@ -659,6 +659,20 @@ async function carregar(){
     ST.map={}; (mapa||[]).forEach(m=>ST.map[m.desc_norm]={insumo_id:m.insumo_id,fator:+m.fator||1,ignorar:m.ignorar});
     ST.fc={}; (fc||[]).forEach(f=>ST.fc[f.insumo_norm]={peso_medio_g:f.peso_medio_g!=null?+f.peso_medio_g:null, fc:f.fc!=null?+f.fc:null});
     ST.movs=movs||[];
+    /* 26/08 (Bianca): entradas MANUAIS viram pseudo-notas na lista de notas (aparecem em
+       "Inseridas", com o fornecedor gravado como qualquer outra). Agrupadas pelo lote (origem_ref). */
+    try{
+      const man=await api('lola_central_estoque_mov?origem_tipo=eq.manual&tipo=eq.entrada&select=id,insumo_id,qtd,unidade,custo_total,origem_ref,obs,data&order=data.desc&limit=8000');
+      const g={};
+      (man||[]).forEach(m=>{
+        const key=m.origem_ref||('manual:'+(m.data||''));
+        const o=g[key]||(g[key]={chave:key, emitente:(m.obs&&m.obs!=='entrada manual')?m.obs:'(entrada manual)', data_emissao:m.data, itens:[], _manual:true, _movIds:[], valor_total:0});
+        const ins=ST.byId[m.insumo_id];
+        o.itens.push({desc:(ins?ins.nome:'item'), un:m.unidade||'', qtd:+m.qtd||0, vtotal:+m.custo_total||0, vunit:((+m.qtd)?(+m.custo_total||0)/(+m.qtd):0)});
+        o.valor_total+=(+m.custo_total||0); o._movIds.push(m.id);
+      });
+      ST.manuaisNotas=Object.values(g);
+    }catch(e){ ST.manuaisNotas=[]; }
     ST.plan=null; /* Bloco 1: invalida cache da planilha p/ recarregar movimentos com data */
     buildInsumoOptions();
     render();
@@ -2888,19 +2902,22 @@ function wireInicio(){
 
 function viewEntrada(){
   const filtro=ST.entFiltro||'pend';
-  const meses=[...new Set(ST.notas.map(mesDe).filter(Boolean))].sort().reverse(); // TODAS as notas
+  /* 26/08 (Bianca): entradas manuais entram na lista como "inseridas", buscáveis por fornecedor. */
+  const todas=ST.notas.concat(ST.manuaisNotas||[]);
+  const feita=n=> n._manual || ST.imp.has(n.chave);
+  const meses=[...new Set(todas.map(mesDe).filter(Boolean))].sort().reverse();
   if(ST.comp!=='all' && !meses.includes(ST.comp)) ST.comp='all';
   const noMes=n=>ST.comp==='all'||mesDe(n)===ST.comp;
-  const doMes=ST.notas.filter(noMes);
-  const nPend=doMes.filter(n=>!ST.imp.has(n.chave)).length, nFeitas=doMes.filter(n=>ST.imp.has(n.chave)).length;
-  let base=doMes.filter(n=> filtro==='pend'?!ST.imp.has(n.chave):filtro==='feitas'?ST.imp.has(n.chave):true);
+  const doMes=todas.filter(noMes);
+  const nPend=doMes.filter(n=>!feita(n)).length, nFeitas=doMes.filter(n=>feita(n)).length;
+  let base=doMes.filter(n=> filtro==='pend'?!feita(n):filtro==='feitas'?feita(n):true);
   if(ST.buscaN){ const b=norm(ST.buscaN); base=base.filter(n=>norm(n.emitente||'').includes(b)); }
   base=base.slice().sort((a,b)=>String(b.data_emissao||'').localeCompare(String(a.data_emissao||'')));
   let h=`<div class="note">Cada nota da Central vira <b>entrada de estoque</b>. Confira o insumo de cada item (o sistema já sugere) e confirme — o saldo sobe sozinho. A etiqueta mostra as que <b>já foram inseridas</b>.</div>`;
   h+=`<button class="btn sec" id="btnManual" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Lançar entrada manual (sem nota)</button>`;
   h+=`<div class="monthsel"><span>Competência</span>
-      <select id="selComp"><option value="all">Todas as competências (${ST.notas.length})</option>
-      ${meses.map(m=>`<option value="${m}"${ST.comp===m?' selected':''}>${compLabel(m)} (${ST.notas.filter(n=>mesDe(n)===m).length})</option>`).join('')}</select></div>`;
+      <select id="selComp"><option value="all">Todas as competências (${todas.length})</option>
+      ${meses.map(m=>`<option value="${m}"${ST.comp===m?' selected':''}>${compLabel(m)} (${todas.filter(n=>mesDe(n)===m).length})</option>`).join('')}</select></div>`;
   h+=`<div class="tabs chips" style="margin-bottom:12px">
       <button class="chip ${filtro==='pend'?'on':''}" data-f="pend">A lançar (${nPend})</button>
       <button class="chip ${filtro==='feitas'?'on':''}" data-f="feitas">Inseridas (${nFeitas})</button>
@@ -2914,8 +2931,9 @@ function viewEntrada(){
     +`<colgroup><col style="width:78px"><col style="width:44px"><col><col style="width:34px"><col style="width:80px"></colgroup>`
     +`<thead><tr><th style="${_th}">Status</th><th style="${_th}">Data</th><th style="${_th}">Fornecedor</th><th style="${_th};text-align:center">Itens</th><th style="${_th};text-align:right">Valor</th></tr></thead><tbody>`;
   base.forEach(n=>{
-    const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0); const done=ST.imp.has(n.chave);
-    const barra=done?'var(--okFg)':'#E0A93B', txt=done?'var(--okFg)':'#9A6B1E', rot=done?'inserida':'a lançar', bg=done?'var(--okBg)':'var(--card)';
+    const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0);
+    const manual=!!n._manual; const done=feita(n);
+    const barra=manual?'#2C5AA0':(done?'var(--okFg)':'#E0A93B'), txt=manual?'#2C5AA0':(done?'var(--okFg)':'#9A6B1E'), rot=manual?'manual':(done?'inserida':'a lançar'), bg=manual?'#EAF1FB':(done?'var(--okBg)':'var(--card)');
     const tdc='padding:9px 8px;border-bottom:1px solid var(--fio);font-size:12.5px;vertical-align:middle;background:'+bg;
     const dataC=String(fmtData(n.data_emissao)||'').slice(0,5);
     h+=`<tr class="nrowc" data-ch="${esc(n.chave)}" style="cursor:pointer">`
@@ -2934,7 +2952,7 @@ function wireEntrada(){
   $('#selComp')&&($('#selComp').onchange=e=>{ST.comp=e.target.value;render();});
   $$('#app .tabs .chip[data-f]').forEach(b=>b.onclick=()=>{ST.entFiltro=b.dataset.f;render();});
   const bq=$('#bqn'); if(bq){ bq.oninput=()=>{ST.buscaN=bq.value; const p=bq.selectionStart; render(); const n=$('#bqn'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
-  $$('.nrowc').forEach(c=>c.onclick=()=>abrirNota(c.dataset.ch));
+  $$('.nrowc').forEach(c=>c.onclick=()=>{ const ch=c.dataset.ch; const mn=(ST.manuaisNotas||[]).find(x=>x.chave===ch); if(mn) openManualDetailCentral(mn); else abrirNota(ch); });
 }
 
 function viewSaldo(){
@@ -3227,6 +3245,7 @@ async function abrirNota(chave){
   ST.itens.forEach(it=>{ h+=itemHTML(it); });
   $('#shBody').innerHTML=h;
   $('#shSave').innerHTML = jaImp?'<i class="ph-duotone ph-arrows-clockwise"></i> Relançar entrada':'<i class="ph-duotone ph-check"></i> Dar entrada no estoque';
+  $('#shSave').style.display='';
   $('#shSave').removeAttribute('disabled');
   onSave=salvarEntrada;
   openSheet();
@@ -3234,6 +3253,29 @@ async function abrirNota(chave){
   const bm=$('#btnMover'); if(bm) bm.onclick=()=>renderMover(n.chave);
   // sugestões p/ itens sem mapa
   ST.itens.forEach(it=>{ if(!it.insumo_id && !it.ignorar) sugerir(it); });
+}
+/* 26/08 (Bianca): detalhe de uma ENTRADA MANUAL da Central (pseudo-nota agrupada pelo lote).
+   Mostra os itens e permite excluir a entrada (devolve o estoque). */
+function openManualDetailCentral(n){
+  $('#shTitle').textContent=n.emitente||'Entrada manual';
+  const its=n.itens||[];
+  let h=`<div class="note"><b style="color:#2C5AA0">Entrada manual</b> · ${fmtData(n.data_emissao)} · ${its.length} ${its.length===1?'item':'itens'} · <b>${brl(n.valor_total)}</b></div>`;
+  h+=`<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card)">`;
+  its.forEach((it,i)=>{ const cu=(it.qtd? (it.vtotal/it.qtd):0);
+    h+=`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:9px 11px;${i?'border-top:1px solid var(--fio)':''};font-size:12.5px">`
+      +`<span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.desc||'')}</span>`
+      +`<span style="white-space:nowrap;color:var(--mut)">${num(it.qtd)} ${esc(it.un||'')}${cu>0?' · '+brl(cu)+'/'+esc(it.un||''):''} · <b style="color:var(--ink)">${brl(it.vtotal||0)}</b></span></div>`; });
+  h+=`</div>`;
+  h+=`<button class="btn sec" id="mDelBtn" style="margin-top:12px;color:#B5302E;border-color:#E9A8A2"><i class="ph-duotone ph-trash"></i> Excluir esta entrada manual</button>`;
+  $('#shBody').innerHTML=h;
+  $('#shSave').style.display='none'; onSave=null;
+  openSheet();
+  const del=$('#mDelBtn'); if(del) del.onclick=async()=>{
+    if(!confirm('Excluir esta entrada manual ('+n._movIds.length+' item(ns))?\n\nRemove a entrada do estoque — o saldo volta.'))return;
+    try{ await fetch(SB_URL+'/rest/v1/lola_central_estoque_mov?id=in.('+n._movIds.join(',')+')',{method:'DELETE',headers:lolaHeaders({'Prefer':'return=minimal'})});
+      toast('Entrada manual excluída ✓'); closeSheet(); await carregar();
+    }catch(e){ toast('Erro ao excluir: '+e.message); }
+  };
 }
 function renderMover(chave){
   const box=$('#movBox'); if(!box) return;
