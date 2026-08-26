@@ -4832,6 +4832,11 @@ async function pgCont2(c){
   c.appendChild(ld());
   try{
     c.innerHTML='';
+    // Categorias vêm do cadastro único de Insumos (mesmo catálogo da Nova Contagem)
+    const _catRows=await db('lola_insumos','GET',null,'?ativo=eq.true&select=categoria');
+    const _insCats=[...new Set((_catRows||[]).map(r=>r.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    if(!_insCats.length){c.appendChild(em('📦','Nenhum insumo cadastrado'));return;}
+    if(!_insCats.includes(_contCat))_contCat=_insCats[0];
     const barCont=div('no-print');
     barCont.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap';
     const dropWrap=document.createElement('div');
@@ -4841,30 +4846,28 @@ async function pgCont2(c){
     const dropLabel=document.createElement('span');
     const dropArrow=document.createElement('span');dropArrow.textContent='▼';dropArrow.style.cssText='font-size:9px;margin-left:8px;flex-shrink:0;transition:transform .2s';
     dropBtn.appendChild(dropLabel);dropBtn.appendChild(dropArrow);
-    function setLbl(){dropLabel.textContent=CONT_CATS[_contCat]||_contCat||'Categoria...';}setLbl();
+    function setLbl(){dropLabel.textContent=_contCat||'Categoria...';}setLbl();
     const dropPanel=document.createElement('div');
-    dropPanel.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:220px;background:#fff;border:2px solid var(--v);border-radius:14px;box-shadow:0 8px 24px rgba(170,43,43,.15);z-index:500;overflow:hidden';
+    dropPanel.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:220px;background:#fff;border:2px solid var(--v);border-radius:14px;box-shadow:0 8px 24px rgba(170,43,43,.15);z-index:500;overflow:hidden;max-height:320px;overflow-y:auto';
     let dpOpen=false;
     function toggleDp(e){if(e)e.stopPropagation();dpOpen=!dpOpen;dropPanel.style.display=dpOpen?'block':'none';dropArrow.style.transform=dpOpen?'rotate(180deg)':'';}
     dropBtn.addEventListener('click',toggleDp);
     document.addEventListener('click',()=>{if(dpOpen)toggleDp();});
-    Object.entries(CONT_CATS).forEach(([k,l])=>{
+    _insCats.forEach(k=>{
       const item=document.createElement('div');const ativo=k===_contCat;
       item.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-family:Manrope,sans-serif;font-size:13px;font-weight:'+(ativo?'700':'600')+';background:'+(ativo?'var(--rt)':'#fff')+';color:'+(ativo?'var(--v)':'var(--tx)')+';border-bottom:1px solid var(--rf)';
       item.addEventListener('mouseover',()=>{if(k!==_contCat)item.style.background='var(--rf)';});
       item.addEventListener('mouseout',()=>{item.style.background=k===_contCat?'var(--rt)':'#fff';});
       const dot=document.createElement('span');dot.style.cssText='font-size:10px;color:'+(ativo?'var(--v)':'var(--rb)');dot.textContent=ativo?'●':'○';
-      const lbl=document.createElement('span');lbl.textContent=l;
+      const lbl=document.createElement('span');lbl.textContent=k;
       item.appendChild(dot);item.appendChild(lbl);
       item.addEventListener('click',e=>{e.stopPropagation();_contCat=k;setLbl();if(dpOpen)toggleDp();renderContArea();});
       dropPanel.appendChild(item);
     });
     dropWrap.appendChild(dropBtn);dropWrap.appendChild(dropPanel);barCont.appendChild(dropWrap);
-    const btnGer=el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-gear"></i> Gerenciar',onclick:()=>modalGerenciarItens(_contCat,()=>renderContArea())});
-    btnGer.style.cssText='padding:9px 16px;font-size:13px;font-weight:700;border-radius:50px;white-space:nowrap';
     const btnNC=el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-plus"></i> Nova contagem',onclick:()=>modalNovaContagem(c)});
     btnNC.style.cssText='padding:9px 16px;font-size:13px;font-weight:800;border-radius:50px;white-space:nowrap;box-shadow:0 3px 10px rgba(170,43,43,.25)';
-    barCont.appendChild(btnGer);barCont.appendChild(btnNC);
+    barCont.appendChild(btnNC);
     c.appendChild(barCont);
     const contArea=div(null,null,{id:'cont-area'});c.appendChild(contArea);
     await renderContArea();
@@ -4876,7 +4879,8 @@ async function renderContArea(){
   area.innerHTML='';
   area.appendChild(ld());
   try{
-    const itens=await db('lola_estoque_itens','GET',null,'?categoria=eq.'+_contCat+'&ativo=eq.true&order=ordem.asc');
+    const _insRows=await db('lola_insumos','GET',null,'?categoria=eq.'+encodeURIComponent(_contCat)+'&ativo=eq.true&order=nome.asc');
+    const itens=(_insRows||[]).map(i=>({...i, unidade:(i.unidade_custo||i.unidade_compra||''), fornecedor:(i.fornecedor_padrao||'')}));
     const contagens=await db('lola_contagens','GET',null,'?order=data_contagem.desc&limit=5');
     area.innerHTML='';
     if(!itens.length){area.appendChild(em('📦','Nenhum item cadastrado para esta categoria'));return;}
@@ -4924,9 +4928,9 @@ async function renderContArea(){
         +'&order=lola_contagens(data_contagem).desc');
       // Para cada item, guardar só o valor mais recente (primeiro da lista)
       uItens.forEach(it=>{
-        if(!ultimosItens[it.estoque_item_id]){
+        if(it.insumo_id && !ultimosItens[it.insumo_id]){
           const data=it.lola_contagens?.data_contagem;
-          ultimosItens[it.estoque_item_id]={
+          ultimosItens[it.insumo_id]={
             qtd:it.qtd_contada,
             pedido:it.pedido,
             data:data?new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):null
@@ -4973,7 +4977,7 @@ async function renderContArea(){
       meta.appendChild(contCell('Última qtd',uq));
       meta.appendChild(contCell('Mínimo',N(min,0)));
       meta.appendChild(contCell('Fornecedor',it.fornecedor||'—'));
-      meta.appendChild(el('button','cont-edit',null,{html:'<i class="ph-duotone ph-pencil-simple"></i>',title:'Editar',onclick:()=>modalEditarItemEstoque(it,()=>renderContArea())}));
+      meta.appendChild(el('button','cont-edit',null,{html:'<i class="ph-duotone ph-pencil-simple"></i>',title:'Editar',onclick:()=>modalIns(it)}));
       card.appendChild(meta);
       wrapIt.appendChild(card);
     });
@@ -4990,7 +4994,14 @@ async function verContagem(ct){
   ov.addEventListener('click',e=>{if(e.target===ov&&!mo.contains(e.target))ov.remove();});
   document.body.appendChild(ov);
   try{
-    const itens=await db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+ct.id+'&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,qtd_minima,categoria,fornecedor)');
+    const itens=await db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+ct.id+'&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,qtd_minima,categoria,fornecedor),lola_insumos!insumo_id(nome,unidade_custo,unidade_compra,qtd_minima,categoria)');
+    // Prefere o cadastro único de Insumos; cai pro item de estoque legado quando não houver
+    const _pi=it=>{const ins=it.lola_insumos,es=it.lola_estoque_itens;return{
+      nome: ins?.nome||es?.nome||'—',
+      unidade: (ins?(ins.unidade_custo||ins.unidade_compra):es?.unidade)||'—',
+      qtd_minima: parseFloat(ins?.qtd_minima??es?.qtd_minima??0)||0,
+      categoria: ins?.categoria||es?.categoria||'outros'
+    };};
     mb2.innerHTML='';
     mb2.appendChild(div('g3 mb3',[
       div('custo-box',[span('scl','Data'),div('bold mt2',DBR(ct.data_contagem))]),
@@ -4998,15 +5009,15 @@ async function verContagem(ct){
       div('custo-box',[span('scl','Total itens'),div('bold mt2',itens.length+' itens')]),
     ]));
     const grupos={};
-    itens.forEach(it=>{const cat=it.lola_estoque_itens?.categoria||'outros';if(!grupos[cat])grupos[cat]=[];grupos[cat].push(it);});
+    itens.forEach(it=>{const cat=_pi(it).categoria;if(!grupos[cat])grupos[cat]=[];grupos[cat].push(it);});
     Object.entries(grupos).forEach(([cat,gItens])=>{
       const ct2=document.createElement('div');ct2.style.cssText='font-size:13px;font-weight:700;color:var(--ts);margin:12px 0 6px';ct2.textContent=CONT_CATS[cat]||cat;mb2.appendChild(ct2);
       mb2.appendChild(div('tw mb2',mkTable(
         ['Produto','Un','Mín.','Contado','Pedido','Status'],
         gItens.map(it=>{
-          const qtd=parseFloat(it.qtd_contada||0);const min=parseFloat(it.lola_estoque_itens?.qtd_minima||0);
+          const pi=_pi(it);const qtd=parseFloat(it.qtd_contada||0);const min=pi.qtd_minima;
           const st=qtd<=0?'🔴 Zerado':qtd<=min?'🟠 Abaixo':qtd<=min*1.5?'🟡 Atenção':'🟢 OK';
-          return[it.lola_estoque_itens?.nome||'—',it.lola_estoque_itens?.unidade||'—',N(min,0),el('span',qtd<=min?'bold tv':'bold',N(qtd,1)),it.pedido?N(it.pedido,1):'—',st];
+          return[pi.nome,pi.unidade,N(min,0),el('span',qtd<=min?'bold tv':'bold',N(qtd,1)),it.pedido?N(it.pedido,1):'—',st];
         }),
         [null,'tr','tr','tr','tr',null]
       )));
