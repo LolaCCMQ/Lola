@@ -8,8 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
 <style>
 :root{
   --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
@@ -332,28 +330,6 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .pedst.novo{background:var(--pendBg);color:var(--pendFg)}
 .pedst.aceito{background:#E3EDFB;color:#2C5AA0}
 .pedst.pronto{background:var(--okBg);color:var(--okFg)}
-/* 19/08: bipagem embutida no pedido (Central bipa saída / Lola bipa chegada) */
-.bipbox{background:var(--cremeDark);border-radius:14px;padding:12px;margin:6px 0 14px}
-.bipbox .bh{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--sec);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
-.biprow{display:flex;gap:8px;margin-bottom:6px}
-.biprow input[type=text]{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;font-size:14px;color:var(--ink)}
-.bipcam{flex:0 0 46px;width:46px;height:46px;border:0;border-radius:10px;background:var(--vinho);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.bipfeed{font-size:12px;font-weight:700;min-height:16px;margin:2px 2px 10px;color:var(--sec)}
-.bipfeed.ok{color:var(--okFg)}
-.bipfeed.err{color:var(--urgFg)}
-.bipitem{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:9px 11px;margin-bottom:7px}
-.bipitem .bt{flex:1;min-width:0}
-.bipitem .bt b{display:block;font-size:13.5px;font-weight:700}
-.bipitem .bt span{display:block;font-size:11px;color:var(--mut)}
-.bipstep{display:flex;align-items:center;gap:6px;flex:0 0 auto}
-.bipstep button{width:30px;height:30px;border:1px solid var(--border);background:var(--creme);border-radius:8px;font-size:16px;font-weight:800;color:var(--vinho);cursor:pointer;display:flex;align-items:center;justify-content:center}
-.bipstep input{width:48px;text-align:center;background:var(--creme);border:1px solid var(--border);border-radius:8px;padding:6px 2px;font:inherit;font-size:14px;color:var(--ink)}
-.bipitem.dif{border-color:#E7C88A;background:#FBF6EC}
-.camov{position:fixed;inset:0;background:#000;z-index:9999;display:none;flex-direction:column}
-.camov.on{display:flex}
-.camov video{flex:1;width:100%;object-fit:cover;background:#000}
-.camov .cst{position:absolute;left:0;right:0;bottom:70px;text-align:center;color:#fff;font-size:13px;font-weight:700;padding:0 20px;text-shadow:0 1px 4px rgba(0,0,0,.6)}
-.camov .cbtn{position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:0;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 @media(max-width:640px){ .inshd,.insrw{grid-template-columns:minmax(0,1fr) auto 40px;gap:8px;padding:11px 12px} .inshd .h-pr,.insrw .pr{display:none} }
 .rendrow{display:flex;gap:8px}
 .rendrow input[type=number]{flex:1;min-width:0}
@@ -555,11 +531,6 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 </style>
 </head>
 <body>
-<div class="camov" id="bipCamOv">
-  <button class="cbtn" id="bipCamFechar"><i class="ph-duotone ph-x"></i></button>
-  <video id="bipCamVideo" playsinline muted autoplay></video>
-  <div class="cst" id="bipCamStatus">Aponte pro QR da etiqueta</div>
-</div>
 <div class="wrap">
   <header>
     <button class="back" id="btnBack" title="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
@@ -663,7 +634,7 @@ async function carregar(){
     const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo, perdas, inv] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
-      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por,conservacao,validade_dias_resfriado,validade_dias_congelado,fornecedor_padrao,qtd_minima&order=categoria,nome'),
+      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por,conservacao,validade_dias_resfriado,validade_dias_congelado&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total,origem_tipo,origem_ref'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
@@ -1082,9 +1053,7 @@ function viewPlanilha(){
      <select id="planContSel">${contOpts}</select>
      <span style="flex:1"></span>
      <button class="chip" id="btnPlanCont" style="min-height:40px"><i class="ph-duotone ph-clipboard-text"></i> Fazer contagem</button>
-     <button class="chip" id="btnPlanHist" style="min-height:40px"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button>
-     <button class="chip" id="btnSugestaoPedido" style="min-height:40px;background:#2C5AA0;color:#fff;border-color:#2C5AA0"><i class="ph-duotone ph-shopping-cart"></i> Gerar sugestão de pedido</button>
-     <button class="chip" id="btnFichasPendentes" style="min-height:40px"><i class="ph-duotone ph-file-dashed"></i> Fichas técnicas pendentes</button></div>`;
+     <button class="chip" id="btnPlanHist" style="min-height:40px"><i class="ph-duotone ph-clock-counter-clockwise"></i> Ver contagens</button></div>`;
   h+=`<div class="toolbar" style="flex-wrap:wrap;gap:6px">
      <button class="chip ${PLAN_TIPO==='tudo'?'on':''}" data-pt="tudo">Tudo</button>
      <button class="chip ${PLAN_TIPO==='producao'?'on':''}" data-pt="producao">Pré-preparos (${totProd})</button>
@@ -1129,8 +1098,6 @@ function wirePlanilha(){
   $$('#app [data-pt]').forEach(b=>b.onclick=()=>{ PLAN_TIPO=b.dataset.pt; render(); });
   $('#btnPlanCont')&&($('#btnPlanCont').onclick=()=>openContagemEstoque('todos'));
   $('#btnPlanHist')&&($('#btnPlanHist').onclick=()=>openContagensHist('estoque'));
-  $('#btnSugestaoPedido')&&($('#btnSugestaoPedido').onclick=abrirSugestaoPedido);
-  $('#btnFichasPendentes')&&($('#btnFichasPendentes').onclick=abrirFichasPendentes);
   $$('#app .pl-tbl tbody tr[data-id]').forEach(tr=>{
     const id=tr.dataset.id, tp=tr.dataset.tp;
     const nm=tr.querySelector('.pl-name'); if(nm) nm.onclick=()=>openPlanAcoes(tp,id,nm.textContent||'');
@@ -1860,6 +1827,7 @@ function openEtiqueta(id){
   const hoje=new Date().toISOString().slice(0,10);
   ETIQ_CONS=s.conservacao||'resfriado';
   const diasR=s.validade_dias!=null?s.validade_dias:2, diasC=s.validade_dias_congelado!=null?s.validade_dias_congelado:15;
+  const dias=ETIQ_CONS==='congelado'?diasC:diasR;
   const ri=rendInfo(r);
   /* 17/07: sugerir pela PRODUÇÃO real — "foram 20 porções produzidas" → sugere 20 */
   const _hist=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(h=>h.preproducao_id===id):[];
@@ -1874,13 +1842,12 @@ function openEtiqueta(id){
   $('#shBody').innerHTML=`
     <div class="mf"><label>Produção e responsável</label><div class="rendrow"><input type="date" id="etData" value="${hoje}" style="max-width:160px"><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div></div>
     <div class="mf"><label>Lote <span style="color:var(--urgFg);font-weight:700">*obrigatório</span> <span style="color:var(--mut);font-weight:400">— vem da produção já registrada nesse dia; ajuste se for de outro dia</span></label><input type="text" id="etLote" required value="${esc(loteSug)}"></div>
-    <label class="iml">Como está sendo guardado agora</label>
+    <label class="iml">Como vai ser guardado</label>
     <div id="etConsBtns" class="unrow" style="margin-bottom:12px">${['resfriado','congelado','seco'].map(c=>`<button data-c="${c}" class="${c===ETIQ_CONS?'on':''}"><i class="ph-duotone ${CONS_IC[c]}"></i> ${CONS_L[c]}</button>`).join('')}</div>
-    <div class="mf"><label>Validade <span style="color:var(--mut);font-weight:400">(dias após produção — a etiqueta já sai com as duas datas, pra não precisar reimprimir se congelar depois)</span></label><div class="rendrow">
-      <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px"><i class="ph-duotone ph-snowflake"></i> Resfriado (dias)</label><input type="number" id="etDiasR" step="1" value="${diasR}" inputmode="numeric"></div>
-      <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px"><i class="ph-duotone ph-cube"></i> Congelado (dias)</label><input type="number" id="etDiasC" step="1" value="${diasC}" inputmode="numeric"></div>
+    <div class="mf"><div class="rendrow">
+      <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Validade (dias após produção)</label><input type="number" id="etDias" step="1" value="${dias}" inputmode="numeric"></div>
+      <div style="flex:1"><label style="display:block;font-size:11px;font-weight:700;color:var(--sec);margin-bottom:4px">Nº de etiquetas <span style="color:var(--mut);font-weight:600">(${_ultProd>0?'últimas '+_ultProd+' produzidas':'sugerido '+nSug})</span></label><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric"></div>
     </div></div>
-    <div class="mf"><label>Nº de etiquetas <span style="color:var(--mut);font-weight:600">(${_ultProd>0?'últimas '+_ultProd+' produzidas':'sugerido '+nSug})</span></label><input type="number" id="etQtd" step="1" value="${nSug}" inputmode="numeric" style="max-width:120px"></div>
     <div class="mf"><label>Tamanho e peso <span style="color:var(--mut);font-weight:400">(peso em branco = linha pra escrever à mão)</span></label><div class="rendrow"><select id="etTam" style="flex:1">
       <option value="60x40" selected>60 × 40 mm</option>
       <option value="50x30">50 × 30 mm</option>
@@ -1891,51 +1858,33 @@ function openEtiqueta(id){
     <div class="mf"><label>Conservação</label><textarea id="etCons" rows="2">${esc(CONSERV_PADRAO)}</textarea></div>
     <label class="etck"><input type="checkbox" id="etIng" checked> incluir ingredientes na etiqueta</label>
     <label class="iml" style="margin-top:12px">Prévia da etiqueta</label>
-    <div style="background:#fff;border:1.5px dashed var(--lbl);border-radius:6px;max-width:280px;padding:10px 12px;font-family:Arial,sans-serif;color:#111;line-height:1.3;position:relative" id="etPrev"></div>`;
+    <div style="background:#fff;border:1.5px dashed var(--lbl);border-radius:6px;max-width:280px;padding:10px 12px;font-family:Arial,sans-serif;color:#111;line-height:1.3" id="etPrev"></div>`;
   const etPrev=()=>{ const el=$('#etPrev'); if(!el)return;
-    const dp=$('#etData').value||hoje;
-    const ddR=parseInt($('#etDiasR').value||'0',10)||0, ddC=parseInt($('#etDiasC').value||'0',10)||0;
-    const dvR=new Date(dp+'T12:00:00'); dvR.setDate(dvR.getDate()+ddR);
-    const dvC=new Date(dp+'T12:00:00'); dvC.setDate(dvC.getDate()+ddC);
+    const dp=$('#etData').value||hoje; const dd=parseInt($('#etDias').value||'0',10)||0;
+    const dv=new Date(dp+'T12:00:00'); dv.setDate(dv.getDate()+dd);
     const f=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
     const peso=($('#etPeso').value||'').trim();
     const lote=($('#etLote').value||'').trim(); const nEt=Math.max(1,parseInt($('#etQtd').value||'1',10)||1);
-    const qrPrevURL=lote?qrEtiquetaDataURL(lote, r.nome, prodUn(r), 120):'';
-    el.innerHTML=`${qrPrevURL?`<img src="${qrPrevURL}" style="position:absolute;top:10px;right:10px;width:44px;height:44px">`:''}
-      <div style="font-weight:800;font-size:13px;text-transform:uppercase;padding-right:${qrPrevURL?'50px':'0'}">${esc(r.nome)}</div>
-      <div style="font-size:11px;margin-top:3px">Produção: <b>${f(new Date(dp+'T12:00:00'))}</b> · ${esc(($('#etResp').value||'').trim()||'—')} · guardado agora: ${CONS_L[ETIQ_CONS]}</div>
-      <div style="font-size:11px">Validade resfriado: <b>${f(dvR)}</b> (${ddR}d)</div>
-      <div style="font-size:11px">Validade congelado: <b>${f(dvC)}</b> (${ddC}d)</div>
+    el.innerHTML=`<div style="font-weight:800;font-size:13px;text-transform:uppercase">${esc(r.nome)}</div>
+      <div style="font-size:11px;margin-top:3px">Produção: <b>${f(new Date(dp+'T12:00:00'))}</b> · ${esc(($('#etResp').value||'').trim()||'—')}</div>
+      <div style="font-size:11px">Validade: <b>${f(dv)}</b> (${dd} dia${dd===1?'':'s'}) · ${CONS_L[ETIQ_CONS]}</div>
       <div style="font-size:11px">Peso: ${peso?('<b>'+esc(peso)+'</b>'):'________'}</div>
       <div style="font-size:11px">Lote: ${lote?`<b>${esc(lote)}</b>${nEt>1?' · <span style="color:#666">cada etiqueta numerada 01/'+String(nEt).padStart(2,'0')+' até '+String(nEt).padStart(2,'0')+'/'+String(nEt).padStart(2,'0')+'</span>':''}`:'<b style="color:var(--urgFg)">— preencha o lote pra poder imprimir —</b>'}</div>
       <div style="font-size:9.5px;margin-top:3px;color:#333">${esc(($('#etCons').value||'').trim())}</div>
       ${$('#etIng').checked?'<div style="font-size:9px;margin-top:3px;color:#555">Ingredientes: (entram na impressão)</div>':''}`;
   };
-  ['etData','etResp','etLote','etDiasR','etDiasC','etPeso','etCons','etIng','etQtd'].forEach(i=>{ const e2=$('#'+i); if(e2){ e2.oninput=etPrev; e2.onchange=etPrev; } });
-  $$('#etConsBtns button').forEach(b=>b.onclick=()=>{ ETIQ_CONS=b.dataset.c; $$('#etConsBtns button').forEach(x=>x.classList.toggle('on',x===b)); etPrev(); });
+  ['etData','etResp','etLote','etDias','etPeso','etCons','etIng','etQtd'].forEach(i=>{ const e2=$('#'+i); if(e2){ e2.oninput=etPrev; e2.onchange=etPrev; } });
+  $$('#etConsBtns button').forEach(b=>b.onclick=()=>{ ETIQ_CONS=b.dataset.c; $$('#etConsBtns button').forEach(x=>x.classList.toggle('on',x===b));
+    const dEl=$('#etDias'); if(dEl) dEl.value=ETIQ_CONS==='congelado'?diasC:diasR; etPrev(); });
   etPrev();
   $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
   $('#shSave').removeAttribute('disabled'); onSave=printEtiquetas; openSheet();
-}
-/* 18/08: QR na etiqueta — guarda só lote+produto+unidade (nunca a quantidade), assim o
-   mesmo código serve tanto pra bipar unidade por unidade quanto pra bipar uma vez e
-   ajustar o total contado. Formato: LOLA:<lote>:<produto>:<unidade>. Gerado em canvas
-   (síncrono) e embutido como dataURL — funciona na janela de impressão sem depender de
-   internet no momento de imprimir. */
-function qrEtiquetaDataURL(lote, nomeProduto, unidade, px){
-  try{
-    const div=document.createElement('div');
-    new QRCode(div,{text:`LOLA:${lote}:${nomeProduto}:${unidade}`, width:px||240, height:px||240, colorDark:'#000000', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M});
-    const cv=div.querySelector('canvas');
-    return cv?cv.toDataURL('image/png'):'';
-  }catch(e){ return ''; }
 }
 async function printEtiquetas(){
   const r=ETIQ_CUR; if(!r)return;
   const dataP=$('#etData').value||new Date().toISOString().slice(0,10);
   const resp=($('#etResp').value||'').trim();
-  const diasR=parseInt($('#etDiasR').value||'0',10)||0;
-  const diasC=parseInt($('#etDiasC').value||'0',10)||0;
+  const dias=parseInt($('#etDias').value||'0',10)||0;
   const cons=($('#etCons').value||'').trim();
   const consTipo=ETIQ_CONS||'resfriado';
   const tam=$('#etTam').value; const n=Math.max(1,Math.min(200,parseInt($('#etQtd').value||'1',10)||1));
@@ -1944,33 +1893,27 @@ async function printEtiquetas(){
      ele não tem rastreio do produto, então bloqueia a impressão até preencher. */
   const loteChk=($('#etLote').value||'').trim();
   if(!loteChk){ toast('Preencha o lote antes de imprimir — é obrigatório pra rastrear o produto.'); $('#etLote').focus(); return; }
-  /* 19/08 (Mahara): a etiqueta já sai com as DUAS datas de validade (resfriado
-     e congelado), calculadas a partir da data de produção — assim se o item for
-     congelado depois, a data já está impressa e não precisa reimprimir. */
-  const valR=new Date(dataP+'T00:00:00'); valR.setDate(valR.getDate()+diasR); const dataVR=valR.toISOString().slice(0,10);
-  const valC=new Date(dataP+'T00:00:00'); valC.setDate(valC.getDate()+diasC); const dataVC=valC.toISOString().slice(0,10);
+  const val=new Date(dataP+'T00:00:00'); val.setDate(val.getDate()+dias); const dataV=val.toISOString().slice(0,10);
   let ings='';
   if(incIng){ try{ const rr=await post('rpc/central_receita_itens',{pid:r.id}); ings=(rr||[]).map(x=>x.nome).join(', '); }catch(e){} }
-  // grava as duas validades e o tipo de conservação atual pra lembrar
+  // grava a validade escolhida pra lembrar
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
-    const _sd={preproducao_id:r.id, atualizado_por:quem, conservacao:consTipo, validade_dias:diasR, validade_dias_congelado:diasC};
+    const _sd={preproducao_id:r.id, atualizado_por:quem, conservacao:consTipo};
+    if(consTipo==='congelado') _sd.validade_dias_congelado=dias; else _sd.validade_dias=dias;
     await post('lola_central_saldo?on_conflict=preproducao_id',[_sd],'resolution=merge-duplicates,return=minimal');
-    ST.saldo=ST.saldo||{}; ST.saldo[r.id]=Object.assign({}, ST.saldo[r.id]||{preproducao_id:r.id}, {conservacao:consTipo, validade_dias:diasR, validade_dias_congelado:diasC});
+    ST.saldo=ST.saldo||{}; ST.saldo[r.id]=Object.assign({}, ST.saldo[r.id]||{preproducao_id:r.id}, {conservacao:consTipo}, consTipo==='congelado'?{validade_dias_congelado:dias}:{validade_dias:dias});
   }catch(e){}
-  const sizes={'60x40':{w:'60mm',h:'40mm',page:'60mm 40mm',qr:'11mm'},'50x30':{w:'50mm',h:'30mm',page:'50mm 30mm',qr:'9mm'},'100x50':{w:'100mm',h:'50mm',page:'100mm 50mm',qr:'15mm'},'58':{w:'54mm',h:'auto',page:'58mm auto',qr:'13mm'},'a4':{w:'90mm',h:'52mm',page:'A4',qr:'15mm'}};
+  const sizes={'60x40':{w:'60mm',h:'40mm',page:'60mm 40mm'},'50x30':{w:'50mm',h:'30mm',page:'50mm 30mm'},'100x50':{w:'100mm',h:'50mm',page:'100mm 50mm'},'58':{w:'54mm',h:'auto',page:'58mm auto'},'a4':{w:'90mm',h:'52mm',page:'A4'}};
   const sz=sizes[tam]||sizes.a4; const roll = tam!=='a4';
   const lote=($('#etLote').value||'').trim();
-  const qrURL=lote?qrEtiquetaDataURL(lote, r.nome, prodUn(r)):'';
   /* cada etiqueta física sai numerada dentro do lote (01/N, 02/N…) — é o
      "inserir na etiqueta em ordem" pedido pela Mahara pro rastreio */
   const labelHTML=(i)=>`<div class="lab"><div class="rin">
-      ${qrURL?`<div class="lqr" style="width:${sz.qr};height:${sz.qr}"><img src="${qrURL}"></div>`:''}
-      <div class="ln"${qrURL?` style="padding-right:calc(${sz.qr} + 2mm)"`:''}>${esc(r.nome)}</div>
+      <div class="ln">${esc(r.nome)}</div>
       <div class="lr"><span>Produção</span><b>${fmtData(dataP)}</b></div>
-      <div class="lr"><span>Val. resfriado</span><b>${fmtData(dataVR)}${diasR?` (${diasR}d)`:''}</b></div>
-      <div class="lr"><span>Val. congelado</span><b>${fmtData(dataVC)}${diasC?` (${diasC}d)`:''}</b></div>
-      <div class="lr"><span>Guardar agora</span><b>${esc(CONS_L[consTipo]||consTipo)}</b></div>
-      ${peso?`<div class="lr pw"><span>Peso</span><b>${esc(peso)}</b></div>`:''}
+      <div class="lr"><span>Validade</span><b>${fmtData(dataV)}${dias?` (${dias}d)`:''}</b></div>
+      <div class="lr"><span>Guardar</span><b>${esc(CONS_L[consTipo]||consTipo)}</b></div>
+      <div class="lr pw"><span>Peso</span><b>${peso?esc(peso):''}</b></div>
       ${resp?`<div class="lr"><span>Resp.</span><b>${esc(resp)}</b></div>`:''}
       <div class="lr"><span>Lote</span><b>${esc(lote)}${n>1?' · '+String(i+1).padStart(2,'0')+'/'+String(n).padStart(2,'0'):''}</b></div>
       ${incIng&&ings?`<div class="li"><b>Ingr.:</b> ${esc(ings)}</div>`:''}
@@ -1984,12 +1927,10 @@ async function printEtiquetas(){
     *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#000;margin:0}
     .sheet{display:${roll?'block':'flex'};flex-wrap:wrap;gap:${roll?'0':'6mm'};padding:${roll?'0':'6mm'}}
     .lab{width:${sz.w};${sz.h!=='auto'?`height:${sz.h};`:''}${roll?'':'border:1px solid #000;border-radius:6px;'}overflow:hidden;position:relative;${roll?'page-break-after:always;':''}}
-    .rin{width:100%;height:100%;box-sizing:border-box;padding:${roll?'1.6mm 3mm':'2.5mm 3mm'};display:flex;flex-direction:column;gap:${roll?'0.25mm':'0.4mm'};position:relative}
-    .lqr{position:absolute;top:0;right:0;background:#fff}
-    .lqr img{width:100%;height:100%;display:block}
-    .ln{font-weight:bold;font-size:${roll?'11pt':'12pt'};line-height:1.05;border-bottom:1.4px solid #000;padding-bottom:0.6mm;margin-bottom:0.6mm;text-transform:uppercase}
-    .lr.pw b{flex:1;text-align:left;padding-left:3mm;border-bottom:0.5pt solid #000;min-height:3mm}
-    .lr{display:flex;justify-content:space-between;font-size:${roll?'10.5pt':'9pt'};line-height:${roll?'1.15':'1.3'}}
+    .rin{width:100%;height:100%;box-sizing:border-box;padding:${roll?'2mm 3mm':'2.5mm 3mm'};display:flex;flex-direction:column;gap:0.4mm}
+    .ln{font-weight:bold;font-size:${roll?'11pt':'12pt'};line-height:1.05;border-bottom:1.4px solid #000;padding-bottom:0.8mm;margin-bottom:0.8mm;text-transform:uppercase}
+    .lr.pw b{flex:1;text-align:left;padding-left:3mm;border-bottom:0.5pt solid #000;min-height:3.2mm}
+    .lr{display:flex;justify-content:space-between;font-size:${roll?'10.5pt':'9pt'};line-height:1.3}
     .lr span{color:#333}.lr b{font-weight:bold}
     .li{font-size:${roll?'8.5pt':'7.5pt'};line-height:1.2;margin-top:0.6mm;color:#111;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
     .li b{font-weight:bold}
@@ -2176,7 +2117,7 @@ async function openContagemDet(id, tipo){
 /* 17/07: o Estoque veio pro equipelola.net. Caminho relativo ao domínio de propósito —
    é o que faz ele enxergar o login (localStorage é por domínio). Voltar pro
    lolaccmq.github.io re-abre o buraco do ?u=. */
-const _EST_URL='/cozinha/';
+const _EST_URL='/estoque/lolaestoque.html';
 function _telaDoEstoque(page){
   const s=lolaSession()||{};
   const quem=encodeURIComponent(s.nome||s.email||'');
@@ -2557,25 +2498,12 @@ async function delEnvio(id, nome){
 async function carregarPedidos(){
   ST.pedidos='loading'; if(ST.tab==='ped'||ST.tab==='ini') render();
   try{
-    ST.pedidos=await api('lola_pedidos?select=id,numero_pedido,unidade,status,central_aceito_por,data_pedido,responsavel,valor_total,observacoes,lola_pedidos_itens(id,nome_item,quantidade,unidade,subtotal)&order=data_pedido.desc,numero_pedido.desc&limit=80');
-    await carregarEnvios();
+    ST.pedidos=await api('lola_pedidos?select=id,numero_pedido,unidade,status,central_status,central_aceito_por,data_pedido,responsavel,valor_total,observacoes,lola_pedidos_itens(nome_item,quantidade,unidade,subtotal)&order=data_pedido.desc,numero_pedido.desc&limit=80');
     await carregarRecebimentos();
   }
   catch(e){ ST.pedidos=[]; }
   atualizaBadgePed();
   if(ST.tab==='ped'||ST.tab==='ini') render();
-}
-/* 19/08: envio bipado pela Central (lola_pedidos_envios/_itens) — pega o envio mais
-   recente de cada pedido, usado tanto pra saber "o que já foi bipado" (retomar bipagem
-   que ficou pela metade) quanto pra mostrar Enviado no lado da Central. */
-async function carregarEnvios(){
-  ST.envioMap={};
-  const ids=(ST.pedidos||[]).filter(p=>p&&p.id).map(p=>p.id);
-  if(!ids.length) return;
-  let envs=[];
-  try{ envs=await api('lola_pedidos_envios?select=id,pedido_id,enviado_por,data_envio,criado_em,lola_pedidos_envios_itens(id,pedido_item_id,nome_item,unidade,qtd_solicitada,qtd_enviada,lote)&pedido_id=in.('+ids.join(',')+')&order=criado_em.desc'); }
-  catch(e){ envs=[]; }
-  envs.forEach(e=>{ if(e&&!ST.envioMap[e.pedido_id]) ST.envioMap[e.pedido_id]=e; });
 }
 /* 29/07 (Bianca): recebimento do CCMQ/MAC — resultado + divergências, só leitura.
    lola_pedidos_recebimentos_itens guarda o SOLICITADO original (o item do pedido é
@@ -2596,7 +2524,7 @@ function pedRecebInfo(p){
   const rec=(ST.recebMap||{})[p&&p.id]||null;
   if(st==='recebido_divergencia') return {label:'Recebido c/ divergência', cls:'divp', ic:'ph-warning', rec};
   if(st==='recebido_completo') return {label:'Recebido completo', cls:'recok', ic:'ph-check-circle', rec};
-  if(st==='enviado') return {label:'aguardando recebimento', cls:'wait', ic:'ph-clock', rec:null};
+  if((p&&p.central_status)==='pronto') return {label:'aguardando recebimento', cls:'wait', ic:'ph-clock', rec:null};
   return null;
 }
 /* itens que vieram diferentes do pedido */
@@ -2628,14 +2556,9 @@ function notaRecebimento(p, rec){
   hn+='</table><div class="footer">Gerado em '+new Date().toLocaleString('pt-BR')+' · Cozinha Central</div></body></html>';
   w.document.write(hn); w.document.close(); w.print();
 }
-function atualizaBadgePed(){ const d=ST.pedidos; const nn=(d&&d!=='loading')?d.filter(p=>p.status==='solicitado').length:0; const cp=$('#cntPed'); if(cp){ if(nn){cp.style.display='';cp.textContent=nn;}else cp.style.display='none'; } }
+function atualizaBadgePed(){ const d=ST.pedidos; const nn=(d&&d!=='loading')?d.filter(p=>p.status==='solicitado' && (!p.central_status||p.central_status==='novo')).length:0; const cp=$('#cntPed'); if(cp){ if(nn){cp.style.display='';cp.textContent=nn;}else cp.style.display='none'; } }
 function pedUniTag(u){ return u==='ccmq'?'<span class="utag ccmq">CCMQ</span>':u==='mac'?'<span class="utag mac">MAC</span>':''; }
-/* 19/08: vocabulário único de status do pedido (substitui status+central_status).
-   A Central só atua em solicitado→em_producao→pronto_entrega→enviado; o resto é
-   escrito pelo Lola (rascunho, recebido_*, cancelado). */
-const PED_ST_LBL={rascunho:'rascunho', solicitado:'solicitado', em_producao:'em produção', pronto_entrega:'pronto p/ entrega', enviado:'enviado', recebido_completo:'recebido', recebido_divergencia:'recebido c/ diverg.', cancelado:'cancelado'};
-const PED_ST_CLS={rascunho:'pend', solicitado:'pend', em_producao:'az', pronto_entrega:'az', enviado:'ok', recebido_completo:'ok', recebido_divergencia:'divp', cancelado:'wait'};
-function pedPill(cs){ cs=cs||'solicitado'; return `<span class="stpill ${PED_ST_CLS[cs]||'pend'}">${PED_ST_LBL[cs]||cs}</span>`; }
+function pedPill(cs){ cs=cs||'novo'; return cs==='pronto'?'<span class="stpill ok">pronto</span>':cs==='aceito'?'<span class="stpill az">aceito</span>':'<span class="stpill pend">novo</span>'; }
 /* 29/07 (Bianca): valor recebido por período. O que conta é o RECEBIDO — nos pedidos com
    divergência o valor_total já está gravado pelo recebido (o CCMQ recalcula na baixa). */
 const PED_MESES_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -2682,15 +2605,15 @@ function viewPedidos(){
   let list=d.slice();
   if(mes) list=list.filter(p=>String(p.data_pedido||'').startsWith(mes));
   if(uni!=='todas') list=list.filter(p=>p.unidade===uni);
-  if(filtro==='abertos') list=list.filter(p=>p.status==='solicitado'||p.status==='em_producao'||p.status==='pronto_entrega');
+  if(filtro==='abertos') list=list.filter(p=>p.status==='solicitado');
   else if(filtro==='diverg') list=list.filter(p=>p.status==='recebido_divergencia');
   if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-shopping-cart"></i>Nenhum pedido${filtro==='abertos'?' a fazer':filtro==='diverg'?' em divergência':''} nesse período.</div>`; return h; }
   h+=list.map(p=>{
     const its=p.lola_pedidos_itens||[];
-    const cs=p.status||'solicitado';
+    const cs=p.central_status||'novo';
     const ri=pedRecebInfo(p);
     return `<div class="pedc" data-id="${p.id}">
-      <div class="fh"><b>#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}</b>${pedPill(cs)}</div>
+      <div class="fh"><b>#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}</b><span class="pedstw" style="position:relative"><button class="pedst ${cs}" title="Trocar o status">${cs==='pronto'?'pronto ✓':cs}</button></span></div>
       <div class="frow"><span>Pedido</span><b>${fmtData(String(p.data_pedido).slice(0,10))}${p.responsavel?' · '+esc((p.responsavel||'').trim()):''}</b></div>
       <div class="frow"><span>Itens</span><b>${its.length} · ${brl(p.valor_total)}</b></div>
       ${ri?`<div class="pillrow"><span class="stpill ${ri.cls}"><i class="ph-duotone ${ri.ic}"></i> ${ri.label}</span></div>`:''}
@@ -2702,18 +2625,24 @@ function wirePedidos(){
   const ms=$('#pedMesSel'); if(ms) ms.onchange=()=>{ ST.pedMes=ms.value; render(); };
   $$('#app .tabs .chip[data-pu]').forEach(b=>b.onclick=()=>{ST.pedUni=b.dataset.pu;render();});
   $$('#app .tabs .chip[data-pf]').forEach(b=>b.onclick=()=>{ST.pedFiltro=b.dataset.pf;render();});
-  /* 19/08: não existe mais menu de "trocar status" livre — o avanço de status agora só
-     acontece pelos botões dedicados dentro do pedido (Aceitar / Marcar como separado /
-     Confirmar envio bipado), pra garantir que a baixa de estoque e a bipagem fiquem
-     sempre consistentes com o status. */
   $$('#app .pedc').forEach(el=>{ const id=el.dataset.id;
-    el.onclick=()=>openPedido(id);
+    el.onclick=(e)=>{ if(e.target.closest('.pedstw'))return; openPedido(id); };
+    const st=el.querySelector('.pedst'); if(st) st.onclick=(e)=>{ e.stopPropagation();
+      const w=el.querySelector('.pedstw'); const aberto=w.querySelector('.insmenu'); fecharInsMenu(); if(aberto) return;
+      const menu=document.createElement('div'); menu.className='insmenu'; menu.style.width='160px';
+      [['novo','circle','Novo'],['aceito','check','Aceito'],['pronto','paper-plane-tilt','Pronto pra enviar']].forEach(([v,ic,lb])=>{
+        const b=document.createElement('button'); b.innerHTML='<i class="ph-duotone ph-'+ic+'"></i> '+lb;
+        b.onclick=(e2)=>{ e2.stopPropagation(); fecharInsMenu(); setPedidoStatus(id, v); };
+        menu.appendChild(b);
+      });
+      w.appendChild(menu);
+    };
   });
 }
-let PED_CUR=null, PED_BIP=null;
+let PED_CUR=null;
 function openPedido(id){
   const p=(ST.pedidos||[]).find(x=>x.id===id); if(!p)return; PED_CUR=p;
-  const its=p.lola_pedidos_itens||[]; const cs=p.status||'solicitado';
+  const its=p.lola_pedidos_itens||[]; const cs=p.central_status||'novo';
   $('#shTitle').textContent='Pedido #'+(p.numero_pedido||'')+' — '+(p.unidade||'').toUpperCase();
   const f=$('.sh-foot'); if(f) f.style.display='none';
   let h=`<div class="note">De <b>${p.responsavel?esc((p.responsavel||'').trim()):'—'}</b> · ${fmtData(String(p.data_pedido).slice(0,10))} · ${pedPill(cs)}${p.observacoes?'<br>Obs: '+esc(p.observacoes):''}</div>`;
@@ -2727,12 +2656,12 @@ function openPedido(id){
       const totItens=((ri.rec.lola_pedidos_recebimentos_itens)||[]).length;
       const nOk=totItens-divs.length;
       if(divs.length){
-        h+=`<div class="divbanner"><i class="ph-duotone ph-warning"></i> Veio diferente do enviado (${divs.length})</div>`;
+        h+=`<div class="divbanner"><i class="ph-duotone ph-warning"></i> Veio diferente do pedido (${divs.length})</div>`;
         h+=divs.map(x=>{ const dif=x.rec-x.sol; const neg=dif<0; const zero=x.rec===0;
           return `<div class="divitem${zero?' zero':''}"><div class="nm">${esc(x.nome)}${x.un?` <span class="dun">· ${esc(x.un)}</span>`:''}</div>`+
             `<div class="difgrid">`+
-              `<div class="difcell"><div class="k">Enviado</div><div class="v">${num(x.sol)}</div></div>`+
-              `<div class="difcell rec"><div class="k">Recebido</div><div class="v">${num(x.rec)}</div></div>`+
+              `<div class="difcell"><div class="k">Pediu</div><div class="v">${num(x.sol)}</div></div>`+
+              `<div class="difcell rec"><div class="k">Veio</div><div class="v">${num(x.rec)}</div></div>`+
               `<div class="difcell dif${neg?' neg':''}"><div class="k">Diferença</div><div class="v">${dif>0?'+':dif<0?'−':''}${num(Math.abs(dif))}</div></div>`+
             `</div></div>`;
         }).join('');
@@ -2743,187 +2672,60 @@ function openPedido(id){
       h+=`<button class="notebtn" id="pedNota"><i class="ph-duotone ph-receipt"></i> Ver nota de recebimento</button>`;
     }
   }
-  const bipando = cs==='pronto_entrega';
   h+=`<div class="lbl">Itens (${its.length}) · ${brl(p.valor_total)}</div>`;
-  if(bipando){ pedInitBip(p); h+=renderPedBipHTML(); }
-  else h+=its.map(x=>`<div class="ring"><span>${esc(x.nome_item)}</span><b>${num(x.quantidade)} ${esc(x.unidade||'')}</b></div>`).join('')||'<div class="uinfo">Sem itens.</div>';
+  h+=its.map(x=>`<div class="ring"><span>${esc(x.nome_item)}</span><b>${num(x.quantidade)} ${esc(x.unidade||'')}</b></div>`).join('')||'<div class="uinfo">Sem itens.</div>';
   h+=`<div class="pacts" style="margin-top:14px">`;
-  if(cs==='solicitado') h+=`<button class="prodbtn" id="pedAceitar"><i class="ph-duotone ph-check"></i> Aceitar pedido</button>`;
-  else if(cs==='em_producao') h+=`<button class="prodbtn" id="pedSeparado"><i class="ph-duotone ph-package"></i> Marcar como separado</button><button class="pdel" id="pedVolta" title="voltar"><i class="ph-duotone ph-arrow-counter-clockwise"></i></button>`;
-  else if(cs==='pronto_entrega') h+=`<button class="prodbtn" id="pedConfirmarEnvio"><i class="ph-duotone ph-truck"></i> Confirmar envio</button><button class="pdel" id="pedVoltaSep" title="voltar"><i class="ph-duotone ph-arrow-counter-clockwise"></i></button>`;
+  if(cs==='novo') h+=`<button class="prodbtn" id="pedAceitar"><i class="ph-duotone ph-check"></i> Aceitar pedido</button>`;
+  else if(cs==='aceito') h+=`<button class="prodbtn" id="pedPronto"><i class="ph-duotone ph-package"></i> Pronto pra enviar</button><button class="pdel" id="pedVolta" title="voltar"><i class="ph-duotone ph-arrow-counter-clockwise"></i></button>`;
+  else h+=`<button class="btn sec" id="pedVolta2"><i class="ph-duotone ph-arrow-counter-clockwise"></i> Reabrir</button>`;
   h+=`</div>`;
   $('#shBody').innerHTML=h; openSheet();
   $('#pedNota')&&($('#pedNota').onclick=()=>notaRecebimento(p, ri&&ri.rec));
-  $('#pedAceitar')&&($('#pedAceitar').onclick=()=>setPedidoStatus(id,'em_producao'));
-  $('#pedSeparado')&&($('#pedSeparado').onclick=()=>setPedidoStatus(id,'pronto_entrega'));
-  $('#pedVolta')&&($('#pedVolta').onclick=()=>setPedidoStatus(id,'solicitado'));
-  $('#pedVoltaSep')&&($('#pedVoltaSep').onclick=()=>setPedidoStatus(id,'em_producao'));
-  $('#pedConfirmarEnvio')&&($('#pedConfirmarEnvio').onclick=()=>confirmarEnvio(id));
-  $('#bipCamFechar')&&($('#bipCamFechar').onclick=fecharBipCamera);
-  if(bipando) wireBipUI();
+  $('#pedAceitar')&&($('#pedAceitar').onclick=()=>setPedidoStatus(id,'aceito'));
+  $('#pedPronto')&&($('#pedPronto').onclick=()=>setPedidoStatus(id,'pronto'));
+  $('#pedVolta')&&($('#pedVolta').onclick=()=>setPedidoStatus(id,'novo'));
+  $('#pedVolta2')&&($('#pedVolta2').onclick=()=>setPedidoStatus(id,'aceito'));
 }
-/* ===== 19/08: bipagem de saída — conferência do "pronto_entrega" antes de virar "enviado" =====
-   PED_BIP guarda, por item do pedido, quanto de fato vai ser enviado. Começa igual ao
-   pedido; cada bipagem (leitor USB no #bipInput ou câmera) soma 1 no item reconhecido —
-   dá pra bipar unidade por unidade ou bipar uma vez e ajustar o total pelo stepper. */
-function pedInitBip(p){
-  const env=(ST.envioMap||{})[p.id];
-  const its=p.lola_pedidos_itens||[];
-  const eis=(env&&env.lola_pedidos_envios_itens)||[];
-  PED_BIP = its.map(it=>{
-    const ei=eis.find(e=>e.pedido_item_id===it.id || norm(e.nome_item)===norm(it.nome_item));
-    return {item_id:it.id, nome:it.nome_item, unidade:it.unidade||'', qtd_pedida:+it.quantidade||0, qtd_enviada: ei?(+ei.qtd_enviada||0):(+it.quantidade||0), lote: ei?(ei.lote||''):''};
-  });
-}
-/* código da etiqueta: LOLA:<lote>:<produto>:<unidade> (ver qrEtiquetaDataURL) */
-function bipParse(raw){
-  const m=/^LOLA:([^:]*):([^:]*):([^:]*)$/.exec(String(raw||'').trim());
-  return m?{lote:m[1], produto:m[2], unidade:m[3]}:null;
-}
-function bipAplicar(raw){
-  raw=String(raw||'').trim(); if(!raw) return;
-  const info=bipParse(raw);
-  const alvoNome=info?info.produto:raw;
-  const n=norm(alvoNome);
-  const item=(PED_BIP||[]).find(x=>norm(x.nome)===n);
-  const fb=$('#bipFeedback');
-  if(item){
-    item.qtd_enviada=(+item.qtd_enviada||0)+1;
-    if(info&&info.lote) item.lote=info.lote;
-    if(fb){ fb.textContent='✓ '+item.nome+' — agora '+num(item.qtd_enviada)+' '+(item.unidade||''); fb.className='bipfeed ok'; }
-  } else if(fb){ fb.textContent='✗ "'+alvoNome+'" não está neste pedido'; fb.className='bipfeed err'; }
-  renderBipItens();
-}
-function renderBipItens(){
-  const box=$('#bipItensBox'); if(!box) return;
-  box.innerHTML=(PED_BIP||[]).map((it,i)=>{
-    const dif=it.qtd_enviada!==it.qtd_pedida;
-    return `<div class="bipitem${dif?' dif':''}"><div class="bt"><b>${esc(it.nome)}</b><span>pedido: ${num(it.qtd_pedida)} ${esc(it.unidade)}</span></div>`+
-      `<div class="bipstep"><button data-act="-" data-i="${i}" type="button">−</button><input type="number" min="0" step="1" value="${it.qtd_enviada}" data-i="${i}"><button data-act="+" data-i="${i}" type="button">+</button></div></div>`;
-  }).join('');
-  $$('#bipItensBox .bipstep button').forEach(b=>b.onclick=()=>{
-    const i=+b.dataset.i; const it=PED_BIP[i]; if(!it) return;
-    it.qtd_enviada=Math.max(0,(+it.qtd_enviada||0)+(b.dataset.act==='+'?1:-1)); renderBipItens();
-  });
-  $$('#bipItensBox .bipstep input').forEach(inp=>inp.onchange=()=>{
-    const i=+inp.dataset.i; const it=PED_BIP[i]; if(!it) return;
-    it.qtd_enviada=Math.max(0,+inp.value||0); renderBipItens();
-  });
-}
-function renderPedBipHTML(){
-  return `<div class="bipbox"><div class="bh"><i class="ph-duotone ph-barcode"></i> Bipagem de saída</div>`+
-    `<div class="biprow"><input type="text" id="bipInput" placeholder="Bipar (leitor USB) ou digitar o produto..." autocomplete="off"><button class="bipcam" id="bipCamBtn" type="button" title="Usar câmera"><i class="ph-duotone ph-camera"></i></button></div>`+
-    `<div class="bipfeed" id="bipFeedback"></div><div id="bipItensBox"></div></div>`;
-}
-function wireBipUI(){
-  const inp=$('#bipInput');
-  if(inp){ inp.focus(); inp.onkeydown=(e)=>{ if(e.key==='Enter'){ e.preventDefault(); bipAplicar(inp.value); inp.value=''; } }; }
-  renderBipItens();
-  $('#bipCamBtn')&&($('#bipCamBtn').onclick=abrirBipCamera);
-}
-/* câmera: BarcodeDetector nativo (Chrome/Android) com fallback jsQR; fica aberta lendo
-   contínuo (com cooldown pro mesmo código) até o usuário fechar — dá pra bipar vários
-   itens em sequência sem reabrir a câmera a cada um. */
-let BIP_CAM_STREAM=null, BIP_CAM_LOOP=null;
-async function abrirBipCamera(){
-  const ov=$('#bipCamOv'), status=$('#bipCamStatus'), video=$('#bipCamVideo');
-  ov.classList.add('on'); status.textContent='Abrindo câmera…';
-  try{
-    BIP_CAM_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    video.srcObject=BIP_CAM_STREAM; await video.play();
-    status.textContent='Aponte pro QR da etiqueta';
-    bipCamLoop(video, status);
-  }catch(e){ status.textContent='Não consegui abrir a câmera (permissão negada ou indisponível).'; }
-}
-function fecharBipCamera(){
-  const ov=$('#bipCamOv'); if(ov) ov.classList.remove('on');
-  if(BIP_CAM_LOOP) cancelAnimationFrame(BIP_CAM_LOOP);
-  if(BIP_CAM_STREAM){ BIP_CAM_STREAM.getTracks().forEach(t=>t.stop()); BIP_CAM_STREAM=null; }
-}
-function bipCamLoop(video, status){
-  const canvas=document.createElement('canvas'), ctx=canvas.getContext('2d');
-  const nativo='BarcodeDetector' in window;
-  const detector=nativo?new BarcodeDetector({formats:['qr_code']}):null;
-  let ultimo='', ultimoEm=0;
-  async function tick(){
-    if(!BIP_CAM_STREAM) return;
-    if(video.videoWidth){
-      canvas.width=video.videoWidth; canvas.height=video.videoHeight;
-      ctx.drawImage(video,0,0,canvas.width,canvas.height);
-      let texto=null;
-      try{
-        if(nativo){ const codes=await detector.detect(canvas); if(codes.length) texto=codes[0].rawValue; }
-        else if(window.jsQR){ const img=ctx.getImageData(0,0,canvas.width,canvas.height); const r=jsQR(img.data,img.width,img.height); if(r) texto=r.data; }
-      }catch(e){}
-      const agora=Date.now();
-      if(texto && (texto!==ultimo || agora-ultimoEm>1500)){ ultimo=texto; ultimoEm=agora; bipAplicar(texto); status.textContent='Lido: '+texto; }
-    }
-    BIP_CAM_LOOP=requestAnimationFrame(tick);
-  }
-  tick();
-}
-/* ===== Baixa de estoque — agora acontece na confirmação do envio bipado (não mais no
-   "pronto pra enviar"), e usa a quantidade REALMENTE bipada, não a do pedido. ===== */
+/* ===== Baixa automática ao marcar o pedido "pronto pra enviar" (sai da Central) ===== */
 function _matchProducao(nome){ const n=norm(nome); if(!n)return null; return (ST.receitas&&ST.receitas.find?ST.receitas.find(x=>norm(x.nome)===n):null)||null; }
 function _matchInsumo(nome){ const n=norm(nome); if(!n)return null; return (ST.insumos||[]).find(i=>i&&i.ativo!==false && norm(i.nome)===n)||null; }
-async function baixaEnvioPedido(p, itensBip){
+async function baixaEnvioPedido(p, reverter){
+  const its=p.lola_pedidos_itens||[]; const sinal=reverter?1:-1;
   const dest=({ccmq:'Lola',mac:'Mac',central:'Central'})[p.unidade]||p.unidade||'';
   const hoje=new Date().toISOString().slice(0,10); const naoCasou=[];
-  for(const it of (itensBip||[])){ const q=+it.qtd_enviada||0; if(!(q>0)) continue;
-    const r=_matchProducao(it.nome);
+  for(const it of its){ const q=+it.quantidade||0; if(!(q>0)) continue;
+    const r=_matchProducao(it.nome_item);
     if(r){ const un=prodUn(r);
-      if(it.unidade && norm(it.unidade)!==norm(un)){ naoCasou.push((it.nome||'?')+' ('+it.unidade+'≠'+un+')'); continue; }
-      const s=(ST.saldo||{})[r.id]; const base=(s&&+s.saldo)||0; let novo=base-q; if(novo<0)novo=0;
+      if(it.unidade && norm(it.unidade)!==norm(un)){ naoCasou.push((it.nome_item||'?')+' ('+it.unidade+'≠'+un+')'); continue; }
+      const s=(ST.saldo||{})[r.id]; const base=(s&&+s.saldo)||0; let novo=base+sinal*q; if(novo<0)novo=0;
       try{ await fetch(SB_URL+'/rest/v1/lola_central_saldo?preproducao_id=eq.'+r.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({saldo:novo, updated_at:new Date().toISOString(), atualizado_por:'Pedido #'+(p.numero_pedido||'')})});
         if(s)s.saldo=novo; else (ST.saldo=ST.saldo||{})[r.id]={preproducao_id:r.id,saldo:novo,unidade:un};
-        await post('lola_central_saldo_log',[{preproducao_id:r.id, data:hoje, saldo_novo:novo, por:'Baixa (bipada) pedido #'+(p.numero_pedido||'')+' → '+dest}],'return=minimal');
-      }catch(e){ naoCasou.push((it.nome||'?')+' (erro)'); }
+        await post('lola_central_saldo_log',[{preproducao_id:r.id, data:hoje, saldo_novo:novo, por:(reverter?'Estorno':'Baixa')+' pedido #'+(p.numero_pedido||'')+' → '+dest}],'return=minimal');
+      }catch(e){ naoCasou.push((it.nome_item||'?')+' (erro)'); }
       continue; }
-    const ins=_matchInsumo(it.nome);
+    const ins=_matchInsumo(it.nome_item);
     if(ins){ const cu=(ins.custo_por_unidade!=null)?+ins.custo_por_unidade:null;
-      try{ await post('lola_central_estoque_mov',[{insumo_id:ins.id, tipo:'baixa', qtd:-q, unidade:it.unidade||'', custo_unit:cu, custo_total:cu!=null?+(-cu*q).toFixed(2):null, origem_tipo:'envio', origem_ref:'pedido:'+p.id, data:hoje, obs:'Envio bipado pedido #'+(p.numero_pedido||'')+' '+dest, criado_por:'portal'}],'return=minimal');
-        ST.movs&&ST.movs.push({insumo_id:ins.id, qtd:-q, custo_total:cu!=null?+(-cu*q).toFixed(2):0, _pedido:p.id});
-      }catch(e){ naoCasou.push((it.nome||'?')+' (erro)'); }
+      try{ await post('lola_central_estoque_mov',[{insumo_id:ins.id, tipo:reverter?'entrada':'baixa', qtd:sinal*q, unidade:it.unidade||'', custo_unit:cu, custo_total:cu!=null?+(sinal*cu*q).toFixed(2):null, origem_tipo:'envio', origem_ref:'pedido:'+p.id, data:hoje, obs:(reverter?'Estorno ':'Envio ')+'pedido #'+(p.numero_pedido||'')+' '+dest, criado_por:'portal'}],'return=minimal');
+        ST.movs&&ST.movs.push({insumo_id:ins.id, qtd:sinal*q, custo_total:cu!=null?+(sinal*cu*q).toFixed(2):0, _pedido:p.id});
+      }catch(e){ naoCasou.push((it.nome_item||'?')+' (erro)'); }
       continue; }
-    naoCasou.push(it.nome||'?');
+    naoCasou.push(it.nome_item||'?');
   }
   return naoCasou;
 }
-/* solicitado→em_producao / em_producao↔pronto_entrega — troca simples de status, sem
-   baixa (a baixa só acontece em confirmarEnvio, ao virar "enviado") */
-async function setPedidoStatus(id, novo){
+async function setPedidoStatus(id, cs){
   const p=(ST.pedidos||[]).find(x=>x.id===id); if(!p)return;
+  const era=p.central_status||'novo';
   const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
-  const body={status:novo};
-  if(novo==='em_producao'){ body.central_aceito_por=quem; body.central_aceito_em=new Date().toISOString(); }
-  try{
-    await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_pedidos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(body)});
-    p.status=novo; if(body.central_aceito_por)p.central_aceito_por=body.central_aceito_por;
-    const msg=novo==='em_producao'?'Pedido aceito ✓':novo==='pronto_entrega'?'Separado — pronto pra bipar':'Reaberto';
-    toast(msg); closeSheet(); atualizaBadgePed(); render();
-  }catch(e){ toast('Erro: '+e.message); }
-}
-/* pronto_entrega→enviado: grava o envio bipado (lola_pedidos_envios/_itens), baixa o
-   estoque pela quantidade bipada e só então muda o status do pedido pra "enviado". */
-async function confirmarEnvio(id){
-  const p=(ST.pedidos||[]).find(x=>x.id===id); if(!p)return;
-  const itens=(PED_BIP||[]).filter(it=>it.qtd_pedida>0||it.qtd_enviada>0);
-  if(!itens.length){ toast('Sem itens pra confirmar.'); return; }
-  const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
-  try{
-    await lolaEnsure();
-    let envioId=null;
-    try{
-      const envio=await post('lola_pedidos_envios',[{pedido_id:id, enviado_por:quem, data_envio:new Date().toISOString()}],'return=representation');
-      envioId=envio&&envio[0]&&envio[0].id;
-      if(envioId) await post('lola_pedidos_envios_itens', itens.map(it=>({envio_id:envioId, pedido_item_id:it.item_id, nome_item:it.nome, unidade:it.unidade, qtd_solicitada:it.qtd_pedida, qtd_enviada:it.qtd_enviada, lote:it.lote||null})), 'return=minimal');
-    }catch(e){ /* tabelas de envio ainda não existem no banco — segue só com a baixa, sem bloquear */ }
-    const nc=await baixaEnvioPedido(p, itens);
-    await fetch(SB_URL+'/rest/v1/lola_pedidos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({status:'enviado'})});
-    p.status='enviado';
-    if(envioId){ (ST.envioMap=ST.envioMap||{})[id]={id:envioId, pedido_id:id, enviado_por:quem, lola_pedidos_envios_itens:itens.map(it=>({pedido_item_id:it.item_id,nome_item:it.nome,unidade:it.unidade,qtd_solicitada:it.qtd_pedida,qtd_enviada:it.qtd_enviada,lote:it.lote}))}; }
-    toast('Envio confirmado ✓'+(nc.length?(' · sem baixa: '+nc.join(', ')):' · estoque baixado')); closeSheet(); atualizaBadgePed(); render();
+  const body={central_status:cs};
+  if(cs==='aceito'){ body.central_aceito_por=quem; body.central_aceito_em=new Date().toISOString(); }
+  if(cs==='pronto'){ body.central_pronto_em=new Date().toISOString(); }
+  try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/lola_pedidos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(body)});
+    p.central_status=cs; if(body.central_aceito_por)p.central_aceito_por=body.central_aceito_por;
+    let extra='';
+    if(cs==='pronto' && era!=='pronto'){ const nc=await baixaEnvioPedido(p,false); extra=nc.length?(' · sem baixa: '+nc.join(', ')):' · estoque baixado ✓'; }
+    else if(era==='pronto' && cs!=='pronto'){ await baixaEnvioPedido(p,true); extra=' · estoque devolvido'; }
+    toast((cs==='aceito'?'Pedido aceito ✓':cs==='pronto'?'Pronto pra enviar ✓':'Reaberto')+extra); closeSheet(); atualizaBadgePed(); render();
   }catch(e){ toast('Erro: '+e.message); }
 }
 let RES_AL=null;
@@ -2958,7 +2760,7 @@ async function resSalvar(destino){
 
 /* ===== Tarefas do Artur (18/07: "importar para a pagina inicial as tarefas do Artur" — Bianca) =====
    Fonte: Reuniões e Tarefas (lola_assuntos, eh_tarefa=true, responsáveis contém "Artur").
-   Concluir aqui grava os MESMOS campos que o registros.html usa (concluido/concluido_em/etapa). */
+   Concluir aqui grava os MESMOS campos que o /reunioes/ usa (concluido/concluido_em/etapa). */
 async function carregarTarefas(){
   ST.tarefas='loading'; if(ST.tab==='ini') render();
   try{ const r=await api('lola_assuntos?eh_tarefa=is.true&concluido=not.is.true&responsaveis=cs.'+encodeURIComponent('["Artur"]')+'&select=id,titulo,conteudo,prazo,data,criado_por,responsaveis,unidades,categorias,tags,oks&order=prazo.asc.nullslast,data.desc&limit=60');
@@ -2967,7 +2769,7 @@ async function carregarTarefas(){
   }catch(e){ ST.tarefas=[]; }
   if(ST.tab==='ini') render();
 }
-/* cores/rotulos iguais aos do registros.html — pro card parecer o MESMO card */
+/* cores/rotulos iguais aos do /reunioes/ — pro card parecer o MESMO card */
 const TAR_CAT_COLORS={'Operacional':'#2C7A4B','Manutenções':'#6B6258','Compras':'#2C5AA0','Cozinha':'#B5302E','Salão':'#9A6B1E','Bar':'#7A4FA3','Eventos':'#B23A6B','Financeiro':'#0F766E','RH':'#8A6A2B','Marketing':'#B24A8A','Entregas':'#1F7A6E','Processos':'#4858A8','Reunião':'#6B4FA8'};
 const TAR_UNI_SHORT={'Lola CCMQ':'CCMQ','Lola MAC':'MAC','Cozinha Central':'CENTRAL'};
 function tarCor(t){ for(const c of (t.categorias||[])){ if(TAR_CAT_COLORS[c]) return TAR_CAT_COLORS[c]; } return '#7E1E1F'; }
@@ -2992,11 +2794,11 @@ function tarCardHTML(t){
     ${okh}
     ${tags?`<div class="tc-chips" style="margin:8px 0 0">${tags}</div>`:''}
     <div class="tc-foot"><button class="chip tardone" data-id="${t.id}"><i class="ph-duotone ph-check"></i> Concluir</button>
-      <a class="tarlink" title="Abrir no Reuniões e Tarefas" href="/registros.html?open=${t.id}" target="_blank" rel="noopener"><i class="ph-duotone ph-arrow-square-out"></i></a>
+      <a class="tarlink" title="Abrir no Reuniões e Tarefas" href="/reunioes/?open=${t.id}" target="_blank" rel="noopener"><i class="ph-duotone ph-arrow-square-out"></i></a>
       <span class="spacer2"></span>${t.criado_por?`<span class="tc-por">por ${esc(t.criado_por)}</span>`:''}</div>
   </div>`;
 }
-/* OK por responsável — mesma regra do registros.html: todos com OK = tarefa concluída */
+/* OK por responsável — mesma regra do /reunioes/: todos com OK = tarefa concluída */
 async function toggleOkTarefa(id, nome){
   const t=(ST.tarefas||[]).find(x=>String(x.id)===String(id)); if(!t) return;
   const oks=Object.assign({}, tarOks(t));
@@ -3013,7 +2815,7 @@ async function toggleOkTarefa(id, nome){
     render();
   }catch(e){ toast('Erro: '+e.message); }
 }
-/* sino do portal: registra a atividade como o registros.html faz (melhor esforço) */
+/* sino do portal: registra a atividade como o /reunioes/ faz (melhor esforço) */
 function _tarLog(acao, t){
   try{ const _s=lolaSession()||{}; post('lola_atividades',[{quem:_s.nome||_s.email||null, acao:acao, alvo_tipo:'tarefa', alvo_id:t.id||null, alvo_titulo:String(t.titulo||'').slice(0,120)}],'return=minimal').catch(()=>{}); }catch(e){}
 }
@@ -3061,7 +2863,7 @@ function viewInicio(){
   else if(!tf.length) h+=`<div class="ini-list"><div class="ini-vazio">Nenhuma tarefa aberta pro Artur. 🎉</div></div>`;
   else{
     h+=`<div class="tarcards">${tf.slice(0,8).map(tarCardHTML).join('')}</div>`;
-    if(tf.length>8) h+=`<div class="ini-list" style="margin-top:-6px"><div class="ini-row"><a class="t" style="color:var(--mut);text-decoration:none;font-weight:600" href="/registros.html" target="_blank" rel="noopener">ver todas as ${tf.length} no Reuniões e Tarefas</a></div></div>`;
+    if(tf.length>8) h+=`<div class="ini-list" style="margin-top:-6px"><div class="ini-row"><a class="t" style="color:var(--mut);text-decoration:none;font-weight:600" href="/reunioes/" target="_blank" rel="noopener">ver todas as ${tf.length} no Reuniões e Tarefas</a></div></div>`;
   }
   if(al.length){
     h+=`<div class="lbl">Precisa de atenção</div><div class="ini-list">`;
@@ -3103,14 +2905,26 @@ function viewEntrada(){
       <button class="chip ${filtro==='todas'?'on':''}" data-f="todas">Todas (${doMes.length})</button></div>`;
   h+=`<div class="toolbar"><input type="search" id="bqn" placeholder="Buscar fornecedor…" value="${esc(ST.buscaN||'')}"></div>`;
   if(!base.length){ h+=`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>Nenhuma nota${ST.buscaN?' de "'+esc(ST.buscaN)+'"':''}${ST.comp!=='all'?' em '+compLabel(ST.comp):''}.</div>`; return h; }
+  /* 26/08 (Bianca): "igual a do Lola, com visualização em planilha" — cards viraram
+     tabela enxuta (table-layout:fixed, status pontinho+palavra, linha clicável). */
+  const _th='font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--mut);font-weight:800;text-align:left;padding:8px 8px;background:var(--cremeDark);border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  h+=`<table style="width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;table-layout:fixed">`
+    +`<colgroup><col style="width:78px"><col style="width:44px"><col><col style="width:34px"><col style="width:80px"></colgroup>`
+    +`<thead><tr><th style="${_th}">Status</th><th style="${_th}">Data</th><th style="${_th}">Fornecedor</th><th style="${_th};text-align:center">Itens</th><th style="${_th};text-align:right">Valor</th></tr></thead><tbody>`;
   base.forEach(n=>{
     const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0); const done=ST.imp.has(n.chave);
-    h+=`<div class="ncard ${done?'done':''}" data-ch="${esc(n.chave)}">
-      <span class="ic"><i class="ph-duotone ph-${done?'check-circle':'receipt'}"></i></span>
-      <div class="t"><b>${esc(n.emitente||'Fornecedor')}</b><span>${fmtData(n.data_emissao)} · ${its.length} ${its.length===1?'item':'itens'}</span></div>
-      <div class="r"><div class="v">${brl(tot)}</div><div class="n"><span class="stpill ${done?'ok':'pend'}">${done?'inserida':'a lançar'}</span></div></div>
-    </div>`;
+    const barra=done?'var(--okFg)':'#E0A93B', txt=done?'var(--okFg)':'#9A6B1E', rot=done?'inserida':'a lançar', bg=done?'var(--okBg)':'var(--card)';
+    const tdc='padding:9px 8px;border-bottom:1px solid var(--fio);font-size:12.5px;vertical-align:middle;background:'+bg;
+    const dataC=String(fmtData(n.data_emissao)||'').slice(0,5);
+    h+=`<tr class="nrowc" data-ch="${esc(n.chave)}" style="cursor:pointer">`
+      +`<td style="${tdc};border-left:4px solid ${barra};overflow:hidden"><span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:${txt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:${barra}"></span>${rot}</span></td>`
+      +`<td style="${tdc};white-space:nowrap;color:var(--mut);font-variant-numeric:tabular-nums">${dataC}</td>`
+      +`<td style="${tdc};overflow:hidden"><span style="display:block;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'Fornecedor')}</span></td>`
+      +`<td style="${tdc};text-align:center;color:var(--mut);font-variant-numeric:tabular-nums">${its.length}</td>`
+      +`<td style="${tdc};text-align:right;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums">${brl(tot)}</td>`
+      +`</tr>`;
   });
+  h+=`</tbody></table>`;
   return h;
 }
 function wireEntrada(){
@@ -3118,7 +2932,7 @@ function wireEntrada(){
   $('#selComp')&&($('#selComp').onchange=e=>{ST.comp=e.target.value;render();});
   $$('#app .tabs .chip[data-f]').forEach(b=>b.onclick=()=>{ST.entFiltro=b.dataset.f;render();});
   const bq=$('#bqn'); if(bq){ bq.oninput=()=>{ST.buscaN=bq.value; const p=bq.selectionStart; render(); const n=$('#bqn'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
-  $$('.ncard').forEach(c=>c.onclick=()=>abrirNota(c.dataset.ch));
+  $$('.nrowc').forEach(c=>c.onclick=()=>abrirNota(c.dataset.ch));
 }
 
 function viewSaldo(){
@@ -3228,7 +3042,6 @@ function openEditInsumo(id){
     <label class="iml">Unidade de custo</label>
     <div id="ediUnBtns" class="unrow" style="margin-bottom:12px">${['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u===EDIT_EUN?'on':''}">${u}</button>`).join('')}</div>
     <div class="mf"><label>Custo por unidade (R$)</label><input type="number" id="ediCusto" step="0.0001" value="${i.custo_por_unidade!=null?i.custo_por_unidade:''}"></div>
-    <div class="mf"><label>Fornecedor padrão <span style="color:var(--mut);font-weight:400">(pra agrupar a sugestão de pedido)</span></label><input type="text" id="ediForn" value="${esc(i.fornecedor_padrao||'')}" placeholder="ex.: Hortifruti São José"></div>
     <label class="iml">Como é guardado</label>
     <div id="ediConsBtns" class="unrow" style="margin-bottom:12px">${['seco','resfriado','congelado'].map(c=>`<button data-c="${c}" class="${c===EDIT_CONS?'on':''}"><i class="ph-duotone ${CONS_IC[c]}"></i> ${CONS_L[c]}</button>`).join('')}</div>
     <div id="ediValRow" style="display:flex;gap:10px">
@@ -3261,11 +3074,10 @@ async function salvarEditInsumo(){
       return;
     }
   }
-  const forn=($('#ediForn').value||'').trim()||null;
   $('#shSave').setAttribute('disabled','');
   try{ await lolaEnsure();
-    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, evento:EDIT_EVENTO, conservacao:cons, validade_dias_resfriado:valR, validade_dias_congelado:valC, fornecedor_padrao:forn, updated_at:new Date().toISOString()})});
-    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo; i.evento=EDIT_EVENTO; i.conservacao=cons; i.validade_dias_resfriado=valR; i.validade_dias_congelado=valC; i.fornecedor_padrao=forn;
+    await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({nome, categoria:cat, unidade_custo:un, custo_por_unidade:custo, evento:EDIT_EVENTO, conservacao:cons, validade_dias_resfriado:valR, validade_dias_congelado:valC, updated_at:new Date().toISOString()})});
+    i.nome=nome; i.categoria=cat; i.unidade_custo=un; i.custo_por_unidade=custo; i.evento=EDIT_EVENTO; i.conservacao=cons; i.validade_dias_resfriado=valR; i.validade_dias_congelado=valC;
     buildInsumoOptions(); toast('Insumo atualizado ✓'); closeSheet(); render();
   }catch(e){ toast('Erro: '+e.message); $('#shSave').removeAttribute('disabled'); }
 }
@@ -3275,203 +3087,6 @@ async function fundirInsumo(fromId, toId){
     try{ await fetch(SB_URL+'/rest/v1/'+t+'?insumo_id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({insumo_id:toId})}); }catch(e){}
   }
   await fetch(SB_URL+'/rest/v1/lola_insumos?id=eq.'+fromId,{method:'PATCH',headers:h,body:JSON.stringify({ativo:false})});
-}
-/* ══════════════════════════════════════════════════════════
-   SUGESTÃO DE PEDIDO DE COMPRA (19/08, Mahara)
-   Sábado de manhã: olha o estoque atual + o cronograma da semana
-   seguinte (que produções estão previstas) e explode as receitas
-   até os insumos-base (recursivo, descontando o que já tem de
-   pré-preparo em estoque em cada nível), pra sugerir o que pedir,
-   quanto vale e de qual fornecedor — agrupado pra mandar o pedido.
-   Não grava nada por padrão; só a coluna "fornecedor padrão" do
-   insumo é persistida, quando editada aqui ou na ficha do insumo.
-   ══════════════════════════════════════════════════════════ */
-function addD(d,n){ const dt=new Date(d+'T12:00:00'); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
-function proximaSegunda(){ const hj=new Date().toISOString().slice(0,10); const wd=new Date(hj+'T12:00:00').getDay();
-  const diff=(8-wd)%7||7; return addD(hj,diff); }
-let SUG_INI=null, SUG_FIM=null, SUG_DADOS=null, SUG_FORN_AUTO={};
-function abrirSugestaoPedido(){
-  SUG_INI=SUG_INI||proximaSegunda(); SUG_FIM=SUG_FIM||addD(SUG_INI,5);
-  const bg=document.createElement('div'); bg.id='sugBg';
-  bg.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
-  const mo=document.createElement('div'); mo.id='sugMo';
-  mo.style.cssText='background:var(--creme);border-radius:16px;max-width:980px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.2)';
-  mo.addEventListener('click',e=>e.stopPropagation());
-  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
-  mo.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card)">
-      <div style="flex:1;min-width:0"><div style="font-family:Fraunces,serif;font-size:18px;font-weight:600;color:var(--vinho);line-height:1.1"><i class="ph-duotone ph-shopping-cart"></i> Sugestão de pedido de compra</div>
-      <div style="font-size:11.5px;color:var(--mut);margin-top:2px">Estoque atual × produções previstas no cronograma da semana escolhida</div></div>
-      <button id="sugX" style="width:32px;height:32px;border-radius:9px;background:var(--card);border:1px solid var(--border);color:var(--sec);font-size:16px;cursor:pointer">✕</button>
-    </div>
-    <div style="padding:14px 16px" id="sugBody">
-      <div style="display:flex;gap:10px;flex-wrap:wrap"><div class="mf" style="flex:1;min-width:140px"><label>Semana — segunda</label><input type="date" id="sugDataIni" value="${SUG_INI}"></div>
-        <div class="mf" style="flex:1;min-width:140px"><label>até sábado</label><input type="date" id="sugDataFim" value="${SUG_FIM}"></div></div>
-      <button class="btn" id="sugGerar" style="width:100%;margin-top:6px"><i class="ph-duotone ph-magic-wand"></i> Gerar sugestão</button>
-      <div id="sugResult" style="margin-top:14px"></div>
-    </div>`;
-  bg.appendChild(mo); document.body.appendChild(bg);
-  $('#sugX').onclick=()=>bg.remove();
-  $('#sugDataIni').onchange=()=>{ SUG_INI=$('#sugDataIni').value; };
-  $('#sugDataFim').onchange=()=>{ SUG_FIM=$('#sugDataFim').value; };
-  $('#sugGerar').onclick=gerarSugestaoPedido;
-  if(SUG_DADOS) renderSugestaoPedido(SUG_DADOS);
-}
-/* soma tudo que a semana pede de um preproducao_id (várias entradas/dias somam) */
-function agrupaNecessidadeSemana(agenda){
-  const porPP={};
-  agenda.forEach(x=>{
-    if(!x.preproducao_id) return;
-    if(x.status==='cancelado') return;
-    const r=ST.recById2[x.preproducao_id]; const un=x.unidade||(r&&r.rendimento_un)||'un';
-    const g=(porPP[x.preproducao_id]=porPP[x.preproducao_id]||{qtd:0,unidade:un});
-    const c1=conv(+x.qtd_prevista||0,un), c2=conv(g.qtd,g.unidade);
-    if(g.qtd===0){ g.qtd=+x.qtd_prevista||0; g.unidade=un; }
-    else if(c1.u===c2.u){ g.qtd=c2.q+c1.q; g.unidade=c1.u; }
-    else { g.qtd+=(+x.qtd_prevista||0); } // unidades incompatíveis: soma ingênua, sinaliza depois
-  });
-  return porPP;
-}
-/* explode recursivamente uma necessidade de pré-preparo até insumos-base,
-   descontando em cada nível o que já existe em estoque daquele pré-preparo */
-function explodeNecessidade(ppId, qtdNec, unidade, itensPorPP, necInsumo, semReceita, visitado){
-  visitado=visitado||new Set(); if(visitado.has(ppId)) return; visitado=new Set(visitado); visitado.add(ppId);
-  const itens=itensPorPP[ppId]; const r=ST.recById2[ppId];
-  if(!itens||!itens.length){ if(r) semReceita.add(r.nome||ppId); return; }
-  const rendQ=+((r||{}).rendimento_qtd)||0, rendU=(r||{}).rendimento_un||'un';
-  let fator=1;
-  if(rendQ>0){ const qb=conv(qtdNec,unidade), rb=conv(rendQ,rendU);
-    fator = (qb.u===rb.u) ? qb.q/rb.q : qtdNec/rendQ; }
-  itens.forEach(it=>{
-    const qtdItem=((it.qtd_bruta!=null?+it.qtd_bruta:+it.qtd_liquida)||0)*fator;
-    if(qtdItem<=0) return;
-    if(it.insumo_id){
-      const ins=ST.byId[it.insumo_id]; if(!ins) return;
-      const qc=qtdCusto(qtdItem, it.unidade, ins);
-      necInsumo[it.insumo_id]=(necInsumo[it.insumo_id]||0)+qc;
-    } else if(it.sub_preproducao_id){
-      const sub=ST.saldo[it.sub_preproducao_id]; const estoqueSub=sub?(+sub.saldo||0):0;
-      let estoqueNaUnidade=estoqueSub;
-      if(sub&&sub.unidade&&it.unidade){ const a=conv(estoqueSub,sub.unidade), b=conv(1,it.unidade); if(a.u===b.u) estoqueNaUnidade=a.q/b.q; }
-      const faltante=Math.max(0, qtdItem-estoqueNaUnidade);
-      if(faltante>0) explodeNecessidade(it.sub_preproducao_id, faltante, it.unidade, itensPorPP, necInsumo, semReceita, visitado);
-    }
-  });
-}
-async function gerarSugestaoPedido(){
-  const ini=$('#sugDataIni').value, fim=$('#sugDataFim').value;
-  if(!ini||!fim||fim<ini){ toast('Confira as datas da semana.'); return; }
-  SUG_INI=ini; SUG_FIM=fim;
-  const box=$('#sugResult'); box.innerHTML='<div class="spin"></div>';
-  const btn=$('#sugGerar'); btn.setAttribute('disabled','');
-  try{
-    ST.recById2={}; (ST.receitas||[]).forEach(r=>ST.recById2[r.id]=r);
-    const [agenda, itensAll, fornAuto]=await Promise.all([
-      api('lola_central_cronograma?select=data,preproducao_id,item_nome,qtd_prevista,unidade,status&data=gte.'+ini+'&data=lte.'+fim),
-      api('lola_preproducoes_itens?select=preproducao_id,insumo_id,sub_preproducao_id,nome_manual,unidade,qtd_bruta,qtd_liquida,fc'),
-      api('rpc/central_ultimo_fornecedor').catch(()=>[])
-    ]);
-    SUG_FORN_AUTO={}; (fornAuto||[]).forEach(f=>{ if(f.insumo_id) SUG_FORN_AUTO[f.insumo_id]=f.fornecedor; });
-    const itensPorPP={}; (itensAll||[]).forEach(it=>{ (itensPorPP[it.preproducao_id]=itensPorPP[it.preproducao_id]||[]).push(it); });
-    const porPP=agrupaNecessidadeSemana(agenda||[]);
-    const necInsumo={}, semReceita=new Set();
-    Object.keys(porPP).forEach(ppId=>explodeNecessidade(ppId, porPP[ppId].qtd, porPP[ppId].unidade, itensPorPP, necInsumo, semReceita));
-    const rows=[];
-    Object.keys(necInsumo).forEach(insId=>{
-      const ins=ST.byId[insId]; if(!ins) return;
-      if(norm(ins.nome).indexOf('AGUA')===0) return; // 19/08 (Mahara): água não entra na sugestão de compra
-      const necessidade=necInsumo[insId];
-      const estoqueAtual=(ST.movs||[]).reduce((s,m)=>s+(m.insumo_id===insId?(+m.qtd||0):0),0);
-      const aPedir=Math.max(0, necessidade-estoqueAtual);
-      const custoUnit=+ins.custo_por_unidade||0;
-      const fornecedor=ins.fornecedor_padrao||SUG_FORN_AUTO[insId]||'';
-      const obs=[];
-      if(!fornecedor && aPedir>0) obs.push('sem fornecedor definido');
-      if(estoqueAtual<0) obs.push('estoque atual negativo — confira a contagem');
-      if(ins.qtd_minima!=null && estoqueAtual<+ins.qtd_minima && aPedir<=0) obs.push('abaixo do mínimo ('+num(ins.qtd_minima)+' '+esc(ins.unidade_custo||'')+')');
-      rows.push({id:insId, nome:ins.nome, categoria:ins.categoria, un:ins.unidade_custo||'un', necessidade, estoqueAtual, aPedir, custoUnit, fornecedor, obs, semFornecedorAuto:!ins.fornecedor_padrao&&!!SUG_FORN_AUTO[insId]});
-    });
-    SUG_DADOS={rows, semReceita:[...semReceita], ini, fim};
-    renderSugestaoPedido(SUG_DADOS);
-  }catch(e){ box.innerHTML='<div class="note">Erro ao gerar: '+esc(e.message)+'</div>'; }
-  btn.removeAttribute('disabled');
-}
-function renderSugestaoPedido(dados){
-  const box=$('#sugResult'); if(!box) return;
-  const {rows, semReceita}=dados;
-  const pedir=rows.filter(r=>r.aPedir>0.0009).sort((a,b)=>(a.fornecedor||'zzz').localeCompare(b.fornecedor||'zzz','pt')||a.nome.localeCompare(b.nome,'pt'));
-  const suprido=rows.filter(r=>r.aPedir<=0.0009);
-  if(!rows.length){ box.innerHTML='<div class="empty"><i class="ph-duotone ph-calendar-blank"></i>Não achei nenhuma produção com receita prevista pra essa semana no cronograma. Gere a semana no Cronograma primeiro.</div>'; return; }
-  let h='';
-  if(semReceita.length) h+=`<div class="note" style="background:#FDF0E0;color:#8A5A12;margin-bottom:10px"><i class="ph-duotone ph-warning"></i> Sem receita/ingredientes cadastrados: <b>${semReceita.map(esc).join(', ')}</b> — não entraram no cálculo.</div>`;
-  if(!pedir.length){ h+=`<div class="empty"><i class="ph-duotone ph-check-circle"></i>O estoque atual já cobre tudo que a semana precisa — nada a pedir.</div>`; box.innerHTML=h; return; }
-  const grupos={}; pedir.forEach(r=>{ const k=r.fornecedor||'— Sem fornecedor definido —'; (grupos[k]=grupos[k]||[]).push(r); });
-  const totalGeral=pedir.reduce((s,r)=>s+r.aPedir*r.custoUnit,0);
-  h+=`<div class="pl-kpi" style="margin-bottom:10px"><div><b>${pedir.length}</b><span>itens a pedir</span></div><div><b>${Object.keys(grupos).length}</b><span>fornecedores</span></div><div><b style="color:var(--vinho)">${brl(totalGeral)}</b><span>total estimado</span></div></div>`;
-  Object.keys(grupos).sort((a,b)=>a.localeCompare(b,'pt')).forEach(forn=>{
-    const itens=grupos[forn]; const totFor=itens.reduce((s,r)=>s+r.aPedir*r.custoUnit,0);
-    h+=`<div class="pl-wrap" style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--cremeDark);border-bottom:1px solid var(--border)">
-        <b style="font-family:Fraunces,serif;font-size:14.5px;color:var(--vinho)">${esc(forn)}</b>
-        <span style="font-size:11.5px;color:var(--mut)">${itens.length} ${itens.length===1?'item':'itens'} · ${brl(totFor)}</span>
-        <span class="sp" style="flex:1"></span>
-        <button class="chip sug-copiar" data-forn="${esc(forn)}" style="min-height:32px;font-size:11.5px"><i class="ph-duotone ph-copy"></i> Copiar pedido</button></div>
-      <table class="pl-tbl"><thead><tr>
-        <th class="pl-item" style="text-align:left">Item</th><th>Un</th><th>Estoque</th><th>Necessário</th><th>A pedir</th><th>Valor</th><th style="text-align:left">Observação</th>
-      </tr></thead><tbody>`+
-      itens.map(r=>`<tr data-sug="${r.id}">
-        <td class="pl-item"><span class="pl-name" style="cursor:default">${esc(r.nome)}</span></td>
-        <td class="pl-un">${esc(r.un)}</td>
-        <td>${num(r.estoqueAtual)}</td>
-        <td>${num(r.necessidade)}</td>
-        <td><input type="number" class="sug-qtd" data-id="${r.id}" step="0.001" min="0" value="${+r.aPedir.toFixed(3)}" style="width:78px;padding:4px 6px;border:1px solid var(--border);border-radius:7px;font:inherit"></td>
-        <td class="sug-valor" data-id="${r.id}">${brl(r.aPedir*r.custoUnit)}</td>
-        <td style="text-align:left;font-size:11px;color:${r.obs.length?'var(--urgFg)':'var(--mut)'}">${r.obs.map(esc).join(' · ')||'—'}</td>
-      </tr>`).join('')+
-      `</tbody></table></div>`;
-  });
-  if(suprido.length) h+=`<div class="note"><i class="ph-duotone ph-info"></i> ${suprido.length} insumo${suprido.length===1?'':'s'} usados na semana já ${suprido.length===1?'está':'estão'} cobertos pelo estoque atual — não entraram na lista acima.</div>`;
-  box.innerHTML=h;
-  $$('.sug-qtd').forEach(inp=>inp.oninput=()=>{
-    const id=inp.dataset.id, r=rows.find(x=>x.id===id); if(!r) return;
-    r.aPedir=+inp.value||0;
-    const vEl=box.querySelector('.sug-valor[data-id="'+id+'"]'); if(vEl) vEl.textContent=brl(r.aPedir*r.custoUnit);
-  });
-  $$('.sug-copiar').forEach(b=>b.onclick=()=>{
-    const forn=b.dataset.forn; const itens=(SUG_DADOS.rows||[]).filter(r=>(r.fornecedor||'— Sem fornecedor definido —')===forn && r.aPedir>0.0009);
-    const txt='Pedido — '+forn+' ('+fmtData(SUG_DADOS.ini)+' a '+fmtData(SUG_DADOS.fim)+')\n\n'+
-      itens.map(r=>'• '+r.nome+' — '+num(r.aPedir)+' '+r.un).join('\n')+
-      '\n\nTotal estimado: '+brl(itens.reduce((s,r)=>s+r.aPedir*r.custoUnit,0));
-    navigator.clipboard.writeText(txt).then(()=>toast('Pedido de "'+forn+'" copiado ✓')).catch(()=>toast('Não consegui copiar — selecione manualmente.'));
-  });
-}
-/* pré-preparos ATIVOS (cozinha central) sem nenhum ingrediente cadastrado em
-   lola_preproducoes_itens — sem isso a receita não entra na sugestão de
-   pedido (nem em nenhum cálculo de baixa de insumo) — lista pra correr atrás. */
-async function abrirFichasPendentes(){
-  const bg=document.createElement('div'); bg.id='fpBg';
-  bg.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
-  const mo=document.createElement('div'); mo.id='fpMo';
-  mo.style.cssText='background:var(--creme);border-radius:16px;max-width:680px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.2)';
-  mo.addEventListener('click',e=>e.stopPropagation());
-  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
-  mo.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card)">
-      <div style="flex:1;min-width:0"><div style="font-family:Fraunces,serif;font-size:18px;font-weight:600;color:var(--vinho);line-height:1.1"><i class="ph-duotone ph-file-dashed"></i> Fichas técnicas pendentes</div>
-      <div style="font-size:11.5px;color:var(--mut);margin-top:2px">Pré-preparos da Central sem nenhum ingrediente cadastrado</div></div>
-      <button id="fpX" style="width:32px;height:32px;border-radius:9px;background:var(--card);border:1px solid var(--border);color:var(--sec);font-size:16px;cursor:pointer">✕</button>
-    </div>
-    <div style="padding:14px 16px" id="fpBody"><div class="spin"></div></div>`;
-  bg.appendChild(mo); document.body.appendChild(bg);
-  $('#fpX').onclick=()=>bg.remove();
-  const body=$('#fpBody');
-  try{
-    const itens=await api('lola_preproducoes_itens?select=preproducao_id');
-    const comItens=new Set((itens||[]).map(x=>x.preproducao_id));
-    const pend=(ST.receitas||[]).filter(r=>!comItens.has(r.id)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-    if(!pend.length){ body.innerHTML='<div class="empty"><i class="ph-duotone ph-check-circle"></i>Toda produção da Central tem ficha técnica cadastrada.</div>'; return; }
-    body.innerHTML=`<div class="note" style="background:#FDF0E0;color:#8A5A12;margin-bottom:10px"><i class="ph-duotone ph-warning"></i> ${pend.length} produç${pend.length===1?'ão':'ões'} sem ingredientes cadastrados — não entram na sugestão de pedido nem em nenhum cálculo de baixa de estoque até serem preenchidas.</div>
-      <div class="pl-wrap"><table class="pl-tbl"><thead><tr><th class="pl-item" style="text-align:left">Produção</th><th style="text-align:left">Rendimento</th></tr></thead><tbody>`+
-      pend.map(r=>`<tr><td class="pl-item"><span class="pl-name" style="cursor:default">${esc(r.nome)}</span></td><td style="text-align:left">${r.rendimento_qtd?num(r.rendimento_qtd)+' '+esc(r.rendimento_un||''):'—'}</td></tr>`).join('')+
-      `</tbody></table></div>`;
-  }catch(e){ body.innerHTML='<div class="note">Erro ao carregar: '+esc(e.message)+'</div>'; }
 }
 /* ══════════════════════════════════════════════════════════
    FICHA DO INSUMO — a mesma do app do Estoque.
@@ -3650,9 +3265,11 @@ function itemHTML(it){
   const st=itemStatus(it);
   if(!it.aberto && st!=='pend'){
     const ins=ST.byId[it.insumo_id]||{};
+    const _r=(it.qtd||0)*(it.fator||0);
+    const _cu=(_r>0 && (+it.vtotal||0)>0)?(' · '+brl((+it.vtotal||0)/_r)+'/'+esc(ins.unidade_custo||'')):'';
     const res = st==='ign' ? 'não é insumo'
               : st==='us'  ? 'não usamos ⚠'
-              : `${num((it.qtd||0)*(it.fator||0))} ${esc(ins.unidade_custo||'')} — ${esc(ins.nome||'')}`;
+              : `${num(_r)} ${esc(ins.unidade_custo||'')}${_cu} — ${esc(ins.nome||'')}`;
     const ic  = st==='ign' ? 'ph-prohibit' : st==='us' ? 'ph-warning-circle' : 'ph-check-circle';
     return `<div class="item mini ${st==='ign'?'ign':''} ${st==='us'?'alerta':''}" data-ix="${it.ix}" title="toque para editar">
       <i class="ph-duotone ${ic} mic"></i><div class="mnm">${esc(it.desc)}</div><div class="mrs">${res}</div></div>`;
@@ -3696,7 +3313,10 @@ function updateEntra(el, it){
   const ins=ST.byId[it.insumo_id];
   if(!ins || it.ignorar || it.naousamos){ e.classList.remove('on'); e.textContent=''; return; }
   const res=(it.qtd||0)*(it.fator||0);
-  e.innerHTML=`Entra no estoque: <b>${num(it.qtd)} ${esc(it.un||'')} × ${num(it.fator||0)} = ${num(res)} ${esc(ins.unidade_custo||'')}</b>`;
+  /* 26/08 (Bianca): mostrar quanto custa a unidade de medida (R$/kg, R$/un...) na hora
+     de lançar = valor do item ÷ quantidade que entra. */
+  const custoUn=(res>0 && (+it.vtotal||0)>0)?(' · <b style="color:var(--vinho)">'+brl((+it.vtotal||0)/res)+'/'+esc(ins.unidade_custo||'')+'</b>'):'';
+  e.innerHTML=`Entra no estoque: <b>${num(it.qtd)} ${esc(it.un||'')} × ${num(it.fator||0)} = ${num(res)} ${esc(ins.unidade_custo||'')}</b>`+custoUn;
   e.classList.add('on');
 }
 function wireItem(el){
