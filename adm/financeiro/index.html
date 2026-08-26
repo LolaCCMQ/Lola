@@ -1275,7 +1275,7 @@ async function aplicarSplitPorNotas(l, mag){
       memo:(l.memo||'')+` (${rotulo})`, amount:sign*p.valor, category:p.cat, manual:true};
   });
   try{
-    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+    const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
     // apaga o original e seus vínculos
     await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
@@ -1327,7 +1327,7 @@ async function aplicarDiferenca(l,soma,dif,catDif){
     {unit:l.unit, fitid:baseFit+'__dif',  date:l.date, competencia:l.competencia, memo:(l.memo||'')+` (${catLab})`,  amount:sign*dif,  category:catDif||null,    manual:true}
   ];
   try{
-    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+    const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
     await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
     ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
@@ -1423,7 +1423,7 @@ async function doSplit(id){
     memo:(l.memo||'')+` (parte ${i+1}/${parts.length})`, amount:p.amount, category:p.category, manual:true}));
   try{
     const notasVinc=notasDoLanc(id); // vínculos N:N a migrar p/ a parte 1
-    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+    const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
     await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     ST.lanc=ST.lanc.filter(x=>x.id!==id); ins.forEach(r=>ST.lanc.unshift(r));
     // re-vincula as notas na parte 1 (o lançamento original foi apagado)
@@ -1522,7 +1522,7 @@ function impTab(s){
         const existing=ST.lanc.filter(l=>dels.includes(l.fitid));
         for(const e of existing){ await api(`financeiro_lancamentos?id=eq.${e.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}); }
         ST.lanc=ST.lanc.filter(l=>!dels.includes(l.fitid));
-        if(ins.length){ const created=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(ins)}); created.forEach(r=>ST.lanc.unshift(r)); }
+        if(ins.length){ const created=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(ins)}); created.forEach(r=>ST.lanc.unshift(r)); }
         closeSheet(); toast(ins.length?'Receitas salvas ('+ins.length+' lançamentos)':'Receitas do mês zeradas'); renderAll();
       }catch(e){ toast('Erro: '+e.message); }
     };
@@ -1558,7 +1558,7 @@ function impTab(s){
         const base='rcc'+Date.now();
         const rowLola={unit:ST.unit,date,competencia:comp,memo:'Recebido da Central: '+memo,amount:-valor,category:cat,manual:true,fitid:base};
         const rowCentral={unit:'central',date,competencia:comp,memo:'Ressarcimento '+uNome+': '+memo,amount:valor,category:recCat,manual:true,fitid:base+'__c'};
-        const created=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify([rowLola,rowCentral])});
+        const created=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify([rowLola,rowCentral])});
         const mine=(created||[]).find(r=>r.unit===ST.unit); if(mine) ST.lanc.unshift(mine);
         closeSheet(); toast('Recebimento lançado — custo aqui + ressarcimento na Central'); renderAll();
       }catch(e){ btn.disabled=false; btn.innerHTML=old; toast('Erro: '+e.message); }
@@ -1581,7 +1581,7 @@ function impTab(s){
       amt=Math.abs(amt)*(+$('#m_tipo').value);
       const catEl=$('#sheetBody .pCat');
       const row={unit:ST.unit,date:$('#m_date').value,competencia:$('#m_comp').value,memo:$('#m_memo').value||'(sem descrição)',amount:amt,category:catEl?(catEl.value||null):null,manual:true,fitid:'man'+Date.now()};
-      await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(row)}).then(r=>ST.lanc.unshift(r[0]));
+      await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(row)}).then(r=>ST.lanc.unshift(r[0]));
       closeSheet();toast('Lançado');renderAll();
     };
   }
@@ -1612,7 +1612,7 @@ async function importComprasCartao(){
       memo:memo,amount:-(Math.abs(+c.valor||0)),manual:true,category:applyRules(memo)||null};
   });
   try{
-    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(rows)});
+    const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
     ins.forEach(r=>ST.lanc.unshift(r));
     const auto=rows.filter(r=>r.category).length;
     closeSheet(); toast(ins.length+' compra(s) do cartão importada(s)'+(auto?', '+auto+' auto-classificadas':'')); renderAll();
@@ -1651,10 +1651,11 @@ async function importArquivos(){
         return {unit:ST.unit,fitid:t.fitid,date:t.date,competencia:compFromDate(t.date),memo:t.memo,amount:t.amount,manual:false,category:cat};});
       const dup=txns.length-novos.length;
       if(novos.length){
-        const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(novos)});
+        const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(novos)});
         (ins||[]).forEach(r=>ST.lanc.unshift(r));
-        api('financeiro_importacoes',{method:'POST',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:ST.unit,tipo:'ofx',qtd:novos.length})}).catch(()=>{});
-        parts.push(`${novos.length} lançamento(s) do extrato`+(auto?`, ${auto} auto-classificados`:'')+(dup?`, ${dup} duplicados`:''));
+        const nins=(ins||[]).length, dupTot=dup+(novos.length-nins); /* 26/08: banco ignora repetidos (trava unit+fitid) — conta o que entrou de fato */
+        api('financeiro_importacoes',{method:'POST',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:ST.unit,tipo:'ofx',qtd:nins})}).catch(()=>{});
+        parts.push(`${nins} lançamento(s) do extrato`+(auto?`, ${auto} auto-classificados`:'')+(dupTot?`, ${dupTot} duplicados`:''));
       } else parts.push('extrato já importado');
     }
     if(!notas.length && !txns.length){ toast('Nenhuma nota (.xml) ou extrato (.ofx) reconhecido'); if(btn){btn.disabled=false;btn.innerHTML=old;} return; }
@@ -1672,11 +1673,12 @@ async function importTxns(txns,src){
   const dup=txns.length-novos.length;
   if(!novos.length){toast('Todos já importados ('+dup+' duplicados)');closeSheet();return;}
   try{
-    const ins=await api('financeiro_lancamentos',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(novos)});
-    ins.forEach(r=>ST.lanc.unshift(r));
+    const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(novos)});
+    (ins||[]).forEach(r=>ST.lanc.unshift(r));
+    const nins=(ins||[]).length, dupTot=dup+(novos.length-nins); /* 26/08: trava unit+fitid ignora repetidos */
     // registra importação (não crítico)
-    api('financeiro_importacoes',{method:'POST',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:ST.unit,tipo:src,qtd:novos.length})}).catch(()=>{});
-    closeSheet();toast(novos.length+' importados'+(auto?', '+auto+' auto-classificados':'')+(dup?', '+dup+' duplicados':''));renderAll();
+    api('financeiro_importacoes',{method:'POST',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:ST.unit,tipo:src,qtd:nins})}).catch(()=>{});
+    closeSheet();toast(nins+' importados'+(auto?', '+auto+' auto-classificados':'')+(dupTot?', '+dupTot+' duplicados':''));renderAll();
   }catch(e){toast('Erro: '+e.message);}
 }
 
