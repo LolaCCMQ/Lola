@@ -1669,6 +1669,207 @@ function exportData(){
 }
 init();
 </script>
+
+<!-- ============================================================
+     Sincronizacao entre pessoas — 27/08/2026
+     (A) a lista se atualiza sozinha quando outra pessoa cria/edita
+     (B) trava que impede uma pessoa apagar o trabalho da outra
+     Camada sobreposta: nao altera nenhuma funcao original acima.
+     ============================================================ -->
+<script>
+(function(){
+  if(!window.sb || !window.DB) return;
+
+  /* ---------- visual ---------- */
+  var st=document.createElement('style');
+  st.textContent=
+   '.sync-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:9999;'
+  +'background:#2C3E50;color:#fff;padding:11px 14px;border-radius:11px;font-size:13px;line-height:1.35;'
+  +'box-shadow:0 8px 28px rgba(0,0,0,.28);display:none;gap:10px;align-items:center;max-width:94vw}'
+  +'.sync-bar.show{display:flex;flex-wrap:wrap;justify-content:center}'
+  +'.sync-bar.warn{background:#A82A2A}'
+  +'.sync-bar button{background:#fff;color:#2C3E50;border:0;border-radius:8px;padding:6px 11px;'
+  +'font-weight:700;cursor:pointer;font-size:12px;white-space:nowrap;font-family:inherit}'
+  +'.sync-bar button.x{background:transparent;color:#fff;font-weight:400;padding:4px 6px}'
+  +'.sync-dot{font-size:11px;color:#8a7d7d;white-space:nowrap;margin-left:2px}'
+  +'@media(max-width:640px){.sync-bar{left:8px;right:8px;transform:none;max-width:none}.sync-dot{display:none}}';
+  document.head.appendChild(st);
+
+  var bar=document.createElement('div');
+  bar.className='sync-bar'; bar.id='syncBar';
+  document.body.appendChild(bar);
+  var fechaAuto=null;
+  function abrirBarra(html,warn,segundos){
+    if(fechaAuto){clearTimeout(fechaAuto);fechaAuto=null;}
+    bar.innerHTML=html;
+    bar.className='sync-bar show'+(warn?' warn':'');
+    if(segundos) fechaAuto=setTimeout(fecharBarra,segundos*1000);
+  }
+  function fecharBarra(){ bar.className='sync-bar'; }
+  window.syncFechar=fecharBarra;
+
+  var dot=document.createElement('span');
+  dot.className='sync-dot'; dot.id='syncDot';
+  var conn=document.getElementById('conn');
+  if(conn && conn.parentNode) conn.parentNode.insertBefore(dot, conn.nextSibling);
+  function marcarHora(){
+    try{ dot.textContent='sincronizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }catch(e){}
+  }
+
+  /* ================= (A) atualizacao automatica ================= */
+  var PERIODO=30000, ocupado=false, relogio=null;
+
+  async function baixarTudo(){
+    var r=await sb.from('lola_eventos').select('*').eq('arquivado',false)
+                  .order('data',{ascending:true,nullsFirst:false});
+    if(r.error) throw r.error;
+    var lista=(r.data||[]).map(fromRow);
+    lista.forEach(function(e){ delete e._precisaMigrar; });
+    /* o evento aberto na tela nunca e trocado por baixo de quem esta digitando */
+    if(view.screen==='detail' && view.id){
+      var aberto=getEvent(view.id);
+      if(aberto){
+        for(var i=0;i<lista.length;i++){ if(lista[i].id===view.id){ lista[i]=aberto; break; } }
+      }
+    }
+    DB.events=lista;
+    if(view.screen!=='detail'){ renderFilters(); renderList(); }
+    marcarHora();
+  }
+
+  async function verificar(){
+    if(ocupado || !DB.events) return;
+    ocupado=true;
+    try{
+      var r=await sb.from('lola_eventos').select('id,updated_at,editado_por').eq('arquivado',false);
+      if(r.error) throw r.error;
+      var banco=r.data||[];
+      var meus={}; DB.events.forEach(function(e){ meus[e.id]=String(e.editadoEm||''); });
+      var novos=0, mudados=[], vistos={};
+      banco.forEach(function(b){
+        vistos[b.id]=1;
+        if(!(b.id in meus)) novos++;
+        else if(String(b.updated_at||'')!==meus[b.id]) mudados.push(b);
+      });
+      var sumiram=DB.events.filter(function(e){ return !vistos[e.id]; }).length;
+      if(!novos && !mudados.length && !sumiram){ marcarHora(); ocupado=false; return; }
+
+      var oAberto = (view.screen==='detail' && view.id)
+        ? mudados.filter(function(m){ return m.id===view.id; })[0] : null;
+
+      await baixarTudo();
+
+      if(oAberto){
+        var quem=oAberto.editado_por||'Outra pessoa';
+        abrirBarra('<span>&#9997;&#65039; <b>'+esc(quem)+'</b> salvou este evento agora.</span>'
+          +'<button onclick="syncVerVersaoNova()">Ver a versao atualizada</button>'
+          +'<button class="x" onclick="syncFechar()">&#10005;</button>', true);
+      }else{
+        var partes=[];
+        if(novos) partes.push(novos+(novos===1?' evento novo':' eventos novos'));
+        if(mudados.length) partes.push(mudados.length+(mudados.length===1?' atualizado':' atualizados'));
+        if(sumiram) partes.push(sumiram+(sumiram===1?' arquivado/excluido':' arquivados/excluidos'));
+        abrirBarra('<span>&#128260; Lista atualizada — '+partes.join(' &middot; ')+'</span>'
+          +'<button class="x" onclick="syncFechar()">&#10005;</button>', false, 6);
+      }
+    }catch(e){ /* rede caiu: tenta de novo no proximo ciclo */ }
+    ocupado=false;
+  }
+  window.syncVerificarAgora=verificar;
+
+  async function recarregarUm(id){
+    var r=await sb.from('lola_eventos').select('*').eq('id',id).maybeSingle();
+    if(r.error || !r.data) return null;
+    var novo=fromRow(r.data); delete novo._precisaMigrar;
+    var i=-1; for(var k=0;k<DB.events.length;k++){ if(DB.events[k].id===id){ i=k; break; } }
+    if(i>=0) DB.events[i]=novo; else DB.events.push(novo);
+    return novo;
+  }
+
+  window.syncVerVersaoNova=async function(){
+    fecharBarra();
+    var id=view.id; if(!id) return;
+    var novo=await recarregarUm(id);
+    if(!novo){ showFlash('Nao consegui recarregar',true); return; }
+    if(view.screen==='detail' && view.id===id) renderDetail();
+    else { renderFilters(); renderList(); }
+    showFlash('Atualizado &#10003;');
+  };
+
+  relogio=setInterval(function(){ if(!document.hidden) verificar(); }, PERIODO);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) verificar(); });
+  window.addEventListener('focus', function(){ verificar(); });
+  setTimeout(function(){ marcarHora(); verificar(); }, 4000);
+
+  /* ============ (B) trava contra sobrescrita ============ */
+  var emVoo={}, refazer={}, idConflito=null;
+
+  function avisarConflito(quem){
+    abrirBarra('<span>&#9888;&#65039; <b>'+esc(quem||'Outra pessoa')+'</b> salvou este evento enquanto voce editava. '
+      +'Nao gravei, para nao apagar o trabalho dela.</span>'
+      +'<button onclick="syncPegarVersaoDela()">Ver a versao dela</button>'
+      +'<button onclick="syncSalvarPorCima()">Salvar a minha por cima</button>', true);
+  }
+
+  window.persist=async function(ev, doFlash){
+    if(!ev || !ev.id) return;
+    if(ev._conflito) return;                       /* travado ate a pessoa decidir */
+    if(emVoo[ev.id]){ refazer[ev.id]=doFlash; return; }
+    emVoo[ev.id]=true;
+    try{
+      var q=sb.from('lola_eventos').update(toRow(ev)).eq('id',ev.id);
+      if(ev.editadoEm) q=q.eq('updated_at', ev.editadoEm);
+      var r=await q.select('updated_at,editado_por');
+      if(r.error){ console.error(r.error); showFlash('Erro ao salvar',true); }
+      else if(!r.data || !r.data.length){
+        /* confere de verdade antes de acusar conflito */
+        var o=await sb.from('lola_eventos').select('updated_at,editado_por').eq('id',ev.id).maybeSingle();
+        if(o && o.data && String(o.data.updated_at||'')===String(ev.editadoEm||'')){
+          /* nao era conflito — grava sem a trava, uma vez */
+          var r2=await sb.from('lola_eventos').update(toRow(ev)).eq('id',ev.id).select('updated_at,editado_por');
+          if(!r2.error && r2.data && r2.data.length){
+            ev.editadoEm=r2.data[0].updated_at;
+            ev.editadoPor=r2.data[0].editado_por||ev.editadoPor;
+            if(doFlash) showFlash();
+          } else { showFlash('Erro ao salvar',true); }
+        } else {
+          ev._conflito=true; idConflito=ev.id;
+          avisarConflito(o && o.data ? o.data.editado_por : '');
+        }
+      } else {
+        ev.editadoEm=r.data[0].updated_at;
+        ev.editadoPor=r.data[0].editado_por||ev.editadoPor;
+        if(doFlash) showFlash();
+      }
+    }catch(e){ console.error(e); showFlash('Erro ao salvar',true); }
+    emVoo[ev.id]=false;
+    if(ev.id in refazer){ var f=refazer[ev.id]; delete refazer[ev.id]; window.persist(ev,f); }
+  };
+
+  window.syncPegarVersaoDela=async function(){
+    var id=idConflito; if(!id) { fecharBarra(); return; }
+    fecharBarra();
+    var novo=await recarregarUm(id);
+    if(!novo){ showFlash('Nao consegui recarregar',true); return; }
+    idConflito=null;
+    if(view.screen==='detail' && view.id===id) renderDetail();
+    else { renderFilters(); renderList(); }
+    showFlash('Versao dela carregada &#10003;');
+  };
+
+  window.syncSalvarPorCima=async function(){
+    var id=idConflito; if(!id){ fecharBarra(); return; }
+    var ev=getEvent(id); if(!ev){ fecharBarra(); return; }
+    fecharBarra();
+    try{
+      var o=await sb.from('lola_eventos').select('updated_at').eq('id',id).maybeSingle();
+      if(o && o.data) ev.editadoEm=o.data.updated_at;
+    }catch(e){}
+    ev._conflito=false; idConflito=null;
+    window.persist(ev,true);
+  };
+})();
+</script>
 <div id="printArea"></div>
 </body>
 </html>
