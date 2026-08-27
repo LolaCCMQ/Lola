@@ -3568,13 +3568,20 @@ async function modalEditarItemEstoque(item, onSave){
 async function gerarPedidoDeContagem(contagemId){
   // Buscar itens da contagem que têm pedido > 0
   const itens=await db('lola_contagem_itens','GET',null,
-    '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
+    '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor),lola_insumos!insumo_id(nome,unidade_custo,unidade_compra,categoria,fornecedor_padrao)');
   if(!itens.length){alert('Nenhum item com pedido nesta contagem.');return;}
+  // Prefere o cadastro único de Insumos; cai pro item de estoque legado
+  const _pi=it=>{const ins=it.lola_insumos,es=it.lola_estoque_itens;return{
+    nome: ins?.nome||es?.nome||'—',
+    unidade: (ins?(ins.unidade_custo||ins.unidade_compra):es?.unidade)||'—',
+    fornecedor: (ins?ins.fornecedor_padrao:es?.fornecedor)||'—',
+    categoria: ins?.categoria||es?.categoria||'outros'
+  };};
 
   // Agrupar por categoria
   const grupos={};
   itens.forEach(it=>{
-    const cat=it.lola_estoque_itens?.categoria||'outros';
+    const cat=_pi(it).categoria;
     if(!grupos[cat])grupos[cat]=[];
     grupos[cat].push(it);
   });
@@ -3597,12 +3604,12 @@ async function gerarPedidoDeContagem(contagemId){
     mb2.appendChild(t);
     mb2.appendChild(div('tw mb2',mkTable(
       ['Produto','Un','Qtd pedido','Fornecedor'],
-      gItens.map(it=>[
-        el('strong',null,it.lola_estoque_itens?.nome||'—'),
-        it.lola_estoque_itens?.unidade||'—',
+      gItens.map(it=>{const pi=_pi(it);return[
+        el('strong',null,pi.nome),
+        pi.unidade,
         el('span','bold tv',N(it.pedido,1)),
-        el('span','tss',it.lola_estoque_itens?.fornecedor||'—'),
-      ]),
+        el('span','tss',pi.fornecedor),
+      ];}),
       [null,'tr','tr',null]
     )));
   });
@@ -3611,7 +3618,7 @@ async function gerarPedidoDeContagem(contagemId){
     btn('btn bg','Fechar',()=>ov.remove()),
     btn('btn bp','🖨️ Imprimir lista',()=>{
       const w=window.open('','_blank');
-      const rows=itens.map(it=>'<tr><td>'+it.lola_estoque_itens?.nome+'</td><td>'+it.lola_estoque_itens?.unidade+'</td><td>'+N(it.pedido,1)+'</td><td>'+(it.lola_estoque_itens?.fornecedor||'')+'</td></tr>').join('');
+      const rows=itens.map(it=>{const pi=_pi(it);return'<tr><td>'+pi.nome+'</td><td>'+pi.unidade+'</td><td>'+N(it.pedido,1)+'</td><td>'+(pi.fornecedor==='—'?'':pi.fornecedor)+'</td></tr>';}).join('');
       w.document.write('<html><body style="font-family:sans-serif"><h2>Lista de Pedido — Contagem de Estoque</h2><p>'+new Date().toLocaleDateString('pt-BR')+'</p><table border="1" cellpadding="6" style="border-collapse:collapse;width:100%"><tr><th>Produto</th><th>Un</th><th>Qtd</th><th>Fornecedor</th></tr>'+rows+'</table></body></html>');
       w.print();
     }),
@@ -4347,8 +4354,17 @@ async function verSaida(saida){
 }
 
 async function modalNovaSaida(onSave){
-  // Buscar todos os itens de estoque
-  const todosItens=await db('lola_estoque_itens','GET',null,'?ativo=eq.true&order=categoria.asc,nome.asc');
+  // 26/08 (Bianca): a Saída puxava só de lola_estoque_itens — insumos novos (ex.: vinhos
+  // recém-cadastrados) ficavam de fora. Agora une os itens de estoque + TODOS os insumos
+  // (dedup por nome), pra tudo que existe em insumos aparecer aqui. estoque_item_id fica null
+  // pra item que só existe em insumos (a saída grava pelo nome_item).
+  const _snorm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  const _estItens=await db('lola_estoque_itens','GET',null,'?ativo=eq.true&order=categoria.asc,nome.asc');
+  let _insAll=[]; try{ _insAll=await db('lola_insumos','GET',null,'?ativo=eq.true&select=id,nome,categoria,unidade_custo,unidade_compra&order=nome.asc'); }catch(e){}
+  const _haveNomes=new Set((_estItens||[]).map(i=>_snorm(i.nome)));
+  const _insExtra=(_insAll||[]).filter(i=>i.nome && !_haveNomes.has(_snorm(i.nome)))
+    .map(i=>({id:null, nome:i.nome, categoria:i.categoria, unidade:(i.unidade_custo||i.unidade_compra||'')}));
+  const todosItens=(_estItens||[]).concat(_insExtra);
 
   const f={responsavel:'',destino:'venda',data:new Date().toISOString().split('T')[0],observacoes:''};
   const itensSaida=[]; // {estoque_item_id, nome_item, quantidade, unidade, observacoes, setor}
@@ -4426,7 +4442,7 @@ async function modalNovaSaida(onSave){
     scored.sort((a,b)=> a.sc-b.sc || a.nn.localeCompare(b.nn));
     if(!scored.length){ resultsWrap.appendChild(div('tss','Nenhum insumo encontrado.')); return; }
     scored.slice(0,15).forEach(o=>{ const it=o.it;
-      const ja=itensSaida.find(i=>i.estoque_item_id===it.id);
+      const ja=itensSaida.find(i=> it.id ? (i.estoque_item_id===it.id) : (i.estoque_item_id==null && _saidaNorm(i.nome_item)===_saidaNorm(it.nome)) );
       const row=document.createElement('button'); row.type='button';
       row.style.cssText='display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;gap:10px;padding:10px 13px;border:1.5px solid var(--rb);border-radius:10px;background:'+(ja?'#f1f1f1':'#fff')+';margin-bottom:6px;cursor:'+(ja?'default':'pointer')+';font-family:Manrope,sans-serif;font-size:13px';
       const cat=(typeof CONT_CATS!=='undefined'&&CONT_CATS[it.categoria])||it.categoria||'';
@@ -4824,6 +4840,11 @@ async function pgCont2(c){
   c.appendChild(ld());
   try{
     c.innerHTML='';
+    // Categorias vêm do cadastro único de Insumos (mesmo catálogo da Nova Contagem)
+    const _catRows=await db('lola_insumos','GET',null,'?ativo=eq.true&select=categoria');
+    const _insCats=[...new Set((_catRows||[]).map(r=>r.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    if(!_insCats.length){c.appendChild(em('📦','Nenhum insumo cadastrado'));return;}
+    if(!_insCats.includes(_contCat))_contCat=_insCats[0];
     const barCont=div('no-print');
     barCont.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap';
     const dropWrap=document.createElement('div');
@@ -4833,30 +4854,28 @@ async function pgCont2(c){
     const dropLabel=document.createElement('span');
     const dropArrow=document.createElement('span');dropArrow.textContent='▼';dropArrow.style.cssText='font-size:9px;margin-left:8px;flex-shrink:0;transition:transform .2s';
     dropBtn.appendChild(dropLabel);dropBtn.appendChild(dropArrow);
-    function setLbl(){dropLabel.textContent=CONT_CATS[_contCat]||_contCat||'Categoria...';}setLbl();
+    function setLbl(){dropLabel.textContent=_contCat||'Categoria...';}setLbl();
     const dropPanel=document.createElement('div');
-    dropPanel.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:220px;background:#fff;border:2px solid var(--v);border-radius:14px;box-shadow:0 8px 24px rgba(170,43,43,.15);z-index:500;overflow:hidden';
+    dropPanel.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:220px;background:#fff;border:2px solid var(--v);border-radius:14px;box-shadow:0 8px 24px rgba(170,43,43,.15);z-index:500;overflow:hidden;max-height:320px;overflow-y:auto';
     let dpOpen=false;
     function toggleDp(e){if(e)e.stopPropagation();dpOpen=!dpOpen;dropPanel.style.display=dpOpen?'block':'none';dropArrow.style.transform=dpOpen?'rotate(180deg)':'';}
     dropBtn.addEventListener('click',toggleDp);
     document.addEventListener('click',()=>{if(dpOpen)toggleDp();});
-    Object.entries(CONT_CATS).forEach(([k,l])=>{
+    _insCats.forEach(k=>{
       const item=document.createElement('div');const ativo=k===_contCat;
       item.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-family:Manrope,sans-serif;font-size:13px;font-weight:'+(ativo?'700':'600')+';background:'+(ativo?'var(--rt)':'#fff')+';color:'+(ativo?'var(--v)':'var(--tx)')+';border-bottom:1px solid var(--rf)';
       item.addEventListener('mouseover',()=>{if(k!==_contCat)item.style.background='var(--rf)';});
       item.addEventListener('mouseout',()=>{item.style.background=k===_contCat?'var(--rt)':'#fff';});
       const dot=document.createElement('span');dot.style.cssText='font-size:10px;color:'+(ativo?'var(--v)':'var(--rb)');dot.textContent=ativo?'●':'○';
-      const lbl=document.createElement('span');lbl.textContent=l;
+      const lbl=document.createElement('span');lbl.textContent=k;
       item.appendChild(dot);item.appendChild(lbl);
       item.addEventListener('click',e=>{e.stopPropagation();_contCat=k;setLbl();if(dpOpen)toggleDp();renderContArea();});
       dropPanel.appendChild(item);
     });
     dropWrap.appendChild(dropBtn);dropWrap.appendChild(dropPanel);barCont.appendChild(dropWrap);
-    const btnGer=el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-gear"></i> Gerenciar',onclick:()=>modalGerenciarItens(_contCat,()=>renderContArea())});
-    btnGer.style.cssText='padding:9px 16px;font-size:13px;font-weight:700;border-radius:50px;white-space:nowrap';
     const btnNC=el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-plus"></i> Nova contagem',onclick:()=>modalNovaContagem(c)});
     btnNC.style.cssText='padding:9px 16px;font-size:13px;font-weight:800;border-radius:50px;white-space:nowrap;box-shadow:0 3px 10px rgba(170,43,43,.25)';
-    barCont.appendChild(btnGer);barCont.appendChild(btnNC);
+    barCont.appendChild(btnNC);
     c.appendChild(barCont);
     const contArea=div(null,null,{id:'cont-area'});c.appendChild(contArea);
     await renderContArea();
@@ -4868,7 +4887,8 @@ async function renderContArea(){
   area.innerHTML='';
   area.appendChild(ld());
   try{
-    const itens=await db('lola_estoque_itens','GET',null,'?categoria=eq.'+_contCat+'&ativo=eq.true&order=ordem.asc');
+    const _insRows=await db('lola_insumos','GET',null,'?categoria=eq.'+encodeURIComponent(_contCat)+'&ativo=eq.true&order=nome.asc');
+    const itens=(_insRows||[]).map(i=>({...i, unidade:(i.unidade_custo||i.unidade_compra||''), fornecedor:(i.fornecedor_padrao||'')}));
     const contagens=await db('lola_contagens','GET',null,'?order=data_contagem.desc&limit=5');
     area.innerHTML='';
     if(!itens.length){area.appendChild(em('📦','Nenhum item cadastrado para esta categoria'));return;}
@@ -4916,9 +4936,9 @@ async function renderContArea(){
         +'&order=lola_contagens(data_contagem).desc');
       // Para cada item, guardar só o valor mais recente (primeiro da lista)
       uItens.forEach(it=>{
-        if(!ultimosItens[it.estoque_item_id]){
+        if(it.insumo_id && !ultimosItens[it.insumo_id]){
           const data=it.lola_contagens?.data_contagem;
-          ultimosItens[it.estoque_item_id]={
+          ultimosItens[it.insumo_id]={
             qtd:it.qtd_contada,
             pedido:it.pedido,
             data:data?new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):null
@@ -4965,7 +4985,7 @@ async function renderContArea(){
       meta.appendChild(contCell('Última qtd',uq));
       meta.appendChild(contCell('Mínimo',N(min,0)));
       meta.appendChild(contCell('Fornecedor',it.fornecedor||'—'));
-      meta.appendChild(el('button','cont-edit',null,{html:'<i class="ph-duotone ph-pencil-simple"></i>',title:'Editar',onclick:()=>modalEditarItemEstoque(it,()=>renderContArea())}));
+      meta.appendChild(el('button','cont-edit',null,{html:'<i class="ph-duotone ph-pencil-simple"></i>',title:'Editar',onclick:()=>modalIns(it)}));
       card.appendChild(meta);
       wrapIt.appendChild(card);
     });
@@ -4982,7 +5002,14 @@ async function verContagem(ct){
   ov.addEventListener('click',e=>{if(e.target===ov&&!mo.contains(e.target))ov.remove();});
   document.body.appendChild(ov);
   try{
-    const itens=await db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+ct.id+'&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,qtd_minima,categoria,fornecedor)');
+    const itens=await db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+ct.id+'&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,qtd_minima,categoria,fornecedor),lola_insumos!insumo_id(nome,unidade_custo,unidade_compra,qtd_minima,categoria)');
+    // Prefere o cadastro único de Insumos; cai pro item de estoque legado quando não houver
+    const _pi=it=>{const ins=it.lola_insumos,es=it.lola_estoque_itens;return{
+      nome: ins?.nome||es?.nome||'—',
+      unidade: (ins?(ins.unidade_custo||ins.unidade_compra):es?.unidade)||'—',
+      qtd_minima: parseFloat(ins?.qtd_minima??es?.qtd_minima??0)||0,
+      categoria: ins?.categoria||es?.categoria||'outros'
+    };};
     mb2.innerHTML='';
     mb2.appendChild(div('g3 mb3',[
       div('custo-box',[span('scl','Data'),div('bold mt2',DBR(ct.data_contagem))]),
@@ -4990,15 +5017,15 @@ async function verContagem(ct){
       div('custo-box',[span('scl','Total itens'),div('bold mt2',itens.length+' itens')]),
     ]));
     const grupos={};
-    itens.forEach(it=>{const cat=it.lola_estoque_itens?.categoria||'outros';if(!grupos[cat])grupos[cat]=[];grupos[cat].push(it);});
+    itens.forEach(it=>{const cat=_pi(it).categoria;if(!grupos[cat])grupos[cat]=[];grupos[cat].push(it);});
     Object.entries(grupos).forEach(([cat,gItens])=>{
       const ct2=document.createElement('div');ct2.style.cssText='font-size:13px;font-weight:700;color:var(--ts);margin:12px 0 6px';ct2.textContent=CONT_CATS[cat]||cat;mb2.appendChild(ct2);
       mb2.appendChild(div('tw mb2',mkTable(
         ['Produto','Un','Mín.','Contado','Pedido','Status'],
         gItens.map(it=>{
-          const qtd=parseFloat(it.qtd_contada||0);const min=parseFloat(it.lola_estoque_itens?.qtd_minima||0);
+          const pi=_pi(it);const qtd=parseFloat(it.qtd_contada||0);const min=pi.qtd_minima;
           const st=qtd<=0?'🔴 Zerado':qtd<=min?'🟠 Abaixo':qtd<=min*1.5?'🟡 Atenção':'🟢 OK';
-          return[it.lola_estoque_itens?.nome||'—',it.lola_estoque_itens?.unidade||'—',N(min,0),el('span',qtd<=min?'bold tv':'bold',N(qtd,1)),it.pedido?N(it.pedido,1):'—',st];
+          return[pi.nome,pi.unidade,N(min,0),el('span',qtd<=min?'bold tv':'bold',N(qtd,1)),it.pedido?N(it.pedido,1):'—',st];
         }),
         [null,'tr','tr','tr','tr',null]
       )));
@@ -5146,11 +5173,11 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
 
   try{
     const itens=await db('lola_contagem_itens','GET',null,
-      '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
+      '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
     const _cnome=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'—';
     const _cun=it=>(it.lola_insumos&&it.lola_insumos.unidade_custo)||(it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'';
     const _ccat=it=>(it.lola_insumos&&it.lola_insumos.categoria)||CONT_CATS[it.lola_estoque_itens&&it.lola_estoque_itens.categoria]||(it.lola_estoque_itens&&it.lola_estoque_itens.categoria)||'—';
-    const _cforn=it=>(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||'Sem fornecedor';
+    const _cforn=it=>(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||(it.lola_insumos&&it.lola_insumos.fornecedor_padrao)||'Sem fornecedor';
     mb2.innerHTML='';
 
     if(!itens.length){
@@ -5229,10 +5256,10 @@ async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
   // Imprimir
   const btnImp=btn('btn bo bsm','🖨️ Imprimir',()=>{
     const w=window.open('','_blank');
-    db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)').then(allItens=>{
+    db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)').then(allItens=>{
       const _pn=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'';
       const _pu=it=>(it.lola_insumos&&it.lola_insumos.unidade_custo)||(it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'';
-      const grps={};allItens.forEach(it=>{const fn2=(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||'Sem fornecedor';if(!grps[fn2])grps[fn2]=[];grps[fn2].push(it);});
+      const grps={};allItens.forEach(it=>{const fn2=(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||(it.lola_insumos&&it.lola_insumos.fornecedor_padrao)||'Sem fornecedor';if(!grps[fn2])grps[fn2]=[];grps[fn2].push(it);});
       let h2='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#AA2B2B}h2{background:#fdf3f3;padding:8px;border-left:4px solid #AA2B2B}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#AA2B2B;color:#fff;padding:6px 10px;text-align:left}td{padding:6px 10px;border-bottom:1px solid #eee}</style></head><body>';
       h2+='<h1>📋 Lista de Pedidos — '+dataFmt+'</h1>';
       Object.entries(grps).sort(([a],[b])=>a.localeCompare(b,'pt')).forEach(([fn3,fi])=>{
@@ -6386,7 +6413,7 @@ async function renderEnPendencias(box){
 async function pgEntradaNotas(c){
   c.appendChild(ld());
   try{
-    const [notas,lancadas,mapa,insumos]=await Promise.all([
+    const [notasXml,lancadas,mapa,insumos,manuaisMov]=await Promise.all([
       db('rpc/ccmq_notas_estoque','POST',{}),
       db('lola_ccmq_estoque_nota','GET',null,'?select=chave'),
       /* mapa UNIFICADO (17/07): antes cada app tinha o seu, com normalização
@@ -6394,11 +6421,27 @@ async function pgEntradaNotas(c){
          chaves incompatíveis: o Lola só reconhecia 15 de 586 itens de junho.
          Agora são 185 de-paras compartilhados. Ver lola_desc_norm() no banco. */
       db('lola_nota_insumo_map','GET',null,'?select=desc_norm,insumo_id,fator,ignorar&limit=5000'),
-      db('lola_insumos','GET',null,'?select=id,nome,categoria,unidade_compra,unidade_custo,custo_por_unidade&ativo=eq.true&order=nome.asc')
+      db('lola_insumos','GET',null,'?select=id,nome,categoria,unidade_compra,unidade_custo,custo_por_unidade&ativo=eq.true&order=nome.asc'),
+      /* 26/08 (Bianca): a busca de notas passa a incluir as ENTRADAS MANUAIS. */
+      db('lola_ccmq_estoque_mov','GET',null,'?origem_tipo=eq.manual&tipo=eq.entrada&select=id,insumo_id,qtd,unidade,custo_total,origem_ref,data,vencimento&order=data.desc&limit=8000')
     ]);
     const lanSet=new Set(lancadas.map(x=>x.chave));
     const mapByKey={};mapa.forEach(m=>mapByKey[m.desc_norm]=m);
     const insByName={},insById={};insumos.forEach(i=>{insByName[_jnorm(i.nome)]=i;insById[i.id]=i;});
+    /* 26/08 (Bianca): entradas manuais (origem 'manual') agrupadas por fornecedor+data viram
+       "pseudo-notas" na lista — buscáveis por fornecedor, entram como "lançada · manual". */
+    const _manG={};
+    (manuaisMov||[]).forEach(m=>{
+      const key='man:'+(m.origem_ref||'')+':'+(m.data||'');
+      const g=_manG[key]||(_manG[key]={chave:key,emitente:(m.origem_ref||'(sem fornecedor)'),numero:'',data_emissao:m.data,valor_total:0,itens:[],_manual:true,_movIds:[],vencimento:null,oculta_entrada:false,xml_indisponivel:false});
+      const ins=insById[m.insumo_id];
+      g.itens.push({desc:(ins?ins.nome:'item'),un:m.unidade||'',qtd:+m.qtd||0,vtotal:+m.custo_total||0,vunit:((+m.qtd)?(+m.custo_total||0)/(+m.qtd):0)});
+      g.valor_total+=(+m.custo_total||0); g._movIds.push(m.id);
+      if(m.vencimento) g.vencimento=m.vencimento;
+      lanSet.add(key);
+    });
+    const notas=(notasXml||[]).concat(Object.values(_manG))
+      .sort((a,b)=>String(b.data_emissao||'').localeCompare(String(a.data_emissao||'')));
     EN={notas,lanSet,mapByKey,insByName,insById,insumos};
     c.innerHTML='';
     const note=div(null);note.style.cssText='background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5';
@@ -6557,12 +6600,14 @@ async function pgEntradaNotas(c){
         +'</tr></thead>';
       const tb=el('tbody');
       list.forEach(n=>{
+        const manual=!!n._manual;
         const done=lanSet.has(n.chave);const nit=Array.isArray(n.itens)?n.itens.length:0;
         const oculta=!!n.oculta_entrada;
         const bloq=!!n.xml_indisponivel && !done;
         const cancel=bloq && n.xml_motivo==='nfe_cancelada';
         let barra,rowBg,dot,txtCor,rot;
         if(oculta){ barra='#B0A79E'; rowBg='#F7F3EE'; dot='#B0A79E'; txtCor='#6B5D54'; rot='oculta'; }
+        else if(manual){ barra='#2C5AA0'; rowBg='#EAF1FB'; dot='#2C5AA0'; txtCor='#2C5AA0'; rot='manual'; }
         else if(done){ barra=_C.verde; rowBg=_C.verdeBg; dot=_C.verde; txtCor='#166534'; rot='lançada'; }
         else if(cancel){ barra=_C.verm; rowBg=_C.vermBg; dot=_C.verm; txtCor='#9A2A2A'; rot='cancelada'; }
         else if(bloq){ barra=_C.laranja; rowBg=_C.laranjaBg; dot=_C.laranja; txtCor='#7A4B12'; rot='sem XML'; }
@@ -6573,17 +6618,17 @@ async function pgEntradaNotas(c){
         const dataC=String(DBR(n.data_emissao)||'').slice(0,5);
         const status='<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:'+txtCor+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:'+dot+'"></span>'+rot+'</span>';
         const tr=el('tr');
-        if(clic){ tr.style.cursor='pointer'; tr.title='Abrir nota'; tr.addEventListener('click',()=>abrirNotaEN(n)); tr.addEventListener('mouseenter',()=>{tr.style.filter='brightness(.98)';}); tr.addEventListener('mouseleave',()=>{tr.style.filter='none';}); }
+        if(clic){ tr.style.cursor='pointer'; tr.title=manual?'Ver entrada manual':'Abrir nota'; tr.addEventListener('click',()=>{ manual?openManualDetail(n):abrirNotaEN(n); }); tr.addEventListener('mouseenter',()=>{tr.style.filter='brightness(.98)';}); tr.addEventListener('mouseleave',()=>{tr.style.filter='none';}); }
         tr.innerHTML=
            '<td style="'+tdCss+';border-left:4px solid '+barra+';overflow:hidden">'+status+'</td>'
           +'<td style="'+tdCss+';white-space:nowrap;color:var(--ts);font-variant-numeric:tabular-nums">'+dataC+'</td>'
-          +'<td style="'+tdCss+';overflow:hidden"><span style="display:block;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'+(cancel?';text-decoration:line-through;color:var(--ts)':'')+'">'+forn+'</span></td>'
+          +'<td style="'+tdCss+';overflow:hidden"><span style="display:block;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'+(cancel?';text-decoration:line-through;color:var(--ts)':'')+'">'+forn+'</span>'+(n.vencimento?('<span style="display:block;font-size:9px;color:#B5302E;font-weight:800;white-space:nowrap">🕓 venc '+_envEsc(String(DBR(n.vencimento)||'').slice(0,5))+'</span>'):'')+'</td>'
           +'<td style="'+tdCss+';text-align:center;color:var(--ts);font-variant-numeric:tabular-nums">'+(bloq?'—':nit)+'</td>'
           +'<td style="'+tdCss+';text-align:right;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums">'+R(n.valor_total)+'</td>';
         const tdAc=el('td',null,null,{style:tdCss+';text-align:right'});
-        const ic=btn('','',(ev)=>{ if(ev&&ev.stopPropagation)ev.stopPropagation(); oculta?_setOculta(n,false):_excluirNota(n); });
+        const ic=btn('','',(ev)=>{ if(ev&&ev.stopPropagation)ev.stopPropagation(); oculta?_setOculta(n,false):(manual?_excluirManual(n):_excluirNota(n)); });
         ic.innerHTML='<i class="ph-duotone '+(oculta?'ph-arrow-counter-clockwise':'ph-trash')+'"></i>';
-        ic.title=oculta?'Restaurar':'Excluir da lista';
+        ic.title=oculta?'Restaurar':(manual?'Excluir entrada manual':'Excluir da lista');
         ic.style.cssText='border:0;background:none;cursor:pointer;color:'+(oculta?'var(--v)':'#B0928A')+';font-size:16px;padding:4px;line-height:1;border-radius:8px';
         tdAc.appendChild(ic); tr.appendChild(tdAc); tb.appendChild(tr);
       });
@@ -6738,10 +6783,48 @@ function abrirNotaEN(n){
     rows.push({desc,q,un,ct,insInp,fatInp,catSel,unInp,unSelEN,ign:()=>_ign,unTocada:()=>_unTocada});
     paintIgn();
   });
+  /* 26/08 (Bianca): data de vencimento da nota (contas a pagar) — salva na hora. */
+  const vencInp=el('input','fi',null,{type:'date',value:(n.vencimento||'')});
+  vencInp.onchange=async()=>{ try{ await db('financeiro_notas','PATCH',{vencimento:(vencInp.value||null)},'?chave=eq.'+encodeURIComponent(n.chave)); n.vencimento=vencInp.value||null; }catch(e){ alert('Erro ao salvar vencimento: '+e.message); } };
+  wrap.appendChild(fgrp('Vencimento (opcional)',vencInp));
   const bSave=btn('btn bp','✓ Lançar entrada da nota',()=>lancarNotaEN(n,rows,bSave));
   bSave.style.cssText='width:100%;margin-top:4px;padding:13px;font-weight:800;font-size:14px';
   wrap.appendChild(bSave);
   mkModal('Lançar: '+_envEsc(n.emitente||('Nota '+(n.numero||''))),[wrap],null,'mo moxl');
+}
+/* 26/08 (Bianca): detalhe de uma ENTRADA MANUAL (pseudo-nota agrupada por fornecedor+data).
+   Mostra os itens, deixa colocar/editar o vencimento e excluir a entrada. */
+function openManualDetail(n){
+  const wrap=div(null);
+  const head=div(null); head.style.cssText='font-size:12px;color:var(--ts);margin-bottom:10px';
+  head.innerHTML='<b style="color:#2C5AA0">Entrada manual</b> · '+_envEsc(n.emitente||'—')+' · '+(String(DBR(n.data_emissao)||''))+' · <b>'+R(n.valor_total)+'</b>';
+  wrap.appendChild(head);
+  const tbl=el('table',null,null,{style:'width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--rb);border-radius:12px;overflow:hidden;table-layout:fixed;margin-bottom:12px'});
+  const th='font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--ts);font-weight:800;text-align:left;padding:7px 8px;background:var(--rf);border-bottom:1px solid var(--rb)';
+  tbl.innerHTML='<colgroup><col><col style="width:80px"><col style="width:90px"></colgroup><thead><tr><th style="'+th+'">Item</th><th style="'+th+';text-align:right">Qtd</th><th style="'+th+';text-align:right">Valor</th></tr></thead>';
+  const tb=el('tbody');
+  (n.itens||[]).forEach(it=>{
+    const tr=el('tr'); const td='padding:8px;border-bottom:1px solid #F3EBE2;font-size:12.5px;vertical-align:middle';
+    tr.innerHTML='<td style="'+td+';overflow:hidden;text-overflow:ellipsis">'+_envEsc(it.desc||'')+'</td><td style="'+td+';text-align:right;white-space:nowrap;color:var(--ts)">'+_enQ(it.qtd)+' '+_envEsc(it.un||'')+'</td><td style="'+td+';text-align:right;white-space:nowrap;font-weight:600">'+R(it.vtotal||0)+'</td>';
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb); wrap.appendChild(tbl);
+  const vencInp=el('input','fi',null,{type:'date',value:(n.vencimento||'')});
+  vencInp.onchange=async()=>{ try{ await db('lola_ccmq_estoque_mov','PATCH',{vencimento:(vencInp.value||null)},'?id=in.('+n._movIds.join(',')+')'); n.vencimento=vencInp.value||null; }catch(e){ alert('Erro ao salvar vencimento: '+e.message); } };
+  wrap.appendChild(fgrp('Vencimento (opcional)',vencInp));
+  const bDel=btn('btn bo bsm','🗑 Excluir esta entrada manual',()=>{ document.querySelectorAll('.ov').forEach(o=>o.remove()); _excluirManual(n); });
+  bDel.style.cssText='margin-top:10px;color:#B5302E;border-color:#E7C9C4;font-weight:700';
+  wrap.appendChild(bDel);
+  mkModal('Entrada manual — '+_envEsc(n.emitente||''),[wrap],null,'mo moxl');
+}
+async function _excluirManual(n){
+  if(!n._movIds||!n._movIds.length) return;
+  if(!confirm('Excluir esta entrada manual de '+(n.emitente||'')+' ('+n._movIds.length+' item(ns))?\n\nRemove a entrada do estoque — o saldo desses insumos volta.'))return;
+  try{
+    await db('lola_ccmq_estoque_mov','DELETE',null,'?id=in.('+n._movIds.join(',')+')');
+    document.querySelectorAll('.ov').forEach(o=>o.remove());
+    nav('entnotas');
+  }catch(e){ alert('Erro ao excluir: '+e.message); }
 }
 async function lancarNotaEN(n,rows,bSave){
   const ativos=rows.filter(r=>!(r.ign&&r.ign()));
@@ -6875,6 +6958,7 @@ function modalEntradaManualEN(){
   const wrap=div(null);
   const rows=[];
   const dataInp=el('input','fi',null,{type:'date',value:TD()});
+  const vencInp=el('input','fi',null,{type:'date'}); /* 26/08 (Bianca): data de vencimento */
   const obsInp=el('input','fi',null,{placeholder:'Fornecedor / observação (vale pra todos os itens)'});
   const list=div(null); list.style.cssText='border:1px solid var(--rb);border-radius:12px;overflow:hidden;margin-top:6px';
   const UNS_EN=['kg','g','L','ml','un','pct','cx','fd','dz'];
@@ -6936,7 +7020,7 @@ function modalEntradaManualEN(){
         if(r.unTocada&&r.unTocada()&&r.unSelEN.value&&ins.unidade_custo!==r.unSelEN.value){ await db('lola_insumos','PATCH',{unidade_custo:r.unSelEN.value},'?id=eq.'+ins.id); ins.unidade_custo=r.unSelEN.value; }
         const q=+r.qtdInp.value||0, f=+r.fatInp.value||1, qu=q*f, v=+r.valInp.value||0, cu=qu>0?v/qu:0;
         const unUso=(r.unSelEN.value)||ins.unidade_custo||'un';
-        await db('lola_ccmq_estoque_mov','POST',{insumo_id:ins.id,tipo:'entrada',qtd:qu,unidade:unUso,custo_unit:cu,custo_total:(v||null),origem_tipo:'manual',origem_ref:(forn||null),data:data,criado_por:ME||null});
+        await db('lola_ccmq_estoque_mov','POST',{insumo_id:ins.id,tipo:'entrada',qtd:qu,unidade:unUso,custo_unit:cu,custo_total:(v||null),origem_tipo:'manual',origem_ref:(forn||null),data:data,vencimento:(vencInp.value||null),criado_por:ME||null});
         /* 22/07: preço do insumo NÃO muda na entrada — só no fechamento do mês (média). */
       }
       document.querySelectorAll('.ov').forEach(o=>o.remove());
@@ -6945,6 +7029,7 @@ function modalEntradaManualEN(){
   });
   bSave.style.cssText='width:100%;margin-top:12px;padding:13px;font-weight:800;font-size:14px';
   wrap.appendChild(div('fg2',[fgrp('Fornecedor / obs.',obsInp),fgrp('Data',dataInp)]));
+  wrap.appendChild(fgrp('Vencimento (opcional)',vencInp));
   wrap.appendChild(el('div',null,['Itens'],{style:'font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl,#B79A8E);font-weight:800;margin:14px 0 0'}));
   wrap.appendChild(list);
   wrap.appendChild(bAdd);
