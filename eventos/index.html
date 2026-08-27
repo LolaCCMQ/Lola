@@ -1678,7 +1678,7 @@ init();
      ============================================================ -->
 <script>
 (function(){
-  if(!window.sb || !window.DB) return;
+  if(typeof sb==='undefined' || typeof DB==='undefined') return;
 
   /* ---------- visual ---------- */
   var st=document.createElement('style');
