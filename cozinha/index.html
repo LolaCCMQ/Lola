@@ -4887,7 +4887,7 @@ async function renderContArea(){
   area.innerHTML='';
   area.appendChild(ld());
   try{
-    const _insRows=await db('lola_insumos','GET',null,'?categoria=eq.'+encodeURIComponent(_contCat)+'&ativo=eq.true&order=nome.asc');
+    const _insRows=await db('lola_insumos','GET',null,'?categoria=eq.'+encodeURIComponent(_contCat)+'&ativo=eq.true&order=ordem.asc.nullslast,nome.asc');
     const itens=(_insRows||[]).map(i=>({...i, unidade:(i.unidade_custo||i.unidade_compra||''), fornecedor:(i.fornecedor_padrao||'')}));
     const contagens=await db('lola_contagens','GET',null,'?order=data_contagem.desc&limit=5');
     area.innerHTML='';
@@ -4952,7 +4952,7 @@ async function renderContArea(){
     if(abaixo.length){
       const alertBox=document.createElement('div');
       alertBox.style.cssText='background:#FBEAE7;border:1px solid #F3D3CE;color:#B5302E;border-radius:14px;padding:12px 16px;margin-bottom:14px';
-      const t=document.createElement('div');t.style.cssText='font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px';t.innerHTML='<i class="ph-duotone ph-warning"></i> Abaixo do mínimo na última contagem:';alertBox.appendChild(t);
+      const t=document.createElement('div');t.style.cssText='font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px';t.innerHTML='<i class="ph-duotone ph-warning"></i> Abaixo do estoque ideal na última contagem:';alertBox.appendChild(t);
       abaixo.forEach(it=>{
         const u=ultimosItens[it.id];
         const r=document.createElement('div');r.style.cssText='display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #F3D3CE;font-size:12px';
@@ -4983,7 +4983,7 @@ async function renderContArea(){
       const meta=div('cont-meta');
       const uq = qtd===null ? '—' : (N(qtd,1)+' '+it.unidade + (u&&u.data?(' · '+u.data):''));
       meta.appendChild(contCell('Última qtd',uq));
-      meta.appendChild(contCell('Mínimo',N(min,0)));
+      meta.appendChild(contCell('Estoque ideal',N(min,0)));
       meta.appendChild(contCell('Fornecedor',it.fornecedor||'—'));
       meta.appendChild(el('button','cont-edit',null,{html:'<i class="ph-duotone ph-pencil-simple"></i>',title:'Editar',onclick:()=>modalIns(it)}));
       card.appendChild(meta);
