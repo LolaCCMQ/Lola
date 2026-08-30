@@ -4956,7 +4956,7 @@ async function renderContArea(){
       abaixo.forEach(it=>{
         const u=ultimosItens[it.id];
         const r=document.createElement('div');r.style.cssText='display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #F3D3CE;font-size:12px';
-        r.innerHTML='<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#B5302E;margin-right:6px"></span>'+it.nome+'</span><span>'+N(u?.qtd||0,1)+' '+it.unidade+' (mín: '+N(it.qtd_minima,0)+')</span>';
+        r.innerHTML='<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#B5302E;margin-right:6px"></span>'+it.nome+'</span><span>'+N(u?.qtd||0,1)+' '+it.unidade+' (ideal: '+N(it.qtd_minima,0)+')</span>';
         alertBox.appendChild(r);
       });
       area.appendChild(alertBox);
