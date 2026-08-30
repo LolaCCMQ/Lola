@@ -5899,7 +5899,23 @@ function _cmvRange(){
 }
 function _cmvLbl(t){return el('span',null,t,{style:'font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);font-weight:700;opacity:.7'});}
 
+let _pedAba='compras'; // 'compras' | 'sugestao'
 async function pgComprasCMV(c){
+  c.innerHTML='';
+  const tabs=div(null,null,{id:'pedTabs',style:'display:flex;gap:8px;margin-bottom:14px'});
+  [['compras','📋 Compras'],['sugestao','🛒 Sugestão de Pedido']].forEach(function(o){
+    const b=el('button',null,o[1],{'data-t':o[0],style:'padding:9px 14px;border-radius:10px;border:1px solid var(--rb);font-weight:700;font-size:12.5px;cursor:pointer'});
+    b.onclick=()=>{ _pedAba=o[0]; pgComprasCMV(c); };
+    tabs.appendChild(b);
+  });
+  c.appendChild(tabs);
+  Array.prototype.forEach.call(tabs.children,function(b){ const on=b.getAttribute('data-t')===_pedAba; b.style.background=on?'var(--v)':'#fff'; b.style.color=on?'#fff':'var(--ts)'; });
+  const body=div(null,null,{}); c.appendChild(body);
+  if(_pedAba==='sugestao'){ return _pedSugestaoRender(body); }
+  return _cmvComprasBody(body);
+}
+
+async function _cmvComprasBody(c){
   if(!_cmv.mes){ const d=new Date(); const p=new Date(d.getFullYear(), d.getMonth()-1, 1); _cmv.mes=p.getFullYear()+'-'+String(p.getMonth()+1).padStart(2,'0'); }
   c.innerHTML='';
   const note=div(null,null,{style:'background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5'});
@@ -5928,6 +5944,81 @@ async function pgComprasCMV(c){
 
   _cmvPaintSeg(); _cmvBuildSub();
   await _cmvLoad();
+}
+
+/* ══ Sugestão de Pedido (30/08) — estoque ideal menos última contagem, por insumo.
+   Backend: rpc lola_sugestao_pedido(categoria). ══ */
+let _ped={categoria:''};
+function _pedConservLbl(cons, porSem, porMes){
+  const c = (cons||'').trim();
+  const icone = c.toLowerCase().indexOf('congel')>=0 ? '🧊' : (c.toLowerCase().indexOf('resfr')>=0||c.toLowerCase().indexOf('refr')>=0) ? '❄️' : '🌿';
+  let entrega = '';
+  if(porSem){ entrega = porSem+'x/semana'; } else if(porMes){ entrega = porMes+'x/mês'; }
+  const partes=[]; if(c) partes.push(c); if(entrega) partes.push(entrega);
+  return icone+' '+(partes.join(' · ')||'—');
+}
+async function _pedSugestaoRender(c){
+  c.innerHTML='<div class="spin"></div>';
+  let rows=[];
+  try{ rows=await db('rpc/lola_sugestao_pedido','POST',{p_categoria:null}); }
+  catch(e){ c.innerHTML='<div class="note">Erro ao carregar: '+_enEsc(e.message)+'</div>'; return; }
+  c.innerHTML='';
+
+  const note=div(null,null,{style:'background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5'});
+  note.innerHTML='<i class="ph-duotone ph-basket" style="color:var(--v)"></i> Quanto pedir de cada insumo = <b>estoque ideal</b> menos a <b>última contagem</b> registrada. O estoque ideal já foi calibrado pela venda de uma semana forte, pra não faltar.';
+  c.appendChild(note);
+
+  const cats=Array.from(new Set(rows.map(function(r){return r.categoria;}))).sort();
+  const ctr=div(null,null,{style:'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px'});
+  const catWrap=div(null,[_cmvLbl('Categoria')],{style:'display:flex;flex-direction:column;gap:4px'});
+  const catSel=el('select','fi',null,{style:'min-width:220px'});
+  catSel.appendChild(el('option',null,'Todas',{value:''}));
+  cats.forEach(function(cat){ const o=el('option',null,cat,{value:cat}); if(cat===_ped.categoria)o.selected=true; catSel.appendChild(o); });
+  catSel.onchange=()=>{ _ped.categoria=catSel.value; _pedSugestaoRenderTable(rows); };
+  catWrap.appendChild(catSel); ctr.appendChild(catWrap);
+  const onlyWrap=div(null,[_cmvLbl(' ')],{style:'display:flex;flex-direction:column;gap:4px'});
+  const onlyChk=el('label',null,null,{style:'display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--tp);padding:9px 2px;font-weight:600'});
+  const cb=el('input',null,null,{type:'checkbox'}); cb.checked=true;
+  cb.onchange=()=>{ _ped.somenteFalta=cb.checked; _pedSugestaoRenderTable(rows); };
+  _ped.somenteFalta=true;
+  onlyChk.appendChild(cb); onlyChk.appendChild(document.createTextNode('Só o que falta pedir'));
+  onlyWrap.appendChild(onlyChk); ctr.appendChild(onlyWrap);
+  c.appendChild(ctr);
+
+  c.appendChild(div(null,null,{id:'pedTbl'}));
+  _pedSugestaoRenderTable(rows);
+}
+function _pedSugestaoRenderTable(rows){
+  const wrap=document.getElementById('pedTbl'); if(!wrap)return;
+  wrap.innerHTML='';
+  let list=rows.slice();
+  if(_ped.categoria) list=list.filter(function(r){return r.categoria===_ped.categoria;});
+  if(_ped.somenteFalta) list=list.filter(function(r){return (+r.sugestao||0)>0;});
+  if(!list.length){ wrap.innerHTML='<div class="note">Nada pra pedir por aqui 🎉</div>'; return; }
+
+  let catAtual=null;
+  list.forEach(function(r){
+    if(r.categoria!==catAtual){
+      catAtual=r.categoria;
+      const secLbl=div(null,null,{style:'font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ts);opacity:.7;font-weight:700;margin:14px 2px 8px'});
+      secLbl.textContent=catAtual; wrap.appendChild(secLbl);
+    }
+    const falta=+r.sugestao||0;
+    const card=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:14px;padding:12px 15px;margin-bottom:10px'});
+    const contData = r.ultima_contagem_data ? DBR(r.ultima_contagem_data) : null;
+    const contQtd = r.ultima_contagem_qtd!=null ? N(r.ultima_contagem_qtd, (r.ultima_contagem_qtd%1===0?0:2)) : null;
+    card.innerHTML=''
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<b style="font-size:14.5px;color:var(--tp)">'+_enEsc(r.nome)+'</b>'
+        +'<span style="font-size:11px;color:var(--ts);opacity:.75">'+_enEsc(_pedConservLbl(r.conservacao, r.entregas_por_semana, r.entregas_por_mes))+'</span>'
+      +'</div>'
+      +'<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:9px">'
+        +'<div><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Última contagem</div><div style="font-size:13.5px;font-weight:700;color:var(--tp)">'+(contQtd!=null?(contQtd+' '+_enEsc(r.unidade_compra||'')):'—')+'</div>'+(contData?('<div style="font-size:10px;color:var(--ts);opacity:.65">'+contData+'</div>'):'<div style="font-size:10px;color:#9A6B1E">sem contagem ainda</div>')+'</div>'
+        +'<div><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Estoque ideal</div><div style="font-size:13.5px;font-weight:700;color:var(--tp)">'+N(r.qtd_minima,(r.qtd_minima%1===0?0:2))+' '+_enEsc(r.unidade_compra||'')+'</div></div>'
+        +'<div style="margin-left:auto;text-align:right"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ts);opacity:.7;font-weight:700">Pedir</div><div style="font-family:Georgia,serif;font-size:19px;font-weight:700;color:'+(falta>0?'#B5302E':'#2C7A4B')+'">'+(falta>0?N(falta,(falta%1===0?0:2)):'—')+'</div></div>'
+      +'</div>';
+    wrap.appendChild(card);
+  });
 }
 
 function _cmvPaintSeg(){
