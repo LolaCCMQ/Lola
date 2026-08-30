@@ -6035,10 +6035,13 @@ function _pedGerarRascunho(rows){
   const DEST_KEYS=['ccmq','mac','eventos'];
   let destino='ccmq', resp='', obs='';
 
+  // Só os itens fornecidos pela Central podem virar rascunho em "Pedidos à Central" —
+  // a Sugestão de Pedido cobre TODO o cardápio de insumos (mercado, fornecedores diretos,
+  // etc.), mas esse botão é especificamente pro pedido que vai pra Central.
   const itens=rows.filter(function(r){
-    return (!_ped.categoria || r.categoria===_ped.categoria) && (+r.sugestao||0)>0;
+    return r.fornecedor_padrao==='Central' && (+r.sugestao||0)>0;
   });
-  if(!itens.length){ alert('Nada pra pedir com o filtro atual.'); return; }
+  if(!itens.length){ alert('Nenhum item fornecido pela Central com sugestão de pedido no momento.'); return; }
 
   const ov=div('ov');
   const mo=div('mo');
@@ -6048,7 +6051,7 @@ function _pedGerarRascunho(rows){
   const mb=div('mb');mo.appendChild(mb);
 
   const note=div(null,null,{style:'background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:10px 13px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5'});
-  note.innerHTML='Cria um rascunho em <b>Pedidos → Pedidos à Central</b> com '+itens.length+' ite'+(itens.length>1?'ns':'m')+' (o que falta pedir'+(_ped.categoria?(' de <b>'+_enEsc(_ped.categoria)+'</b>'):'')+'). O chefe da cozinha revisa e ajusta as quantidades por lá antes de encaminhar.';
+  note.innerHTML='Cria um rascunho em <b>Pedidos → Pedidos à Central</b> com '+itens.length+' ite'+(itens.length>1?'ns':'m')+' fornecido'+(itens.length>1?'s':'')+' pela Central (o que falta pedir). O chefe da cozinha revisa e ajusta as quantidades por lá antes de encaminhar.';
   mb.appendChild(note);
 
   const destTabsWrap=div('tabs mb3');
