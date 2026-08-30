@@ -5983,6 +5983,9 @@ async function _pedSugestaoRender(c){
   _ped.somenteFalta=true;
   onlyChk.appendChild(cb); onlyChk.appendChild(document.createTextNode('Só o que falta pedir'));
   onlyWrap.appendChild(onlyChk); ctr.appendChild(onlyWrap);
+  const rascWrap=div(null,[_cmvLbl(' ')],{style:'display:flex;flex-direction:column;gap:4px'});
+  rascWrap.appendChild(btn('btn bp','📝 Gerar rascunho pra Central',()=>_pedGerarRascunho(rows)));
+  ctr.appendChild(rascWrap);
   c.appendChild(ctr);
 
   c.appendChild(div(null,null,{id:'pedTbl'}));
@@ -6019,6 +6022,84 @@ function _pedSugestaoRenderTable(rows){
       +'</div>';
     wrap.appendChild(card);
   });
+}
+
+/* ══ Gerar rascunho de pedido pra Central a partir da Sugestão de Pedido (30/08) ══
+   Pega os insumos com sugestao>0 (respeitando o filtro de categoria da tela, se
+   algum estiver selecionado) e cria um pedido em lola_pedidos com status='rascunho',
+   igual ao que "Novo Pedido" cria — o chefe da cozinha revisa e edita normalmente
+   pela tela de Pedidos antes de encaminhar pra Central. ══ */
+function _pedGerarRascunho(rows){
+  const DEST_COR={ccmq:'#AA2B2B',mac:'#166534',eventos:'#c47700'};
+  const DEST_LBL={ccmq:'CCMQ',mac:'MAC',eventos:'Evento'};
+  const DEST_KEYS=['ccmq','mac','eventos'];
+  let destino='ccmq', resp='', obs='';
+
+  const itens=rows.filter(function(r){
+    return (!_ped.categoria || r.categoria===_ped.categoria) && (+r.sugestao||0)>0;
+  });
+  if(!itens.length){ alert('Nada pra pedir com o filtro atual.'); return; }
+
+  const ov=div('ov');
+  const mo=div('mo');
+  mo.addEventListener('click',e=>e.stopPropagation());
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  mo.appendChild(div('mh',[el('h3',null,'📝 Gerar rascunho pra Central'),btn('xb','✕',()=>ov.remove())]));
+  const mb=div('mb');mo.appendChild(mb);
+
+  const note=div(null,null,{style:'background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:10px 13px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5'});
+  note.innerHTML='Cria um rascunho em <b>Pedidos → Pedidos à Central</b> com '+itens.length+' ite'+(itens.length>1?'ns':'m')+' (o que falta pedir'+(_ped.categoria?(' de <b>'+_enEsc(_ped.categoria)+'</b>'):'')+'). O chefe da cozinha revisa e ajusta as quantidades por lá antes de encaminhar.';
+  mb.appendChild(note);
+
+  const destTabsWrap=div('tabs mb3');
+  function buildDestTabs(){
+    destTabsWrap.innerHTML='';
+    DEST_KEYS.forEach(function(k){
+      const p=span('tp'+(destino===k?' active':''),DEST_LBL[k]);
+      p.style.cssText+=(';font-weight:800;border:2px solid '+DEST_COR[k]);
+      if(destino===k) p.style.background=DEST_COR[k]+';color:#fff';
+      p.addEventListener('click',function(){destino=k;buildDestTabs();});
+      destTabsWrap.appendChild(p);
+    });
+  }
+  buildDestTabs();
+  mb.appendChild(fgrp('Destino',destTabsWrap));
+
+  const inpResp=el('input','fi',null,{type:'text',placeholder:'Seu nome (obrigatório)'});
+  inpResp.addEventListener('input',function(e){resp=e.target.value;inpResp.style.borderColor=e.target.value.trim()?'var(--vd)':'var(--rb)';});
+  const inpObs=el('input','fi',null,{type:'text',placeholder:'Observações...'});
+  inpObs.addEventListener('input',function(e){obs=e.target.value;});
+  mb.appendChild(div('fg2 mt2',[fgrp('✍️ Responsável',inpResp),fgrp('Observações',inpObs)]));
+
+  const total=itens.reduce(function(t,r){return t+((+r.sugestao||0)*(parseFloat(r.custo_por_unidade)||0));},0);
+  const resumo=div(null,null,{style:'margin-top:12px;font-size:12.5px;color:var(--ts)'});
+  resumo.innerHTML=itens.length+' ite'+(itens.length>1?'ns':'m')+' · valor estimado <b style="color:var(--tp)">'+R(total)+'</b>';
+  mb.appendChild(resumo);
+
+  const mf=div('mf');
+  mf.appendChild(btn('btn bg','Cancelar',()=>ov.remove()));
+  const saveBtn=btn('btn bp','Gerar rascunho',async function(){
+    if(!resp.trim()){inpResp.style.borderColor='#dc2626';inpResp.focus();return;}
+    saveBtn.textContent='Gerando...';saveBtn.disabled=true;
+    try{
+      const[ped]=await db('lola_pedidos','POST',{
+        unidade:destino,status:'rascunho',data_pedido:TD(),
+        valor_total:total,observacoes:obs||null,responsavel:resp,
+      });
+      for(const r of itens){
+        await db('lola_pedidos_itens','POST',{
+          pedido_id:ped.id,nome_item:r.nome,quantidade:+r.sugestao,
+          unidade:r.unidade_compra,preco_unitario:parseFloat(r.custo_por_unidade)||0,
+        });
+      }
+      ov.remove();
+      if(confirm('Rascunho #'+(ped.numero_pedido||ped.id)+' criado com '+itens.length+' itens. Abrir Pedidos à Central agora?')){ nav('pedidos'); }
+    }catch(e){alert('Erro: '+e.message);saveBtn.textContent='Gerar rascunho';saveBtn.disabled=false;}
+  });
+  mf.appendChild(saveBtn);
+  mo.appendChild(mf);
+  ov.appendChild(mo);
+  document.body.appendChild(ov);
 }
 
 function _cmvPaintSeg(){
