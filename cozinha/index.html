@@ -6090,6 +6090,8 @@ function _pedGerarRascunho(rows){
         await db('lola_pedidos_itens','POST',{
           pedido_id:ped.id,nome_item:r.nome,quantidade:+r.sugestao,
           unidade:r.unidade_compra,preco_unitario:parseFloat(r.custo_por_unidade)||0,
+          estoque_atual:(r.ultima_contagem_qtd!=null&&r.ultima_contagem_qtd!=='')?+r.ultima_contagem_qtd:null,
+          estoque_ideal:(r.qtd_minima!=null&&r.qtd_minima!=='')?+r.qtd_minima:null,
         });
       }
       ov.remove();
@@ -8189,17 +8191,29 @@ async function verPedido(ped){
       div('custo-box',[span('scl','Status'),div('bold tv mt2',ped.status)]),
     ]),
     ...(ped.observacoes?[div('al ali mb3',ped.observacoes)]:[]),
-    div('tw',mkTable(
-      ['Item','UN','Qtd','Preço Unit.','Subtotal'],
-      itens.map(it=>[
-        el('strong',null,it.nome_item||'—'),
-        it.unidade||'',
-        N(it.quantidade,2),
-        R(it.preco_unitario),
-        el('span','bold tv',R(it.subtotal)),
-      ]),
-      [null,null,'tr','tr','tr']
-    )),
+    (function(){
+      const temEstoque=itens.some(it=>it.estoque_atual!=null||it.estoque_ideal!=null);
+      const heads=temEstoque?['Item','UN','Qtd','Estoque atual','Estoque ideal','Preço Unit.','Subtotal']:['Item','UN','Qtd','Preço Unit.','Subtotal'];
+      const aligns=temEstoque?[null,null,'tr','tr','tr','tr','tr']:[null,null,'tr','tr','tr'];
+      return div('tw',mkTable(
+        heads,
+        itens.map(it=>{
+          const row=[
+            el('strong',null,it.nome_item||'—'),
+            it.unidade||'',
+            N(it.quantidade,2),
+          ];
+          if(temEstoque){
+            row.push(it.estoque_atual!=null?N(it.estoque_atual,2):'—');
+            row.push(it.estoque_ideal!=null?N(it.estoque_ideal,2):'—');
+          }
+          row.push(R(it.preco_unitario));
+          row.push(el('span','bold tv',R(it.subtotal)));
+          return row;
+        }),
+        aligns
+      ));
+    })(),
     div('fl_ jb aic mt3',[
       el('strong',null,'TOTAL'),
       el('strong','tv',R(ped.valor_total),{style:'font-size:20px'}),
