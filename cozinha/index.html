@@ -5903,7 +5903,7 @@ let _pedAba='compras'; // 'compras' | 'sugestao'
 async function pgComprasCMV(c){
   c.innerHTML='';
   const tabs=div(null,null,{id:'pedTabs',style:'display:flex;gap:8px;margin-bottom:14px'});
-  [['compras','📋 Compras'],['sugestao','🛒 Sugestão de Pedido']].forEach(function(o){
+  [['compras','📋 Compras'],['sugestao','🛒 Sugestão de Pedido'],['mapear','🔗 Mapear Vendas']].forEach(function(o){
     const b=el('button',null,o[1],{'data-t':o[0],style:'padding:9px 14px;border-radius:10px;border:1px solid var(--rb);font-weight:700;font-size:12.5px;cursor:pointer'});
     b.onclick=()=>{ _pedAba=o[0]; pgComprasCMV(c); };
     tabs.appendChild(b);
@@ -5912,6 +5912,7 @@ async function pgComprasCMV(c){
   Array.prototype.forEach.call(tabs.children,function(b){ const on=b.getAttribute('data-t')===_pedAba; b.style.background=on?'var(--v)':'#fff'; b.style.color=on?'#fff':'var(--ts)'; });
   const body=div(null,null,{}); c.appendChild(body);
   if(_pedAba==='sugestao'){ return _pedSugestaoRender(body); }
+  if(_pedAba==='mapear'){ return _mapRender(body); }
   return _cmvComprasBody(body);
 }
 
@@ -6019,6 +6020,119 @@ function _pedSugestaoRenderTable(rows){
       +'</div>';
     wrap.appendChild(card);
   });
+}
+
+/* ══ Mapear Vendas (30/08) — liga cada produto vendido no Bitbar a um insumo (direto)
+   ou a uma ficha técnica (proporcional à receita), pra dar pra calcular consumo por venda.
+   Classificação manual, uma vez por produto — igual ao "classificar plano de contas" das
+   compras. Backend: rpc lola_bitbar_produtos_status(dias) / tabela lola_bitbar_insumo_map. ══ */
+let _map={dias:30};
+async function _mapRender(c){
+  c.innerHTML='<div class="spin"></div>';
+  let rows=[];
+  try{ rows=await db('rpc/lola_bitbar_produtos_status','POST',{p_dias:_map.dias}); }
+  catch(e){ c.innerHTML='<div class="note">Erro ao carregar: '+_enEsc(e.message)+'</div>'; return; }
+  c.innerHTML='';
+  _map.rows=rows;
+
+  const note=div(null,null,{style:'background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5'});
+  note.innerHTML='<i class="ph-duotone ph-link" style="color:var(--v)"></i> Liga cada produto vendido no Bitbar a um <b>insumo</b> (quando o item vendido É o insumo, ex: itens da Central) ou a uma <b>ficha técnica</b> (quando é um prato com receita — o consumo de cada insumo sai proporcional à receita). Classifica uma vez, vale sempre. Isso alimenta a coluna "Vendas no período" do estoque.';
+  c.appendChild(note);
+
+  const pend=rows.filter(function(r){return !r.mapeado;}).length;
+  const resumo=div(null,null,{style:'font-size:12.5px;color:var(--ts);margin-bottom:10px'});
+  resumo.innerHTML='<b style="color:'+(pend?'#B5302E':'#2C7A4B')+'">'+pend+'</b> de '+rows.length+' produtos ainda sem classificar (últimos '+_map.dias+' dias) — ordenados pelos que mais venderam primeiro.';
+  c.appendChild(resumo);
+
+  c.appendChild(div(null,null,{id:'mapTbl'}));
+  _mapRenderTable();
+}
+function _mapRenderTable(){
+  const wrap=document.getElementById('mapTbl'); if(!wrap)return;
+  wrap.innerHTML='';
+  (_map.rows||[]).forEach(function(r){
+    const card=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:12px;padding:11px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer'});
+    const statusHtml = r.mapeado
+      ? '<span style="font-size:10.5px;color:#2C7A4B;background:#E6F3EA;border-radius:6px;padding:2px 8px;font-weight:700">'+(r.tipo==='direto'?('= '+_enEsc(r.insumo_nome||'')):(r.tipo==='ficha'?('receita: '+_enEsc(r.ficha_nome||'')):'ignorado'))+'</span>'
+      : '<span style="font-size:10.5px;color:#9A6B1E;background:#FBF0DD;border-radius:6px;padding:2px 8px;font-weight:700">+ classificar</span>';
+    card.innerHTML=''
+      +'<div><b style="font-size:13.5px;color:var(--tp)">'+_enEsc(r.produto)+'</b> <span style="font-size:10.5px;color:var(--ts);opacity:.6">#'+r.cod+'</span>'
+        +'<div style="font-size:11px;color:var(--ts);opacity:.75;margin-top:2px">'+_enEsc(r.grupo||'')+' · '+N(r.qtde,r.qtde%1===0?0:2)+' vendidos · '+R(r.valor)+'</div></div>'
+      +statusHtml;
+    card.onclick=function(){ _mapClassify(r); };
+    wrap.appendChild(card);
+  });
+}
+function _mapClassify(r){
+  const ov=div(null,null,{style:'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px'});
+  const card=div(null,null,{style:'background:#fff;border-radius:16px;max-width:480px;width:100%;max-height:88vh;display:flex;flex-direction:column;padding:18px;box-shadow:0 22px 55px -12px rgba(0,0,0,.45)'});
+  card.innerHTML=''
+    +'<div style="font-family:Georgia,serif;color:var(--v);font-size:19px">Classificar venda</div>'
+    +'<div style="font-size:12px;color:var(--ts);margin:2px 0 10px">Produto: <b>'+_enEsc(r.produto)+'</b> <span style="opacity:.6">#'+r.cod+'</span></div>'
+    +'<div id="mapTipoSeg" style="display:flex;border:1px solid var(--rb);border-radius:10px;overflow:hidden;margin-bottom:12px">'
+      +'<button data-t="direto" style="flex:1;padding:9px 6px;border:0;font-weight:700;font-size:12px;cursor:pointer">🥫 É o insumo</button>'
+      +'<button data-t="ficha" style="flex:1;padding:9px 6px;border:0;font-weight:700;font-size:12px;cursor:pointer;border-left:1px solid var(--rb)">📖 Ficha técnica</button>'
+      +'<button data-t="ignorar" style="flex:1;padding:9px 6px;border:0;font-weight:700;font-size:12px;cursor:pointer;border-left:1px solid var(--rb)">🚫 Ignorar</button>'
+    +'</div>'
+    +'<div id="mapFatorWrap" style="display:none;margin-bottom:8px"><label style="font-size:11px;color:var(--ts);font-weight:700">Quantas unidades de insumo por unidade vendida</label><input id="mapFator" type="number" step="0.01" min="0" value="1" style="width:100%;border:1px solid var(--rb);border-radius:9px;padding:8px 10px;font-size:14px;margin-top:4px"></div>'
+    +'<input id="mapBusca" placeholder="Buscar…" style="border:1px solid var(--rb);border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:8px;display:none">'
+    +'<div id="mapLista" style="overflow:auto;flex:1;min-height:130px;border:1px solid var(--fio,#eee);border-radius:10px;display:none"></div>'
+    +'<div id="mapIgnorarBtn" style="display:none"><button class="btn bp" style="width:100%;font-weight:700">Confirmar: ignorar este produto</button></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button id="mapCancel" class="btn bo bsm">Fechar</button></div>';
+  ov.appendChild(card); document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  card.querySelector('#mapCancel').onclick=function(){ ov.remove(); };
+
+  const nrm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const seg=card.querySelector('#mapTipoSeg'), fatorWrap=card.querySelector('#mapFatorWrap'),
+        busca=card.querySelector('#mapBusca'), lista=card.querySelector('#mapLista'),
+        ignBtn=card.querySelector('#mapIgnorarBtn');
+  let tipo = r.tipo || null, opts=[];
+
+  async function save(extra){
+    const s=(typeof _sessaoDoPortal==='function'?_sessaoDoPortal():null); const quem=(s&&s.nome)||null;
+    const body=Object.assign({tipo:tipo, produto_referencia:r.produto, atualizado_por:quem, atualizado_em:new Date().toISOString(), ativo:true}, extra||{});
+    lista.style.opacity='.5';
+    try{
+      const upd=await db('lola_bitbar_insumo_map','PATCH',body,'?bitbar_cod=eq.'+r.cod);
+      if(!upd||!upd.length){ await db('lola_bitbar_insumo_map','POST',Object.assign({bitbar_cod:r.cod, criado_por:quem},body)); }
+    }catch(e){ lista.style.opacity='1'; alert('Erro ao salvar: '+e.message); return; }
+    ov.remove();
+    r.mapeado=true; r.tipo=tipo;
+    if(tipo==='direto'){ r.insumo_id=extra.insumo_id; r.insumo_nome=(opts.find(o=>o.id===extra.insumo_id)||{}).nome; }
+    if(tipo==='ficha'){ r.ficha_id=extra.ficha_id; r.ficha_nome=(opts.find(o=>o.id===extra.ficha_id)||{}).nome; }
+    _mapRenderTable();
+  }
+  function paintLista(){
+    const q=nrm(busca.value);
+    const fil=opts.filter(function(o){ return !q || nrm(o.nome).indexOf(q)>=0; });
+    if(!fil.length){ lista.innerHTML='<div style="padding:14px;color:var(--ts);font-size:12px">Nada encontrado.</div>'; return; }
+    lista.innerHTML=fil.slice(0,80).map(function(o){ return '<button class="mapOpt" data-id="'+_enEsc(o.id)+'" style="display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--fio,#eee);background:#fff;cursor:pointer;padding:9px 12px;font-size:13px;color:var(--tp)">'+_enEsc(o.nome)+(o.categoria?(' <span style="font-size:10.5px;color:var(--ts);opacity:.6">· '+_enEsc(o.categoria)+'</span>'):'')+'</button>'; }).join('');
+    lista.querySelectorAll('.mapOpt').forEach(function(b){ b.addEventListener('click',function(){
+      const id=b.getAttribute('data-id');
+      if(tipo==='direto'){ save({insumo_id:id, ficha_id:null, fator:(+card.querySelector('#mapFator').value||1)}); }
+      else { save({ficha_id:id, insumo_id:null, fator:null}); }
+    }); });
+  }
+  async function chooseTipo(t){
+    tipo=t;
+    Array.prototype.forEach.call(seg.children,function(b){ const on=b.getAttribute('data-t')===t; b.style.background=on?'var(--v)':'#fff'; b.style.color=on?'#fff':'var(--ts)'; });
+    fatorWrap.style.display = (t==='direto') ? '' : 'none';
+    ignBtn.style.display = (t==='ignorar') ? '' : 'none';
+    busca.style.display = (t==='ignorar') ? 'none' : '';
+    lista.style.display = (t==='ignorar') ? 'none' : '';
+    if(t==='ignorar') return;
+    lista.innerHTML='<div style="padding:14px;color:var(--ts);font-size:12px">Carregando…</div>';
+    try{
+      if(t==='direto'){ opts=await db('lola_insumos','GET',null,'?select=id,nome,categoria&ativo=eq.true&order=nome.asc'); }
+      else{ opts=await db('lola_fichas_tecnicas','GET',null,'?select=id,nome,categoria&ativo=eq.true&order=nome.asc'); }
+    }catch(e){ lista.innerHTML='<div style="padding:14px;color:#b5302e;font-size:12px">Erro: '+_enEsc(e.message)+'</div>'; return; }
+    paintLista(); setTimeout(()=>busca.focus(),40);
+  }
+  seg.querySelectorAll('button').forEach(function(b){ b.addEventListener('click',function(){ chooseTipo(b.getAttribute('data-t')); }); });
+  busca.addEventListener('input',paintLista);
+  ignBtn.querySelector('button').addEventListener('click',function(){ save({insumo_id:null, ficha_id:null, fator:null}); });
+  if(tipo) chooseTipo(tipo);
 }
 
 function _cmvPaintSeg(){
