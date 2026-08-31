@@ -5631,7 +5631,7 @@ function drawPed(w){
     confirmado:'background:#FBF0DD;color:#9A6B1E',
     entregue:'background:#F1E7FA;color:#6B4FA8',
   };
-  const STATUS_LBL={em_producao:'Em produção',pronto_entrega:'Pronto para entrega',recebido_completo:'Recebido completo',recebido_divergencia:'Recebido c/ diverg.',cancelado:'Cancelado',solicitado:'Em produção',confirmado:'Pronto para entrega',entregue:'Entregue'};
+  const STATUS_LBL={rascunho:'Rascunho',em_producao:'Em produção',pronto_entrega:'Pronto para entrega',recebido_completo:'Recebido completo',recebido_divergencia:'Recebido c/ diverg.',cancelado:'Cancelado',solicitado:'Em produção',confirmado:'Pronto para entrega',entregue:'Entregue'};
   const wrap=document.createElement('div');
   f.forEach(p=>{
     const card=div('ped-card');
@@ -5643,16 +5643,26 @@ function drawPed(w){
     card.appendChild(div('ped-meta',[DBR(p.data_pedido)+(p.responsavel?(' · por '+p.responsavel):(p.observacoes?(' · '+p.observacoes):''))]));
     // status
     const st=div('ped-status');
-    if(p.status==='rascunho'){
-      st.appendChild(el('span',null,null,{html:'<i class="ph-duotone ph-note-pencil"></i> Rascunho',style:'display:inline-flex;align-items:center;gap:6px;background:#F1EEE9;color:#6B6258;font-size:12px;font-weight:700;padding:7px 12px;border-radius:11px'}));
-    } else {
+    {
       const sel=document.createElement('select');
       function applySelStyle(status){sel.style.cssText='padding:8px 13px;font-size:12px;font-weight:700;border-radius:11px;border:none;cursor:pointer;font-family:Manrope,sans-serif;'+(STATUS_COLORS[status]||'');}
       applySelStyle(p.status);
-      ['em_producao','pronto_entrega','recebido_completo','recebido_divergencia','cancelado'].forEach(s=>{
+      /* 31/08: rascunho agora também aparece no seletor — precisa poder ser cancelado
+         ou mudar de status direto por aqui, sem precisar passar por "Enviar" antes. */
+      ['rascunho','em_producao','pronto_entrega','recebido_completo','recebido_divergencia','cancelado'].forEach(s=>{
         const o=document.createElement('option');o.value=s;o.textContent=STATUS_LBL[s]||s;if(s===p.status)o.selected=true;sel.appendChild(o);
       });
-      sel.addEventListener('change',async e=>{await db('lola_pedidos','PATCH',{status:e.target.value},'?id=eq.'+p.id);p.status=e.target.value;applySelStyle(e.target.value);});
+      sel.addEventListener('change',async e=>{
+        const novo=e.target.value, antigo=p.status;
+        if(novo==='cancelado'&&!confirm('Cancelar pedido #'+p.numero_pedido+'?')){ sel.value=antigo; return; }
+        sel.disabled=true;
+        try{
+          await db('lola_pedidos','PATCH',{status:novo},'?id=eq.'+p.id);
+          p.status=novo;applySelStyle(novo);
+          _peds=await db('lola_pedidos','GET',null,'?select=*&order=created_at.desc');
+          drawPed($('#ped-t'));
+        }catch(err){ alert('Erro: '+err.message); sel.value=antigo; sel.disabled=false; }
+      });
       st.appendChild(sel);
     }
     card.appendChild(st);
@@ -5660,15 +5670,26 @@ function drawPed(w){
     const btns=div('ped-btns');
     /* 19/07: só ícone (o nome vira tooltip) — pedido da Bianca pra ficar mais clean */
     const pab=(ic,lb,extra,fn)=>el('button','ped-ab'+(extra?' '+extra:''),null,{html:'<i class="ph-duotone '+ic+'"></i>',title:lb,'aria-label':lb,onclick:fn});
-    btns.appendChild(pab('ph-eye','Ver','',()=>verPedido(p)));
-    btns.appendChild(pab('ph-pencil-simple','Editar','',()=>editarPedido(p)));
+    btns.appendChild(pab('ph-pencil-simple','Ver / editar','',()=>editarPedido(p)));
     if(p.status==='rascunho'){
       btns.appendChild(pab('ph-paper-plane-tilt','Enviar','send',async()=>{
         if(!confirm('Enviar pedido #'+p.numero_pedido+' para a Central?'))return;
-        await db('lola_pedidos','PATCH',{status:'solicitado'},'?id=eq.'+p.id);
-        p.status='solicitado';
-        _peds=await db('lola_pedidos','GET',null,'?select=*&order=created_at.desc');
-        drawPed($('#ped-t'));
+        try{
+          /* 31/08: ao enviar, tira do pedido os itens que ficaram com quantidade 0
+             (usados só pra conferência quando o rascunho trouxe todos os itens de
+             Central, item 6.5) e limpa a posição de estoque do Lola dos itens que
+             sobraram — essas infos são só de apoio interno, a Central não precisa
+             delas na nota do pedido. */
+          const itensPed=await db('lola_pedidos_itens','GET',null,'?select=id,quantidade&pedido_id=eq.'+p.id);
+          const zerados=(itensPed||[]).filter(it=>!((+it.quantidade||0)>0));
+          const comQtd=(itensPed||[]).filter(it=>(+it.quantidade||0)>0);
+          if(zerados.length) await db('lola_pedidos_itens','DELETE',null,'?id=in.('+zerados.map(it=>it.id).join(',')+')');
+          if(comQtd.length) await db('lola_pedidos_itens','PATCH',{estoque_atual:null,estoque_ideal:null},'?id=in.('+comQtd.map(it=>it.id).join(',')+')');
+          await db('lola_pedidos','PATCH',{status:'solicitado'},'?id=eq.'+p.id);
+          p.status='solicitado';
+          _peds=await db('lola_pedidos','GET',null,'?select=*&order=created_at.desc');
+          drawPed($('#ped-t'));
+        }catch(err){ alert('Erro ao enviar: '+err.message); }
       }));
     } else if(p.status==='em_producao'||p.status==='pronto_entrega'||p.status==='solicitado'||p.status==='confirmado'){
       btns.appendChild(pab('ph-tray-arrow-down','Receber','recv',()=>registrarRecebimento(p)));
@@ -6080,8 +6101,10 @@ function _pedGerarRascunho(rows){
   // Só os itens fornecidos pela Central podem virar rascunho em "Pedidos à Central" —
   // a Sugestão de Pedido cobre TODO o cardápio de insumos (mercado, fornecedores diretos,
   // etc.), mas esse botão é especificamente pro pedido que vai pra Central.
+  const somenteFalta=_ped.somenteFalta!==false;
   const itens=rows.filter(function(r){
-    return r.fornecedor_padrao==='Central' && (+r.sugestao||0)>0;
+    if(r.fornecedor_padrao!=='Central') return false;
+    return somenteFalta ? (+r.sugestao||0)>0 : true;
   });
   if(!itens.length){ alert('Nenhum item fornecido pela Central com sugestão de pedido no momento.'); return; }
 
@@ -6093,7 +6116,9 @@ function _pedGerarRascunho(rows){
   const mb=div('mb');mo.appendChild(mb);
 
   const note=div(null,null,{style:'background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:10px 13px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5'});
-  note.innerHTML='Cria um rascunho em <b>Pedidos → Pedidos à Central</b> com '+itens.length+' ite'+(itens.length>1?'ns':'m')+' fornecido'+(itens.length>1?'s':'')+' pela Central (o que falta pedir). O chefe da cozinha revisa e ajusta as quantidades por lá antes de encaminhar.';
+  note.innerHTML=somenteFalta
+    ? ('Cria um rascunho em <b>Pedidos → Pedidos à Central</b> com '+itens.length+' ite'+(itens.length>1?'ns':'m')+' fornecido'+(itens.length>1?'s':'')+' pela Central (o que falta pedir). O chefe da cozinha revisa e ajusta as quantidades por lá antes de encaminhar.')
+    : ('Cria um rascunho com <b>todos os '+itens.length+' itens</b> fornecidos pela Central, pra conferência — os que não precisam ser pedidos agora entram com quantidade <b>0</b>. Revise e ajuste antes de enviar; ao enviar, os itens com quantidade 0 são removidos automaticamente.');
   mb.appendChild(note);
 
   const destTabsWrap=div('tabs mb3');
@@ -6137,6 +6162,8 @@ function _pedGerarRascunho(rows){
           unidade:r.unidade_compra,preco_unitario:parseFloat(r.custo_por_unidade)||0,
           estoque_atual:(r.ultima_contagem_qtd!=null&&r.ultima_contagem_qtd!=='')?+r.ultima_contagem_qtd:null,
           estoque_ideal:(r.qtd_minima!=null&&r.qtd_minima!=='')?+r.qtd_minima:null,
+          embalagem_nome:r.embalagem_nome||null,
+          embalagem_retornavel:r.embalagem_retornavel==null?null:!!r.embalagem_retornavel,
         });
       }
       ov.remove();
@@ -7902,23 +7929,31 @@ async function editarPedido(ped){
        na CENTRAL do inventário" — 3ª aba no Adicionar item: utensílios/equipamentos do
        inventário que estão na Cozinha Central (vão junto e voltam; sem preço). */
     const _invCen=await db('lola_inv_itens','GET',null,'?select=id,nome,categoria&ativo=neq.false&unidade=eq.'+encodeURIComponent('Cozinha Central')+'&order=nome.asc').catch(function(){return [];});
+    /* 31/08: preserva id/devolvido — antes o Salvar apagava e recriava TODAS as
+       embalagens sempre, perdendo quem já tinha marcado "devolvido". Agora só
+       mexe no que realmente mudou (ver rebuildEmb/Salvar abaixo). */
     const embExist=await db('lola_pedido_embalagens','GET',null,'?select=*&pedido_id=eq.'+ped.id).catch(function(){return [];});
-    const embs=embExist.map(function(e){return {inv_item_id:e.inv_item_id,nome:e.nome,unidade:e.unidade||'un',quantidade:parseFloat(e.quantidade)||0};});
+    const embs=embExist.map(function(e){return {id:e.id,inv_item_id:e.inv_item_id,nome:e.nome,unidade:e.unidade||'un',quantidade:parseFloat(e.quantidade)||0,devolvido:!!e.devolvido,devolvido_em:e.devolvido_em||null,devolvido_por:e.devolvido_por||null};});
 
     const existentes=await db('lola_pedidos_itens','GET',null,'?select=*&pedido_id=eq.'+ped.id);
-    // Construir lista de itens editáveis
+    // Construir lista de itens editáveis — mantém a posição de estoque do Lola e a
+    // embalagem (item 6.4/6.5) que vieram com o rascunho, pra não se perderem ao editar.
     const itens=existentes.map(it=>({
       nome:it.nome_item||'',
       unidade:it.unidade||'',
       preco:parseFloat(it.preco_unitario)||0,
       quantidade:parseFloat(it.quantidade)||0,
+      estoqueAtual:it.estoque_atual!=null?parseFloat(it.estoque_atual):null,
+      estoqueIdeal:it.estoque_ideal!=null?parseFloat(it.estoque_ideal):null,
+      embNome:it.embalagem_nome||null,
+      embRetornavel:it.embalagem_retornavel==null?null:!!it.embalagem_retornavel,
     }));
 
     let destino=ped.unidade||'ccmq';
     const ov=div('ov');
     const mo=div('mo moxl');
     mo.appendChild(div('mh',[
-      el('h3',null,'✏️ Editar Pedido #'+ped.numero_pedido),
+      el('h3',null,'📋 Pedido #'+ped.numero_pedido),
       btn('xb','✕',()=>ov.remove())
     ]));
     const mb=div('mb');
@@ -7941,6 +7976,10 @@ async function editarPedido(ped){
     const tblWrap=div('tw mb3');
     mb.appendChild(tblWrap);
 
+    /* 31/08: unificação Ver+Editar — colunas na nova ordem pedida (UN, Estoque atual,
+       Estoque ideal, Qtd pedido, Preço Unit., Subtotal) e mostra estoque/embalagem de
+       referência (só aparecem quando pelo menos 1 item do pedido tem esse dado). */
+    const temEstoque=itens.some(it=>it.estoqueAtual!=null||it.estoqueIdeal!=null);
     function rebuildTabela(){
       tblWrap.innerHTML='';
       if(!itens.length){
@@ -7952,9 +7991,10 @@ async function editarPedido(ped){
       // thead
       const thead=document.createElement('thead');
       const htr=document.createElement('tr');
-      ['Item','Un','Preço','Qtd','Subtotal',''].forEach((h,i)=>{
+      const heads=temEstoque?['Item','Un','Estoque atual','Estoque ideal','Qtd pedido','Preço Unit.','Subtotal','']:['Item','Un','Qtd pedido','Preço Unit.','Subtotal',''];
+      heads.forEach((h,i)=>{
         const th=document.createElement('th');
-        th.style.cssText='padding:7px 10px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--v);background:var(--rt);text-align:'+(i>=2&&i<=4?'right':'left');
+        th.style.cssText='padding:7px 10px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--v);background:var(--rt);text-align:'+(i>=2&&i<heads.length-1?'right':'left');
         th.textContent=h;htr.appendChild(th);
       });
       thead.appendChild(htr);tbl.appendChild(thead);
@@ -7969,9 +8009,21 @@ async function editarPedido(ped){
           td.style.cssText='padding:7px 10px;font-size:12px;text-align:'+(align||'left')+(bold?';font-weight:700':'');
           td.textContent=txt||'';return td;
         }
-        tr.appendChild(mkTd(it.nome,'left',true));
+        const tdNome=document.createElement('td');
+        tdNome.style.cssText='padding:7px 10px;font-size:12px;font-weight:700';
+        tdNome.textContent=it.nome||'';
+        if(it.embNome){
+          const sub=document.createElement('div');
+          sub.style.cssText='font-size:10.5px;font-weight:500;color:var(--ts);margin-top:2px';
+          sub.textContent=it.embNome+(it.embRetornavel?' · ♻️ retornável':'');
+          tdNome.appendChild(sub);
+        }
+        tr.appendChild(tdNome);
         tr.appendChild(mkTd(it.unidade));
-        tr.appendChild(mkTd(R(it.preco),'right'));
+        if(temEstoque){
+          tr.appendChild(mkTd(it.estoqueAtual!=null?N(it.estoqueAtual,2):'—','right'));
+          tr.appendChild(mkTd(it.estoqueIdeal!=null?N(it.estoqueIdeal,2):'—','right'));
+        }
 
         // Input quantidade
         const tdQtd=document.createElement('td');tdQtd.style.cssText='padding:4px 10px';
@@ -7983,6 +8035,8 @@ async function editarPedido(ped){
           subTd.style.color=it.quantidade>0?'var(--v)':'var(--ts)';
         });
         tdQtd.appendChild(inpQ);tr.appendChild(tdQtd);
+
+        tr.appendChild(mkTd(R(it.preco),'right'));
 
         // Subtotal
         const subTd=document.createElement('td');
@@ -8036,7 +8090,7 @@ async function editarPedido(ped){
           if(uCompra==='g'&&uc==='kg') precoPedido=x.custo_por_unidade/1000;
           else if(uCompra==='ml'&&uc==='L') precoPedido=x.custo_por_unidade/1000;
           else precoPedido=x.custo_por_unidade;
-          return {nome:x.nome,unidade:uCompra,preco:precoPedido,cat:x.categoria||''};
+          return {nome:x.nome,unidade:uCompra,preco:precoPedido,cat:x.categoria||'',embNome:x.embalagem_padrao_nome||null,embRetornavel:x.embalagem_retornavel==null?null:!!x.embalagem_retornavel};
         }).sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
       }
 
@@ -8114,17 +8168,42 @@ async function editarPedido(ped){
       ativos.forEach(function(v){
         const row=document.createElement('div');
         row.style.cssText='display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;margin-bottom:4px;background:var(--rf);border:1px solid var(--rb)';
-        const nm=document.createElement('div'); nm.style.cssText='flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-        nm.textContent=v.nome;
+        const nm=document.createElement('div'); nm.style.cssText='flex:1;min-width:0';
+        const nmT=document.createElement('div'); nmT.style.cssText='font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'; nmT.textContent=v.nome;
+        nm.appendChild(nmT);
+        /* 31/08: status de devolução — só existe pra embalagem já salva (tem id).
+           O botão devolvido/reabrir grava na hora, igual já funcionava na tela "Ver". */
+        if(v.id){
+          const st=document.createElement('div');
+          st.style.cssText='font-size:10.5px;'+(v.devolvido?'color:#166534':'color:#9A6B1E');
+          st.textContent=v.devolvido?('✓ devolvido'+(v.devolvido_por?' · '+v.devolvido_por:'')):'aguardando devolução';
+          nm.appendChild(st);
+        }
         const inpQ=document.createElement('input'); inpQ.type='number'; inpQ.min='0'; inpQ.step='1'; inpQ.value=v.quantidade; inpQ.setAttribute('inputmode','numeric');
         inpQ.style.cssText='width:70px;padding:6px;border:1.5px solid var(--rb);border-radius:8px;font-size:13px;text-align:center;font-family:Manrope,sans-serif;font-weight:700';
         inpQ.addEventListener('input',function(e){ v.quantidade=parseFloat(e.target.value)||0; });
         inpQ.addEventListener('change',function(){ if(!(v.quantidade>0)) rebuildEmb(); });
         const un=document.createElement('span'); un.style.cssText='font-size:11px;color:var(--ts);width:24px;font-weight:600'; un.textContent='un';
+        row.appendChild(nm); row.appendChild(inpQ); row.appendChild(un);
+        if(v.id){
+          const devBtn=document.createElement('button'); devBtn.type='button';
+          devBtn.className='btn '+(v.devolvido?'bo':'bp')+' bsm';
+          devBtn.style.cssText='flex-shrink:0;font-size:11px;font-weight:800;padding:6px 10px';
+          devBtn.textContent=v.devolvido?'Reabrir':'Devolvido';
+          devBtn.onclick=async function(){
+            const novo=!v.devolvido; devBtn.disabled=true;
+            try{
+              await db('lola_pedido_embalagens','PATCH',{devolvido:novo,devolvido_em:novo?new Date().toISOString():null,devolvido_por:novo?(ME||null):null},'?id=eq.'+v.id);
+              v.devolvido=novo; v.devolvido_em=novo?new Date().toISOString():null; v.devolvido_por=novo?(ME||null):null;
+              rebuildEmb();
+            }catch(err){ alert('Erro: '+err.message); devBtn.disabled=false; }
+          };
+          row.appendChild(devBtn);
+        }
         const rm=document.createElement('button'); rm.type='button'; rm.title='Tirar';
         rm.style.cssText='background:none;border:none;color:#B5302E;font-size:15px;cursor:pointer;padding:4px;flex-shrink:0'; rm.textContent='✕';
         rm.onclick=function(){ v.quantidade=0; rebuildEmb(); };
-        row.appendChild(nm); row.appendChild(inpQ); row.appendChild(un); row.appendChild(rm);
+        row.appendChild(rm);
         embWrap.appendChild(row);
       });
     }
@@ -8143,10 +8222,17 @@ async function editarPedido(ped){
       try{
         const total=itensValidos.reduce((t,i)=>t+(i.quantidade*i.preco),0);
         await db('lola_pedidos','PATCH',{unidade:destino,data_pedido:dataPedido,valor_total:total,observacoes:ped.observacoes||null},'?id=eq.'+ped.id);
-        // Inserir novos itens primeiro, só apagar os antigos se tudo der certo
+        // Inserir novos itens primeiro, só apagar os antigos se tudo der certo — mantém
+        // a posição de estoque do Lola e a embalagem que vieram com o item (31/08).
         const novosItens=[];
         for(const it of itensValidos){
-          const[novo]=await db('lola_pedidos_itens','POST',{pedido_id:ped.id,nome_item:it.nome,quantidade:it.quantidade,unidade:it.unidade,preco_unitario:it.preco});
+          const[novo]=await db('lola_pedidos_itens','POST',{
+            pedido_id:ped.id,nome_item:it.nome,quantidade:it.quantidade,unidade:it.unidade,preco_unitario:it.preco,
+            estoque_atual:it.estoqueAtual!=null?it.estoqueAtual:null,
+            estoque_ideal:it.estoqueIdeal!=null?it.estoqueIdeal:null,
+            embalagem_nome:it.embNome||null,
+            embalagem_retornavel:it.embRetornavel==null?null:it.embRetornavel,
+          });
           novosItens.push(novo);
         }
         // Só apagar os antigos se todos os novos foram inseridos com sucesso
@@ -8158,11 +8244,14 @@ async function editarPedido(ped){
             await db('lola_pedidos_itens','DELETE',null,'?id=eq.'+antigo.id);
           }
         }
-        /* embalagens do inventário: regrava o conjunto (19/07) */
+        /* embalagens do inventário (31/08): só mexe no que mudou — não apaga+recria tudo
+           mais, senão perde o histórico de "devolvido" de quem já tinha id salvo. */
         try{
-          await db('lola_pedido_embalagens','DELETE',null,'?pedido_id=eq.'+ped.id);
-          const embV=embs.filter(function(v){return v.quantidade>0;});
-          if(embV.length) await db('lola_pedido_embalagens','POST',embV.map(function(v){return {pedido_id:ped.id,inv_item_id:v.inv_item_id,nome:v.nome,unidade:v.unidade||'un',quantidade:v.quantidade};}));
+          for(const v of embs){
+            if(v.id && !(v.quantidade>0)){ await db('lola_pedido_embalagens','DELETE',null,'?id=eq.'+v.id); }
+            else if(v.id && v.quantidade>0){ await db('lola_pedido_embalagens','PATCH',{quantidade:v.quantidade,unidade:v.unidade||'un'},'?id=eq.'+v.id); }
+            else if(!v.id && v.quantidade>0){ await db('lola_pedido_embalagens','POST',{pedido_id:ped.id,inv_item_id:v.inv_item_id,nome:v.nome,unidade:v.unidade||'un',quantidade:v.quantidade}); }
+          }
         }catch(eEmb){ alert('Itens salvos, mas as embalagens falharam: '+eEmb.message); }
         _peds=await db('lola_pedidos','GET',null,'?select=*&order=created_at.desc');
         // Reconstruir tabs de meses com os dados atualizados
@@ -8238,20 +8327,22 @@ async function verPedido(ped){
     ...(ped.observacoes?[div('al ali mb3',ped.observacoes)]:[]),
     (function(){
       const temEstoque=itens.some(it=>it.estoque_atual!=null||it.estoque_ideal!=null);
-      const heads=temEstoque?['Item','UN','Qtd','Estoque atual','Estoque ideal','Preço Unit.','Subtotal']:['Item','UN','Qtd','Preço Unit.','Subtotal'];
+      const heads=temEstoque?['Item','UN','Estoque atual','Estoque ideal','Qtd pedido','Preço Unit.','Subtotal']:['Item','UN','Qtd pedido','Preço Unit.','Subtotal'];
       const aligns=temEstoque?[null,null,'tr','tr','tr','tr','tr']:[null,null,'tr','tr','tr'];
       return div('tw',mkTable(
         heads,
         itens.map(it=>{
+          const nomeCel=div(null,[el('strong',null,it.nome_item||'—')]);
+          if(it.embalagem_nome) nomeCel.appendChild(div(null,it.embalagem_nome+(it.embalagem_retornavel?' · ♻️ retornável':''),{style:'font-size:10.5px;color:var(--ts);margin-top:2px'}));
           const row=[
-            el('strong',null,it.nome_item||'—'),
+            nomeCel,
             it.unidade||'',
-            N(it.quantidade,2),
           ];
           if(temEstoque){
             row.push(it.estoque_atual!=null?N(it.estoque_atual,2):'—');
             row.push(it.estoque_ideal!=null?N(it.estoque_ideal,2):'—');
           }
+          row.push(N(it.quantidade,2));
           row.push(R(it.preco_unitario));
           row.push(el('span','bold tv',R(it.subtotal)));
           return row;
@@ -8271,6 +8362,7 @@ async function imprimirPed(ped){
   const itens=await db('lola_pedidos_itens','GET',null,'?select=*&pedido_id=eq.'+ped.id);
   const embs=await db('lola_pedido_embalagens','GET',null,'?select=*&pedido_id=eq.'+ped.id+'&order=nome.asc').catch(()=>[]);
   const destLabel=ped.unidade==='ccmq'?'CCMQ':ped.unidade==='mac'?'Mac':(ped.destinatario||ped.unidade);
+  const temEstoque=itens.some(it=>it.estoque_atual!=null||it.estoque_ideal!=null);
   const embHtml=(embs||[]).length?`
     <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#AA2B2B;margin:0 0 6px">EMBALAGENS / UTENSÍLIOS — DEVOLVER À CENTRAL</div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:18px;border:1px solid #f2dada">
@@ -8281,15 +8373,25 @@ async function imprimirPed(ped){
       </tr></thead>
       <tbody>${embs.map((e,i)=>`<tr style="border-bottom:1px solid #f2dada;background:${i%2===0?'#fff8f8':'#fff'}"><td style="padding:8px 11px;font-size:12px;font-weight:600">${e.nome||'—'}</td><td style="padding:8px 11px;text-align:center;font-size:12px">${N(e.quantidade,0)} ${e.unidade||'un'}</td><td style="padding:8px 11px;text-align:center;font-size:14px">☐</td></tr>`).join('')}</tbody>
     </table>`:'';
+  function embInfo(it){
+    if(!it.embalagem_nome) return '';
+    return `<div style="font-size:10.5px;color:#8a6a6a;margin-top:2px">${it.embalagem_nome}${it.embalagem_retornavel?' · ♻️ retornável':''}</div>`;
+  }
   const rows=itens.map((it,i)=>`
     <tr style="border-bottom:1px solid #f2dada;background:${i%2===0?'#fff8f8':'#fff'}">
-      <td style="padding:9px 11px;font-size:12px;font-weight:600">${it.nome_item||'—'}</td>
+      <td style="padding:9px 11px;font-size:12px;font-weight:600">${it.nome_item||'—'}${embInfo(it)}</td>
       <td style="padding:9px 11px;text-align:center;font-size:12px">${it.unidade||''}</td>
+      ${temEstoque?`<td style="padding:9px 11px;text-align:center;font-size:12px">${it.estoque_atual!=null?N(it.estoque_atual,2):'—'}</td>
+      <td style="padding:9px 11px;text-align:center;font-size:12px">${it.estoque_ideal!=null?N(it.estoque_ideal,2):'—'}</td>`:''}
       <td style="padding:9px 11px;text-align:center;font-size:12px">${N(it.quantidade,2)}</td>
       <td style="padding:9px 11px;text-align:right;font-size:12px">${R(it.preco_unitario)}</td>
       <td style="padding:9px 11px;text-align:right;font-size:12px;font-weight:700;color:#AA2B2B">${R((parseFloat(it.quantidade)||0)*(parseFloat(it.preco_unitario)||0))}</td>
     </tr>`).join('');
-  const area=div(null,null,{html:`
+  const htmlDoc=`<html><head><meta charset="utf-8"><title>Pedido #${ped.numero_pedido}</title>
+    <style>
+      body{font-family:Manrope,Arial,sans-serif;padding:28px;color:#2A1A17;max-width:760px;margin:0 auto}
+      table{width:100%;border-collapse:collapse}
+    </style></head><body>
     <div style="text-align:center;margin-bottom:18px;border-bottom:2px solid #AA2B2B;padding-bottom:14px">
       ${LOGO_SVG.replace('height="36"','height="44"')}
       <div style="font-size:14px;font-weight:800;margin-top:10px;letter-spacing:1px">NOTA DE PEDIDO — COZINHA CENTRAL</div>
@@ -8298,21 +8400,22 @@ async function imprimirPed(ped){
       <div><strong>Pedido Nº:</strong> #${ped.numero_pedido}</div>
       <div><strong>Data:</strong> ${DBR(ped.data_pedido)}</div>
       <div><strong>Destino:</strong> ${destLabel}</div>
-      <div><strong>Status:</strong> ${ped.status}</div>
-      ${ped.observacoes?`<div colspan="2"><strong>Obs:</strong> ${ped.observacoes}</div>`:''}
+      <div><strong>Status:</strong> ${STATUS_LBL_PRINT[ped.status]||ped.status}</div>
+      ${ped.observacoes?`<div style="grid-column:1/-1"><strong>Obs:</strong> ${ped.observacoes}</div>`:''}
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
+    <table style="margin-bottom:18px">
       <thead><tr style="background:#AA2B2B;color:#fff">
         <th style="padding:10px 11px;text-align:left;font-size:11px;letter-spacing:1px">PRODUTO</th>
         <th style="padding:10px 11px;text-align:center;font-size:11px">UN.</th>
-        <th style="padding:10px 11px;text-align:center;font-size:11px">QTD</th>
+        ${temEstoque?'<th style="padding:10px 11px;text-align:center;font-size:11px">ESTOQUE ATUAL</th><th style="padding:10px 11px;text-align:center;font-size:11px">ESTOQUE IDEAL</th>':''}
+        <th style="padding:10px 11px;text-align:center;font-size:11px">QTD PEDIDO</th>
         <th style="padding:10px 11px;text-align:right;font-size:11px">PREÇO UN.</th>
         <th style="padding:10px 11px;text-align:right;font-size:11px">SUBTOTAL</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot>
         <tr style="border-top:2px solid #AA2B2B">
-          <td colspan="4" style="padding:12px;text-align:right;font-weight:800;font-size:15px">TOTAL</td>
+          <td colspan="${temEstoque?6:4}" style="padding:12px;text-align:right;font-weight:800;font-size:15px">TOTAL</td>
           <td style="padding:12px;text-align:right;font-weight:900;font-size:20px;color:#AA2B2B">${R(itens.reduce((s,x)=>s+(parseFloat(x.quantidade)||0)*(parseFloat(x.preco_unitario)||0),0))}</td>
         </tr>
       </tfoot>
@@ -8321,19 +8424,19 @@ async function imprimirPed(ped){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:50px;margin-top:36px">
       <div><div style="border-top:1.5px solid #AA2B2B;padding-top:8px;text-align:center;font-size:11px;color:#7a5a5a">Assinatura — ${destLabel}</div></div>
       <div><div style="border-top:1.5px solid #AA2B2B;padding-top:8px;text-align:center;font-size:11px;color:#7a5a5a">Assinatura — Cozinha Central</div></div>
-    </div>`,style:'font-family:Manrope,sans-serif;padding:4px'});
-  const ov=div('ov');
-  const mo=div('mo mol',[
-    div('mh',[el('h3',null,'🖨️ Nota do Pedido #'+ped.numero_pedido),btn('xb','✕',()=>ov.remove())]),
-    div('mb',[area]),
-    div('mf',[btn('btn bg','Fechar',()=>ov.remove()),btn('btn bp no-print','🖨️ Imprimir',()=>window.print())]),
-  ]);
-  ov.appendChild(mo);ov.addEventListener('click',e=>{
-    // Só fecha se clicar exatamente no overlay, nunca em filhos (selects, dropdowns)
-    if(e.target===ov&&!mo.contains(e.target))ov.remove();
-  });
-  document.body.appendChild(ov);
+    </div>
+    </body></html>`;
+  /* 31/08: reescrito pra abrir em janela nova (mesmo padrão já usado em todos os outros
+     "Imprimir" do sistema — Saída de Estoque, Relatório de Pedidos, etc). A versão anterior
+     tentava imprimir a própria página com um modal fixo + CSS @media print, que na prática
+     saía em branco no Ctrl+P em vários casos. */
+  const w2=window.open('','_blank');
+  if(!w2){ alert('O navegador bloqueou a janela de impressão. Permita pop-ups pra este site e tente de novo.'); return; }
+  w2.document.write(htmlDoc);
+  w2.document.close();
+  setTimeout(()=>{ w2.print(); },300);
 }
+const STATUS_LBL_PRINT={rascunho:'Rascunho',em_producao:'Em produção',pronto_entrega:'Pronto para entrega',recebido_completo:'Recebido completo',recebido_divergencia:'Recebido c/ diverg.',cancelado:'Cancelado',solicitado:'Em produção',confirmado:'Pronto para entrega',entregue:'Entregue'};
 
 /* 22/07 (Bianca): "nos PEDIDOS A CENTRAL precisa ter uma forma de fazermos
    relatórios, por período, por produto, por categoria, etc". Modal com filtros
