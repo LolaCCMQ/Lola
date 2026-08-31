@@ -1016,28 +1016,25 @@ async function pgIns(c){
     const CAT_COR={'Bebidas Alcoólicas':'#534AB7','Bebidas Não Alcoólicas':'#185FA5','Cervejas':'#9A6B1E','Vinhos':'#993556','Carnes e Pescados':'#A32D2D','Hortifruti':'#3B6D11','Insumos Alimentos':'#854F0B','Limpeza':'#0F6E56','Pães':'#993C1D'};
     function mkSecH(cat,n){const cor=CAT_COR[cat]||'#A82A2A';const sh=div('ins-sech');sh.innerHTML='<span class="sq" style="background:'+cor+'"></span><span class="nm" style="color:'+cor+'">'+cat+'</span><span class="ct">'+n+' '+(n===1?'item':'itens')+'</span>';return sh;}
     const cats=CATS_ORDER.filter(c=>_ins.some(i=>i.categoria===c && _insDaCozinha(i)));
-    let filtCat='Todos';let filtBusca='';let filtCentral=false;
+    let filtCat='Todos';let filtBusca='';
     let sortBy=null,sortDir='asc'; // null = ordem padrão (categoria/nome)
+    const LABELS={'Bebidas Alcoólicas':'Alcoólicas','Bebidas Não Alcoólicas':'Não Alcoólicas','Cervejas':'Cervejas','Vinhos':'Vinhos','Carnes e Pescados':'Carnes','Hortifruti':'Hortifruti','Insumos Alimentos':'Alimentos','Limpeza':'Limpeza','Pães':'Pães','__Central':'Central'};
+    const temCentral=_ins.some(i=>i.fornecedor_padrao==='Central' && _insDaCozinha(i));
     const tabW=div('tabs');
     function mkCatTabs(){
       tabW.innerHTML='';
-      ['Todos',...cats].forEach(cat=>{
-        const LABELS={'Bebidas Alcoólicas':'Alcoólicas','Bebidas Não Alcoólicas':'Não Alcoólicas','Cervejas':'Cervejas','Vinhos':'Vinhos','Carnes e Pescados':'Carnes','Hortifruti':'Hortifruti','Insumos Alimentos':'Alimentos','Limpeza':'Limpeza','Pães':'Pães'};
+      ['Todos',...cats,...(temCentral?['__Central']:[])].forEach(cat=>{
         const p=span('tp'+(cat===filtCat?' active':''),cat==='Todos'?'Todos':(LABELS[cat]||cat));
+        if(cat==='__Central') p.innerHTML='<i class="ph-duotone ph-factory"></i> Central';
         p.addEventListener('click',()=>{filtCat=cat;mkCatTabs();drawIns($('#ins-t'));});
         tabW.appendChild(p);
       });
     }
     mkCatTabs();
     c.appendChild(tabW);
-    const centralBtn=el('button','btn bsm',null,{html:'<i class="ph-duotone ph-factory"></i> Só Central'});
-    function paintCentralBtn(){ centralBtn.className='btn bsm'+(filtCentral?' bp':' bo'); }
-    paintCentralBtn();
-    centralBtn.onclick=()=>{ filtCentral=!filtCentral; paintCentralBtn(); drawIns($('#ins-t')); };
     c.appendChild(div('abar no-print',[
       mkSearch(q=>{filtBusca=q;drawIns($('#ins-t'));},'Buscar insumo...'),
       div('fl_ gap2',[
-        centralBtn,
         el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-clipboard-text"></i> Nova contagem',onclick:()=>modalNovaContagem()}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-download-simple"></i> Baixar planilha',onclick:()=>exportInsumosXlsx()}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-upload-simple"></i> Conferir preços',onclick:()=>nav('conferencia')}),
@@ -1067,8 +1064,8 @@ async function pgIns(c){
     function drawIns(w){
       w.innerHTML='';
       let f=_ins.filter(_insDaCozinha);
-      if(filtCentral)f=f.filter(i=>i.fornecedor_padrao==='Central');
-      if(filtCat!=='Todos')f=f.filter(i=>i.categoria===filtCat);
+      if(filtCat==='__Central')f=f.filter(i=>i.fornecedor_padrao==='Central');
+      else if(filtCat!=='Todos')f=f.filter(i=>i.categoria===filtCat);
       if(filtBusca)f=f.filter(i=>i.nome.toLowerCase().includes(filtBusca.toLowerCase()));
       if(!f.length){w.appendChild(em('🧂','Nenhum insumo encontrado'));return;}
       // agrupar por categoria se estiver em "Todos" e sem ordenação custom ativa
@@ -1079,10 +1076,10 @@ async function pgIns(c){
           w.appendChild(mkInsTableX(itens));
         });
       }else if(sortBy){
-        w.appendChild(mkSecH(filtCentral?'Central':(filtCat==='Todos'?'Todos os insumos':filtCat),f.length));
+        w.appendChild(mkSecH(LABELS[filtCat]||filtCat,f.length));
         w.appendChild(mkInsTableX(_insSort(f)));
       }else{
-        w.appendChild(mkSecH(filtCat,f.length));
+        w.appendChild(mkSecH(LABELS[filtCat]||filtCat,f.length));
         w.appendChild(mkInsTableX(f));
       }
     }
