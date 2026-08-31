@@ -9124,6 +9124,22 @@ async function ondeEUsado(insumo){
     // Buscar em fichas técnicas
     const ftItens=await db('lola_fichas_tecnicas_itens','GET',null,
       '?select=*,lola_fichas_tecnicas!ficha_id(id,nome,cardapio,custo_por_porcao,preco_venda)&insumo_id=eq.'+insumo.id);
+    /* 31/08: itens "Alimentos - Central" (e qualquer outro insumo ligado a uma
+       pré-produção via insumo.preproducao_id, item 4 deste histórico) são usados
+       nas fichas técnicas/pré-produções por PREPRODUCAO_ID, não por INSUMO_ID —
+       são registros diferentes (mesmo nome, ids diferentes). Sem isso, "Buscar
+       receitas" reportava "não vinculado a nenhuma receita" pra itens que na
+       verdade estão em várias fichas (achado real: PP Requeijão aparece em 9). */
+    if(insumo.preproducao_id){
+      const [ftViaPreprod, ppViaSubPreprod] = await Promise.all([
+        db('lola_fichas_tecnicas_itens','GET',null,
+          '?select=*,lola_fichas_tecnicas!ficha_id(id,nome,cardapio,custo_por_porcao,preco_venda)&preproducao_id=eq.'+insumo.preproducao_id).catch(()=>[]),
+        db('lola_preproducoes_itens','GET',null,
+          '?select=*,lola_preproducoes!preproducao_id(id,nome,categoria,custo_por_unidade,rendimento_un)&sub_preproducao_id=eq.'+insumo.preproducao_id).catch(()=>[]),
+      ]);
+      ftItens.push(...ftViaPreprod);
+      ppItens.push(...ppViaSubPreprod);
+    }
 
     mb2.innerHTML='';
 

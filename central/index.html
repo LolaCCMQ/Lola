@@ -2627,12 +2627,17 @@ function viewPedidos(){
   h+=list.map(p=>{
     const its=p.lola_pedidos_itens||[];
     const cs=p.central_status||'novo';
+    const cancelado=p.status==='cancelado';
     const ri=pedRecebInfo(p);
-    return `<div class="pedc" data-id="${p.id}">
-      <div class="fh"><b>#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}</b><span class="pedstw" style="position:relative"><button class="pedst ${cs}" title="Trocar o status">${cs==='pronto'?'pronto ✓':cs}</button></span></div>
+    /* 31/08: pedido cancelado pelo Lola (status='cancelado' em lola_pedidos) não pode
+       mais aparecer como "novo"/clicável pra aceitar — antes o card mostrava o botão
+       de central_status normal (ainda 'novo' na maioria dos casos, já que a Central
+       nunca chegou a tocar nele), dando a entender que ainda precisava ser aceito. */
+    return `<div class="pedc${cancelado?' pedc-cancelado':''}" data-id="${p.id}">
+      <div class="fh"><b>#${p.numero_pedido||'?'} ${pedUniTag(p.unidade)}</b><span class="pedstw" style="position:relative">${cancelado?'<span class="stpill" style="background:#FBEAE7;color:#B5302E"><i class="ph-duotone ph-x-circle"></i> cancelado</span>':`<button class="pedst ${cs}" title="Trocar o status">${cs==='pronto'?'pronto ✓':cs}</button>`}</span></div>
       <div class="frow"><span>Pedido</span><b>${fmtData(String(p.data_pedido).slice(0,10))}${p.responsavel?' · '+esc((p.responsavel||'').trim()):''}</b></div>
       <div class="frow"><span>Itens</span><b>${its.length} · ${brl(p.valor_total)}</b></div>
-      ${ri?`<div class="pillrow"><span class="stpill ${ri.cls}"><i class="ph-duotone ${ri.ic}"></i> ${ri.label}</span></div>`:''}
+      ${cancelado?`<div class="pillrow"><span class="tss">Cancelado pelo Lola — não precisa aceitar/preparar.</span></div>`:ri?`<div class="pillrow"><span class="stpill ${ri.cls}"><i class="ph-duotone ${ri.ic}"></i> ${ri.label}</span></div>`:''}
     </div>`;
   }).join('');
   return h;
@@ -2659,9 +2664,19 @@ let PED_CUR=null;
 function openPedido(id){
   const p=(ST.pedidos||[]).find(x=>x.id===id); if(!p)return; PED_CUR=p;
   const its=p.lola_pedidos_itens||[]; const cs=p.central_status||'novo';
+  const cancelado=p.status==='cancelado';
   $('#shTitle').textContent='Pedido #'+(p.numero_pedido||'')+' — '+(p.unidade||'').toUpperCase();
   const f=$('.sh-foot'); if(f) f.style.display='none';
-  let h=`<div class="note">De <b>${p.responsavel?esc((p.responsavel||'').trim()):'—'}</b> · ${fmtData(String(p.data_pedido).slice(0,10))} · ${pedPill(cs)}${p.observacoes?'<br>Obs: '+esc(p.observacoes):''}</div>`;
+  let h=`<div class="note">De <b>${p.responsavel?esc((p.responsavel||'').trim()):'—'}</b> · ${fmtData(String(p.data_pedido).slice(0,10))} · ${cancelado?'<span class="stpill" style="background:#FBEAE7;color:#B5302E"><i class="ph-duotone ph-x-circle"></i> cancelado</span>':pedPill(cs)}${p.observacoes?'<br>Obs: '+esc(p.observacoes):''}</div>`;
+  /* 31/08: pedido cancelado pelo Lola — só mostra os itens, sem nenhum botão de
+     aceitar/pronto (não tem mais o que fazer com ele daqui). */
+  if(cancelado){
+    h+=`<div class="recnote"><i class="ph-duotone ph-x-circle"></i> <b>Este pedido foi cancelado pelo Lola.</b> Não precisa aceitar nem preparar.</div>`;
+    h+=`<div class="lbl">Itens (${its.length}) · ${brl(p.valor_total)}</div>`;
+    h+=its.map(x=>`<div class="ring"><span>${esc(x.nome_item)}</span><b>${num(x.quantidade)} ${esc(x.unidade||'')}</b></div>`).join('')||'<div class="uinfo">Sem itens.</div>';
+    $('#shBody').innerHTML=h; openSheet();
+    return;
+  }
   const ri=pedRecebInfo(p);
   if(ri){
     h+=`<div class="recnote ${ri.cls==='recok'?'ok':''}"><b>${ri.label}</b>`;
