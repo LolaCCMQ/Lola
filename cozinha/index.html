@@ -517,6 +517,31 @@ async function db(table,method,body,qs){
   return t?JSON.parse(t):[];
 }
 
+/* 31/08 embalagens retornáveis: mapeia destino do pedido -> unidade do Inventário,
+   e move o "estoque" da embalagem (potes/GN) entre Central e a unidade, reaproveitando
+   a mesma tabela/lógica que a aba Inventário usa (lola_inv_itens + lola_inv_mov). */
+const INV_UNIDADE_DESTINO={ccmq:'Lola CCMQ',mac:'Lola MAC'};
+async function moverEstoqueEmbalagem(nome,qtd,origem,destino){
+  qtd=parseFloat(qtd)||0;
+  if(!nome||qtd<=0||!origem||!destino||origem===destino) return;
+  try{
+    const rowsOrig=await db('lola_inv_itens','GET',null,'?select=id,qtd&categoria=eq.louca&unidade=eq.'+encodeURIComponent(origem)+'&nome=ilike.'+encodeURIComponent(nome)).catch(()=>[]);
+    const rowsDest=await db('lola_inv_itens','GET',null,'?select=id,qtd&categoria=eq.louca&unidade=eq.'+encodeURIComponent(destino)+'&nome=ilike.'+encodeURIComponent(nome)).catch(()=>[]);
+    const agora=new Date().toISOString();
+    if(rowsOrig&&rowsOrig[0]){
+      await db('lola_inv_itens','PATCH',{qtd:Math.max(0,(rowsOrig[0].qtd||0)-qtd),updated_at:agora},'?id=eq.'+rowsOrig[0].id);
+    }
+    let destId=rowsDest&&rowsDest[0]&&rowsDest[0].id;
+    if(destId){
+      await db('lola_inv_itens','PATCH',{qtd:(rowsDest[0].qtd||0)+qtd,updated_at:agora},'?id=eq.'+destId);
+    }else{
+      const[novo]=await db('lola_inv_itens','POST',{nome:nome,categoria:'louca',subcategoria:'Embalagem retornável (pedidos à Central)',unidade:destino,rastreio:'quantidade',qtd:qtd,estoque_minimo:0,ativo:true});
+      destId=novo&&novo.id;
+    }
+    if(destId) await db('lola_inv_mov','POST',{item_id:destId,tipo:'transferencia',quantidade:qtd,origem:origem,destino:destino,quem:(typeof ME!=='undefined'&&ME)||null}).catch(()=>{});
+  }catch(e){ console.warn('moverEstoqueEmbalagem falhou:',nome,e); }
+}
+
 const R=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
 const N=(v,d)=>Number(v||0).toFixed(d||2).replace('.',',');
 const TD=()=>new Date().toISOString().split('T')[0];
@@ -7547,6 +7572,11 @@ async function pgPed(c){
     const resumoEl=div('',null,{id:'ped-resumo'});
     const w=div(null,null,{id:'ped-t'});
     c.appendChild(w);
+    /* 31/08: lista de embalagens retornáveis ainda não devolvidas, logo abaixo da
+       listagem de pedidos — pra ver de relance o que ainda está com o Lola e marcar
+       a devolução (dispara a mesma movimentação de estoque Lola->Central). */
+    const embRetWrap=div(null,null,{id:'ped-emb-ret'});
+    c.appendChild(embRetWrap);
     c.appendChild(resumoEl);
 
     function atualizaResumo(){
@@ -7598,8 +7628,50 @@ async function pgPed(c){
 
     atualizaResumo();
     drawPed(w);
+    drawEmbRetPendentes(embRetWrap);
 
   }catch(e){c.innerHTML='<p style="color:red;padding:20px">'+e.message+'</p>';}
+}
+
+/* 31/08: embalagens retornáveis (potes/GN) já confirmadas como enviadas ("bipadas")
+   e ainda não devolvidas, cruzando todos os pedidos — visão única pro Lola saber o
+   que precisa separar pra devolver à Central. */
+async function drawEmbRetPendentes(wrap){
+  wrap.innerHTML='';
+  let rows;
+  try{
+    rows=await db('lola_pedido_embalagens','GET',null,'?select=id,nome,quantidade,pedido:pedido_id(numero_pedido,unidade,status)&enviado=eq.true&devolvido=eq.false&pedido_item_id=not.is.null&order=nome.asc');
+  }catch(e){ return; }
+  if(!rows||!rows.length) return;
+  const box=div(null,null,{style:'background:#fff;border:1px solid var(--rb);border-radius:16px;padding:16px 18px;margin-top:14px'});
+  box.appendChild(el('div',null,null,{html:'<i class="ph-duotone ph-recycle"></i> Embalagens retornáveis aguardando devolução',style:'font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--v);margin-bottom:10px'}));
+  const porNome={};
+  rows.forEach(r=>{ (porNome[r.nome]=porNome[r.nome]||[]).push(r); });
+  Object.keys(porNome).sort().forEach(nome=>{
+    const lista=porNome[nome];
+    const total=lista.reduce((s,r)=>s+(parseFloat(r.quantidade)||0),0);
+    const grp=div(null,null,{style:'margin-bottom:10px'});
+    grp.appendChild(el('div',null,nome+' — '+N(total,0)+' un pendente'+(total!==1?'s':''),{style:'font-size:13px;font-weight:700;margin-bottom:4px'}));
+    lista.forEach(r=>{
+      const pu=r.pedido&&r.pedido.unidade;
+      const destLabel=pu==='ccmq'?'CCMQ':pu==='mac'?'Mac':(pu||'—');
+      const row=div(null,null,{style:'display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:9px;background:var(--rf);border:1px solid var(--rb);margin-bottom:4px'});
+      row.appendChild(el('span',null,'Pedido #'+(r.pedido?r.pedido.numero_pedido:'?')+' · '+destLabel+' · '+N(r.quantidade,0)+' un',{style:'flex:1;font-size:12.5px'}));
+      const dBtn=btn('btn bp bxs','Devolvido',async()=>{
+        dBtn.disabled=true;
+        try{
+          await db('lola_pedido_embalagens','PATCH',{devolvido:true,devolvido_em:new Date().toISOString(),devolvido_por:(typeof ME!=='undefined'&&ME)||null},'?id=eq.'+r.id);
+          const destUnidade=INV_UNIDADE_DESTINO[pu]||null;
+          if(destUnidade) await moverEstoqueEmbalagem(r.nome,parseFloat(r.quantidade)||0,destUnidade,'Cozinha Central');
+          drawEmbRetPendentes(wrap);
+        }catch(err){ alert('Erro: '+err.message); dBtn.disabled=false; }
+      });
+      row.appendChild(dBtn);
+      grp.appendChild(row);
+    });
+    box.appendChild(grp);
+  });
+  wrap.appendChild(box);
 }
 
 async function verResumoCategorias(label, pedidos){
@@ -7933,12 +8005,18 @@ async function editarPedido(ped){
        embalagens sempre, perdendo quem já tinha marcado "devolvido". Agora só
        mexe no que realmente mudou (ver rebuildEmb/Salvar abaixo). */
     const embExist=await db('lola_pedido_embalagens','GET',null,'?select=*&pedido_id=eq.'+ped.id).catch(function(){return [];});
-    const embs=embExist.map(function(e){return {id:e.id,inv_item_id:e.inv_item_id,nome:e.nome,unidade:e.unidade||'un',quantidade:parseFloat(e.quantidade)||0,devolvido:!!e.devolvido,devolvido_em:e.devolvido_em||null,devolvido_por:e.devolvido_por||null};});
+    /* 31/08: separa embalagens emprestadas manualmente (utensílio do Inventário, sem
+       vínculo com item) das embalagens do PRÓPRIO item do pedido (potes/GN retornáveis
+       — essas agora aparecem coladas embaixo do item na tabela, não nesta lista solta). */
+    const embs=embExist.filter(function(e){return !e.pedido_item_id;}).map(function(e){return {id:e.id,inv_item_id:e.inv_item_id,nome:e.nome,unidade:e.unidade||'un',quantidade:parseFloat(e.quantidade)||0,devolvido:!!e.devolvido,devolvido_em:e.devolvido_em||null,devolvido_por:e.devolvido_por||null};});
+    const embsPorItem={};
+    embExist.forEach(function(e){if(e.pedido_item_id)embsPorItem[e.pedido_item_id]={id:e.id,nome:e.nome,quantidade:parseFloat(e.quantidade)||0,enviado:!!e.enviado,enviado_em:e.enviado_em||null,enviado_por:e.enviado_por||null,devolvido:!!e.devolvido,devolvido_em:e.devolvido_em||null,devolvido_por:e.devolvido_por||null};});
 
     const existentes=await db('lola_pedidos_itens','GET',null,'?select=*&pedido_id=eq.'+ped.id);
     // Construir lista de itens editáveis — mantém a posição de estoque do Lola e a
     // embalagem (item 6.4/6.5) que vieram com o rascunho, pra não se perderem ao editar.
     const itens=existentes.map(it=>({
+      id:it.id,
       nome:it.nome_item||'',
       unidade:it.unidade||'',
       preco:parseFloat(it.preco_unitario)||0,
@@ -7947,6 +8025,9 @@ async function editarPedido(ped){
       estoqueIdeal:it.estoque_ideal!=null?parseFloat(it.estoque_ideal):null,
       embNome:it.embalagem_nome||null,
       embRetornavel:it.embalagem_retornavel==null?null:!!it.embalagem_retornavel,
+      preparado:!!it.preparado,
+      preparado_em:it.preparado_em||null,
+      preparado_por:it.preparado_por||null,
     }));
 
     let destino=ped.unidade||'ccmq';
@@ -8043,12 +8124,92 @@ async function editarPedido(ped){
         subTd.style.cssText='padding:7px 10px;font-size:12px;text-align:right;font-weight:700;color:'+(it.quantidade>0?'var(--v)':'var(--ts)');
         subTd.textContent=R(it.quantidade*it.preco);tr.appendChild(subTd);
 
-        // Remover
-        const tdRm=document.createElement('td');tdRm.style.cssText='padding:4px 10px;text-align:right';
+        // Remover / bipar item
+        const tdRm=document.createElement('td');tdRm.style.cssText='padding:4px 10px;text-align:right;white-space:nowrap';
+        /* 31/08: "bipar e confirmar" o item — confirma que a quantidade prevista
+           realmente foi separada/enviada pela Central. Só aparece depois que o
+           pedido sai do rascunho (no rascunho é só planejamento) e só dá pra
+           bipar item já salvo. */
+        if(ped.status!=='rascunho'){
+          const bipBtn=btn('btn '+(it.preparado?'bo':'bg')+' bxs',it.preparado?'✓ bipado':'Bipar',async()=>{
+            if(!it.id){alert('Salve o pedido antes de bipar este item.');return;}
+            const novo=!it.preparado;bipBtn.disabled=true;
+            try{
+              await db('lola_pedidos_itens','PATCH',{preparado:novo,preparado_em:novo?new Date().toISOString():null,preparado_por:novo?(ME||null):null},'?id=eq.'+it.id);
+              it.preparado=novo;it.preparado_em=novo?new Date().toISOString():null;it.preparado_por=novo?(ME||null):null;
+              rebuildTabela();
+            }catch(err){alert('Erro: '+err.message);bipBtn.disabled=false;}
+          });
+          bipBtn.style.marginRight='6px';bipBtn.title=it.preparado_por?('Bipado por '+it.preparado_por):'';
+          tdRm.appendChild(bipBtn);
+        }
         const rmBtn=btn('btn bd bxs','✕',()=>{itens.splice(idx,1);rebuildTabela();});
         tdRm.appendChild(rmBtn);tr.appendChild(tdRm);
 
         tbody.appendChild(tr);
+
+        /* 31/08: linha da embalagem retornável, colada embaixo do item — no rascunho
+           fica só informativa (embNome já aparece como sub-texto no nome, acima);
+           aqui embaixo é onde a Central, na hora de mandar o pedido, marca QUAL
+           embalagem foi e QUANTAS unidades saíram, e bipa/confirma. */
+        if(it.embRetornavel&&it.embNome&&ped.status!=='rascunho'){
+          const trE=document.createElement('tr');
+          trE.style.cssText=(idx%2===0?'background:var(--rf)':'background:#fff')+';border-bottom:1px solid var(--rb)';
+          const tdE=document.createElement('td');
+          tdE.colSpan=heads.length;
+          tdE.style.cssText='padding:2px 10px 9px 26px';
+          const linkExist=it.id?embsPorItem[it.id]:null;
+          const box=document.createElement('div');
+          box.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--rf);border:1px dashed var(--rb);border-radius:9px;padding:7px 10px';
+          const ic=document.createElement('span');ic.innerHTML='<i class="ph-duotone ph-package"></i>';ic.style.cssText='color:var(--v);font-size:14px';
+          box.appendChild(ic);
+          const lbl=document.createElement('span');lbl.textContent='Embalagem:';lbl.style.cssText='font-size:11px;font-weight:700;color:var(--ts)';
+          box.appendChild(lbl);
+          const enviado=!!(linkExist&&linkExist.enviado);
+          const inpNome=document.createElement('input');inpNome.type='text';inpNome.value=(linkExist&&linkExist.nome)||it.embNome;
+          inpNome.disabled=enviado;
+          inpNome.style.cssText='flex:1;min-width:120px;padding:5px 8px;border:1.5px solid var(--rb);border-radius:7px;font-size:12px;font-family:Manrope,sans-serif';
+          box.appendChild(inpNome);
+          const inpQ=document.createElement('input');inpQ.type='number';inpQ.min='0';inpQ.step='1';
+          inpQ.value=linkExist?linkExist.quantidade:it.quantidade;
+          inpQ.disabled=enviado;
+          inpQ.style.cssText='width:70px;padding:5px 7px;border:1.5px solid var(--rb);border-radius:7px;font-size:12px;text-align:center;font-family:Manrope,sans-serif;font-weight:700';
+          box.appendChild(inpQ);
+          const unSp=document.createElement('span');unSp.textContent='un enviada'+((linkExist&&linkExist.quantidade===1)?'':'s');unSp.style.cssText='font-size:11px;color:var(--ts)';
+          box.appendChild(unSp);
+          const st=document.createElement('span');
+          st.style.cssText='font-size:10.5px;margin-left:4px;'+(linkExist&&linkExist.devolvido?'color:#166534':enviado?'color:#9A6B1E':'color:var(--ts)');
+          st.textContent=linkExist&&linkExist.devolvido?('✓ devolvido'+(linkExist.devolvido_por?' · '+linkExist.devolvido_por:'')):(enviado?('✓ confirmado'+(linkExist.enviado_por?' · '+linkExist.enviado_por:'')):'aguardando confirmação');
+          box.appendChild(st);
+          const confBtn=btn('btn '+(enviado?'bo':'bp')+' bxs',enviado?'Reabrir':'Bipar e confirmar',async()=>{
+            if(!it.id){alert('Salve o pedido antes de confirmar a embalagem.');return;}
+            if(linkExist&&linkExist.devolvido){alert('Essa embalagem já foi devolvida — reabra a devolução na lista de retornáveis primeiro.');return;}
+            confBtn.disabled=true;
+            const nomeEmb=inpNome.value.trim()||it.embNome;
+            const qtdEmb=parseFloat(inpQ.value)||0;
+            const novo=!enviado;
+            const destUnidade=INV_UNIDADE_DESTINO[destino]||null;
+            try{
+              if(novo&&qtdEmb<=0){alert('Diga quantas unidades da embalagem foram enviadas.');confBtn.disabled=false;return;}
+              if(linkExist&&linkExist.id){
+                await db('lola_pedido_embalagens','PATCH',{nome:nomeEmb,quantidade:qtdEmb,enviado:novo,enviado_em:novo?new Date().toISOString():null,enviado_por:novo?(ME||null):null},'?id=eq.'+linkExist.id);
+              }else{
+                const[criado]=await db('lola_pedido_embalagens','POST',{pedido_id:ped.id,pedido_item_id:it.id,nome:nomeEmb,unidade:'un',quantidade:qtdEmb,devolvido:false,enviado:novo,enviado_em:novo?new Date().toISOString():null,enviado_por:novo?(ME||null):null});
+                embsPorItem[it.id]={id:criado.id,nome:nomeEmb,quantidade:qtdEmb,enviado:novo,enviado_em:novo?new Date().toISOString():null,enviado_por:novo?(ME||null):null,devolvido:false,devolvido_em:null,devolvido_por:null};
+              }
+              if(embsPorItem[it.id]){embsPorItem[it.id].nome=nomeEmb;embsPorItem[it.id].quantidade=qtdEmb;embsPorItem[it.id].enviado=novo;embsPorItem[it.id].enviado_em=novo?new Date().toISOString():null;embsPorItem[it.id].enviado_por=novo?(ME||null):null;}
+              if(destUnidade){
+                if(novo) await moverEstoqueEmbalagem(nomeEmb,qtdEmb,'Cozinha Central',destUnidade);
+                else await moverEstoqueEmbalagem(nomeEmb,qtdEmb,destUnidade,'Cozinha Central');
+              }
+              rebuildTabela();
+            }catch(err){alert('Erro: '+err.message);confBtn.disabled=false;}
+          });
+          box.appendChild(confBtn);
+          tdE.appendChild(box);
+          trE.appendChild(tdE);
+          tbody.appendChild(trE);
+        }
       });
       tbl.appendChild(tbody);tblWrap.appendChild(tbl);
       calcTotal();
@@ -8232,8 +8393,21 @@ async function editarPedido(ped){
             estoque_ideal:it.estoqueIdeal!=null?it.estoqueIdeal:null,
             embalagem_nome:it.embNome||null,
             embalagem_retornavel:it.embRetornavel==null?null:it.embRetornavel,
+            preparado:it.preparado||false,
+            preparado_em:it.preparado_em||null,
+            preparado_por:it.preparado_por||null,
           });
           novosItens.push(novo);
+        }
+        /* 31/08: os itens são recriados a cada Salvar (novo id) — revincula a
+           embalagem retornável já confirmada (se houver) ao id novo, senão o
+           vínculo pedido_item_id > embalagem se perde a cada edição. */
+        for(let _i=0;_i<itensValidos.length;_i++){
+          const _antigoId=itensValidos[_i].id, _novoItem=novosItens[_i];
+          const _link=_antigoId?embsPorItem[_antigoId]:null;
+          if(_link&&_link.id&&_novoItem){
+            await db('lola_pedido_embalagens','PATCH',{pedido_item_id:_novoItem.id},'?id=eq.'+_link.id).catch(()=>{});
+          }
         }
         // Só apagar os antigos se todos os novos foram inseridos com sucesso
         if(novosItens.length===itensValidos.length){
