@@ -933,6 +933,7 @@ function mkStat(ic,lb,val,sub,col){
    Fase 2 (a construir): descontar as vendas do Bitbar.
 ══════════════════════════════════ */
 var _saldoMap={};
+var _ppPrecoMap={};
 var _cozUso=null;
 /* separa o cadastro (que é um só) por cozinha: esconde da LISTA os insumos que
    pertencem só à outra cozinha. Regra de ouro: filtrar só na lista, nunca o _ins global. */
@@ -957,10 +958,10 @@ async function carregarSaldoInsumos(){
   try{
     // última contagem por insumo (mais recente primeiro)
     const ci=await db('lola_contagem_itens','GET',null,
-      '?insumo_id=not.is.null&select=insumo_id,qtd_contada,lola_contagens!contagem_id(data_contagem)&order=lola_contagens(data_contagem).desc&limit=3000');
+      '?insumo_id=not.is.null&select=insumo_id,qtd_contada,lola_contagens!contagem_id(data_contagem,responsavel)&order=lola_contagens(data_contagem).desc&limit=3000');
     const ult={};
     (ci||[]).forEach(r=>{ const id=r.insumo_id; if(!id||ult[id])return;
-      ult[id]={qtd:parseFloat(r.qtd_contada)||0, data:(r.lola_contagens&&r.lola_contagens.data_contagem)||null}; });
+      ult[id]={qtd:parseFloat(r.qtd_contada)||0, data:(r.lola_contagens&&r.lola_contagens.data_contagem)||null, resp:(r.lola_contagens&&r.lola_contagens.responsavel)||null}; });
     // entradas das notas (todas; filtramos por data depois)
     const mv=await db('lola_ccmq_estoque_mov','GET',null,
       '?tipo=eq.entrada&select=insumo_id,qtd,unidade,data&limit=20000');
@@ -993,7 +994,7 @@ async function carregarSaldoInsumos(){
       let saldo=null, semBase=false;
       if(baseQ!=null){ saldo = baseQ + somaEnt - somaDes; }
       else if(temEnt||somaDes){ saldo = somaEnt - somaDes; semBase=true; }
-      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, entr: somaEnt, desc: somaDes, semBase, aprox: pulou };
+      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, contResp: uc?uc.resp:null, entr: somaEnt, desc: somaDes, semBase, aprox: pulou };
     });
   }catch(e){ /* saldo é informativo — nunca derruba a tela */ }
   return map;
@@ -1006,6 +1007,14 @@ async function pgIns(c){
     window._ins=_ins;
     try{ const cu=await db('rpc/insumo_cozinha_uso','POST',{}); _cozUso={}; (cu||[]).forEach(r=>{_cozUso[r.insumo_id]={c:!!r.usa_ccmq,ce:!!r.usa_central};}); }catch(e){ _cozUso=null; }
     _saldoMap=await carregarSaldoInsumos();
+    try{
+      const ppIds=[...new Set((_ins||[]).filter(i=>i.preproducao_id).map(i=>i.preproducao_id))];
+      _ppPrecoMap={};
+      if(ppIds.length){
+        const pp=await db('lola_preproducoes','GET',null,'?id=in.('+ppIds.join(',')+')&select=id,custo_por_unidade');
+        (pp||[]).forEach(r=>{ _ppPrecoMap[r.id]=parseFloat(r.custo_por_unidade)||0; });
+      }
+    }catch(e){ _ppPrecoMap={}; }
     // quais insumos entram em alguma pré-produção ou ficha (mesma função que a Central usa)
     try{ const uu=await db('rpc/central_insumos_usados','POST',{});
          _insUsados=new Set((uu||[]).map(x=>(x&&typeof x==='object')?Object.values(x)[0]:x)); }
@@ -1182,7 +1191,7 @@ function mkInsTableX(itens){
     }
     let atu;
     if(i.preco_atualizado_em){ const d=new Date(i.preco_atualizado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); atu=_uEsc(d+(i.preco_atualizado_por?(' · '+i.preco_atualizado_por):'')); }
-    else if(sd && sd.contData){ atu='<span title="Preço nunca foi atualizado manualmente — data da última contagem de estoque">'+_uEsc('contagem '+DBR(sd.contData))+'</span>'; }
+    else if(sd && sd.contData){ atu='<span title="Preço nunca foi atualizado manualmente — data da última contagem de estoque">'+_uEsc('contagem '+DBR(sd.contData)+(sd.contResp?(' · '+sd.contResp):''))+'</span>'; }
     else atu='<span class="ix-none">Sem registro</span>';
     const alerta = insForaDeReceita(i) ? ' <i class="ph-duotone ph-warning ix-alert" style="color:#C99A33;cursor:pointer" title="Não está em nenhuma receita — toque para ver onde poderia entrar"></i>' : '';
     const tr=el('tr');
@@ -1190,7 +1199,7 @@ function mkInsTableX(itens){
       '<td class="ix-nome"><div class="ix-nm"><span class="ix-dot" style="background:'+dc+';box-shadow:0 0 0 3px '+dh+'" title="'+_uEsc(i.categoria||'')+'"></span><span class="ix-nmt" title="Abrir a ficha completa — preço, nota, fornecedor, saldo, onde é usado">'+_uEsc(i.nome)+'</span>'+alerta+'</div></td>'+
       '<td class="ix-scell" title="'+_uEsc(saldoTitle)+'">'+saldoHtml+'</td>'+
       '<td class="ix-atu hcol-atu">'+atu+'</td>'+
-      '<td class="ix-preco">'+R(i.custo_por_unidade)+'<span class="u">'+insUnExt(unCusto)+'</span></td>'+
+      '<td class="ix-preco">'+R((parseFloat(i.custo_por_unidade)||0)||(i.preproducao_id&&_ppPrecoMap[i.preproducao_id])||0)+(i.preproducao_id&&!(parseFloat(i.custo_por_unidade)||0)?' <i class="ph-duotone ph-info" title="Preço vindo da pré-produção vinculada (o insumo em si não tem preço próprio cadastrado)" style="color:var(--ts);opacity:.6;font-size:11px"></i>':'')+'<span class="u">'+insUnExt(unCusto)+'</span></td>'+
       '<td class="ix-acts"></td>';
     tr.querySelector('.ix-nmt').addEventListener('click',()=>abrirFichaInsumo(i.id,i.nome));
     const alEl=tr.querySelector('.ix-alert'); if(alEl){ alEl.addEventListener('click',(ev)=>{ev.stopPropagation();ondeEUsado(i);}); }
