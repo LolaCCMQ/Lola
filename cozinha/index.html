@@ -1016,7 +1016,8 @@ async function pgIns(c){
     const CAT_COR={'Bebidas Alcoólicas':'#534AB7','Bebidas Não Alcoólicas':'#185FA5','Cervejas':'#9A6B1E','Vinhos':'#993556','Carnes e Pescados':'#A32D2D','Hortifruti':'#3B6D11','Insumos Alimentos':'#854F0B','Limpeza':'#0F6E56','Pães':'#993C1D'};
     function mkSecH(cat,n){const cor=CAT_COR[cat]||'#A82A2A';const sh=div('ins-sech');sh.innerHTML='<span class="sq" style="background:'+cor+'"></span><span class="nm" style="color:'+cor+'">'+cat+'</span><span class="ct">'+n+' '+(n===1?'item':'itens')+'</span>';return sh;}
     const cats=CATS_ORDER.filter(c=>_ins.some(i=>i.categoria===c && _insDaCozinha(i)));
-    let filtCat='Todos';let filtBusca='';
+    let filtCat='Todos';let filtBusca='';let filtCentral=false;
+    let sortBy=null,sortDir='asc'; // null = ordem padrão (categoria/nome)
     const tabW=div('tabs');
     function mkCatTabs(){
       tabW.innerHTML='';
@@ -1029,9 +1030,14 @@ async function pgIns(c){
     }
     mkCatTabs();
     c.appendChild(tabW);
+    const centralBtn=el('button','btn bsm',null,{html:'<i class="ph-duotone ph-factory"></i> Só Central'});
+    function paintCentralBtn(){ centralBtn.className='btn bsm'+(filtCentral?' bp':' bo'); }
+    paintCentralBtn();
+    centralBtn.onclick=()=>{ filtCentral=!filtCentral; paintCentralBtn(); drawIns($('#ins-t')); };
     c.appendChild(div('abar no-print',[
       mkSearch(q=>{filtBusca=q;drawIns($('#ins-t'));},'Buscar insumo...'),
       div('fl_ gap2',[
+        centralBtn,
         el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-clipboard-text"></i> Nova contagem',onclick:()=>modalNovaContagem()}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-download-simple"></i> Baixar planilha',onclick:()=>exportInsumosXlsx()}),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-upload-simple"></i> Conferir preços',onclick:()=>nav('conferencia')}),
@@ -1039,19 +1045,42 @@ async function pgIns(c){
       ],{style:'flex-wrap:wrap'})
     ]));
     const w=div(null,null,{id:'ins-t'});c.appendChild(w);
+    function _insSortVal(i,by){
+      if(by==='saldo'){ const sd=_saldoMap&&_saldoMap[i.id]; return (sd&&sd.saldo!=null)?sd.saldo:-Infinity; }
+      if(by==='preco'){ return parseFloat(i.custo_por_unidade)||0; }
+      return (i.nome||'').toLowerCase();
+    }
+    function _insSort(arr){
+      if(!sortBy) return arr;
+      const dir=sortDir==='desc'?-1:1;
+      return arr.slice().sort((a,b)=>{
+        const va=_insSortVal(a,sortBy), vb=_insSortVal(b,sortBy);
+        if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+      });
+    }
+    function setSort(by){
+      if(sortBy===by){ sortDir=sortDir==='asc'?'desc':'asc'; } else { sortBy=by; sortDir='asc'; }
+      drawIns($('#ins-t'));
+    }
+    window._insSetSort=setSort;
+    window._insSortState=()=>({sortBy,sortDir});
     function drawIns(w){
       w.innerHTML='';
       let f=_ins.filter(_insDaCozinha);
+      if(filtCentral)f=f.filter(i=>i.fornecedor_padrao==='Central');
       if(filtCat!=='Todos')f=f.filter(i=>i.categoria===filtCat);
       if(filtBusca)f=f.filter(i=>i.nome.toLowerCase().includes(filtBusca.toLowerCase()));
       if(!f.length){w.appendChild(em('🧂','Nenhum insumo encontrado'));return;}
-      // agrupar por categoria se estiver em "Todos"
-      if(filtCat==='Todos'){
+      // agrupar por categoria se estiver em "Todos" e sem ordenação custom ativa
+      if(filtCat==='Todos' && !sortBy){
         const grupos={};f.forEach(i=>{if(!grupos[i.categoria])grupos[i.categoria]=[];grupos[i.categoria].push(i);});
         Object.entries(grupos).forEach(([cat,itens])=>{
           w.appendChild(mkSecH(cat,itens.length));
           w.appendChild(mkInsTableX(itens));
         });
+      }else if(sortBy){
+        w.appendChild(mkSecH(filtCentral?'Central':(filtCat==='Todos'?'Todos os insumos':filtCat),f.length));
+        w.appendChild(mkInsTableX(_insSort(f)));
       }else{
         w.appendChild(mkSecH(filtCat,f.length));
         w.appendChild(mkInsTableX(f));
@@ -1130,7 +1159,13 @@ function mkInsTableX(itens){
   ensureInsxCss();
   const wrap=div('insxwrap');
   const tbl=el('table','insx');
-  tbl.innerHTML='<thead><tr><th>Insumo</th><th>Saldo</th><th class="hcol-atu">Atualizado</th><th style="text-align:right">Preço</th><th></th></tr></thead>';
+  const ss=(window._insSortState&&window._insSortState())||{sortBy:null,sortDir:'asc'};
+  function sortArrow(by){ return ss.sortBy===by?(ss.sortDir==='asc'?' ▲':' ▼'):''; }
+  function sh(by,lb){ return '<th class="ix-sortable" data-sort="'+by+'" style="cursor:pointer;user-select:none">'+lb+sortArrow(by)+'</th>'; }
+  const thead=el('thead');
+  thead.innerHTML='<tr>'+sh('nome','Insumo')+sh('saldo','Saldo')+'<th class="hcol-atu">Atualizado</th><th class="ix-sortable" data-sort="preco" style="cursor:pointer;user-select:none;text-align:right">Preço'+sortArrow('preco')+'</th><th></th></tr>';
+  thead.querySelectorAll('.ix-sortable').forEach(th=>{ th.addEventListener('click',()=>{ window._insSetSort&&window._insSetSort(th.dataset.sort); }); });
+  tbl.appendChild(thead);
   const tb=el('tbody');
   itens.forEach(i=>{
     const unCusto=i.unidade_custo||'kg';
@@ -1150,6 +1185,7 @@ function mkInsTableX(itens){
     }
     let atu;
     if(i.preco_atualizado_em){ const d=new Date(i.preco_atualizado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); atu=_uEsc(d+(i.preco_atualizado_por?(' · '+i.preco_atualizado_por):'')); }
+    else if(sd && sd.contData){ atu='<span title="Preço nunca foi atualizado manualmente — data da última contagem de estoque">'+_uEsc('contagem '+DBR(sd.contData))+'</span>'; }
     else atu='<span class="ix-none">Sem registro</span>';
     const alerta = insForaDeReceita(i) ? ' <i class="ph-duotone ph-warning ix-alert" style="color:#C99A33;cursor:pointer" title="Não está em nenhuma receita — toque para ver onde poderia entrar"></i>' : '';
     const tr=el('tr');
