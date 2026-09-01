@@ -2215,6 +2215,11 @@ async function cartaoToggleConf(id,ck){
     var el0=document.getElementById('cartLista'); if(el0) el0.innerHTML=cartaoGrid();
     return;
   }
+  // ao DESMARCAR uma compra já lançada: avisa que vai estornar o lançamento do Financeiro
+  if(!ck && c && c.conferido){
+    var okEst=confirm('⚠️ Esta compra JÁ FOI lançada no Financeiro do local.\n\nDesmarcar vai ESTORNAR (remover) esse lançamento de lá.\n\nTem certeza que quer estornar?');
+    if(!okEst){ var elc=document.getElementById('cartLista'); if(elc) elc.innerHTML=cartaoGrid(); return; }
+  }
   try{
     await cartRpc(ck?'compra_lancar':'compra_estornar', id);
     if(c) c.conferido=ck;
