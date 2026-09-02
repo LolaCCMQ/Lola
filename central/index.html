@@ -636,7 +636,7 @@ async function post(path, body, prefer){ await lolaEnsure(); const h=lolaHeaders
 async function carregar(){
   try{
     const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo, perdas, inv] = await Promise.all([
-      api('financeiro_notas?unit=eq.central&select=chave,emitente,data_emissao,itens&order=data_emissao.desc'),
+      api('financeiro_notas?unit=eq.central&select=chave,emitente,cnpj,numero,data_emissao,valor_total,itens,totais,parcelas,dif_motivo,vencimento&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
       api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por,conservacao,validade_dias_resfriado,validade_dias_congelado&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
@@ -3352,6 +3352,46 @@ async function toggleUsos(el){
 }
 
 /* ============ FOLHA: abrir nota / mapear itens ============ */
+/* 02/09 (Bianca): resumo da nota — fornecedor, total dos produtos × total da nota,
+   diferença detalhada (frete/IPI/ICMS-ST do XML) + motivo manual, e boletos/parcelas. */
+function centralNotaResumo(n){
+  const T=n.totais||null;
+  const itens=Array.isArray(n.itens)?n.itens:[];
+  const somaBruto=itens.reduce((s,it)=>s+(+it.vbruto|| +it.vtotal||0),0);
+  const totProd=(T&&T.vprod!=null)? +T.vprod : somaBruto;
+  const totNota=(n.valor_total!=null)? +n.valor_total : (T&&T.vnf!=null? +T.vnf : null);
+  const dif=(totNota!=null? totNota:0) - totProd;
+  let h='<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px">';
+  h+='<div style="font-size:13px;font-weight:800;color:var(--ink)">'+esc(n.emitente||'—')+'</div>';
+  if(n.cnpj) h+='<div style="font-size:10.5px;color:var(--mut);margin-top:1px">CNPJ '+esc(n.cnpj)+(n.numero?(' · nº '+esc(String(n.numero))):'')+'</div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">'
+    +'<div style="flex:1;min-width:115px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:700">Total dos produtos</div><div style="font-size:15px;font-weight:800;color:var(--ink)">'+brl(totProd)+'</div></div>'
+    +'<div style="flex:1;min-width:115px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:700">Total da nota</div><div style="font-size:15px;font-weight:800;color:var(--ink)">'+(totNota!=null?brl(totNota):'—')+'</div></div>';
+  if(Math.abs(dif)>=0.01) h+='<div style="flex:1;min-width:115px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:700">Diferença</div><div style="font-size:15px;font-weight:800;color:'+(dif>0?'#9A6B1E':'#2C7A4B')+'">'+(dif>0?'+':'')+brl(dif)+'</div></div>';
+  h+='</div>';
+  if(T){
+    const parts=[]; const add=(lbl,v,sinal)=>{ if(v&&Math.abs(+v)>=0.01) parts.push(lbl+' '+(sinal||'')+brl(+v)); };
+    add('Frete',T.vfrete,'+'); add('IPI',T.vipi,'+'); add('ICMS-ST',T.vst,'+'); add('Seguro',T.vseg,'+'); add('Outros',T.voutro,'+'); add('Desconto',T.vdesc,'−');
+    if(parts.length) h+='<div style="font-size:11px;color:var(--mut);margin-top:8px">Composição da diferença: '+parts.map(p=>'<span style="display:inline-block;background:var(--bg,#faf7f2);border:1px solid var(--border);border-radius:20px;padding:2px 9px;margin:2px 3px 0 0">'+p+'</span>').join('')+'</div>';
+  } else if(Math.abs(dif)>=0.01){
+    h+='<div style="font-size:11px;color:var(--mut);margin-top:8px">O XML dessa nota não trouxe o detalhamento — em geral a diferença é imposto (IPI/ICMS-ST) ou frete.</div>';
+  }
+  if(Math.abs(dif)>=0.01){
+    h+='<div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:700;margin-top:10px;margin-bottom:3px">Motivo da diferença (opcional)</div>';
+    h+='<textarea id="difMotivoTA" style="width:100%;min-height:42px;font-size:12.5px;resize:vertical;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-family:inherit" placeholder="Ex: IPI + frete; taxa de entrega; etc.">'+esc(n.dif_motivo||'')+'</textarea>';
+  }
+  const parc=Array.isArray(n.parcelas)?n.parcelas:[];
+  if(parc.length){
+    h+='<div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:700;margin:10px 0 4px">🧾 Boletos / parcelas ('+parc.length+')</div>';
+    h+=parc.map(p=>'<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;border-bottom:1px dashed var(--fio,#eee)"><span>'+(p.n?('Parc. '+esc(String(p.n))):'Boleto')+(p.venc?(' · vence '+fmtData(p.venc)):'')+'</span><b>'+brl(+p.valor||0)+'</b></div>').join('');
+  } else if(n.vencimento){
+    h+='<div style="font-size:12px;color:var(--mut);margin-top:10px">🧾 1 vencimento: <b>'+fmtData(n.vencimento)+'</b></div>';
+  } else {
+    h+='<div style="font-size:11.5px;color:var(--mut);margin-top:10px">🧾 Sem boleto no XML (nota à vista ou sem cobrança informada).</div>';
+  }
+  h+='</div>';
+  return h;
+}
 async function abrirNota(chave){
   const n=ST.notas.find(x=>x.chave===chave); if(!n)return; ST.nota=n;
   const jaImp=ST.imp.has(chave);
@@ -3367,9 +3407,11 @@ async function abrirNota(chave){
   $('#shTitle').textContent=n.emitente||'Nota';
   const tot=ST.itens.reduce((s,i)=>s+i.vtotal,0);
   let h=`<div class="note">${fmtData(n.data_emissao)} · ${ST.itens.length} itens · ${brl(tot)}${jaImp?' · <b style="color:var(--okFg)">já lançada</b> (relançar substitui)':''}</div>`;
+  h+=centralNotaResumo(n);
   h+=`<div id="movBox"><button class="btn sec movbtn" id="btnMover"><i class="ph-duotone ph-arrows-left-right"></i> Esta nota é de outra unidade? Mover</button></div>`;
   ST.itens.forEach(it=>{ h+=itemHTML(it); });
   $('#shBody').innerHTML=h;
+  { const _ta=$('#difMotivoTA'); if(_ta){ _ta.onchange=async()=>{ try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/financeiro_notas?chave=eq.'+encodeURIComponent(n.chave),{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({dif_motivo:(_ta.value||null)})}); n.dif_motivo=_ta.value||null; }catch(e){ toast('Erro ao salvar motivo: '+e.message); } }; } }
   $('#shSave').innerHTML = jaImp?'<i class="ph-duotone ph-arrows-clockwise"></i> Relançar entrada':'<i class="ph-duotone ph-check"></i> Dar entrada no estoque';
   $('#shSave').style.display='';
   $('#shSave').removeAttribute('disabled');
