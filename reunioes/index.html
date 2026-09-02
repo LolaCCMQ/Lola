@@ -560,9 +560,9 @@ async function criarTarefasDaAta(paiId,pai,tarefas,relBase,autor){
   var ids=[];
   for(var i=0;i<tarefas.length;i++){
     var t=tarefas[i];
-    var p={titulo:t.titulo||pai.titulo||'Tarefa',criado_por:autor||null,tipo:'Tarefa',eh_tarefa:true,
+    var p={titulo:pai.titulo||t.titulo||'Tarefa',criado_por:autor||null,tipo:'Tarefa',eh_tarefa:true,
       unidades:arr(pai.unidades).slice(),categorias:arr(pai.categorias).slice(),pessoas:[],
-      responsaveis:t.responsaveis.slice(),conteudo:null,prazo:null,tags:[],oks:{},concluido:false,
+      responsaveis:t.responsaveis.slice(),conteudo:t.titulo||null,prazo:null,tags:[],oks:{},concluido:false,
       relacionados:[paiId],ata_id:paiId,data:new Date().toISOString().slice(0,10),updated_at:new Date().toISOString()};
     try{
       var r=await sb.from('lola_assuntos').insert(p).select('id').single();
