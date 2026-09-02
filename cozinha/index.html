@@ -999,6 +999,41 @@ async function carregarSaldoInsumos(){
     const des={};
     (mvd||[]).forEach(r=>{ const id=r.insumo_id; if(!id)return;
       (des[id]=des[id]||[]).push({q:parseFloat(r.qtd)||0,un:r.unidade,data:r.data}); });
+    // 02/09: vendas do Bitbar (via lola_bitbar_insumo_map) — pra "posição prevista" =
+    // contagem + entradas - descartes - vendido no período. Direto: o produto vendido
+    // É o insumo. Ficha: o produto vendido usa uma ficha técnica — escala o consumo de
+    // cada ingrediente pelo rendimento da ficha.
+    const vend={};
+    try{
+      const [mapa, fichaItens, fichas, vendas]=await Promise.all([
+        db('lola_bitbar_insumo_map','GET',null,'?ativo=eq.true&select=bitbar_cod,tipo,insumo_id,ficha_id,fator'),
+        db('lola_fichas_tecnicas_itens','GET',null,'?insumo_id=not.is.null&select=ficha_id,insumo_id,qtd_bruta,unidade'),
+        db('lola_fichas_tecnicas','GET',null,'?select=id,rendimento_qtd'),
+        db('lola_bitbar_produtos','GET',null,'?select=cod,data,qtde_liquida,unidade&limit=20000'),
+      ]);
+      const rendPorFicha={}; (fichas||[]).forEach(f=>{ rendPorFicha[f.id]=parseFloat(f.rendimento_qtd)||1; });
+      const itensPorFicha={}; (fichaItens||[]).forEach(it=>{ (itensPorFicha[it.ficha_id]=itensPorFicha[it.ficha_id]||[]).push(it); });
+      const codDireto={}, codFicha={};
+      (mapa||[]).forEach(m=>{
+        const fat=parseFloat(m.fator)||1;
+        if(m.tipo==='direto'&&m.insumo_id) codDireto[m.bitbar_cod]={insumo_id:m.insumo_id, fator:fat};
+        else if(m.tipo==='ficha'&&m.ficha_id) codFicha[m.bitbar_cod]={ficha_id:m.ficha_id, fator:fat};
+      });
+      (vendas||[]).forEach(r=>{
+        const qL=parseFloat(r.qtde_liquida)||0; if(!qL) return;
+        const dr=codDireto[r.cod];
+        if(dr){ (vend[dr.insumo_id]=vend[dr.insumo_id]||[]).push({q:qL*dr.fator, un:r.unidade, data:r.data}); return; }
+        const fr=codFicha[r.cod];
+        if(fr){
+          const rend=rendPorFicha[fr.ficha_id]||1;
+          (itensPorFicha[fr.ficha_id]||[]).forEach(it=>{
+            const qb=parseFloat(it.qtd_bruta)||0; if(!qb) return;
+            const consumo=qL*fr.fator*(qb/rend);
+            (vend[it.insumo_id]=vend[it.insumo_id]||[]).push({q:consumo, un:it.unidade, data:r.data});
+          });
+        }
+      });
+    }catch(e2){ /* vendas são só a parte "previsto" — sem elas, o saldo normal (contagem+notas) continua valendo */ }
     (_ins||[]).forEach(i=>{
       const un=i.unidade_custo||'kg';
       const uc=ult[i.id];
@@ -1016,10 +1051,18 @@ async function carregarSaldoInsumos(){
         const c=_convUnid(e.q, e.un, un);
         if(c!=null){ somaDes+=c; } else { pulou=true; }
       });
+      let somaVend=0, temVend=false, pulouVend=false;
+      (vend[i.id]||[]).forEach(e=>{
+        if(desde && e.data && e.data < desde) return; // só vendido depois da contagem
+        const c=_convUnid(e.q, e.un, un);
+        if(c!=null){ somaVend+=c; temVend=true; } else { pulouVend=true; }
+      });
       let saldo=null, semBase=false;
       if(baseQ!=null){ saldo = baseQ + somaEnt - somaDes; }
       else if(temEnt||somaDes){ saldo = somaEnt - somaDes; semBase=true; }
-      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, contResp: uc?uc.resp:null, entr: somaEnt, desc: somaDes, semBase, aprox: pulou };
+      let previsto=null;
+      if(saldo!=null && (temVend||somaVend)){ previsto = saldo - somaVend; }
+      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, contResp: uc?uc.resp:null, entr: somaEnt, desc: somaDes, semBase, aprox: pulou||pulouVend, vendido: temVend?somaVend:null, previsto };
     });
   }catch(e){ /* saldo é informativo — nunca derruba a tela */ }
   return map;
@@ -1211,8 +1254,8 @@ function mkInsTableX(itens){
       else if(min!=null&&sd.saldo<=min){cls='lo';lab='Abaixo';}
       else if(min!=null&&sd.saldo<=min*1.5){cls='am';lab='Atenção';}
       const apx=sd.aprox?'≈ ':'';
-      saldoHtml='<span class="ix-saldo">'+apx+_nbr(sd.saldo,1)+' '+sd.un+'</span><span class="ix-st '+cls+'">'+lab+'</span>'+(min!=null?' <span class="ix-none" style="font-size:10px">mín '+_nbr(min,0)+'</span>':'');
-      saldoTitle=(sd.contData?('contagem '+DBR(sd.contData)+': '+_nbr(sd.contQtd||0,1)+' '+sd.un):'sem contagem')+(sd.entr?(' + '+_nbr(sd.entr,1)+' '+sd.un+' de notas'):'');
+      saldoHtml='<span class="ix-saldo">'+apx+_nbr(sd.saldo,1)+' '+sd.un+'</span><span class="ix-st '+cls+'">'+lab+'</span>'+(min!=null?' <span class="ix-none" style="font-size:10px">mín '+_nbr(min,0)+'</span>':'')+(sd.previsto!=null?'<br><span class="ix-none" style="font-size:10px" title="Posição prevista: contagem + notas - vendido (Bitbar) desde a contagem">previsto: '+_nbr(sd.previsto,1)+' '+sd.un+'</span>':'');
+      saldoTitle=(sd.contData?('contagem '+DBR(sd.contData)+': '+_nbr(sd.contQtd||0,1)+' '+sd.un):'sem contagem')+(sd.entr?(' + '+_nbr(sd.entr,1)+' '+sd.un+' de notas'):'')+(sd.vendido?(' - '+_nbr(sd.vendido,1)+' '+sd.un+' vendido(s)'):'');
     }
     let atu;
     if(i.preco_atualizado_em){ const d=new Date(i.preco_atualizado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); atu=_uEsc(d+(i.preco_atualizado_por?(' · '+i.preco_atualizado_por):'')); }
@@ -1299,9 +1342,11 @@ function mkInsTable(itens){
       const apx=sd.aprox?'≈ ':'';
       sline.innerHTML='<span class="isd-v">'+apx+_nbr(sd.saldo,1)+' '+sd.un+'</span>'
         +'<span class="isd-st '+cls+'"><span class="isd-dot"></span>'+lab+'</span>'
-        +(min!=null?'<span class="isd-min">mín '+_nbr(min,0)+'</span>':'');
+        +(min!=null?'<span class="isd-min">mín '+_nbr(min,0)+'</span>':'')
+        +(sd.previsto!=null?'<span class="isd-min" title="Posição prevista: contagem + notas - vendido (Bitbar) desde a contagem">previsto '+_nbr(sd.previsto,1)+' '+sd.un+'</span>':'');
       sline.title=(sd.contData?('contagem '+DBR(sd.contData)+': '+_nbr(sd.contQtd||0,1)+' '+sd.un):'sem contagem')
-        +(sd.entr?(' + '+_nbr(sd.entr,1)+' '+sd.un+' de notas'):'');
+        +(sd.entr?(' + '+_nbr(sd.entr,1)+' '+sd.un+' de notas'):'')
+        +(sd.vendido?(' - '+_nbr(sd.vendido,1)+' '+sd.un+' vendido(s)'):'');
     }else{
       sline.innerHTML='<span class="isd-none">sem contagem</span>';
     }
