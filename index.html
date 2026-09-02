@@ -863,7 +863,7 @@
         <!-- 19/07 (Bianca): Lista de Compras ELIMINADA da navegação. O módulo e a tabela
              lola_lista_compras continuam no código/banco, dormentes — reativar é recolocar
              este botão + as entradas em MENU_GROUPS e HOME_APPS. -->
-        <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni"><i class="ph-duotone ph-credit-card"></i></span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Inventário</span></button><button class="nav-item" data-mod="eventos" data-menu="eventos" onclick="switchModule('eventos')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Eventos</span></button><button class="nav-item" data-mod="inbox" data-menu="inbox" onclick="switchModule('inbox')"><span class="ni"><i class="ph-duotone ph-chat-circle-dots"></i></span><span class="nl">Atendimento</span></button>
+        <button class="nav-item" data-mod="comprascartao" data-menu="comprascartao" onclick="switchModule('comprascartao')"><span class="ni"><i class="ph-duotone ph-credit-card"></i></span><span class="nl">Compras no Cartão</span></button><button class="nav-item" data-mod="entregas" data-menu="entregas" onclick="switchModule('entregas')"><span class="ni"><i class="ph-duotone ph-truck"></i></span><span class="nl">Entregas entre Unidades</span></button><button class="nav-item" data-mod="loucas" data-menu="loucas" onclick="switchModule('loucas')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Inventário</span></button><button class="nav-item" data-mod="eventos" data-menu="eventos" onclick="switchModule('eventos')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Eventos</span></button><button class="nav-item" data-mod="inbox" data-menu="inbox" onclick="switchModule('inbox')"><span class="ni"><i class="ph-duotone ph-chat-circle-dots"></i></span><span class="nl">Atendimento</span></button>
         
         <button class="nav-item" data-mod="avaliacoes" data-menu="avaliacoes" onclick="switchModule('avaliacoes')"><span class="ni"><i class="ph-duotone ph-star"></i></span><span class="nl">Avaliações</span></button>
         <button class="nav-item" data-mod="escala" data-menu="doc_escala" onclick="switchModule('escala')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Escala</span></button>
@@ -910,6 +910,7 @@
       <div class="module-panel" id="module-compras"></div>
       <div class="module-panel" id="module-hortifruti"></div>
       <div class="module-panel" id="module-comprascartao"></div>
+      <div class="module-panel" id="module-entregas"></div>
       <div class="module-panel" id="module-avaliacoes"></div>
   <div class="module-panel" id="module-loucas"><iframe id="loucasFrame" allow="camera; microphone; fullscreen" src="/inventario/" title="Inventário" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
   <!-- 19/07 (Bianca): Escala é TELA CHEIA (fora da regra dos 920px) e ganhou barra de voltar -->
@@ -985,7 +986,7 @@ const ROLE_LABEL={admin:'Admin',gerente:'Gerente',eventos:'Eventos',compras:'Com
 window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
- {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['comprascartao','💳 Compras no Cartão'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]}, /* 19/07: Lista de Compras eliminada */
+ {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['comprascartao','💳 Compras no Cartão'],['entregas','🚚 Entregas entre Unidades'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]}, /* 19/07: Lista de Compras eliminada */
  {label:'Administração',items:[['lolamac','📈 Lola MAC']]}, /* 19/07: usuarios e rh saíram do menu — moram no /adm */
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_entnotas','🧾 Entrada de Notas'],['est_compras','📊 Compras / CMV'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_descartes','🗑️ Descartes'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['est_envios','📥 Envios da Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
  {label:'Manutenções',items:[['man_painel','🔧 Equipamentos']]}, /* 19/07: item único — as outras telas são abas internas do app */
@@ -996,7 +997,7 @@ function defaultMenu(role){
   if(role==='admin') return ALL_MENU.slice();
   var base=['inicio','tarefas','diario','compras','man_painel','man_equip','man_prev','man_desc','man_cont','doc_escala']; /* 19/07: doc_vouchers..doc_vinhos viraram o app Documentos (livre) */
   var est=['est_insumos','est_entnotas','est_compras','est_preproducoes','est_fichas','est_contagem','est_saidas','est_descartes','est_fornecedores','est_pedidos','est_envios'];
-  var ger=['hortifruti','comprascartao','avaliacoes','loucas','inbox'];
+  var ger=['hortifruti','comprascartao','entregas','avaliacoes','loucas','inbox'];
   if(role==='gerente') return base.concat(est).concat(ger);
   if(role==='compras') return base.concat(est);
   return base;
@@ -1027,6 +1028,7 @@ var HOME_APPS=[
     {m:'diario', label:'Diário de Gerentes', d:'Registro diário do turno', icon:'notebook', col:'#5A7D2C', bg:'#EEF2E2'},
     {m:'doc_escala', label:'Escala', d:'Turnos e folgas da equipe', icon:'calendar-dots', col:'#2C5AA0', bg:'#E6EEF8'},
     {m:'comprascartao', label:'Compras no Cartão', d:'Gastos no cartão corporativo', icon:'credit-card', col:'#2C7A4B', bg:'#E6F3EA'},
+    {m:'entregas', label:'Entregas entre Unidades', d:'Motoboy/Uber de um lugar pro outro', icon:'truck', col:'#8A6D2D', bg:'#F4E8D2'},
     {m:'est_pedidos', label:'Pedidos à Central', d:'Solicitações à Cozinha Central', icon:'shopping-cart', col:'#A8632C', bg:'#F7EBE2'},
     {m:'man_painel', label:'Manutenções', d:'Chamados e ordens de serviço', icon:'wrench', col:'#2C5AA0', bg:'#E6EEF8'},
     {m:'documentos', label:'Documentos', d:'Links úteis e PDFs da casa', icon:'files', col:'#6B6258', bg:'#F1EEE9'},
@@ -1179,6 +1181,7 @@ function switchModule(mod){ try{ applyCollapse(mod==='home'?userCollapsePref():t
   if(mod==='documentos' && typeof renderDocumentos==='function') renderDocumentos();
   if(mod==='hortifruti' && typeof renderHorti==='function') renderHorti();
   if(mod==='comprascartao' && typeof renderCartao==='function') renderCartao();
+  if(mod==='entregas' && typeof renderEntregas==='function') renderEntregas();
   if(mod==='avaliacoes' && typeof renderAvaliacoes==='function') renderAvaliacoes();
   if(mod==='compras' && typeof renderCompras==='function') renderCompras();
   if(mod==='home'){try{renderHomeApps();}catch(e){} var _ids=['dashTasks','dashCompras','dashPedidos','dashEquip','dashRevisar','dashMargem']; _ids.forEach(function(id){var e=document.getElementById(id);if(e)e.dataset.loaded='';});loadDashboard();}
@@ -2244,6 +2247,201 @@ function cartaoExportar(){
   var csv='\ufeff'+cols.join(';')+'\n'+rows.join('\n');
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='compras-cartao-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  if(typeof showToast==='function')showToast('✓ Exportado');
+}
+
+/* ===== ENTREGAS entre unidades (motoboy/Uber) -> Financeiro =====
+   Mesmo formato do Compras no Cartão. Reaproveita o plano de contas e os
+   helpers cart* (cartCatSelect/cartCatInfo/cartCor/cartLoadPlano/_cartNum).
+   Quem PAGA a entrega no Financeiro = o destino (Para). Categoria em branco
+   vira o frete do destino (Fretes Central / Fretes Lola). */
+var ENTREGAS=[], ENT_F={status:'',origem:'',destino:'',mes:''};
+function entRpc(fn,id){ return fetch(SUPA_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},body:JSON.stringify({p_id:id})}).then(function(r){ if(!r.ok) return r.text().then(function(t){throw new Error(t);}); }); }
+function entCatDefault(destino){ return (String(destino||'').toLowerCase().indexOf('central')>=0)?'op__fretes_central':'op__transportes_fretes'; }
+function entDeParaCell(c){ return '<span style="white-space:nowrap">'+_escC(c.origem||'?')+' <span style="color:var(--muted)">→</span> <b>'+_escC(c.destino||'?')+'</b></span>'; }
+function entCatCell(c){
+  var groups=[],seen={};
+  CART_PLANO.forEach(function(p){ if(!seen[p.group_label]){seen[p.group_label]=[];groups.push(p.group_label);} seen[p.group_label].push(p); });
+  var h='<select onchange="entSetCat('+c.id+',this)" style="color:'+(c.categoria?'#141414':'#CBC1B9')+';font-weight:'+(c.categoria?'600':'400')+'">';
+  h+='<option value="" style="color:#B0A69E"'+(!c.categoria?' selected':'')+'>— frete do destino —</option>';
+  groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'" style="color:#141414;font-weight:700">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'" style="color:#141414;font-weight:500"'+(p.id===c.categoria?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; });
+  h+='</select>'; return h;
+}
+function entEnsureCss(){ if(document.getElementById('entGridCss')) return; var st=document.createElement('style'); st.id='entGridCss'; st.textContent=
+  '#module-entregas .cart-gridwrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#fff}'+
+  '#module-entregas table.cart-grid{width:100%;min-width:720px;border-collapse:collapse;font-size:.75rem}'+
+  '#module-entregas table.cart-grid th{position:sticky;top:0;background:var(--vinho-pale);z-index:1;text-align:left;padding:5px 7px;font-size:.55rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);white-space:nowrap}'+
+  '#module-entregas table.cart-grid td{border:1px solid var(--border);padding:0 4px;vertical-align:middle}'+
+  '#module-entregas table.cart-grid select{border:0;background:transparent;font-family:inherit;font-size:.74rem;width:100%;padding:4px 3px;color:var(--ink);box-sizing:border-box;cursor:pointer}'+
+  '#module-entregas table.cart-grid select:focus{outline:2px solid var(--vinho);outline-offset:-2px;background:#FFFDF7;border-radius:6px}'+
+  '#module-entregas table.cart-grid tr:hover td{background:#FBF7F1}'+
+  '#module-entregas table.cart-grid td.g-val{text-align:right;font-weight:800;color:var(--vinho);font-size:.9rem;white-space:nowrap;letter-spacing:-.01em}'+
+  '#module-entregas table.cart-grid td.g-chk{text-align:center;width:30px}'+
+  '#module-entregas table.cart-grid td.g-chk input{width:17px;height:17px;padding:0;cursor:pointer}'+
+  '#module-entregas .ent-filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}'+
+  '#module-entregas .ent-form-row label{font-size:.58rem !important;margin-bottom:2px !important}'+
+  '#module-entregas .ent-form-row input,#module-entregas .ent-form-row select{font-size:.78rem !important;padding:6px 8px !important}';
+  document.head.appendChild(st); }
+async function renderEntregas(){
+  var panel=document.getElementById('module-entregas'); if(!panel) return;
+  panel.style.overflowY='auto';
+  panel.innerHTML='<div style="padding:24px 26px;color:var(--muted)">Carregando…</div>';
+  try{ ENTREGAS=await api.get('entregas','select=*&order=data.desc.nullslast,id.desc')||[]; }catch(e){ ENTREGAS=[]; }
+  await cartLoadPlano();
+  entRender();
+}
+function entCab(){ return '<div style="background:transparent;border-bottom:1px solid #EFE6DC;padding:12px 16px;display:flex;align-items:center;gap:10px"><button onclick="switchModule(\'home\')" title="Menu" style="width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);color:var(--vinho);border-radius:13px;cursor:pointer;font-size:1.25rem"><i class="ph-duotone ph-caret-left"></i></button><div style="flex:1;min-width:0"><div style="font-family:\'Fraunces\',serif;font-weight:600;font-style:normal;font-size:1.4rem;line-height:1.05;color:var(--vinho)">Entregas entre Unidades</div><div style="color:#8A7A72;font-size:.8rem;font-weight:600;margin-top:1px">Motoboy/Uber de um lugar pro outro · ✓ = lançado no Financeiro do destino.</div></div></div>'; }
+function entRender(){
+  var panel=document.getElementById('module-entregas'); if(!panel) return;
+  var ed=window.__entEdit?ENTREGAS.find(function(x){return x.id===window.__entEdit;}):null;
+  var hoje=new Date().toISOString().slice(0,10), mesAtual=hoje.slice(0,7);
+  var UNS=CART_EMPRESAS, L='display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px';
+  var h=entCab()+'<div class="cart-wrap" style="padding:22px 26px;max-width:980px;margin:0 auto">';
+  h+='<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px;margin:14px 0 16px">';
+  h+='<div style="font-weight:700;margin-bottom:10px;color:var(--vinho-deep)">'+(ed?'✏️ Editando entrega':'➕ Nova entrega')+'</div>';
+  h+='<div class="ent-form-row" style="display:flex;gap:10px;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:110px"><label style="'+L+'">Data</label><input type="date" id="eData" value="'+_escA(ed?(ed.data||'').slice(0,10):hoje)+'" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<div style="flex:1;min-width:90px"><label style="'+L+'">Hora</label><input type="time" id="eHora" value="'+_escA(ed?(ed.hora||''):'')+'" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<div style="flex:1;min-width:130px"><label style="'+L+'">De (origem)</label>'+cartSel('eOrigem',UNS,ed?ed.origem:'','Selecione')+'</div>'
+    +'<div style="flex:1;min-width:130px"><label style="'+L+'">Para (destino) · paga</label>'+cartSel('eDestino',UNS,ed?ed.destino:'','Selecione')+'</div>'
+    +'</div>';
+  h+='<div class="ent-form-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">'
+    +'<div style="flex:2;min-width:180px"><label style="'+L+'">O que veio</label><input type="text" id="eDesc" value="'+_escA(ed?ed.descricao:'')+'" placeholder="Ex: caixa de vinhos, utensílios..." style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<div style="flex:1;min-width:110px"><label style="'+L+'">Valor (R$)</label><input type="text" inputmode="decimal" id="eValor" value="'+_escA(ed&&ed.valor!=null?String(ed.valor).replace('.',','):'')+'" placeholder="0,00" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<div style="flex:1;min-width:120px"><label style="'+L+'">Competência</label><input type="month" id="eComp" value="'+_escA(ed?ed.competencia:mesAtual)+'" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'</div>';
+  h+='<div class="ent-form-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">'
+    +'<div style="flex:2;min-width:200px"><label style="'+L+'">Categoria <span style="text-transform:none;font-weight:600;color:#B79A8E">· Financeiro (em branco = Frete do destino)</span></label>'+cartCatSelect('eCat',ed?ed.categoria:'','— Frete do destino (padrão) —')+'</div>'
+    +'</div>';
+  h+='<div style="display:flex;gap:9px;margin-top:12px">'+(ed?('<button class="btn btn-primary" onclick="entSalvar()">💾 Salvar alteração</button><button class="btn btn-ghost" onclick="entCancelEdit()">Cancelar</button>'):'<button class="btn btn-primary" onclick="entSalvar()">➕ Adicionar entrega</button>')+'</div>';
+  h+='</div>';
+  var _fAtivos=!!(ENT_F.status||ENT_F.origem||ENT_F.destino||ENT_F.mes);
+  var _fAberto=window.__entFiltAberto||_fAtivos;
+  h+='<button class="btn btn-ghost btn-sm" onclick="entToggleFiltros()" style="margin-bottom:10px"><i class="ph-duotone ph-magnifying-glass"></i> Filtros'+(_fAtivos?' <span style="color:var(--vinho);font-weight:800">•</span>':'')+'</button>';
+  h+='<div id="entFiltrosBox" class="ent-filtros" style="'+(_fAberto?'':'display:none;')+'">'
+    +'<div style="flex:1;min-width:112px"><label style="'+L+'">Status</label><select id="efStatus" onchange="entFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todas</option><option value="pend"'+(ENT_F.status==='pend'?' selected':'')+'>⏳ Não lançadas</option><option value="conf"'+(ENT_F.status==='conf'?' selected':'')+'>✓ Lançadas</option></select></div>'
+    +'<div style="flex:1;min-width:112px"><label style="'+L+'">De</label><select id="efOrig" onchange="entFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todos</option>'+UNS.map(function(o){return '<option'+(ENT_F.origem===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+    +'<div style="flex:1;min-width:112px"><label style="'+L+'">Para</label><select id="efDest" onchange="entFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todos</option>'+UNS.map(function(o){return '<option'+(ENT_F.destino===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+    +'<div style="flex:1;min-width:118px"><label style="'+L+'">Competência</label><input type="month" id="efMes" value="'+_escA(ENT_F.mes)+'" onchange="entFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<button class="btn btn-ghost btn-sm" onclick="entLimpar()" style="align-self:flex-end">Limpar</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="entExportar()" style="align-self:flex-end">⬇️ Exportar</button>'
+    +'</div>';
+  entEnsureCss(); h+='<div id="entLista">'+entGrid()+'</div>';
+  h+='</div>'; panel.innerHTML=h;
+}
+function entToggleFiltros(){ window.__entFiltAberto=!window.__entFiltAberto; entRender(); }
+function entFiltro(){ ENT_F.status=(document.getElementById('efStatus')||{}).value||''; ENT_F.origem=(document.getElementById('efOrig')||{}).value||''; ENT_F.destino=(document.getElementById('efDest')||{}).value||''; ENT_F.mes=(document.getElementById('efMes')||{}).value||''; var el=document.getElementById('entLista'); if(el) el.innerHTML=entGrid(); }
+function entLimpar(){ ENT_F={status:'',origem:'',destino:'',mes:''}; entRender(); }
+function entFiltrar(){
+  return ENTREGAS.filter(function(c){
+    if(ENT_F.status==='pend' && c.conferido) return false;
+    if(ENT_F.status==='conf' && !c.conferido) return false;
+    if(ENT_F.origem && c.origem!==ENT_F.origem) return false;
+    if(ENT_F.destino && c.destino!==ENT_F.destino) return false;
+    if(ENT_F.mes && c.competencia!==ENT_F.mes) return false;
+    return true;
+  });
+}
+function entGrid(){
+  var lst=entFiltrar();
+  var pend=lst.filter(function(c){return !c.conferido;}).length;
+  var tot=lst.reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  var porRota={},porMes={};
+  lst.forEach(function(c){ var v=Number(c.valor)||0; var rota=(c.origem||'?')+' → '+(c.destino||'?'); porRota[rota]=(porRota[rota]||0)+v; var m=c.competencia||(c.data?String(c.data).slice(0,7):''); if(m){porMes[m]=(porMes[m]||0)+v;} });
+  var _chip=function(label,obj){ var ks=Object.keys(obj).sort(); if(!ks.length)return ''; return '<div style="flex:1;min-width:180px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">'+label+'</div>'+ks.map(function(k){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span>'+_escC(k)+'</span><b>'+cartBRL(obj[k])+'</b></div>';}).join('')+'</div>'; };
+  var _mk=Object.keys(porMes).sort().reverse(); var _mesHtml=''; if(_mk.length){ _mesHtml='<div style="flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.66rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px">Por mês</div>'+_mk.map(function(k){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;padding:2px 0"><span>'+cartMes(k)+'</span><b>'+cartBRL(porMes[k])+'</b></div>';}).join('')+'</div>'; }
+  var resumo=(tot>0)?('<div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px">'+_chip('Por rota',porRota)+_mesHtml+'</div>'):'';
+  var h='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">'+lst.length+' entrega(s)'+(pend?(' · <b style="color:#9a5b1a">'+pend+' pendente(s) de lançar</b>'):'')+(tot>0?(' · Total <b style="color:var(--vinho-deep)">'+cartBRL(tot)+'</b>'):'')+'</div>'+resumo;
+  if(!lst.length) return h+'<div style="padding:18px;color:var(--muted);text-align:center">Nenhuma entrega com esse filtro.</div>';
+  h+='<div class="cart-gridwrap"><table class="cart-grid"><thead><tr>'+['✓','Data','De → Para','O que veio','Categoria','Valor','Comp.',''].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+  lst.forEach(function(c){
+    var _ci=cartCatInfo(c.categoria); var _cc=_ci?cartCor(_ci.group_label):null;
+    h+='<tr style="'+(_cc?('box-shadow:inset 4px 0 0 '+_cc[1]+';'):'')+(c.conferido?'background:#F3F7F3;':'')+'">'
+      +'<td class="g-chk"><input type="checkbox" id="egchk_'+c.id+'" '+(c.conferido?'checked':'')+' onchange="entToggleConf('+c.id+',this.checked)" title="Marcar = lançar como despesa no Financeiro do destino"></td>'
+      +'<td style="white-space:nowrap;color:var(--muted);font-size:.78rem">'+_escC(fmtDM(c.data))+(c.hora?(' '+_escC(String(c.hora).slice(0,5))):'')+'</td>'
+      +'<td>'+entDeParaCell(c)+'</td>'
+      +'<td style="max-width:230px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600" title="'+_escA(c.descricao||'')+'">'+_escC(c.descricao||'—')+'</div></td>'
+      +'<td class="g-cat" style="min-width:150px">'+entCatCell(c)+'</td>'
+      +'<td class="g-val">'+cartBRL(c.valor)+'</td>'
+      +'<td style="white-space:nowrap;color:var(--muted);font-size:.78rem">'+cartMesShort(c.competencia)+'</td>'
+      +'<td style="text-align:center;white-space:nowrap"><button title="Editar" onclick="entEditar('+c.id+')" style="border:0;background:transparent;color:#2C5AA0;cursor:pointer;font-size:1.05rem">✏️</button> <button title="Excluir" onclick="entExcluir('+c.id+')" style="border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1.05rem">🗑</button></td>'
+      +'</tr>';
+  });
+  h+='</tbody></table></div>'; return h;
+}
+async function entSetCat(id,sel){
+  var catId=(sel&&typeof sel==='object')?sel.value:sel;
+  var c=ENTREGAS.find(function(x){return x.id===id;}); if(!c) return;
+  var info=cartCatInfo(catId); var p={categoria:catId||null,categoria_label:info?info.label:null};
+  try{ await api.patch('entregas',p,'id=eq.'+id); c.categoria=p.categoria; c.categoria_label=p.categoria_label; }
+  catch(e){ if(typeof showToast==='function') showToast('Erro ao salvar categoria'); return; }
+  if(sel&&typeof sel==='object'){ sel.style.color=catId?'#141414':'#CBC1B9'; sel.style.fontWeight=catId?'600':'400'; }
+  if(c.conferido && c.categoria){ try{ await entRpc('entrega_lancar',id); }catch(e){} }
+  if(typeof showToast==='function') showToast('✓ Categoria salva');
+}
+async function entToggleConf(id,ck){
+  var c=ENTREGAS.find(function(x){return x.id===id;});
+  if(ck && (!c || !c.destino)){
+    if(typeof showToast==='function') showToast('Escolha o destino (Para) antes de lançar 🏷️');
+    var el0=document.getElementById('entLista'); if(el0) el0.innerHTML=entGrid();
+    return;
+  }
+  // ao DESMARCAR uma entrega já lançada: avisa que vai estornar o lançamento do Financeiro
+  if(!ck && c && c.conferido){
+    var okEst=confirm('⚠️ Esta entrega JÁ FOI lançada no Financeiro do destino.\n\nDesmarcar vai ESTORNAR (remover) esse lançamento de lá.\n\nTem certeza que quer estornar?');
+    if(!okEst){ var elc=document.getElementById('entLista'); if(elc) elc.innerHTML=entGrid(); return; }
+  }
+  try{
+    await entRpc(ck?'entrega_lancar':'entrega_estornar', id);
+    if(c) c.conferido=ck;
+    if(typeof showToast==='function') showToast(ck?'✓ Lançado no Financeiro':'↩︎ Estornado do Financeiro');
+  }catch(e){
+    if(typeof showToast==='function') showToast('Erro ao '+(ck?'lançar':'estornar')+' no Financeiro');
+  }
+  var el=document.getElementById('entLista'); if(el) el.innerHTML=entGrid();
+}
+async function entSalvar(){
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  var origem=g('eOrigem'), destino=g('eDestino');
+  if(!origem||!destino){ if(typeof showToast==='function') showToast('Escolha De (origem) e Para (destino).'); return; }
+  var desc=g('eDesc').trim();
+  var cat=g('eCat')||entCatDefault(destino);
+  var info=cartCatInfo(cat);
+  var p={ data:g('eData')||null, hora:g('eHora')||null, origem:origem, destino:destino,
+    descricao:desc||null, valor:_cartNum(g('eValor')), empresa:destino,
+    competencia:g('eComp')||null, categoria:cat||null, categoria_label:info?info.label:null };
+  try{
+    if(window.__entEdit){
+      var ex=ENTREGAS.find(function(x){return x.id===window.__entEdit;});
+      await api.patch('entregas',p,'id=eq.'+window.__entEdit);
+      if(ex&&ex.conferido){ try{ await entRpc('entrega_lancar',window.__entEdit); }catch(e){} }
+      window.__entEdit=null;
+    } else {
+      p.criado_por=(typeof currentUser!=='undefined'&&currentUser)?currentUser.name:''; p.conferido=false;
+      await api.post('entregas',p);
+    }
+    ENTREGAS=await api.get('entregas','select=*&order=data.desc.nullslast,id.desc')||[];
+    entRender(); if(typeof showToast==='function') showToast('✓ Salvo');
+  }catch(e){ if(typeof showToast==='function') showToast('Erro ao salvar'); }
+}
+function entEditar(id){ window.__entEdit=id; entRender(); var p=document.getElementById('module-entregas'); if(p)p.scrollTop=0; }
+function entCancelEdit(){ window.__entEdit=null; entRender(); }
+async function entExcluir(id){
+  if(!confirm('Excluir esta entrega do registro?'+'\n\n(Se já estiver lançada, o lançamento é estornado do Financeiro.)'))return;
+  try{ try{ await entRpc('entrega_estornar',id); }catch(e){} await api.delete('entregas','id=eq.'+id); ENTREGAS=ENTREGAS.filter(function(x){return x.id!==id;}); entRender(); }catch(e){ if(typeof showToast==='function') showToast('Erro'); }
+}
+function entExportar(){
+  var lst=entFiltrar();
+  if(!lst.length){ if(typeof showToast==='function')showToast('Nada para exportar'); return; }
+  var cols=['Data','Hora','De','Para','O que veio','Categoria','Competência','Valor','Lançado no Financeiro'];
+  var esc=function(v){ v=(v==null?'':String(v)); if(/[";\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"'; return v; };
+  var rows=lst.map(function(c){ return [c.data||'',(c.hora||''),c.origem||'',c.destino||'',c.descricao||'',(c.categoria_label||((cartCatInfo(c.categoria)||{}).label)||''),cartMes(c.competencia),(c.valor!=null?String(c.valor).replace('.',','):''),c.conferido?'Sim':'Não'].map(esc).join(';'); });
+  var tot=lst.reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  rows.push(['','','','','','','TOTAL',tot.toFixed(2).replace('.',','),''].map(esc).join(';'));
+  var csv='﻿'+cols.join(';')+'\n'+rows.join('\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='entregas-'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   if(typeof showToast==='function')showToast('✓ Exportado');
 }
