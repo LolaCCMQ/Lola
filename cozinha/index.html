@@ -7028,9 +7028,53 @@ function _enAutoComplete(inp,opts){
   inp.addEventListener('focus',render);
   inp.addEventListener('blur',()=>setTimeout(fechar,150));
 }
+/* 02/09 (Bianca): resumo da nota — fornecedor, total dos produtos × total da nota,
+   diferença detalhada (frete/IPI/ICMS-ST do XML) + motivo manual, e boletos/parcelas. */
+function enNotaResumo(n,itens,wrap){
+  const T=n.totais||null;
+  const somaBruto=(itens||[]).reduce((s,it)=>s+(+it.vbruto|| +it.vtotal||0),0);
+  const totProd=(T&&T.vprod!=null)? +T.vprod : somaBruto;
+  const totNota=(n.valor_total!=null)? +n.valor_total : (T&&T.vnf!=null? +T.vnf : null);
+  const dif=(totNota!=null? totNota:0) - totProd;
+  const box=div(null); box.style.cssText='background:#FBF7F1;border:1px solid #EFE6DC;border-radius:12px;padding:12px 14px;margin-bottom:12px';
+  let hh='<div style="font-size:13px;font-weight:800;color:var(--v)">'+_envEsc(n.emitente||'—')+'</div>';
+  if(n.cnpj) hh+='<div style="font-size:10.5px;color:var(--ts);margin-top:1px">CNPJ '+_envEsc(n.cnpj)+(n.numero?(' · nº '+_envEsc(n.numero)):'')+'</div>';
+  hh+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">'
+    +'<div style="flex:1;min-width:115px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ts);font-weight:700">Total dos produtos</div><div style="font-size:15px;font-weight:800;color:var(--tx)">'+R(totProd)+'</div></div>'
+    +'<div style="flex:1;min-width:115px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ts);font-weight:700">Total da nota</div><div style="font-size:15px;font-weight:800;color:var(--v)">'+(totNota!=null?R(totNota):'—')+'</div></div>';
+  if(Math.abs(dif)>=0.01) hh+='<div style="flex:1;min-width:115px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ts);font-weight:700">Diferença</div><div style="font-size:15px;font-weight:800;color:'+(dif>0?'#9A6B1E':'#2C7A4B')+'">'+(dif>0?'+':'')+R(dif)+'</div></div>';
+  hh+='</div>';
+  if(T){
+    const parts=[]; const add=(lbl,v,sinal)=>{ if(v&&Math.abs(+v)>=0.01) parts.push(lbl+' '+(sinal||'')+R(+v)); };
+    add('Frete',T.vfrete,'+'); add('IPI',T.vipi,'+'); add('ICMS-ST',T.vst,'+'); add('Seguro',T.vseg,'+'); add('Outros',T.voutro,'+'); add('Desconto',T.vdesc,'−');
+    if(parts.length) hh+='<div style="font-size:11px;color:var(--ts);margin-top:8px">Composição da diferença: '+parts.map(p=>'<span style="display:inline-block;background:#fff;border:1px solid #EFE6DC;border-radius:20px;padding:2px 9px;margin:2px 3px 0 0">'+p+'</span>').join('')+'</div>';
+  } else if(Math.abs(dif)>=0.01){
+    hh+='<div style="font-size:11px;color:var(--ts);margin-top:8px">O XML dessa nota não trouxe o detalhamento — em geral a diferença é imposto (IPI/ICMS-ST) ou frete.</div>';
+  }
+  box.innerHTML=hh;
+  if(Math.abs(dif)>=0.01){
+    const lbl=el('div',null,'Motivo da diferença (opcional)',{style:'font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--ts);font-weight:700;margin-top:10px;margin-bottom:3px'});
+    const ta=el('textarea','fi',null,{style:'width:100%;min-height:42px;font-size:12.5px;resize:vertical;box-sizing:border-box'}); ta.value=n.dif_motivo||''; ta.placeholder='Ex: IPI + frete; taxa de entrega; etc.';
+    ta.onchange=async()=>{ try{ await db('financeiro_notas','PATCH',{dif_motivo:(ta.value||null)},'?chave=eq.'+encodeURIComponent(n.chave)); n.dif_motivo=ta.value||null; }catch(e){ alert('Erro ao salvar motivo: '+e.message); } };
+    box.appendChild(lbl); box.appendChild(ta);
+  }
+  const parc=Array.isArray(n.parcelas)?n.parcelas:[];
+  const bl=div(null); bl.style.cssText='margin-top:10px';
+  if(parc.length){
+    bl.innerHTML='<div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--ts);font-weight:700;margin-bottom:4px">🧾 Boletos / parcelas ('+parc.length+')</div>'
+      + parc.map(p=>'<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;border-bottom:1px dashed #EFE6DC"><span>'+(p.n?('Parc. '+_envEsc(String(p.n))):'Boleto')+(p.venc?(' · vence '+DBR(p.venc)):'')+'</span><b>'+R(+p.valor||0)+'</b></div>').join('');
+  } else if(n.vencimento){
+    bl.innerHTML='<div style="font-size:12px;color:var(--ts)">🧾 1 vencimento: <b>'+DBR(n.vencimento)+'</b></div>';
+  } else {
+    bl.innerHTML='<div style="font-size:11.5px;color:var(--ts)">🧾 Sem boleto no XML (nota à vista ou sem cobrança informada).</div>';
+  }
+  box.appendChild(bl);
+  wrap.appendChild(box);
+}
 function abrirNotaEN(n){
   const itens=Array.isArray(n.itens)?n.itens:[];
   const wrap=div(null);const rows=[];
+  enNotaResumo(n,itens,wrap);
   if(!itens.length)wrap.appendChild(div('tss',['Essa nota não tem itens.']));
   itens.forEach(it=>{
     const desc=it.desc||'';const q=+it.qtd||0;const un=String(it.un||'').toUpperCase();const ct=+it.vtotal||0;
