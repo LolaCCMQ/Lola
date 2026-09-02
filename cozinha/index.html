@@ -7055,7 +7055,7 @@ function enNotaResumo(n,itens,wrap){
   if(Math.abs(dif)>=0.01){
     const lbl=el('div',null,'Motivo da diferença (opcional)',{style:'font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--ts);font-weight:700;margin-top:10px;margin-bottom:3px'});
     const ta=el('textarea','fi',null,{style:'width:100%;min-height:42px;font-size:12.5px;resize:vertical;box-sizing:border-box'}); ta.value=n.dif_motivo||''; ta.placeholder='Ex: IPI + frete; taxa de entrega; etc.';
-    ta.onchange=async()=>{ try{ await db('financeiro_notas','PATCH',{dif_motivo:(ta.value||null)},'?chave=eq.'+encodeURIComponent(n.chave)); n.dif_motivo=ta.value||null; }catch(e){ alert('Erro ao salvar motivo: '+e.message); } };
+    ta.onchange=async()=>{ try{ await db('rpc/nota_set_dif_motivo','POST',{p_chave:n.chave,p_motivo:(ta.value||null)}); n.dif_motivo=ta.value||null; }catch(e){ alert('Erro ao salvar motivo: '+e.message); } };
     box.appendChild(lbl); box.appendChild(ta);
   }
   const parc=Array.isArray(n.parcelas)?n.parcelas:[];
@@ -7151,7 +7151,7 @@ function abrirNotaEN(n){
   });
   /* 26/08 (Bianca): data de vencimento da nota (contas a pagar) — salva na hora. */
   const vencInp=el('input','fi',null,{type:'date',value:(n.vencimento||'')});
-  vencInp.onchange=async()=>{ try{ await db('financeiro_notas','PATCH',{vencimento:(vencInp.value||null)},'?chave=eq.'+encodeURIComponent(n.chave)); n.vencimento=vencInp.value||null; }catch(e){ alert('Erro ao salvar vencimento: '+e.message); } };
+  vencInp.onchange=async()=>{ try{ await db('rpc/nota_set_vencimento','POST',{p_chave:n.chave,p_venc:(vencInp.value||null)}); n.vencimento=vencInp.value||null; }catch(e){ alert('Erro ao salvar vencimento: '+e.message); } };
   wrap.appendChild(fgrp('Vencimento (opcional)',vencInp));
   const bSave=btn('btn bp','✓ Lançar entrada da nota',()=>lancarNotaEN(n,rows,bSave));
   bSave.style.cssText='width:100%;margin-top:4px;padding:13px;font-weight:800;font-size:14px';
