@@ -3411,7 +3411,7 @@ async function abrirNota(chave){
   h+=`<div id="movBox"><button class="btn sec movbtn" id="btnMover"><i class="ph-duotone ph-arrows-left-right"></i> Esta nota é de outra unidade? Mover</button></div>`;
   ST.itens.forEach(it=>{ h+=itemHTML(it); });
   $('#shBody').innerHTML=h;
-  { const _ta=$('#difMotivoTA'); if(_ta){ _ta.onchange=async()=>{ try{ await lolaEnsure(); await fetch(SB_URL+'/rest/v1/financeiro_notas?chave=eq.'+encodeURIComponent(n.chave),{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify({dif_motivo:(_ta.value||null)})}); n.dif_motivo=_ta.value||null; }catch(e){ toast('Erro ao salvar motivo: '+e.message); } }; } }
+  { const _ta=$('#difMotivoTA'); if(_ta){ _ta.onchange=async()=>{ try{ await lolaEnsure(); const _r=await fetch(SB_URL+'/rest/v1/rpc/nota_set_dif_motivo',{method:'POST',headers:lolaHeaders({'Content-Type':'application/json'}),body:JSON.stringify({p_chave:n.chave,p_motivo:(_ta.value||null)})}); if(!_r.ok) throw new Error(await _r.text()); n.dif_motivo=_ta.value||null; }catch(e){ toast('Erro ao salvar motivo: '+e.message); } }; } }
   $('#shSave').innerHTML = jaImp?'<i class="ph-duotone ph-arrows-clockwise"></i> Relançar entrada':'<i class="ph-duotone ph-check"></i> Dar entrada no estoque';
   $('#shSave').style.display='';
   $('#shSave').removeAttribute('disabled');
