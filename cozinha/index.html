@@ -1007,12 +1007,17 @@ async function carregarSaldoInsumos(){
     try{
       const [mapa, fichaItens, fichas, vendas]=await Promise.all([
         db('lola_bitbar_insumo_map','GET',null,'?ativo=eq.true&select=bitbar_cod,tipo,insumo_id,ficha_id,fator'),
-        db('lola_fichas_tecnicas_itens','GET',null,'?insumo_id=not.is.null&select=ficha_id,insumo_id,qtd_bruta,unidade'),
+        db('lola_fichas_tecnicas_itens','GET',null,'?or=(insumo_id.not.is.null,preproducao_id.not.is.null)&select=ficha_id,insumo_id,preproducao_id,qtd_bruta,unidade'),
         db('lola_fichas_tecnicas','GET',null,'?select=id,rendimento_qtd'),
         db('lola_bitbar_produtos','GET',null,'?select=cod,data,qtde_liquida,unidade&limit=20000'),
       ]);
       const rendPorFicha={}; (fichas||[]).forEach(f=>{ rendPorFicha[f.id]=parseFloat(f.rendimento_qtd)||1; });
       const itensPorFicha={}; (fichaItens||[]).forEach(it=>{ (itensPorFicha[it.ficha_id]=itensPorFicha[it.ficha_id]||[]).push(it); });
+      // 02/09: item de ficha pode apontar direto pro insumo (insumo_id) OU pra uma pré-produção
+      // (preproducao_id) — os itens de Central (Pudim, PP Schnitzel Un etc.) são rastreados como
+      // insumo mas entram nas fichas via preproducao_id (mesmo padrão do "onde é usado", item 6.8),
+      // então sem esse reverso a maioria dos itens de Central nunca era descontada aqui.
+      const ppParaInsumo={}; (_ins||[]).forEach(i=>{ if(i.preproducao_id) ppParaInsumo[i.preproducao_id]=i.id; });
       const codDireto={}, codFicha={};
       (mapa||[]).forEach(m=>{
         const fat=parseFloat(m.fator)||1;
@@ -1028,8 +1033,10 @@ async function carregarSaldoInsumos(){
           const rend=rendPorFicha[fr.ficha_id]||1;
           (itensPorFicha[fr.ficha_id]||[]).forEach(it=>{
             const qb=parseFloat(it.qtd_bruta)||0; if(!qb) return;
+            const insId = it.insumo_id || (it.preproducao_id ? ppParaInsumo[it.preproducao_id] : null);
+            if(!insId) return; // sub-receita sem insumo de Central rastreado — não dá pra descontar
             const consumo=qL*fr.fator*(qb/rend);
-            (vend[it.insumo_id]=vend[it.insumo_id]||[]).push({q:consumo, un:it.unidade, data:r.data});
+            (vend[insId]=vend[insId]||[]).push({q:consumo, un:it.unidade, data:r.data});
           });
         }
       });
@@ -1051,18 +1058,19 @@ async function carregarSaldoInsumos(){
         const c=_convUnid(e.q, e.un, un);
         if(c!=null){ somaDes+=c; } else { pulou=true; }
       });
-      let somaVend=0, temVend=false, pulouVend=false;
+      const coberto = !!(vend[i.id]); // insumo tem produto do Bitbar mapeado (item 5), mesmo que sem venda no período
+      let somaVend=0, pulouVend=false;
       (vend[i.id]||[]).forEach(e=>{
         if(desde && e.data && e.data < desde) return; // só vendido depois da contagem
         const c=_convUnid(e.q, e.un, un);
-        if(c!=null){ somaVend+=c; temVend=true; } else { pulouVend=true; }
+        if(c!=null){ somaVend+=c; } else { pulouVend=true; }
       });
       let saldo=null, semBase=false;
       if(baseQ!=null){ saldo = baseQ + somaEnt - somaDes; }
       else if(temEnt||somaDes){ saldo = somaEnt - somaDes; semBase=true; }
       let previsto=null;
-      if(saldo!=null && (temVend||somaVend)){ previsto = saldo - somaVend; }
-      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, contResp: uc?uc.resp:null, entr: somaEnt, desc: somaDes, semBase, aprox: pulou||pulouVend, vendido: temVend?somaVend:null, previsto };
+      if(saldo!=null && coberto){ previsto = saldo - somaVend; }
+      map[i.id]={ saldo, un, contQtd: uc?uc.qtd:null, contData: desde, contResp: uc?uc.resp:null, entr: somaEnt, desc: somaDes, semBase, aprox: pulou||pulouVend, coberto, vendido: coberto?somaVend:null, previsto };
     });
   }catch(e){ /* saldo é informativo — nunca derruba a tela */ }
   return map;
@@ -1120,7 +1128,7 @@ async function pgIns(c){
     ]));
     const w=div(null,null,{id:'ins-t'});c.appendChild(w);
     function _insSortVal(i,by){
-      if(by==='saldo'){ const sd=_saldoMap&&_saldoMap[i.id]; return (sd&&sd.saldo!=null)?sd.saldo:-Infinity; }
+      if(by==='previsto'){ const sd=_saldoMap&&_saldoMap[i.id]; if(sd&&sd.previsto!=null) return sd.previsto; if(sd&&sd.saldo!=null) return sd.saldo; return -Infinity; }
       if(by==='preco'){ return parseFloat(i.custo_por_unidade)||0; }
       return (i.nome||'').toLowerCase();
     }
@@ -1227,7 +1235,8 @@ function ensureInsxCss(){ if(document.getElementById('insxCss'))return; const s=
 .insx .ix-preco{text-align:right;font-weight:700;color:var(--v);white-space:nowrap}
 .insx .ix-preco .u{display:block;font-size:9px;color:var(--ts);opacity:.6;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
 .insx .ix-acts{text-align:right;width:34px}
-@media(max-width:640px){.insx .ix-atu{display:none}.insx thead th.hcol-atu{display:none}}
+@media(max-width:640px){.insx .ix-atu{display:none}.insx thead th.hcol-atu{display:none}.insx .ix-cont{display:none}.insx thead th.hcol-cont{display:none}}
+@media(max-width:480px){.insx .ix-vend{display:none}.insx thead th.hcol-vend{display:none}}
 `; document.head.appendChild(s); }
 function mkInsTableX(itens){
   ensureInsxCss();
@@ -1237,7 +1246,7 @@ function mkInsTableX(itens){
   function sortArrow(by){ return ss.sortBy===by?(ss.sortDir==='asc'?' ▲':' ▼'):''; }
   function sh(by,lb){ return '<th class="ix-sortable" data-sort="'+by+'" style="cursor:pointer;user-select:none">'+lb+sortArrow(by)+'</th>'; }
   const thead=el('thead');
-  thead.innerHTML='<tr>'+sh('nome','Insumo')+sh('saldo','Saldo')+'<th class="hcol-atu">Atualizado</th><th class="ix-sortable" data-sort="preco" style="cursor:pointer;user-select:none;text-align:right">Preço'+sortArrow('preco')+'</th><th></th></tr>';
+  thead.innerHTML='<tr>'+sh('nome','Item')+'<th class="hcol-cont">Última contagem</th><th class="hcol-vend">Vendas</th>'+sh('previsto','Previsto')+'<th class="hcol-atu">Atualizado</th><th class="ix-sortable" data-sort="preco" style="cursor:pointer;user-select:none;text-align:right">Preço'+sortArrow('preco')+'</th><th></th></tr>';
   thead.querySelectorAll('.ix-sortable').forEach(th=>{ th.addEventListener('click',()=>{ window._insSetSort&&window._insSetSort(th.dataset.sort); }); });
   tbl.appendChild(thead);
   const tb=el('tbody');
@@ -1245,27 +1254,43 @@ function mkInsTableX(itens){
     const unCusto=i.unidade_custo||'kg';
     const dcArr=insDotCor(i.categoria); const dc=dcArr[0], dh=dcArr[1];
     const sd=_saldoMap&&_saldoMap[i.id];
-    let saldoHtml='<span class="ix-none">sem contagem</span>', saldoTitle='';
-    if(sd && sd.saldo!=null){
+    // Última contagem
+    let contHtml='<span class="ix-none">sem contagem</span>', contTitle='';
+    if(sd && sd.contData){
+      contHtml='<span class="ix-saldo">'+_nbr(sd.contQtd||0,1)+' '+sd.un+'</span><br><span class="ix-none" style="font-size:10px">'+_uEsc(DBR(sd.contData))+(sd.contResp?(' · '+_uEsc(sd.contResp)):'')+'</span>';
+      contTitle='contagem de '+DBR(sd.contData)+(sd.contResp?(' por '+sd.contResp):'');
+    }
+    // Vendas (Bitbar) desde a última contagem
+    let vendHtml='<span class="ix-none">—</span>', vendTitle='Nenhum produto do Bitbar mapeado pra esse insumo ainda (Compras/CMV → Mapear Vendas)';
+    if(sd && sd.coberto){
+      vendHtml='<span class="ix-saldo">'+_nbr(sd.vendido||0,1)+' '+sd.un+'</span>';
+      vendTitle=(sd.contData?('vendido desde a contagem de '+DBR(sd.contData)):'vendido no período')+(sd.aprox?' (aproximado — alguma venda numa unidade que não convertemos)':'');
+    }
+    // Previsto = contagem + notas - descarte - vendido
+    let prevHtml='<span class="ix-none">sem contagem</span>', prevTitle='';
+    if(sd && sd.previsto!=null){
       const min=(i.qtd_minima!=null&&i.qtd_minima!=='')?parseFloat(i.qtd_minima):null;
       let cls='ok',lab='OK';
       if(sd.semBase){cls='nc';lab='sem base';}
-      else if(sd.saldo<=0){cls='lo';lab='Zerado';}
-      else if(min!=null&&sd.saldo<=min){cls='lo';lab='Abaixo';}
-      else if(min!=null&&sd.saldo<=min*1.5){cls='am';lab='Atenção';}
+      else if(sd.previsto<=0){cls='lo';lab='Zerado';}
+      else if(min!=null&&sd.previsto<=min){cls='lo';lab='Abaixo';}
+      else if(min!=null&&sd.previsto<=min*1.5){cls='am';lab='Atenção';}
       const apx=sd.aprox?'≈ ':'';
-      saldoHtml='<span class="ix-saldo">'+apx+_nbr(sd.saldo,1)+' '+sd.un+'</span><span class="ix-st '+cls+'">'+lab+'</span>'+(min!=null?' <span class="ix-none" style="font-size:10px">mín '+_nbr(min,0)+'</span>':'')+(sd.previsto!=null?'<br><span class="ix-none" style="font-size:10px" title="Posição prevista: contagem + notas - vendido (Bitbar) desde a contagem">previsto: '+_nbr(sd.previsto,1)+' '+sd.un+'</span>':'');
-      saldoTitle=(sd.contData?('contagem '+DBR(sd.contData)+': '+_nbr(sd.contQtd||0,1)+' '+sd.un):'sem contagem')+(sd.entr?(' + '+_nbr(sd.entr,1)+' '+sd.un+' de notas'):'')+(sd.vendido?(' - '+_nbr(sd.vendido,1)+' '+sd.un+' vendido(s)'):'');
+      prevHtml='<span class="ix-saldo">'+apx+_nbr(sd.previsto,1)+' '+sd.un+'</span><span class="ix-st '+cls+'">'+lab+'</span>'+(min!=null?' <span class="ix-none" style="font-size:10px">mín '+_nbr(min,0)+'</span>':'');
+      prevTitle=(sd.contData?('contagem '+DBR(sd.contData)+': '+_nbr(sd.contQtd||0,1)+' '+sd.un):'sem contagem')+(sd.entr?(' + '+_nbr(sd.entr,1)+' '+sd.un+' de notas'):'')+(sd.desc?(' - '+_nbr(sd.desc,1)+' '+sd.un+' de descarte'):'')+(sd.coberto?(' - '+_nbr(sd.vendido||0,1)+' '+sd.un+' vendido'):'');
+    } else if(sd && sd.saldo!=null){
+      prevHtml='<span class="ix-none" title="Sem produto do Bitbar mapeado pra esse insumo — não dá pra descontar vendas">não rastreado</span>';
     }
     let atu;
     if(i.preco_atualizado_em){ const d=new Date(i.preco_atualizado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}); atu=_uEsc(d+(i.preco_atualizado_por?(' · '+i.preco_atualizado_por):'')); }
-    else if(sd && sd.contData){ atu='<span title="Preço nunca foi atualizado manualmente — data da última contagem de estoque">'+_uEsc('contagem '+DBR(sd.contData)+(sd.contResp?(' · '+sd.contResp):''))+'</span>'; }
-    else atu='<span class="ix-none">Sem registro</span>';
+    else atu='<span class="ix-none">Sem atualização de preço</span>';
     const alerta = insForaDeReceita(i) ? ' <i class="ph-duotone ph-warning ix-alert" style="color:#C99A33;cursor:pointer" title="Não está em nenhuma receita — toque para ver onde poderia entrar"></i>' : '';
     const tr=el('tr');
     tr.innerHTML=
       '<td class="ix-nome"><div class="ix-nm"><span class="ix-dot" style="background:'+dc+';box-shadow:0 0 0 3px '+dh+'" title="'+_uEsc(i.categoria||'')+'"></span><span class="ix-nmt" title="Abrir a ficha completa — preço, nota, fornecedor, saldo, onde é usado">'+_uEsc(i.nome)+'</span>'+alerta+'</div></td>'+
-      '<td class="ix-scell" title="'+_uEsc(saldoTitle)+'">'+saldoHtml+'</td>'+
+      '<td class="ix-cont hcol-cont" title="'+_uEsc(contTitle)+'">'+contHtml+'</td>'+
+      '<td class="ix-vend hcol-vend" title="'+_uEsc(vendTitle)+'">'+vendHtml+'</td>'+
+      '<td class="ix-prev" title="'+_uEsc(prevTitle)+'">'+prevHtml+'</td>'+
       '<td class="ix-atu hcol-atu">'+atu+'</td>'+
       '<td class="ix-preco">'+R((parseFloat(i.custo_por_unidade)||0)||(i.preproducao_id&&_ppPrecoMap[i.preproducao_id])||0)+(i.preproducao_id&&!(parseFloat(i.custo_por_unidade)||0)?' <i class="ph-duotone ph-info" title="Preço vindo da pré-produção vinculada (o insumo em si não tem preço próprio cadastrado)" style="color:var(--ts);opacity:.6;font-size:11px"></i>':'')+'<span class="u">'+insUnExt(unCusto)+'</span></td>'+
       '<td class="ix-acts"></td>';
