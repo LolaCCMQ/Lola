@@ -1870,6 +1870,93 @@ init();
   };
 })();
 </script>
+
+<!-- ============================================================
+     Novo evento: unidade e data obrigatorias — 03/09/2026
+     Antes o "+ Novo evento" inseria uma linha em branco no banco.
+     Evento sem data cai no fim da lista (ordenacao usa "9999") e
+     evento sem unidade some do filtro Local. Agora pergunta antes.
+     ============================================================ -->
+<script>
+(function(){
+  if(typeof sb==='undefined' || typeof DB==='undefined') return;
+
+  var st=document.createElement('style');
+  st.textContent=
+   '.nev-back{position:fixed;inset:0;background:rgba(40,28,28,.45);z-index:10000;display:none;'
+  +'align-items:center;justify-content:center;padding:16px}'
+  +'.nev-back.show{display:flex}'
+  +'.nev-box{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:420px;'
+  +'box-shadow:0 20px 60px rgba(0,0,0,.25)}'
+  +'.nev-box h3{margin:0 0 4px;font-size:19px}'
+  +'.nev-box .sub{color:#8a7d7d;font-size:12.5px;margin-bottom:16px}'
+  +'.nev-f{margin-bottom:12px}'
+  +'.nev-f label{display:block;font-size:12px;font-weight:700;color:#6b5f5f;margin-bottom:5px}'
+  +'.nev-f input,.nev-f select{width:100%;padding:10px 11px;border:1px solid #e3dbd3;border-radius:9px;'
+  +'font:inherit;font-size:14px;background:#fff;box-sizing:border-box}'
+  +'.nev-f input:focus,.nev-f select:focus{outline:2px solid #A82A2A33;border-color:#A82A2A}'
+  +'.nev-err{color:#A82A2A;font-size:12px;margin:-6px 0 10px;min-height:15px}'
+  +'.nev-acts{display:flex;gap:9px;justify-content:flex-end;margin-top:6px}'
+  +'.nev-acts button{border:0;border-radius:9px;padding:10px 16px;font:inherit;font-weight:700;'
+  +'font-size:13.5px;cursor:pointer}'
+  +'.nev-acts .ok{background:#A82A2A;color:#fff}'
+  +'.nev-acts .no{background:#f2ece7;color:#6b5f5f}';
+  document.head.appendChild(st);
+
+  var back=document.createElement('div');
+  back.className='nev-back'; back.id='novoEvModal';
+  var opcoes='<option value="">Escolha…</option>';
+  (typeof LOCAIS!=='undefined'?LOCAIS:[]).forEach(function(l){
+    if(l.v) opcoes+='<option value="'+l.v+'">'+l.l+'</option>';
+  });
+  back.innerHTML=
+   '<div class="nev-box">'
+  +'<h3>Novo evento</h3>'
+  +'<div class="sub">Esses tres campos evitam que o evento suma nos filtros depois.</div>'
+  +'<div class="nev-f"><label>Nome do evento</label><input id="nevNome" placeholder="Ex.: Casamento Lucas Laux"></div>'
+  +'<div class="nev-f"><label>Unidade</label><select id="nevLocal">'+opcoes+'</select></div>'
+  +'<div class="nev-f"><label>Data</label><input id="nevData" type="date"></div>'
+  +'<div class="nev-err" id="nevErr"></div>'
+  +'<div class="nev-acts"><button class="no" onclick="nevFechar()">Cancelar</button>'
+  +'<button class="ok" id="nevOk" onclick="nevCriar()">Criar evento</button></div>'
+  +'</div>';
+  document.body.appendChild(back);
+  back.addEventListener('click', function(e){ if(e.target===back) nevFechar(); });
+
+  function $(id){ return document.getElementById(id); }
+  window.nevFechar=function(){ back.className='nev-back'; };
+
+  window.newEvent=function(){
+    $('nevNome').value=''; $('nevLocal').value=''; $('nevData').value=''; $('nevErr').textContent='';
+    $('nevOk').disabled=false; $('nevOk').textContent='Criar evento';
+    back.className='nev-back show';
+    setTimeout(function(){ try{ $('nevNome').focus(); }catch(e){} }, 60);
+  };
+
+  window.nevCriar=async function(){
+    var nome=($('nevNome').value||'').trim();
+    var local=$('nevLocal').value||'';
+    var data=$('nevData').value||'';
+    if(!nome){ $('nevErr').textContent='Falta o nome do evento.'; $('nevNome').focus(); return; }
+    if(!local){ $('nevErr').textContent='Escolha a unidade.'; $('nevLocal').focus(); return; }
+    if(!data){ $('nevErr').textContent='Escolha a data. Se ainda nao fechou, poe a data prevista — da pra trocar depois.'; $('nevData').focus(); return; }
+    $('nevErr').textContent=''; $('nevOk').disabled=true; $('nevOk').textContent='Criando…';
+    try{
+      var ev=blankEvent(); ev.nome=nome; ev.local=local; ev.data=data;
+      var r=await sb.from('lola_eventos').insert(toRow(ev)).select().single();
+      if(r.error) throw r.error;
+      var e=fromRow(r.data); delete e._precisaMigrar;
+      DB.events.push(e);
+      nevFechar();
+      open_(e.id);
+    }catch(err){
+      console.error(err);
+      $('nevErr').textContent='Nao consegui criar. Tente de novo.';
+      $('nevOk').disabled=false; $('nevOk').textContent='Criar evento';
+    }
+  };
+})();
+</script>
 <div id="printArea"></div>
 </body>
 </html>
