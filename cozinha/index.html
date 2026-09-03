@@ -6744,12 +6744,16 @@ function _enEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;
 function _enPendItemHTML(p){
   const tipoLbl={nota_nao_encontrada:'Nota não encontrada',valor_divergente:'Valor divergente',fornecedor_desconhecido:'Fornecedor desconhecido',outro:'Pendência'};
   const obs=p.descricao?'<div style="font-size:11.5px;color:#8a6a15;margin-top:2px;font-style:italic">“'+_enEsc(p.descricao)+'”</div>':'';
+  const temAnot=!!(p.anotacao&&String(p.anotacao).trim());
+  const anot='<div class="enpen-anot" data-id="'+p.id+'" style="font-size:11.5px;color:#7a5c0e;margin-top:4px;'+(temAnot?'':'display:none')+'">📝 <span class="enpen-anot-txt">'+_enEsc(p.anotacao||'')+'</span></div>';
   return '<div class="enpen-item" data-id="'+p.id+'" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid #F1DFB8">'
     +'<div style="flex:1;min-width:0">'
     +'<div style="font-weight:700;color:#5a4708;font-size:13px">'+_enEsc(p.fornecedor||'(sem fornecedor)')+'</div>'
     +'<div style="font-size:12px;color:#9A6B1E;margin-top:1px">'+R(p.valor)+' · '+DBR(p.data_pagamento)+' · '+(UL[p.unit]||p.unit||'')+' · <span style="opacity:.85">'+(tipoLbl[p.tipo]||'Pendência')+'</span></div>'
     +obs
+    +anot
     +(p.criado_por?'<div style="font-size:10.5px;color:#b08a3a;margin-top:2px">pedido por '+_enEsc(p.criado_por)+'</div>':'')
+    +'<button class="enpen-note" data-id="'+p.id+'" style="margin-top:5px;background:none;border:0;padding:0;color:#9A6B1E;font-weight:700;font-size:11.5px;cursor:pointer;text-decoration:underline">✎ '+(temAnot?'editar anotação':'anotar')+'</button>'
     +'</div>'
     +'<button class="btn bp bsm enpen-ok" data-id="'+p.id+'" style="white-space:nowrap;flex-shrink:0">✓ Localizei</button>'
     +'</div>';
@@ -6765,6 +6769,20 @@ async function renderEnPendencias(box){
     +'<span id="enPenCount" style="background:#9A6B1E;color:#fff;font-weight:700;font-size:11px;border-radius:10px;padding:1px 8px">'+pend.length+'</span></div>'
     +'<div style="font-size:11.5px;color:#9A6B1E;line-height:1.45;margin-bottom:2px">Pagamentos que o <b>Financeiro</b> não achou a nota fiscal. Localize a nota (busque no Espião ou faça a entrada) e toque em <b>Localizei</b> — o Financeiro é avisado pra associar ao pagamento.</div>'
     +'<div id="enPenList">'+pend.map(_enPendItemHTML).join('')+'</div>';
+  box.querySelectorAll('.enpen-note').forEach(b=>b.addEventListener('click',async()=>{
+    const id=b.getAttribute('data-id');
+    const p=pend.find(x=>String(x.id)===String(id));
+    const cur=(p&&p.anotacao)||'';
+    const txt=prompt('Anotação sobre esta nota (ex.: nota é de outro lugar; valor não bate; já paga; etc.):',cur);
+    if(txt===null)return; // cancelou
+    try{
+      await db('rpc/en_pendencia_anotar','POST',{p_id:id,p_texto:txt});
+      const novo=(txt||'').trim(); if(p)p.anotacao=novo;
+      const abox=box.querySelector('.enpen-anot[data-id="'+id+'"]');
+      if(abox){ const sp=abox.querySelector('.enpen-anot-txt'); if(sp)sp.textContent=novo; abox.style.display=novo?'':'none'; }
+      b.textContent='✎ '+(novo?'editar anotação':'anotar');
+    }catch(e){ alert('Erro ao anotar: '+e.message); }
+  }));
   box.querySelectorAll('.enpen-ok').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.getAttribute('data-id');
     if(!confirm('Marcar esta nota como localizada?\n\nO Financeiro será avisado pra associar ao pagamento.'))return;
