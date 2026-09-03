@@ -1389,6 +1389,10 @@ function openSplit(id){
   openSheet(`<h3>Dividir lançamento</h3>
     <div class="hint">${esc(l.memo||'')} · ${brl(+l.amount)}</div>
     <div class="note" id="splitRem"></div>
+    <div class="fld row2" style="align-items:flex-end;gap:8px;margin-bottom:10px">
+      <div style="flex:1;margin:0"><label>Dividir em quantas partes iguais?</label><input type="number" id="splitN" min="2" max="60" value="2" inputmode="numeric"></div>
+      <button class="btn g" id="splitGen" style="white-space:nowrap;margin:0"><i class="ph-duotone ph-squares-four"></i> Gerar partes</button>
+    </div>
     <div id="splitParts">
       ${splitPartRow({amount:'',comp:l.competencia,cat:l.category})}
       ${splitPartRow({amount:'',comp:l.competencia,cat:l.category})}
@@ -1405,6 +1409,11 @@ function openSplit(id){
   };
   wire(); rec();
   $('#addPart').onclick=()=>{ $('#splitParts').insertAdjacentHTML('beforeend',splitPartRow({amount:'',comp:l.competencia,cat:l.category})); wire(); rec(); };
+  $('#splitGen').onclick=()=>{ let n=parseInt($('#splitN').value,10); if(!(n>=2)){toast('Mínimo de 2 partes');return;} if(n>60)n=60;
+    const cents=Math.round(mag*100), per=Math.floor(cents/n);
+    const arr=Array.from({length:n},(_,i)=>per+(i===n-1?(cents-per*n):0)); /* última parte fica com o resto p/ somar exato */
+    $('#splitParts').innerHTML=arr.map(c=>splitPartRow({amount:(c/100).toFixed(2).replace('.',','),comp:l.competencia,cat:l.category})).join('');
+    wire(); rec(); };
   $('#doSplit').onclick=()=>doSplit(id);
 }
 async function doSplit(id){
@@ -1892,6 +1901,7 @@ function openLinkPagamento(lancId, forcePicker){
     $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(b.dataset.unl,lancId); toast('Removida'); closeSheet(); renderNotas(); renderLanc(); });
     return;
   }
+  if(ST.linkAllMeses===undefined) ST.linkAllMeses=true; /* padrão: mostra notas de TODAS as competências */
   const pcomp=l.competencia, soMes=!ST.linkAllMeses;
   let all=scoreNotas(l);
   if(soMes) all=all.filter(c=>((c.n.data_emissao||'').slice(0,7))===pcomp); // por padrão, só notas do mês do pagamento
@@ -1903,7 +1913,7 @@ function openLinkPagamento(lancId, forcePicker){
       <span class="lnkbox" style="width:22px;height:22px;border:2px solid var(--border);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0"></span>
       <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'(sem emitente)')}</div>
       <div class="date" style="font-size:11px;color:var(--mut)">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</div>
-      ${pagsDaNota(n.chave).length?`<div style="font-size:10.5px;color:#166534;font-weight:700;margin-top:3px"><i class="ph-duotone ph-check-circle"></i> já associada a ${pagsDaNota(n.chave).length} pagamento(s)</div>`:''}
+      ${(function(){var ids=pagsDaNota(n.chave); if(!ids.length)return''; var parts=ids.map(function(id){var p=(ST.lanc||[]).find(function(x){return String(x.id)===String(id);}); return p?(fmtDate(p.date)+' · '+brl(+p.amount)):'pagamento';}); return '<div style="font-size:10.5px;color:#166534;font-weight:700;margin-top:3px"><i class="ph-duotone ph-check-circle"></i> já associada a: '+parts.join('  ·  ')+'</div>';})()}
       ${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:5px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
         <div class="amt neg">${brl(-(+n.valor_total||0))}</div>
