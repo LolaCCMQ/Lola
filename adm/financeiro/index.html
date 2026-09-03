@@ -1847,6 +1847,21 @@ function openLinkNota(chave){
     if(unico) openDiferenca(unico);   // pagamento > nota: pergunta do que é a sobra
   };
 }
+/* Acha um subconjunto de notas que soma EXATAMENTE o valor do pagamento (em centavos).
+   Usado pelo botão "Sugerir as notas que fecham o valor". Backtracking com teto de nós. */
+function _subsetSum(cands, alvo){
+  const arr=cands.map(c=>({ch:c.ch, v:Math.round((+c.v||0)*100)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const target=Math.round((+alvo||0)*100); if(!target) return null;
+  let best=null, nodes=0; const CAP=300000;
+  (function rec(i,acc,chosen){
+    if(best||nodes++>CAP) return;
+    if(acc===target){ best=chosen.slice(); return; }
+    if(acc>target||i>=arr.length) return;
+    chosen.push(arr[i].ch); rec(i+1,acc+arr[i].v,chosen); chosen.pop(); if(best) return;
+    rec(i+1,acc,chosen);
+  })(0,0,[]);
+  return best;
+}
 // A PARTIR DO PAGAMENTO: marca 1+ notas (ex.: 1 pagamento cobre várias notas)
 function openLinkPagamento(lancId, forcePicker){
   const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l)return;
@@ -1909,7 +1924,7 @@ function openLinkPagamento(lancId, forcePicker){
         return normSearch(n.emitente||'').includes(q) || (''+(n.numero||'')).includes(q) || (qd && vd.includes(qd)); })
         .sort((a,b)=>(a.pags-b.pags)||(a.vd-b.vd)).slice(0,60); /* não-associadas primeiro; associadas aparecem com selo */
       return f.length?`<div class="cg">Busca — ${f.length} nota(s)</div>`+f.map(({n})=>nrow(n,false)).join(''):'<div class="note">Nada encontrado com esse texto/valor.</div>'; }
-    let a=allCands; if(soMes) a=a.filter(c=>((c.n.data_emissao||'').slice(0,7))===pcomp);
+    let a=allCands; if(soMes) a=a.filter(c=>c.nm>0 || ((c.n.data_emissao||'').slice(0,7))===pcomp); /* mesmo fornecedor nunca some pelo filtro de mês — facilita fechar 1 pagamento com várias notas */
     const mesmo=a.filter(c=>c.nm>0).sort((x,y)=>(x.pags-y.pags)||(x.vd-y.vd)); /* mesmo fornecedor: mostra até as já associadas (com selo), não-associadas primeiro */
     const prox=a.filter(c=>c.nm===0 && c.pags===0 && c.vd<=Math.max(5,vlanc*0.05)).sort((x,y)=>x.vd-y.vd);
     const out=a.filter(c=>c.nm===0 && c.pags===0 && c.vd>Math.max(5,vlanc*0.05)).sort((x,y)=>x.vd-y.vd).slice(0,15);
@@ -1933,6 +1948,7 @@ function openLinkPagamento(lancId, forcePicker){
     ${ligHTML}
     <div class="catlist" id="lnkList"></div>
     <div class="note" id="lnkTot" style="font-size:12.5px"></div>
+    <button class="btn o" id="lnkSug" style="margin-bottom:8px"><i class="ph-duotone ph-magic-wand"></i> Sugerir as notas que fecham ${brl(vlanc)}</button>
     <button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>
     <button class="btn o" id="lnkDiv" style="margin-top:8px"><i class="ph-duotone ph-flag"></i> Não achei a nota — pedir pra localizar</button>`);
   { const mb=$('#lnkMes'); if(mb) mb.onclick=()=>{ ST.linkAllMeses=!ST.linkAllMeses; openLinkPagamento(lancId, true); }; }
@@ -1966,6 +1982,19 @@ function openLinkPagamento(lancId, forcePicker){
   const paint=(q)=>{ $('#lnkList').innerHTML=buildRows(q); wireRows(); };
   paint(''); recalc();
   { const si=$('#lnkSearch'); if(si) si.oninput=e=>paint(e.target.value); }
+  { const sg=$('#lnkSug'); if(sg) sg.onclick=()=>{
+      // candidatas = mesmo fornecedor, ainda sem pagamento
+      const cands=allCands.filter(c=>c.nm>0 && c.pags===0).map(c=>({ch:c.n.chave, v:+c.n.valor_total||0}));
+      if(!cands.length){ toast('Não há notas desse fornecedor sem pagamento pra combinar'); return; }
+      // 1 nota que bate sozinha? senão, combinação que soma o total
+      const umaExata=cands.find(c=>Math.abs(c.v-vlanc)<0.01);
+      const combo = umaExata ? [umaExata.ch] : _subsetSum(cands, vlanc);
+      if(!combo){ toast('Não achei combinação exata desse fornecedor que feche '+brl(vlanc)+' — marque manualmente'); return; }
+      sel.clear(); combo.forEach(ch=>sel.add(ch));
+      if($('#lnkSearch')) $('#lnkSearch').value='';
+      paint(''); recalc();
+      toast(combo.length===1?'1 nota marcada que fecha o valor':combo.length+' notas marcadas que somam '+brl(vlanc));
+  }; }
   $$('#sheetBody [data-unl]').forEach(b=>b.onclick=async()=>{ await unlinkNotaLanc(b.dataset.unl,lancId); toast('Removida'); closeSheet(); renderNotas(); renderLanc(); });
   { const rc=$('#pgReclass'); if(rc) rc.onclick=()=>{ closeSheet(); openCatPicker(lancId); }; }
   const go=$('#lnkGoN');
