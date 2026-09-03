@@ -3198,9 +3198,11 @@ async function modalFicha(item){
         '?select=*,lola_insumos(id,nome,custo_por_unidade,unidade_compra),lola_preproducoes(id,nome,custo_por_unidade,rendimento_un)&ficha_id=eq.'+item.id);
       existentes.forEach(it=>{
         const isIns=!!it.lola_insumos;
+        const isPrep=!!it.lola_preproducoes;
         ings.push({
-          tipo:isIns?'insumo':'prep',
-          id:isIns?it.lola_insumos.id:it.lola_preproducoes?.id,
+          tipo:isIns?'insumo':(isPrep?'prep':'manual'),
+          id:isIns?it.lola_insumos.id:(isPrep?it.lola_preproducoes.id:''),
+          nome_manual:it.nome_manual||'',
           qtd_bruta:it.qtd_bruta,
           qtd_liquida:it.qtd_liquida,
           fc:it.fc,
@@ -3249,6 +3251,23 @@ async function modalFicha(item){
     iw.innerHTML='';
     const optsAll=mkOptsUnificada();
     ings.forEach((ig,idx)=>{
+      if(ig.tipo==='manual'){
+        const badgeM=span('bq','?');
+        badgeM.style.cssText='font-size:10px;padding:2px 8px;border-radius:50px;font-weight:700;white-space:nowrap;flex-shrink:0;background:#C47700;color:#fff';
+        badgeM.title='Item não cadastrado — valor só para precificação';
+        const nomeI=finp('',ig.nome_manual||'',v=>{ig.nome_manual=v;},'text');
+        nomeI.placeholder='Nome do item (não cadastrado)';
+        nomeI.style.cssText='min-width:0';
+        const custoI=finp('',ig.custo_total?String(ig.custo_total).replace('.',','):'',v=>{const n=parseFloat((v||'0').replace(',','.'))||0;ig.custo_total=n;ig.custo_unitario=n;calcTotais();},'text');
+        custoI.setAttribute('inputmode','decimal');
+        custoI.placeholder='Custo R$';
+        custoI.style.cssText='width:100%;min-width:0;text-align:right;padding:6px 4px';
+        const rmM=btn('btn bd bxs','✕',()=>{ings.splice(idx,1);rebuildI();calcTotais();});
+        const rowM=div(null,[badgeM,nomeI,custoI,rmM],{style:'display:grid;grid-template-columns:42px 1fr 100px 24px;gap:8px;align-items:center;background:#FFF6E5;border:1px solid #F1D9A0;border-radius:8px;padding:8px;margin-bottom:6px'});
+        rowM.title='Item ainda não cadastrado como insumo — este valor entra só para precificar o prato.';
+        iw.appendChild(rowM);
+        return;
+      }
       // Badge fixo (insumo ou prep, baseado na seleção)
       const tipoBadge=span('bq '+(ig.tipo==='prep'?'bce':'bc'),ig.tipo==='prep'?'PP':'Ins');
       tipoBadge.style.cssText='font-size:10px;padding:2px 8px;border-radius:50px;font-weight:700;white-space:nowrap;flex-shrink:0';
@@ -3432,7 +3451,10 @@ async function modalFicha(item){
         el('hr','dv'),
         div('fl_ jb aic mb3',[
           el('strong',null,'Composi\u00E7\u00E3o do prato',{style:'font-size:15px;font-family:Fraunces,serif;font-weight:600'}),
-          btn('btn bg bsm','+ Ingrediente',()=>{ings.push({tipo:'insumo',id:'',qtd_bruta:'',qtd_liquida:0,fc:1,custo_unitario:0,custo_total:0,unidade:'g'});rebuildI();})
+          div('fl_ aic',[
+            btn('btn bg bsm','+ Ingrediente',()=>{ings.push({tipo:'insumo',id:'',qtd_bruta:'',qtd_liquida:0,fc:1,custo_unitario:0,custo_total:0,unidade:'g'});rebuildI();}),
+            btn('btn bo bsm','+ Item não cadastrado',()=>{ings.push({tipo:'manual',id:'',nome_manual:'',qtd_bruta:1,qtd_liquida:1,fc:1,custo_unitario:0,custo_total:0,unidade:'un'});rebuildI();})
+          ],{style:'display:flex;gap:8px;flex-wrap:wrap'})
         ]),
         ingHead,
         iw,
@@ -3475,8 +3497,8 @@ async function modalFicha(item){
       });
     }else{const[nv]=await db('lola_fichas_tecnicas','POST',p);fid=nv.id;}
     for(const ig of ings){
-      if(!ig.id)continue;
-      await db('lola_fichas_tecnicas_itens','POST',{ficha_id:fid,insumo_id:ig.tipo==='insumo'?ig.id:null,preproducao_id:ig.tipo==='prep'?ig.id:null,unidade:ig.unidade||'g',qtd_bruta:parseFloat(ig.qtd_bruta)||0,qtd_liquida:parseFloat(ig.qtd_liquida)||0,fc:parseFloat(ig.fc)||1,custo_unitario:parseFloat(ig.custo_unitario)||0,custo_total:parseFloat(ig.custo_total)||0});
+      if(!ig.id&&!(ig.tipo==='manual'&&ig.nome_manual))continue;
+      await db('lola_fichas_tecnicas_itens','POST',{ficha_id:fid,insumo_id:ig.tipo==='insumo'?ig.id:null,preproducao_id:ig.tipo==='prep'?ig.id:null,nome_manual:ig.tipo==='manual'?(ig.nome_manual||null):null,unidade:ig.unidade||'g',qtd_bruta:parseFloat(ig.qtd_bruta)||(ig.tipo==='manual'?1:0),qtd_liquida:parseFloat(ig.qtd_liquida)||(ig.tipo==='manual'?1:0),fc:parseFloat(ig.fc)||1,custo_unitario:parseFloat(ig.custo_unitario)||0,custo_total:parseFloat(ig.custo_total)||0});
     }
     try{ await db('lola_fichas_fotos','DELETE',null,'?ficha_id=eq.'+fid); for(const _fo of fotos){ await db('lola_fichas_fotos','POST',{ficha_id:fid,foto:_fo}); } }catch(e){console.error('fotos',e);}
     _ft=await db('lola_fichas_tecnicas','GET',null,'?select=*&ativo=eq.true&order=nome.asc');
