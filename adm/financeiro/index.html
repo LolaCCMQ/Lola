@@ -1445,7 +1445,6 @@ function openImport(initial){
       <button data-s="manual" style="display:none"></button>
       <div style="width:100%;font-size:10.5px;color:var(--lbl);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin:6px 2px 2px">Outras opções</div>
       <button data-s="central">Recebido da Central</button>
-      <button data-s="cartao">Cartão</button>
       <button data-s="receita">Receita</button>
       <button data-s="colar">Colar extrato</button>
     </div>
@@ -1463,12 +1462,6 @@ function impTab(s){
       <button class="btn p full" id="arqGo"><i class="ph-duotone ph-upload-simple"></i> Importar</button>
       <div id="arqMsg" style="margin-top:14px"></div>`;
     $('#arqGo').onclick=importArquivos;
-  } else if(s==='cartao'){
-    el.innerHTML=`<div class="note">Puxa as <b>Compras no Cartão</b> (app do portal) desta empresa para cá, como lançamentos — pra você categorizar, ajustar competência e conciliar junto com o resto. Já importadas não duplicam.</div>
-      <div id="cartaoMsg" class="note" style="background:var(--cremeDark)">Carregando…</div>
-      <button class="btn p" id="cartaoGo" disabled style="opacity:.5"><i class="ph-duotone ph-credit-card"></i> Puxar compras do cartão</button>`;
-    $('#cartaoGo').onclick=importComprasCartao;
-    carregarComprasCartao();
   } else if(s==='colar'){
     el.innerHTML=`<div class="note">Cole as linhas do extrato (PDF/tela do banco). Tento achar <b>data</b> e <b>valor</b> em cada linha. Revise os sinais (+/−) depois de importar.</div>
       <div class="fld"><label>Texto do extrato</label><textarea id="pasteTxt" style="min-height:150px" placeholder="05/05/2026  CAFE TRES CORACOES   -373,28&#10;06/05/2026  Vendas do dia         5.936,80"></textarea></div>
