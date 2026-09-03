@@ -1972,7 +1972,6 @@ function openLinkPagamento(lancId, forcePicker){
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <div class="amt neg" style="font-weight:700;font-size:12.5px">${brl(-(+n.valor_total||0))}</div>
-        <button type="button" class="assocUm" data-assoc="${n.chave}"${diff?' data-diff="1"':''} style="background:var(--vinho);color:#fff;border:0;border-radius:8px;font:inherit;font-weight:700;font-size:11px;padding:5px 10px;cursor:pointer;white-space:nowrap">Associar</button>
       </div></div>
       <div class="prodbox" data-pn="${n.chave}" style="display:none;padding:2px 10px 8px 34px">
         ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;font-size:11.5px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div style="font-size:10px;color:var(--mut)">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:11.5px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
@@ -2011,17 +2010,21 @@ function openLinkPagamento(lancId, forcePicker){
     <div class="catsearch" style="margin:2px 0 10px"><i class="ph-duotone ph-magnifying-glass"></i><input id="lnkSearch" placeholder="Buscar nota por nome ou valor…" autocomplete="off"></div>
     <button class="chip" id="lnkMes" style="margin-bottom:10px;color:var(--vinho);border-color:var(--vinho)"><i class="ph-duotone ph-funnel"></i> ${soMes?`Só ${compLabel(pcomp)} · tocar p/ ver todos os meses`:`Todos os meses · tocar p/ ver só ${compLabel(pcomp)}`}</button>
     ${ligHTML}
+    <div class="note" style="font-size:12px;margin-bottom:8px"><i class="ph-duotone ph-hand-tap"></i> Toque em <b>cada nota</b> que faz parte deste pagamento — pode marcar várias — e depois no botão <b>Associar</b> lá embaixo.</div>
     <div class="catlist" id="lnkList"></div>
     <div class="note" id="lnkTot" style="font-size:12.5px"></div>
     <button class="btn o" id="lnkSug" style="margin-bottom:8px"><i class="ph-duotone ph-magic-wand"></i> Sugerir as notas que fecham ${brl(vlanc)}</button>
-    <button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Associar</button>
-    <button class="btn o" id="lnkDiv" style="margin-top:8px"><i class="ph-duotone ph-flag"></i> Não achei a nota — pedir pra localizar</button>`);
+    <div style="position:sticky;bottom:0;background:#fff;padding:8px 0 2px;margin-top:2px;border-top:1px solid var(--fio);z-index:6">
+      <button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Marque as notas e toque aqui</button>
+      <button class="btn o" id="lnkDiv" style="margin-top:8px"><i class="ph-duotone ph-flag"></i> Não achei a nota — pedir pra localizar</button>
+    </div>`);
   { const mb=$('#lnkMes'); if(mb) mb.onclick=()=>{ ST.linkAllMeses=!ST.linkAllMeses; openLinkPagamento(lancId, true); }; }
   { const db=$('#lnkDiv'); if(db) db.onclick=()=>openDivergencia(lancId); }
   const sel=new Set();
   const recalc=()=>{ let s=0; sel.forEach(ch=>{const n=notaObj(ch); if(n)s+=+n.valor_total||0;});
     const dif=s-vlanc; $('#lnkTot').innerHTML=`Pagamento ${brl(-vlanc)} · Notas marcadas ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--ink)'}">Diferença ${brl(-(vlanc-s))}</b>`;
-    const g=$('#lnkGoN'); if(g){g.disabled=sel.size===0;g.style.opacity=sel.size?'1':'.5';} };
+    const g=$('#lnkGoN'); if(g){g.disabled=sel.size===0;g.style.opacity=sel.size?'1':'.5';
+      g.innerHTML=sel.size?`<i class="ph-duotone ph-link"></i> Associar ${sel.size} nota${sel.size>1?'s':''} · ${brl(-s)}`:`<i class="ph-duotone ph-link"></i> Marque as notas e toque aqui`; } };
   const wireRows=()=>{
     $$('#sheetBody .lnkchk').forEach(o=>{ const ch=o.dataset.n;
       if(sel.has(ch)){o.style.background='var(--posBg)';const b=o.querySelector('.lnkbox');b.innerHTML='<i class="ph-duotone ph-check"></i>';b.style.background='var(--vinho)';b.style.borderColor='var(--vinho)';}
@@ -2032,17 +2035,6 @@ function openLinkPagamento(lancId, forcePicker){
     $$('#sheetBody .verprod').forEach(b=>b.onclick=(e)=>{ e.stopPropagation();
       const box=$(`#sheetBody .prodbox[data-pn="${b.dataset.vn}"]`); if(!box)return;
       box.style.display=box.style.display==='none'?'block':'none'; b.style.opacity=box.style.display==='none'?'1':'.6'; });
-    // botão "Associar" direto na nota — sem precisar rolar até o fim
-    $$('#sheetBody .assocUm').forEach(b=>b.onclick=async(e)=>{ e.stopPropagation();
-      const ch=b.dataset.assoc, diff=b.dataset.diff;
-      if(diff && !confirm('Esta nota parece de fornecedor diferente do pagamento. Associar mesmo assim?')) return;
-      await linkNotaLanc(ch,lancId);
-      if(diff){ const termo=splitFornecedor(l.memo).disp; const nn=notaObj(ch);
-        if(nn && confirm(`Criar apelido pra SEMPRE reconhecer "${termo}" como ${esc(nn.emitente||'esse fornecedor')}?`)) await salvarApelido(termo, nn.emitente); }
-      const comp=await syncCompDaNota(lancId);
-      closeSheet(); toast('Nota associada'+(comp?' · competência '+compLabel(comp):'')); renderNotas(); renderLanc();
-      openDiferenca(lancId);   // se o pagamento for maior que a nota, pergunta o que é a sobra
-    });
   };
   const paint=(q)=>{ $('#lnkList').innerHTML=buildRows(q); wireRows(); };
   paint(''); recalc();
