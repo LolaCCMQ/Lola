@@ -797,7 +797,7 @@ async function reagir(emoji){
   try{
     var r=await fetch(SB_URL+'/functions/v1/wa-send',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},body:JSON.stringify({acao:'reagir',conversa_id:activeId,alvo_wamid:wamid,emoji:novo,atendente_id:ME.id,atendente_nome:currentAgent})});
     var j=await r.json().catch(function(){return {};});
-    if(!j.ok){ toast((j&&(j.erro||j.error))||'Não deu pra reagir'); return; }
+    if(!j.ok){ toast('Não reagiu: '+((j&&(j.erro||j.error))?metaErroLegivel(j.erro||j.error):'verifique a conexão'),5200); return; }
     if(mm) mm.reacaoEu=novo; renderThread(activeId);
     toast(novo?('Reagiu '+novo+' ✓'):'Reação removida');
   }catch(e){ toast('Erro ao reagir'); }
@@ -851,7 +851,7 @@ async function sendMsg(){
     if(j&&j.ok&&j.via_template){ toast('Cliente fora das 24h — enviei a mensagem de retomada. Quando ele responder, é só reenviar sua mensagem.'); inp.value=txt; }
     else if(j&&j.ok){ toast('Enviado como '+currentAgent+' ✓'); }
     else if(j&&j.fora_da_janela){ toast('Fora da janela de 24h — a mensagem de retomada ainda não foi aprovada pela Meta.'); inp.value=txt; }
-    else { toast('Não enviou: '+((j&&j.erro)?'erro da Meta':'verifique a conexão')); inp.value=txt; }
+    else { toast('Não enviou: '+((j&&j.erro)?metaErroLegivel(j.erro):'verifique a conexão'),5200); inp.value=txt; }
   }catch(e){ console.error(e); toast('Falha ao enviar'); inp.value=txt; }
   inp.disabled=false; inp.focus();
   await loadMessages(activeId); await loadConversas();
@@ -1143,7 +1143,26 @@ async function sendBcast(){ const t=etiquetas[activeTag]; if(!t){toast('Selecion
 async function addTag(){ const nome=prompt('Nome da nova etiqueta de transmissão:','Dia dos Namorados 2026'); if(!nome)return; await sb.from('wa_etiquetas').insert({nome}); activeTag=0; renderBcast(); toast('Etiqueta criada ✓ Adicione contatos a ela pelas conversas.'); }
 
 /* ===== toast ===== */
-let tt; function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('show'),2600); }
+let tt; function toast(t,ms){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('show'),ms||2600); }
+/* Traduz o erro cru da Meta pra uma frase que a equipe entende (03/09/2026). */
+function metaErroLegivel(raw){
+  var s='', o=null;
+  try{ s=(typeof raw==='string')?raw:JSON.stringify(raw||''); }catch(e){ s=String(raw||''); }
+  if(!s || s==='{}' || s==='null') return 'verifique a conexao';
+  try{ o=JSON.parse(s); }catch(e){ o=null; }
+  var code=(o&&typeof o.code!=='undefined')?Number(o.code):null;
+  var msg=(o&&(o.message||o.error_user_msg))?String(o.message||o.error_user_msg):s;
+  var low=(s+' '+msg).toLowerCase();
+  if(low.indexOf('sem ig token')>=0) return 'falta cadastrar o token do Instagram desta unidade \u2014 avise a Bianca';
+  if(code===190 || low.indexOf('session has expired')>=0 || low.indexOf('oauthexception')>=0)
+    return 'o token do Instagram venceu \u2014 avise a Bianca pra renovar (nada sai ate renovar)';
+  if(code===613 || low.indexOf('rate limit')>=0 || low.indexOf('too many')>=0)
+    return 'limite de envios da Meta atingido \u2014 tente daqui a alguns minutos';
+  if(code===10 || code===200 || code===3 || low.indexOf('permission')>=0)
+    return 'a Meta recusou por permissao nesta conversa';
+  if(low.indexOf('outside')>=0 && low.indexOf('window')>=0) return 'fora da janela de 24h';
+  return 'a Meta recusou \u2014 ' + msg.slice(0,110);
+}
 
 /* ===== identidade ===== */
 function applyAgentUI(){ const a=document.getElementById('ubAv'); if(a){ a.innerHTML=(currentAgent||'?').charAt(0).toUpperCase()+'<span class="dot"></span>'; } const nm=document.getElementById('ubNm'); if(nm) nm.textContent=currentAgent; const rl=document.getElementById('ubRl'); if(rl) rl.textContent=(ME.role?ME.role:'Atendente')+' · online'; const san=document.getElementById('sendAsName'); if(san) san.textContent=currentAgent; }
