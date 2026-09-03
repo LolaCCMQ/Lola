@@ -345,7 +345,7 @@ section.view{display:none} section.view.on{display:block}
       <button class="btn d" id="selDel" style="width:auto;padding:10px 12px;min-height:40px"><i class="ph-duotone ph-trash"></i></button>
       <button class="btn o" id="selConc" style="width:auto;padding:10px 12px;min-height:40px"><i class="ph-duotone ph-check-circle"></i> Conciliar</button>
       <button class="btn o" id="selMover" style="width:auto;padding:10px 12px;min-height:40px"><i class="ph-duotone ph-arrows-left-right"></i> Mover</button>
-      <button class="btn p" id="selClassify" style="width:auto;padding:10px 13px;min-height:40px"><i class="ph-duotone ph-tag"></i> Classificar</button>
+      <button class="btn p" id="selClassify" style="width:auto;padding:10px 13px;min-height:40px"><i class="ph-duotone ph-tag"></i> Classificar / mês</button>
     </div>
   </div>
 </div>
@@ -425,9 +425,11 @@ const pct=(v,base)=>base?(v/base*100).toLocaleString('pt-BR',{minimumFractionDig
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
 function compLabel(c){if(!c)return '';const[y,m]=c.split('-');const nm=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];return nm[+m-1]+' '+y;}
 function compFromDate(d){return (d||'').slice(0,7);}
-function monthList(){ // 6 meses à frente + atual + 2 atrás (mais novo no topo)
-  const out=[];const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+6);
-  for(let i=0;i<9;i++){out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));d.setMonth(d.getMonth()-1);}
+function monthList(){ // de 2 meses atrás até dezembro do ANO QUE VEM (mais novo no topo)
+  const out=[];const now=new Date();
+  const start=new Date(now.getFullYear(),now.getMonth()-2,1);   // 2 meses atrás
+  const d=new Date(now.getFullYear()+1,11,1);                   // dezembro do ano que vem
+  while(d>=start){out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));d.setMonth(d.getMonth()-1);}
   return out;
 }
 function currentComp(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
@@ -832,6 +834,33 @@ function openMultiComp(){
       ST.sel.clear(); closeSheet(); toast(ids.length+' → '+compLabel(comp)); renderAll(); updateSelBar();
     }catch(e){toast('Erro: '+e.message);} };
 }
+/* Editor em massa: muda CATEGORIA e/ou COMPETÊNCIA de uma vez só, sem ter que re-selecionar. */
+function openMultiEdit(){
+  const ids=[...ST.sel]; if(!ids.length){toast('Marque ao menos um');return;}
+  const catOpts=`<option value="">— manter categoria —</option><option value="__none">— Sem categoria —</option>`+
+    groupsOrdered().map(g=>`<optgroup label="${esc(g.label)}">`+
+      g.items.map(it=>`<option value="${it.id}">${esc(it.label)}</option>`).join('')+`</optgroup>`).join('');
+  const compOpts=`<option value="">— manter competência —</option>`+
+    monthList().map(c=>`<option value="${c}">${compLabel(c)}</option>`).join('');
+  openSheet(`<h3>Editar ${ids.length} lançamento(s)</h3>
+    <div class="hint">Mude a categoria, o mês de competência, ou os dois ao mesmo tempo — vale para os ${ids.length} selecionados.</div>
+    <div class="fld"><label>Categoria</label><select id="meCat">${catOpts}</select></div>
+    <div class="fld"><label>Competência</label><select id="meComp">${compOpts}</select></div>
+    <button class="btn p" id="meGo"><i class="ph-duotone ph-check"></i> Aplicar aos ${ids.length}</button>`);
+  $('#meGo').onclick=async()=>{
+    const catRaw=$('#meCat').value, comp=$('#meComp').value;
+    const body={};
+    if(catRaw==='__none') body.category=null; else if(catRaw) body.category=catRaw;
+    if(comp) body.competencia=comp;
+    if(!Object.keys(body).length){ toast('Escolha categoria e/ou mês'); return; }
+    try{ for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
+        await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(body)});}
+      ids.forEach(id=>{const l=ST.lanc.find(x=>x.id===id);if(l){ if('category'in body)l.category=body.category; if('competencia'in body)l.competencia=body.competencia; }});
+      const msg=[('category'in body)?'categoria':null, ('competencia'in body)?compLabel(body.competencia):null].filter(Boolean).join(' + ');
+      ST.sel.clear(); closeSheet(); toast(ids.length+' → '+msg); renderAll(); updateSelBar();
+    }catch(e){ toast('Erro: '+e.message); }
+  };
+}
 async function deleteSelecionados(){
   const ids=[...ST.sel]; if(!ids.length){toast('Marque ao menos um');return;}
   if(!confirm('Excluir '+ids.length+' lançamento(s)? Não dá pra desfazer.'))return;
@@ -884,6 +913,27 @@ function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 function fmtDate(d){if(!d)return'';const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}
 function fmtDM(d){if(!d)return'';const[,m,dd]=d.split('-');return `${dd}/${m}`;}
 function compShort(c){if(!c)return '';const[y,m]=c.split('-');const nm=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];return nm[+m-1]+'/'+String(y).slice(-2);}
+/* Boletos/vencimentos de uma nota — normaliza parcelas (chaves n/num/nDup, venc/dVenc, valor/vDup). */
+function notaParcelasNorm(n){
+  const ps=Array.isArray(n.parcelas)?n.parcelas:[];
+  return ps.map(p=>({venc:p.venc||p.dVenc||null, valor:(+p.valor||+p.vDup||0)})).filter(p=>p.venc||p.valor);
+}
+/* Linha de vencimento p/ a tela de Associar: mostra os boletos e DESTACA o que bate com o valor do pagamento (alvo).
+   É por aqui que se sabe de qual nota é o pagamento quando os valores são parecidos. */
+function notaVencChips(n, alvo){
+  const ps=notaParcelasNorm(n);
+  if(ps.length){
+    return '<i class="ph-duotone ph-calendar-check" style="color:var(--mut)"></i> '+ps.map(p=>{
+      const hit=(alvo!=null && p.valor>0 && Math.abs(p.valor-Math.abs(alvo))<0.01);
+      return `<span style="${hit?'color:#166534;font-weight:800;background:#dcfce7;border-radius:5px;padding:0 4px':'color:var(--mut)'}">vence ${fmtDate(p.venc)}${p.valor>0?' · '+brl(p.valor):''}</span>`;
+    }).join(' &nbsp; ');
+  }
+  if(n.vencimento){
+    const hit=(alvo!=null && Math.abs((+n.valor_total||0)-Math.abs(alvo))<0.01);
+    return `<i class="ph-duotone ph-calendar-check" style="color:var(--mut)"></i> <span style="${hit?'color:#166534;font-weight:800;background:#dcfce7;border-radius:5px;padding:0 4px':'color:var(--mut)'}">vence ${fmtDate(n.vencimento)}</span>`;
+  }
+  return '';
+}
 function dowLabel(d){if(!d)return'Sem data';const[y,m,dd]=d.split('-').map(Number);const dt=new Date(y,m-1,dd);const w=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dt.getDay()];return `${w} · ${String(dd).padStart(2,'0')}/${String(m).padStart(2,'0')}`;}
 function isNeutro(l){const p=ST.planoById[l.category];return !!(p&&p.group_type==='neutro');}
 
@@ -1917,6 +1967,7 @@ function openLinkPagamento(lancId, forcePicker){
           <span>NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</span>
           ${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="font-size:10.5px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;cursor:pointer">ver ${its.length} prod.</button>`:''}
         </div>
+        ${(function(){var v=notaVencChips(n,vlanc);return v?`<div style="font-size:10.5px;margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;line-height:1.5">${v}</div>`:'';})()}
         ${(function(){var ids=pagsDaNota(n.chave); if(!ids.length)return''; var parts=ids.map(function(id){var p=(ST.lanc||[]).find(function(x){return String(x.id)===String(id);}); return p?(fmtDate(p.date)+' · '+brl(+p.amount)):'pagamento';}); return '<div style="font-size:10px;color:#166534;font-weight:700;margin-top:2px">✓ já associada: '+parts.join('  ·  ')+'</div>';})()}
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
@@ -1928,7 +1979,7 @@ function openLinkPagamento(lancId, forcePicker){
       </div>`;
   };
   const ligHTML=jaLig.length?`<div class="cg">Notas já associadas (${jaLig.length}) — toque em “ver produtos” p/ classificar</div>`+jaLig.map(n=>{ const its=Array.isArray(n.itens)?n.itens:[];
-    return `<div class="catopt"><span class="cbar" style="background:#2C7A4B"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'')}</div><div class="date" style="font-size:11px">NF ${esc(n.numero||'—')}</div>${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:4px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div><div class="amt neg">${brl(-(+n.valor_total||0))}</div><button class="iconbtn" data-unl="${n.chave}" title="Remover"><i class="ph-duotone ph-link-break"></i></button></div>
+    return `<div class="catopt"><span class="cbar" style="background:#2C7A4B"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'')}</div><div class="date" style="font-size:11px">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</div>${(function(){var v=notaVencChips(n,vlanc);return v?`<div style="font-size:10.5px;margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;line-height:1.5">${v}</div>`:'';})()}${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:4px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div><div class="amt neg">${brl(-(+n.valor_total||0))}</div><button class="iconbtn" data-unl="${n.chave}" title="Remover"><i class="ph-duotone ph-link-break"></i></button></div>
     <div class="prodbox" data-pn="${n.chave}" style="display:none;padding:2px 12px 10px 34px">${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}</div>`;}).join('')
     +`<button class="btn o" id="pgReclass" style="margin:4px 0 6px"><i class="ph-duotone ph-tag"></i> Reclassificar este lançamento</button>`:'';
   const allCands=scoreNotas(l); // todas as notas sem pagamento (qualquer mês) — base da busca
@@ -2568,7 +2619,7 @@ $('#lancSearch').oninput=e=>{ ST.search=e.target.value; renderLanc(); };
 $('#regrasSearch').oninput=e=>{ ST.regrasSearch=e.target.value; renderRegras(); };
 $('#btnSel').onclick=toggleSelectAll;
 $('#selCancel').onclick=clearSel;
-$('#selClassify').onclick=openMultiClassify;
+$('#selClassify').onclick=openMultiEdit;
 $('#selComp').onclick=openMultiComp;
 $('#selDel').onclick=deleteSelecionados;
 $('#selConc').onclick=conciliarSelecionados;
