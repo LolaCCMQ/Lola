@@ -6810,7 +6810,7 @@ async function pgEntradaNotas(c){
       db('lola_nota_insumo_map','GET',null,'?select=desc_norm,insumo_id,fator,ignorar&limit=5000'),
       db('lola_insumos','GET',null,'?select=id,nome,categoria,unidade_compra,unidade_custo,custo_por_unidade&ativo=eq.true&order=nome.asc'),
       /* 26/08 (Bianca): a busca de notas passa a incluir as ENTRADAS MANUAIS. */
-      db('lola_ccmq_estoque_mov','GET',null,'?origem_tipo=eq.manual&tipo=eq.entrada&select=id,insumo_id,qtd,unidade,custo_total,origem_ref,data,vencimento&order=data.desc&limit=8000')
+      db('lola_ccmq_estoque_mov','GET',null,'?origem_tipo=eq.manual&tipo=eq.entrada&select=id,insumo_id,qtd,unidade,custo_total,origem_ref,data,vencimento,categoria_fin&order=data.desc&limit=8000')
     ]);
     const lanSet=new Set(lancadas.map(x=>x.chave));
     const mapByKey={};mapa.forEach(m=>mapByKey[m.desc_norm]=m);
@@ -6822,7 +6822,10 @@ async function pgEntradaNotas(c){
       const key='man:'+(m.origem_ref||'')+':'+(m.data||'');
       const g=_manG[key]||(_manG[key]={chave:key,emitente:(m.origem_ref||'(sem fornecedor)'),numero:'',data_emissao:m.data,valor_total:0,itens:[],_manual:true,_movIds:[],vencimento:null,oculta_entrada:false,xml_indisponivel:false});
       const ins=insById[m.insumo_id];
-      g.itens.push({desc:(ins?ins.nome:'item'),un:m.unidade||'',qtd:+m.qtd||0,vtotal:+m.custo_total||0,vunit:((+m.qtd)?(+m.custo_total||0)/(+m.qtd):0)});
+      /* linha sem insumo = despesa (frete etc.) — mostra a categoria financeira, não é insumo */
+      const _catLbl={op__transportes_fretes:'Frete',op__fretes_central:'Frete Central'};
+      const desc=ins?ins.nome:(m.categoria_fin?('🚚 '+(_catLbl[m.categoria_fin]||'Frete/despesa')):'item');
+      g.itens.push({desc:desc,un:m.unidade||'',qtd:+m.qtd||0,vtotal:+m.custo_total||0,vunit:((+m.qtd)?(+m.custo_total||0)/(+m.qtd):0),_despesa:!ins,categoria_fin:m.categoria_fin||null});
       g.valor_total+=(+m.custo_total||0); g._movIds.push(m.id);
       if(m.vencimento) g.vencimento=m.vencimento;
       lanSet.add(key);
@@ -7433,12 +7436,32 @@ function modalEntradaManualEN(){
   }
   function addRow(){ list.appendChild(mkRow()); }
   const bAdd=btn('btn bo bsm','+ adicionar item',()=>addRow()); bAdd.style.cssText='margin-top:10px;font-weight:700';
+  /* 04/09 (Bianca): linha de FRETE/despesa — NÃO é insumo, não entra no estoque,
+     tem categoria própria no Financeiro (default: Fretes Lola). Entra no total da nota. */
+  const despRows=[];
+  const DESP_CATS=[['op__transportes_fretes','Frete (Fretes Lola)']];
+  const despList=div(null); despList.style.cssText='border:1px dashed #E0B27A;border-radius:12px;overflow:hidden;margin-top:6px';
+  function mkFreteRow(){
+    const rw=div(null); rw.style.cssText='padding:10px 8px;border-bottom:1px solid #F0E2CC;background:#FFF9F0;display:flex;gap:7px;align-items:center;flex-wrap:wrap';
+    const descInp=el('input','fi',null,{value:'Frete',placeholder:'Descrição (ex.: Frete)'}); descInp.style.cssText='flex:1;min-width:110px;font-size:13px';
+    const catSel=el('select','fi',null,{style:'font-size:12px'}); DESP_CATS.forEach(c=>catSel.appendChild(el('option',null,c[1],{value:c[0]})));
+    const valInp=el('input','fi',null,{type:'number',step:'0.01',inputmode:'decimal',placeholder:'R$'}); valInp.style.cssText='width:96px;text-align:right;font-size:12.5px';
+    const del=document.createElement('button'); del.type='button'; del.innerHTML='🗑'; del.title='Remover'; del.style.cssText='border:0;background:none;color:#B0928A;cursor:pointer;font-size:15px';
+    rw.appendChild(el('span','tss',['🚚'])); rw.appendChild(descInp); rw.appendChild(catSel); rw.appendChild(el('span','tss',['R$'])); rw.appendChild(valInp); rw.appendChild(del);
+    const rec={descInp,catSel,valInp};
+    del.onclick=()=>{ const i=despRows.indexOf(rec); if(i>=0)despRows.splice(i,1); rw.remove(); };
+    despRows.push(rec); return rw;
+  }
+  function addFrete(){ despList.appendChild(mkFreteRow()); }
+  const bFrete=btn('btn bo bsm','+ frete / despesa (não é insumo)',()=>addFrete()); bFrete.style.cssText='margin-top:8px;font-weight:700;color:#9A6B1E;border-color:#E0B27A';
   const bSave=btn('btn bp','✓ Lançar entrada manual',async()=>{
     const forn=obsInp.value.trim();
     const ativos=rows.filter(r=>r.insInp.value.trim());
-    if(!ativos.length){alert('Adicione ao menos 1 item (insumo).');return;}
+    const despAtivas=despRows.filter(r=>+r.valInp.value>0);
+    if(!ativos.length && !despAtivas.length){alert('Adicione ao menos 1 item (insumo) ou uma despesa (frete).');return;}
     for(const r of ativos){ if(!(+r.qtdInp.value>0)){alert('Quantidade inválida em: '+(r.insInp.value||'item'));r.qtdInp.focus();return;} if(!(+r.fatInp.value>0)){alert('Fator inválido em: '+r.insInp.value);return;} }
-    if(!confirm('Lançar '+ativos.length+' item(ns) no estoque do CCMQ'+(forn?(' — '+forn):'')+'?'))return;
+    const _resumo=[ativos.length?(ativos.length+' item(ns)'):null, despAtivas.length?(despAtivas.length+' despesa(s)/frete'):null].filter(Boolean).join(' + ');
+    if(!confirm('Lançar '+_resumo+(forn?(' — '+forn):'')+'?'))return;
     bSave.disabled=true;bSave.textContent='Lançando...';
     try{
       const data=dataInp.value||TD();
@@ -7454,8 +7477,14 @@ function modalEntradaManualEN(){
         await db('lola_ccmq_estoque_mov','POST',{insumo_id:ins.id,tipo:'entrada',qtd:qu,unidade:unUso,custo_unit:cu,custo_total:(v||null),origem_tipo:'manual',origem_ref:(forn||null),data:data,vencimento:(vencInp.value||null),criado_por:ME||null});
         /* 22/07: preço do insumo NÃO muda na entrada — só no fechamento do mês (média). */
       }
+      /* FRETE / despesas: insumo_id NULL (não vira insumo, não mexe no estoque),
+         categoria_fin guarda a conta do Financeiro. Entra no total da nota. */
+      for(const r of despAtivas){
+        const v=+r.valInp.value||0; if(!(v>0))continue;
+        await db('lola_ccmq_estoque_mov','POST',{insumo_id:null,tipo:'entrada',qtd:1,unidade:null,custo_unit:v,custo_total:v,origem_tipo:'manual',origem_ref:(forn||null),data:data,vencimento:(vencInp.value||null),categoria_fin:(r.catSel.value||'op__transportes_fretes'),criado_por:ME||null});
+      }
       document.querySelectorAll('.ov').forEach(o=>o.remove());
-      alert('✓ '+ativos.length+' entrada(s) lançada(s) no estoque do CCMQ.');
+      alert('✓ '+_resumo+' lançado(s)'+(despAtivas.length?' (frete/despesa fica separado dos insumos).':' no estoque do CCMQ.'));
     }catch(e){ alert('Erro: '+e.message); bSave.disabled=false; bSave.textContent='✓ Lançar entrada manual'; }
   });
   bSave.style.cssText='width:100%;margin-top:12px;padding:13px;font-weight:800;font-size:14px';
@@ -7464,6 +7493,10 @@ function modalEntradaManualEN(){
   wrap.appendChild(el('div',null,['Itens'],{style:'font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl,#B79A8E);font-weight:800;margin:14px 0 0'}));
   wrap.appendChild(list);
   wrap.appendChild(bAdd);
+  wrap.appendChild(el('div',null,['Frete / despesas (não é insumo)'],{style:'font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl,#B79A8E);font-weight:800;margin:16px 0 0'}));
+  wrap.appendChild(el('div',null,['Entra no total da nota, mas NÃO vira insumo nem mexe no estoque — vai com categoria própria no Financeiro (ex.: Fretes Lola).'],{style:'font-size:11px;color:var(--ts);margin:2px 0 2px;line-height:1.4'}));
+  wrap.appendChild(despList);
+  wrap.appendChild(bFrete);
   wrap.appendChild(bSave);
   addRow();
   mkModal('➕ Entrada manual — estoque CCMQ',[wrap],null,'mo moxl');
