@@ -1936,15 +1936,17 @@ function cartCatChip(id){ var p=cartCatInfo(id); if(!p) return '<span style="col
 function cartCatSelect(selId,val,placeholder){ var groups=[],seen={}; CART_PLANO.forEach(function(p){ if(!seen[p.group_label]){seen[p.group_label]=[];groups.push(p.group_label);} seen[p.group_label].push(p); }); var h='<select id="'+selId+'" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">'+(placeholder||'— Selecione a categoria —')+'</option>'; groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'"'+(p.id===val?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; }); h+='</select>'; return h; }
 async function cartLoadPlano(){ if(CART_PLANO.length) return; try{ var r=await fetch(SUPA_URL+'/rest/v1/rpc/compras_cat_lista',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},body:'{}'}); CART_PLANO = r.ok ? (await r.json()||[]) : []; }catch(e){ CART_PLANO=[]; } }
 function cartEnsureGridCss(){ if(document.getElementById('cartGridCss')) return; var st=document.createElement('style'); st.id='cartGridCss'; st.textContent=
-  '#module-comprascartao .cart-gridwrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#fff}'+
-  '#module-comprascartao table.cart-grid{width:100%;min-width:760px;border-collapse:collapse;font-size:.75rem}'+
+  '#module-comprascartao .cart-gridwrap{overflow-x:hidden;border:1px solid var(--border);border-radius:12px;background:#fff}'+
+  '#module-comprascartao table.cart-grid{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:.75rem}'+
+  '#module-comprascartao table.cart-grid td>div{min-width:0}'+
   '#module-comprascartao table.cart-grid th{position:sticky;top:0;background:var(--vinho-pale);z-index:1;text-align:left;padding:5px 7px;font-size:.55rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);white-space:nowrap}'+
   '#module-comprascartao table.cart-grid td{border:1px solid var(--border);padding:0 4px;vertical-align:middle}'+
   '#module-comprascartao table.cart-grid input,#module-comprascartao table.cart-grid select{border:0;background:transparent;font-family:inherit;font-size:.74rem;width:100%;padding:4px 3px;color:var(--ink);box-sizing:border-box}'+
   '#module-comprascartao table.cart-grid select{cursor:pointer}'+
   '#module-comprascartao table.cart-grid input:focus,#module-comprascartao table.cart-grid select:focus{outline:2px solid var(--vinho);outline-offset:-2px;background:#FFFDF7;border-radius:6px}'+
   '#module-comprascartao table.cart-grid tr:hover td{background:#FBF7F1}'+
-  '#module-comprascartao table.cart-grid td.g-val{text-align:right;font-weight:800;color:var(--vinho);font-size:.9rem;white-space:nowrap;letter-spacing:-.01em}'+
+  '#module-comprascartao table.cart-grid td.g-val{text-align:right;font-weight:800;color:var(--vinho);font-size:.8rem;white-space:nowrap;letter-spacing:-.02em;padding:0 3px}'+
+  '#module-comprascartao table.cart-grid td>div{overflow:hidden;text-overflow:ellipsis}'+
   '#module-comprascartao table.cart-grid td.g-chk{text-align:center;width:30px}'+
   '#module-comprascartao table.cart-grid td.g-chk input{width:17px;height:17px;padding:0;cursor:pointer}'+
   '#module-comprascartao .cart-wrap{padding:14px 18px !important}'+
@@ -2051,7 +2053,7 @@ function _localCor(v){ return CART_LOCAL_COR[v]||['transparent','var(--ink)']; }
 async function cartaoSetLocal(id,sel){ var cor=_localCor(sel.value); sel.style.color=cor[1]; sel.style.fontWeight='700'; var td=sel.closest('td'); if(td) td.style.background=cor[0]; await cartaoSetField(id,'empresa',sel.value); }
 function cartLocalCell(c){
   var cor=_localCor(c.empresa);
-  var h='<td class="g-loc" style="min-width:104px;background:'+cor[0]+'"><select onchange="cartaoSetLocal('+c.id+',this)" style="font-weight:700;color:'+cor[1]+'"><option value="">—</option>';
+  var h='<td class="g-loc" style="background:'+cor[0]+'"><select onchange="cartaoSetLocal('+c.id+',this)" style="font-weight:700;color:'+cor[1]+'"><option value="">—</option>';
   h+=CART_EMPRESAS.map(function(o){return '<option'+(o===c.empresa?' selected':'')+'>'+_escC(o)+'</option>';}).join('');
   h+='</select></td>'; return h;
 }
@@ -2062,8 +2064,8 @@ function cartMesShort(c){ if(!c) return ''; var a=String(c).split('-'); if(a.len
 function cartEstoqueCell(c){
   if(/mac/i.test(c.empresa||'')) return '<td style="text-align:center;color:#C9BBB0;font-size:.66rem">—</td>';
   if(c.estoque_dado){ var un=(c.estoque_unit==='central'?'Central':'CCMQ');
-    return '<td style="text-align:center"><button onclick="cartEntradaEstoque('+c.id+')" title="Já deu entrada no estoque ('+un+') — ver/refazer" style="border:0;cursor:pointer;background:#E6F3EA;color:#2C7A4B;font-weight:800;font-size:.64rem;padding:3px 9px;border-radius:20px;white-space:nowrap">✓ no estoque</button></td>'; }
-  return '<td style="text-align:center"><button onclick="cartEntradaEstoque('+c.id+')" title="Ainda não deu entrada no estoque — clique para dar" style="border:1px solid #ECD9AE;cursor:pointer;background:#FBF0DD;color:#9A6B1E;font-weight:800;font-size:.64rem;padding:3px 9px;border-radius:20px;white-space:nowrap">📦 dar entrada</button></td>';
+    return '<td style="text-align:center"><button onclick="cartEntradaEstoque('+c.id+')" title="Já deu entrada no estoque ('+un+') — toque para ver/refazer" style="border:0;cursor:pointer;background:#E6F3EA;color:#2C7A4B;font-weight:800;font-size:.9rem;width:26px;height:26px;line-height:1;border-radius:8px;padding:0">✓</button></td>'; }
+  return '<td style="text-align:center"><button onclick="cartEntradaEstoque('+c.id+')" title="Ainda não deu entrada no estoque — toque para dar entrada" style="border:1px solid #ECD9AE;cursor:pointer;background:#FBF0DD;font-size:.9rem;width:26px;height:26px;line-height:1;border-radius:8px;padding:0">📦</button></td>';
 }
 function cartaoGrid(){
   var lst=cartaoFiltrar();
@@ -2077,18 +2079,20 @@ function cartaoGrid(){
   var resumo=(tot>0)?('<div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px">'+_chip('Por local',porEmp)+_chip('Por cartão',porCard)+_mesHtml+_catHtml+'</div>'):'';
   var h='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">'+lst.length+' compra(s)'+(pend?(' · <b style="color:#9a5b1a">'+pend+' pendente(s) de lançar</b>'):'')+(tot>0?(' · Total <b style="color:var(--vinho-deep)">'+cartBRL(tot)+'</b>'):'')+'</div>';
   if(!lst.length) return h+'<div style="padding:18px;color:var(--muted);text-align:center">Nenhuma compra com esse filtro.</div>';
-  h+='<div class="cart-gridwrap"><table class="cart-grid"><thead><tr>'+['✓','Data','O que comprou','Categoria','Local','Cartão','Valor','Comp.','Estoque',''].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+  h+='<div class="cart-gridwrap"><table class="cart-grid"><colgroup>'
+    +'<col style="width:26px"><col style="width:42px"><col><col><col style="width:88px"><col style="width:92px"><col style="width:70px"><col style="width:44px"><col style="width:38px"><col style="width:52px">'
+    +'</colgroup><thead><tr>'+['✓','Data','O que comprou','Categoria','Local','Cartão','Valor','Comp.','Est.',''].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
   lst.forEach(function(c){
     var _ci=cartCatInfo(c.categoria); var _cc=_ci?cartCor(_ci.group_label):null;
     h+='<tr style="'+(_cc?('box-shadow:inset 4px 0 0 '+_cc[1]+';'):'')+(c.conferido?'background:#F3F7F3;':'')+'">'
       +'<td class="g-chk"><input type="checkbox" id="gchk_'+c.id+'" '+(c.conferido?'checked':'')+' onchange="cartaoToggleConf('+c.id+',this.checked)" title="Marcar = lançar como despesa no Financeiro do local"></td>'
-      +'<td style="white-space:nowrap;color:var(--muted);font-size:.78rem">'+fmtDM(c.data)+'</td>'
-      +'<td style="max-width:230px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600" title="'+_escA(c.descricao||'')+'">'+_escC(c.descricao||'—')+'</div></td>'
-      +'<td class="g-cat" style="min-width:150px">'+cartCatCell(c)+'</td>'
+      +'<td style="white-space:nowrap;color:var(--muted);font-size:.74rem">'+fmtDM(c.data)+'</td>'
+      +'<td><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600" title="'+_escA(c.descricao||'')+'">'+_escC(c.descricao||'—')+'</div></td>'
+      +'<td class="g-cat">'+cartCatCell(c)+'</td>'
       +cartLocalCell(c)
-      +'<td style="min-width:118px">'+_cartSelCell(c.id,'cartao',CART_CARTOES,c.cartao)+'</td>'
+      +'<td>'+_cartSelCell(c.id,'cartao',CART_CARTOES,c.cartao)+'</td>'
       +'<td class="g-val">'+cartBRL(c.valor)+'</td>'
-      +'<td style="white-space:nowrap;color:var(--muted);font-size:.78rem">'+cartMesShort(c.competencia)+'</td>'
+      +'<td style="white-space:nowrap;color:var(--muted);font-size:.74rem">'+cartMesShort(c.competencia)+'</td>'
       +cartEstoqueCell(c)
       +'<td style="text-align:center;white-space:nowrap"><button title="Editar" onclick="cartaoEditar('+c.id+')" style="border:0;background:transparent;color:#2C5AA0;cursor:pointer;font-size:1.05rem">✏️</button> <button title="Excluir" onclick="cartaoExcluir('+c.id+')" style="border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1.05rem">🗑</button></td>'
       +'</tr>';
