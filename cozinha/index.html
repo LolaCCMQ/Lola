@@ -6062,7 +6062,7 @@ function _enSugereTop(desc, k){
   scored.sort(function(a,b){ return b.n-a.n || b.cov-a.cov || a.ins.nome.localeCompare(b.ins.nome,'pt'); });
   return scored.slice(0, k||6);
 }
-let EN=null,_enComp='';
+let EN=null,_enComp='',_enStForce=null;
 function _enMesLbl(m){const M=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];const p=m.split('-');return M[(+p[1])-1]+'/'+p[0].slice(2);}
 function _enQ(q){return N(q,3).replace(/,?0+$/,'')||'0';}
 /* ══ COMPRAS / CMV (10/08 Bianca): controle de compras por plano de contas -> insumo,
@@ -6923,7 +6923,7 @@ async function pgEntradaNotas(c){
     c.appendChild(topoEN);
     /* 22/07 (Bianca): chips A lançar × Lançadas ("tem que selecionar as que já foram
        lançadas e as que ainda faltam"). Padrão: A lançar — é o trabalho do dia. */
-    let _enSt='pend';
+    let _enSt=_enStForce||'pend'; _enStForce=null;
     const stWrap=div(null,null,{style:'display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap'});
     function paintSt(){
       stWrap.innerHTML='';
@@ -7484,7 +7484,9 @@ function modalEntradaManualEN(){
         await db('lola_ccmq_estoque_mov','POST',{insumo_id:null,tipo:'entrada',qtd:1,unidade:null,custo_unit:v,custo_total:v,origem_tipo:'manual',origem_ref:(forn||null),data:data,vencimento:(vencInp.value||null),categoria_fin:(r.catSel.value||'op__transportes_fretes'),criado_por:ME||null});
       }
       document.querySelectorAll('.ov').forEach(o=>o.remove());
-      alert('✓ '+_resumo+' lançado(s)'+(despAtivas.length?' (frete/despesa fica separado dos insumos).':' no estoque do CCMQ.'));
+      alert('✓ '+_resumo+' lançado(s)'+(despAtivas.length?' (frete/despesa fica separado dos insumos).':' no estoque do CCMQ.')+'\n\nA entrada aparece agora na lista (aba "Todas") — como a nota já entrou no estoque, ela fica em "Lançadas".');
+      /* recarrega a lista e cai numa visão que MOSTRA a entrada manual (ela entra como "lançada") */
+      _enComp='todas'; _enStForce='todas'; if(typeof nav==='function') nav('entnotas');
     }catch(e){ alert('Erro: '+e.message); bSave.disabled=false; bSave.textContent='✓ Lançar entrada manual'; }
   });
   bSave.style.cssText='width:100%;margin-top:12px;padding:13px;font-weight:800;font-size:14px';
