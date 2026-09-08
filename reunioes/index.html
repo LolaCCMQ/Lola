@@ -298,7 +298,6 @@ header{position:static}
   .searchrow #fToggle{flex-shrink:0}
   @media(min-width:641px){.searchrow #fToggle{display:none}}
   @media(max-width:640px){
-    .viewtoggle .vt[data-v="mapa"]{display:none}
     .filters select,.filters>.btn-ghost{display:none}
     .filters.open select,.filters.open>.btn-ghost{display:block}
   }
@@ -315,7 +314,7 @@ header{position:static}
 <button class="hdr-ic" onclick="hdrBusca()" title="Buscar"><i class="ph-duotone ph-magnifying-glass"></i></button>
 <button class="hdr-ic" onclick="abrirMovimentacoes()" title="Movimentações recentes"><i class="ph-duotone ph-bell"></i><span class="hdr-badge" id="hdrBadge" style="display:none">0</span></button>
 </div>
-<div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('lista')"></i></span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-map-trifold"></i> Mapa<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('mapa')"></i></span><span class="vt" data-v="minhas" onclick="setView('minhas')"><i class="ph-duotone ph-user-check"></i> Minhas<span class="vt-badge" id="minhasBadge" style="display:none">0</span></span><span class="vt vt-socias" data-v="socias" onclick="setView('socias')" style="display:none"><i class="ph-duotone ph-lock-key"></i> Sócias</span></div>
+<div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('lista')"></i></span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-table"></i> Planilha<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('mapa')"></i></span><span class="vt" data-v="minhas" onclick="setView('minhas')"><i class="ph-duotone ph-user-check"></i> Minhas<span class="vt-badge" id="minhasBadge" style="display:none">0</span></span><span class="vt vt-socias" data-v="socias" onclick="setView('socias')" style="display:none"><i class="ph-duotone ph-lock-key"></i> Sócias</span></div>
 </header>
 
 <div class="wrap">
@@ -761,6 +760,46 @@ var opts=[''].concat(UNIDADES);
 document.getElementById('unibar').innerHTML=opts.map(function(u){return '<div class="ub'+(FUNI===u?' on':'')+'" onclick="setUni(\''+u.replace(/'/g,"\\'")+'\')">'+esc(labels[u]||u)+'</div>';}).join('');
 }
 function setUni(v){FUNI=v;render();window.scrollTo({top:0,behavior:'smooth'});}
+/* 08/09 (Bianca): visão PLANILHA (no lugar do Mapa) — linhas densas, clique abre o card.
+   Colunas: o que é · quem criou · pra quem · status · prazo. */
+function _plEnsureCss(){ if(document.getElementById('plGridCss'))return; var st=document.createElement('style'); st.id='plGridCss'; st.textContent=
+  '.pl-wrap{overflow-x:auto;border:1px solid var(--linha,#EADFD3);border-radius:12px;background:#fff}'+
+  'table.pl-grid{width:100%;min-width:560px;border-collapse:collapse;font-size:.82rem}'+
+  'table.pl-grid th{position:sticky;top:0;background:var(--vinho-pale,#F7EEEE);text-align:left;padding:9px 12px;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:#8A7A72;font-weight:800;border-bottom:1px solid var(--linha,#EADFD3);white-space:nowrap;z-index:1}'+
+  'table.pl-grid td{padding:9px 12px;border-bottom:1px solid #F1E8DC;vertical-align:middle}'+
+  'table.pl-grid tbody tr{cursor:pointer}'+
+  'table.pl-grid tbody tr:hover td{background:#FBF7F1}'+
+  'table.pl-grid tr.pl-done td{opacity:.6}'+
+  'table.pl-grid td.pl-tit{font-weight:600;color:#2A1A17;max-width:340px}'+
+  'table.pl-grid td.pl-mut{color:#7A6A62;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}'+
+  '.pl-badge{display:inline-block;font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap}';
+  document.head.appendChild(st); }
+function renderPlanilhaView(lst,box){
+  _plEnsureCss();
+  if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
+  var hj=new Date().toISOString().slice(0,10);
+  function _st(f){
+    if(!f.eh_tarefa) return {lbl:'Aviso',cor:'#6B4FA8',bg:'#F0EBFA'};
+    if(f.concluido) return {lbl:'Concluída',cor:'#2C7A4B',bg:'#EAF5EE'};
+    if(f.prazo && String(f.prazo).slice(0,10)<hj) return {lbl:'Atrasada',cor:'#B5302E',bg:'#FBEAE7'};
+    return {lbl:'A fazer',cor:'#9A6B1E',bg:'#FBF0DD'};
+  }
+  var rows=lst.map(function(f){
+    var st=_st(f);
+    var resp=arr(f.responsaveis); var quem=resp.length?resp.join(', '):'—';
+    var prazo=f.prazo?fmtDate(f.prazo):(f.data?fmtDate(f.data):'—');
+    return '<tr class="'+(f.concluido?'pl-done':'')+'" onclick="abrirFicha('+f.id+')">'
+      +'<td class="pl-tit">'+(f.destaque?'<i class="ph-duotone ph-star" style="color:#C9A227"></i> ':'')+esc(f.titulo||'(sem título)')+'</td>'
+      +'<td class="pl-mut" title="'+esc(f.criado_por||'')+'">'+esc(f.criado_por||'—')+'</td>'
+      +'<td class="pl-mut" title="'+esc(quem)+'">'+esc(quem)+'</td>'
+      +'<td><span class="pl-badge" style="background:'+st.bg+';color:'+st.cor+'">'+esc(st.lbl)+'</span></td>'
+      +'<td class="pl-mut" style="white-space:nowrap">'+esc(prazo)+'</td>'
+      +'</tr>';
+  }).join('');
+  box.innerHTML='<div class="pl-wrap"><table class="pl-grid"><thead><tr>'
+    +'<th>O que é</th><th>Criou</th><th>Pra quem</th><th>Status</th><th>Prazo / data</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
 function setView(v){VIEW=v;Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);});try{updateViewStars();}catch(e){}render();}
 function renderMapaView(lst,box){
 if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
@@ -1019,7 +1058,7 @@ var box=document.getElementById('lista');
 if(VIEW==='minhas'){renderMinhasView(box);return;}
 if(VIEW==='socias'){renderSociasView(box);return;}
 if(document.getElementById('ftt').value==='ata'){renderAtasView(box);return;}
-if(VIEW==='mapa'){renderMapaView(lst,box);return;}
+if(VIEW==='mapa'){renderPlanilhaView(lst,box);return;}
 if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
 if(grp==='none'){
 var _ativos=lst.filter(function(f){return !f.concluido;}), _done=lst.filter(function(f){return f.concluido;});
@@ -1180,7 +1219,7 @@ function fecharFicha(){var o=document.getElementById('fpov');if(o)o.classList.re
 /* ===== Visualização favorita (por login) ===== */
 var FAV_VIEW=null;
 function meuId(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.id)return pp.__portalUser.id;}catch(e){}return null;}
-function viewLabel(v){return {lista:'Lista',quadro:'Quadro',mapa:'Mapa',atas:'Atas'}[v]||v;}
+function viewLabel(v){return {lista:'Lista',quadro:'Quadro',mapa:'Planilha',atas:'Atas'}[v]||v;}
 function updateViewStars(){Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){var v=b.getAttribute('data-v');var st=b.querySelector('.vt-star');if(st)st.classList.toggle('fav',FAV_VIEW===v);});}
 async function initViewFav(){var uid=meuId();if(!uid){updateViewStars();return;}try{var r=await sb.rpc('portal_pref_get',{p_user_id:uid,p_key:'reg_view_fav'});var v=r&&r.data;if(v&&['lista','quadro','mapa','atas'].indexOf(v)>=0){FAV_VIEW=v;setView(v);}}catch(e){}updateViewStars();}
 async function toggleViewFav(v){var uid=meuId();if(!uid){toast('Faça login no portal para favoritar');return;}FAV_VIEW=(FAV_VIEW===v)?null:v;updateViewStars();try{await sb.rpc('portal_pref_set',{p_user_id:uid,p_key:'reg_view_fav',p_val:FAV_VIEW||''});}catch(e){}toast(FAV_VIEW?('★ '+viewLabel(v)+' será sua visualização padrão'):'Visualização padrão removida');}
