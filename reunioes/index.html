@@ -687,16 +687,44 @@ var groups={},order=[];
 atas.forEach(function(a){var d=(a.date&&a.date.length>=7)?a.date:String(a.created_at||'').slice(0,10);var k=mesLabel(d);if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(a);});
 box.innerHTML=order.map(function(k){return '<div class="grouphdr">'+esc(k)+'<span>'+groups[k].length+'</span></div><div class="feed">'+groups[k].map(ataCardHTML).join('')+'</div>';}).join('');
 }
+/* 08/09 (Bianca): cadeado por ata — só quem tem a senha vê o conteúdo (cadeado de tela).
+   trancar/destrancar é de admin (Bianca/Mahara); abrir precisa só da senha. */
+window.__ataUnlock = window.__ataUnlock || {};
+async function _plHash(s){ try{ var b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(s))); return Array.prototype.map.call(new Uint8Array(b),function(x){return ('0'+x.toString(16)).slice(-2);}).join(''); }catch(e){ var h=5381,str=String(s); for(var i=0;i<str.length;i++){h=((h*33)^str.charCodeAt(i))>>>0;} return 'x'+h.toString(16); } }
+function ataTrancada(a){ return !!a.trancada && !window.__ataUnlock[a.id]; }
+async function ataTrancar(id){ var a=ATAS.find(function(x){return String(x.id)===String(id);}); if(!a)return;
+  var s=prompt('Crie uma senha pra trancar esta ata (compartilhe só com quem pode ver):'); if(s==null)return; s=String(s).trim(); if(!s){toast('Senha vazia');return;}
+  var s2=prompt('Repita a senha:'); if(s2==null)return; if(String(s2).trim()!==s){toast('As senhas não batem');return;}
+  var hash=await _plHash(s);
+  try{ var u=await sb.from('lola_atas').update({trancada:true,senha_hash:hash}).eq('id',id); if(u.error)throw u.error; a.trancada=true; a.senha_hash=hash; window.__ataUnlock[id]=true; toast('🔒 Ata trancada'); render(); }catch(e){ toast('Erro ao trancar'); } }
+async function ataAbrirSenha(id){ var a=ATAS.find(function(x){return String(x.id)===String(id);}); if(!a)return;
+  var s=prompt('Senha pra abrir esta ata:'); if(s==null)return; var hash=await _plHash(String(s).trim());
+  if(hash===a.senha_hash){ window.__ataUnlock[id]=true; render(); } else { toast('Senha incorreta'); } }
+async function ataDestrancar(id){ var a=ATAS.find(function(x){return String(x.id)===String(id);}); if(!a)return;
+  var s=prompt('Digite a senha atual pra remover o cadeado:'); if(s==null)return; var hash=await _plHash(String(s).trim());
+  if(hash!==a.senha_hash){ toast('Senha incorreta'); return; }
+  try{ var u=await sb.from('lola_atas').update({trancada:false,senha_hash:null}).eq('id',id); if(u.error)throw u.error; a.trancada=false; a.senha_hash=null; delete window.__ataUnlock[id]; toast('🔓 Cadeado removido'); render(); }catch(e){ toast('Erro'); } }
 function ataCardHTML(a){
 var n=REG.filter(function(f){return String(f.ata_id||'')===String(a.id);}).length;
 var d=a.date?fmtDate(a.date):(a.created_at?fmtDate(String(a.created_at).slice(0,10)):'');
-var cont=a.conteudo?('<div class="conteudo" id="ata'+a.id+'">'+highlightMentions(esc(a.conteudo))+'</div><span class="vermais" onclick="var e=document.getElementById(\'ata'+a.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
+var travada=ataTrancada(a);
+var cont;
+if(travada){
+  cont='<div style="display:flex;align-items:center;gap:10px;background:#F3EFFA;border:1px dashed #C9B8E4;border-radius:10px;padding:11px 13px;margin:8px 0"><i class="ph-duotone ph-lock-key" style="font-size:20px;color:#6B4FA8"></i><div style="flex:1;font-size:.8rem;color:#5a4444">Ata trancada — só quem tem a senha pode ver o conteúdo.</div><button class="btn btn-sm" style="background:#6B4FA8;color:#fff;border:0" onclick="ataAbrirSenha('+a.id+')"><i class="ph-duotone ph-key"></i> Abrir com senha</button></div>';
+} else {
+  cont=a.conteudo?('<div class="conteudo" id="ata'+a.id+'">'+highlightMentions(esc(a.conteudo))+'</div><span class="vermais" onclick="var e=document.getElementById(\'ata'+a.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
+}
+var lockBadge=a.trancada?' <i class="ph-duotone ph-lock-key" title="Trancada" style="color:#6B4FA8;font-size:.9em"></i>':'';
+var lockBtn=ehAdmin()?('<div class="cardfoot" style="margin-top:8px">'+(a.trancada
+   ?'<button class="btn btn-ghost btn-sm" onclick="ataDestrancar('+a.id+')"><i class="ph-duotone ph-lock-key-open"></i> Destrancar</button>'
+   :'<button class="btn btn-ghost btn-sm" onclick="ataTrancar('+a.id+')"><i class="ph-duotone ph-lock-key"></i> Trancar</button>')+'</div>'):'';
 return '<div class="card ata-card">'
 +'<div class="cardtop"><span class="badge" style="background:#6B4FA822;color:#6B4FA8"><i class="ph-duotone ph-notebook"></i> Ata</span><span class="dt">'+esc(d)+'</span></div>'
-+'<h3>'+esc(a.title||'(sem título)')+'</h3>'
++'<h3>'+esc(a.title||'(sem título)')+lockBadge+'</h3>'
 +(a.autor_nome?'<div class="resp"><i class="ph-duotone ph-user"></i> '+esc(a.autor_nome)+'</div>':'')
 +cont
 +(n?'<div class="rel"><i class="ph-duotone ph-link"></i> '+n+' assunto(s) ligado(s)</div>':'')
++lockBtn
 +'</div>';
 }
 
@@ -764,41 +792,81 @@ function setUni(v){FUNI=v;render();window.scrollTo({top:0,behavior:'smooth'});}
    Colunas: o que é · quem criou · pra quem · status · prazo. */
 function _plEnsureCss(){ if(document.getElementById('plGridCss'))return; var st=document.createElement('style'); st.id='plGridCss'; st.textContent=
   '.pl-wrap{overflow-x:auto;border:1px solid var(--linha,#EADFD3);border-radius:12px;background:#fff}'+
-  'table.pl-grid{width:100%;min-width:560px;border-collapse:collapse;font-size:.82rem}'+
-  'table.pl-grid th{position:sticky;top:0;background:var(--vinho-pale,#F7EEEE);text-align:left;padding:9px 12px;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:#8A7A72;font-weight:800;border-bottom:1px solid var(--linha,#EADFD3);white-space:nowrap;z-index:1}'+
-  'table.pl-grid td{padding:9px 12px;border-bottom:1px solid #F1E8DC;vertical-align:middle}'+
+  'table.pl-grid{width:100%;min-width:760px;border-collapse:collapse;font-size:.82rem}'+
+  'table.pl-grid thead th{position:sticky;top:0;background:var(--vinho-pale,#F7EEEE);text-align:left;padding:7px 10px;border-bottom:2px solid var(--linha,#EADFD3);vertical-align:top;z-index:1}'+
+  '.pl-h{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:#8A7A72;font-weight:800;white-space:nowrap;cursor:pointer;user-select:none}'+
+  '.pl-h:hover{color:var(--vinho,#A82A2A)}'+
+  'table.pl-grid thead select{margin-top:5px;width:100%;max-width:148px;font-family:inherit;font-size:.7rem;border:1px solid var(--linha,#EADFD3);border-radius:7px;padding:3px 5px;background:#fff;color:#5a4444;cursor:pointer}'+
+  'table.pl-grid td{padding:8px 10px;border-bottom:1px solid #F1E8DC;vertical-align:middle}'+
   'table.pl-grid tbody tr{cursor:pointer}'+
-  'table.pl-grid tbody tr:hover td{background:#FBF7F1}'+
-  'table.pl-grid tr.pl-done td{opacity:.6}'+
-  'table.pl-grid td.pl-tit{font-weight:600;color:#2A1A17;max-width:340px}'+
-  'table.pl-grid td.pl-mut{color:#7A6A62;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}'+
-  '.pl-badge{display:inline-block;font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap}';
+  'table.pl-grid tbody tr:hover td{filter:brightness(.97)}'+
+  'table.pl-grid tr.pl-done{opacity:.55}'+
+  'table.pl-grid td.pl-tit{font-weight:600;color:#2A1A17;max-width:300px;overflow:hidden;text-overflow:ellipsis}'+
+  'table.pl-grid td.pl-mut{color:#6a5a52;overflow:hidden;text-overflow:ellipsis;max-width:150px;white-space:nowrap}'+
+  '.pl-badge{display:inline-block;font-size:.66rem;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;background:#fff}'+
+  '.pl-catdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}';
   document.head.appendChild(st); }
+function plSort(c){var s=window.__plSort=window.__plSort||{c:'',d:1};if(s.c===c){s.d=-s.d;}else{s.c=c;s.d=1;}render();}
+function plSetFilt(k,v){window.__plF=window.__plF||{};window.__plF[k]=v;render();}
+function plLimparFiltros(){window.__plF={cat:'',criou:'',quem:'',status:''};render();}
 function renderPlanilhaView(lst,box){
   _plEnsureCss();
   if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
   var hj=new Date().toISOString().slice(0,10);
-  function _st(f){
-    if(!f.eh_tarefa) return {lbl:'Aviso',cor:'#6B4FA8',bg:'#F0EBFA'};
-    if(f.concluido) return {lbl:'Concluída',cor:'#2C7A4B',bg:'#EAF5EE'};
-    if(f.prazo && String(f.prazo).slice(0,10)<hj) return {lbl:'Atrasada',cor:'#B5302E',bg:'#FBEAE7'};
-    return {lbl:'A fazer',cor:'#9A6B1E',bg:'#FBF0DD'};
+  window.__plF=window.__plF||{cat:'',criou:'',quem:'',status:''}; var F=window.__plF;
+  window.__plSort=window.__plSort||{c:'',d:1}; var S=window.__plSort;
+  function _stL(f){ if(!f.eh_tarefa)return'Aviso'; if(f.concluido)return'Concluída'; if(f.prazo&&String(f.prazo).slice(0,10)<hj)return'Atrasada'; return'A fazer'; }
+  var _STC={'Aviso':['#6B4FA8','#F3EFFA'],'Concluída':['#2C7A4B','#EDF6F0'],'Atrasada':['#B5302E','#FCEEEC'],'A fazer':['#9A6B1E','#FBF3E4']};
+  var cats={},cri={},qm={},sts={};
+  lst.forEach(function(f){ arr(f.categorias).forEach(function(c){if(c)cats[c]=1;}); if(f.criado_por)cri[f.criado_por]=1; arr(f.responsaveis).forEach(function(r){if(r)qm[r]=1;}); sts[_stL(f)]=1; });
+  var data=lst.filter(function(f){
+    if(F.cat && arr(f.categorias).indexOf(F.cat)<0)return false;
+    if(F.criou && f.criado_por!==F.criou)return false;
+    if(F.quem && arr(f.responsaveis).indexOf(F.quem)<0)return false;
+    if(F.status && _stL(f)!==F.status)return false;
+    return true;
+  });
+  if(S.c){ var rk={'Atrasada':0,'A fazer':1,'Aviso':2,'Concluída':3};
+    data=data.slice().sort(function(a,b){ var ka,kb;
+      if(S.c==='tit'){ka=(a.titulo||'').toLowerCase();kb=(b.titulo||'').toLowerCase();}
+      else if(S.c==='cat'){ka=(arr(a.categorias)[0]||'').toLowerCase();kb=(arr(b.categorias)[0]||'').toLowerCase();}
+      else if(S.c==='criou'){ka=(a.criado_por||'').toLowerCase();kb=(b.criado_por||'').toLowerCase();}
+      else if(S.c==='quem'){ka=(arr(a.responsaveis)[0]||'').toLowerCase();kb=(arr(b.responsaveis)[0]||'').toLowerCase();}
+      else if(S.c==='status'){ka=rk[_stL(a)];kb=rk[_stL(b)];}
+      else if(S.c==='prazo'){ka=String(a.prazo||a.data||'');kb=String(b.prazo||b.data||'');}
+      else{ka=0;kb=0;}
+      if(ka<kb)return -1*S.d; if(ka>kb)return 1*S.d; return 0; });
   }
-  var rows=lst.map(function(f){
-    var st=_st(f);
-    var resp=arr(f.responsaveis); var quem=resp.length?resp.join(', '):'—';
+  function _opt(obj,cur){ return '<option value="">(todas)</option>'+Object.keys(obj).sort().map(function(k){return '<option value="'+esc(k)+'"'+(cur===k?' selected':'')+'>'+esc(k)+'</option>';}).join(''); }
+  function _ar(c){ return S.c===c?(S.d>0?' ▲':' ▼'):''; }
+  var nF=(F.cat?1:0)+(F.criou?1:0)+(F.quem?1:0)+(F.status?1:0);
+  var head='<thead><tr>'
+    +'<th><div class="pl-h" onclick="plSort(\'tit\')">O que é'+_ar('tit')+'</div></th>'
+    +'<th><div class="pl-h" onclick="plSort(\'cat\')">Categoria'+_ar('cat')+'</div><select onclick="event.stopPropagation()" onchange="plSetFilt(\'cat\',this.value)">'+_opt(cats,F.cat)+'</select></th>'
+    +'<th><div class="pl-h" onclick="plSort(\'criou\')">Criou'+_ar('criou')+'</div><select onclick="event.stopPropagation()" onchange="plSetFilt(\'criou\',this.value)">'+_opt(cri,F.criou)+'</select></th>'
+    +'<th><div class="pl-h" onclick="plSort(\'quem\')">Pra quem'+_ar('quem')+'</div><select onclick="event.stopPropagation()" onchange="plSetFilt(\'quem\',this.value)">'+_opt(qm,F.quem)+'</select></th>'
+    +'<th><div class="pl-h" onclick="plSort(\'status\')">Status'+_ar('status')+'</div><select onclick="event.stopPropagation()" onchange="plSetFilt(\'status\',this.value)">'+_opt(sts,F.status)+'</select></th>'
+    +'<th><div class="pl-h" style="cursor:default">Observações</div></th>'
+    +'<th><div class="pl-h" onclick="plSort(\'prazo\')">Prazo'+_ar('prazo')+'</div></th>'
+    +'</tr></thead>';
+  var body=data.map(function(f){
+    var l=_stL(f),c=_STC[l]; var resp=arr(f.responsaveis);
+    var cor=(arr(f.categorias)[0]?catColor(arr(f.categorias)[0]):c[0]);
+    var obs=arr(f.observacoes).map(function(o){return (o&&o.texto)||'';}).filter(Boolean).join(' · ');
+    var catTxt=arr(f.categorias).join(', ')||'—';
     var prazo=f.prazo?fmtDate(f.prazo):(f.data?fmtDate(f.data):'—');
-    return '<tr class="'+(f.concluido?'pl-done':'')+'" onclick="abrirFicha('+f.id+')">'
-      +'<td class="pl-tit">'+(f.destaque?'<i class="ph-duotone ph-star" style="color:#C9A227"></i> ':'')+esc(f.titulo||'(sem título)')+'</td>'
+    return '<tr class="'+(f.concluido?'pl-done':'')+'" style="background:'+c[1]+'" onclick="abrirFicha('+f.id+')">'
+      +'<td class="pl-tit" style="box-shadow:inset 5px 0 0 '+cor+'" title="'+esc(f.titulo||'')+'">'+(f.destaque?'<i class="ph-duotone ph-star" style="color:#C9A227"></i> ':'')+esc(f.titulo||'(sem título)')+'</td>'
+      +'<td class="pl-mut"><span class="pl-catdot" style="background:'+cor+'"></span>'+esc(catTxt)+'</td>'
       +'<td class="pl-mut" title="'+esc(f.criado_por||'')+'">'+esc(f.criado_por||'—')+'</td>'
-      +'<td class="pl-mut" title="'+esc(quem)+'">'+esc(quem)+'</td>'
-      +'<td><span class="pl-badge" style="background:'+st.bg+';color:'+st.cor+'">'+esc(st.lbl)+'</span></td>'
+      +'<td class="pl-mut" title="'+esc(resp.join(', '))+'">'+esc(resp.length?resp.join(', '):'—')+'</td>'
+      +'<td><span class="pl-badge" style="color:'+c[0]+';border:1px solid '+c[0]+'55">'+l+'</span></td>'
+      +'<td class="pl-mut" title="'+esc(obs)+'">'+(obs?esc(obs):'—')+'</td>'
       +'<td class="pl-mut" style="white-space:nowrap">'+esc(prazo)+'</td>'
       +'</tr>';
   }).join('');
-  box.innerHTML='<div class="pl-wrap"><table class="pl-grid"><thead><tr>'
-    +'<th>O que é</th><th>Criou</th><th>Pra quem</th><th>Status</th><th>Prazo / data</th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  var info='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap"><div style="font-size:.75rem;color:#8A7A72">'+data.length+' de '+lst.length+' registro(s)</div>'+(nF?'<button class="btn btn-ghost btn-sm" onclick="plLimparFiltros()">✕ Limpar filtros ('+nF+')</button>':'')+'</div>';
+  box.innerHTML=info+'<div class="pl-wrap"><table class="pl-grid">'+head+'<tbody>'+(data.length?body:'<tr><td colspan="7" style="padding:16px;text-align:center;color:#8A7A72">Nada com esses filtros.</td></tr>')+'</tbody></table></div>';
 }
 function setView(v){VIEW=v;Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);});try{updateViewStars();}catch(e){}render();}
 function renderMapaView(lst,box){
