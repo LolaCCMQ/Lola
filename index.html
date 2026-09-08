@@ -2460,13 +2460,13 @@ function entGrid(){
   var h='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">'+lst.length+' entrega(s)'+(pend?(' · <b style="color:#9a5b1a">'+pend+' pendente(s) de lançar</b>'):'')+(tot>0?(' · Total <b style="color:var(--vinho-deep)">'+cartBRL(tot)+'</b>'):'')+'</div>'+resumo;
   if(!lst.length) return h+'<div style="padding:18px;color:var(--muted);text-align:center">Nenhuma entrega com esse filtro.</div>';
   h+='<div class="cart-gridwrap"><table class="cart-grid"><colgroup>'
-    +'<col style="width:26px"><col style="width:56px"><col><col><col style="width:92px"><col style="width:66px"><col style="width:42px"><col style="width:82px"><col style="width:50px">'
+    +'<col style="width:26px"><col style="width:78px"><col><col><col style="width:88px"><col style="width:62px"><col style="width:40px"><col style="width:78px"><col style="width:46px">'
     +'</colgroup><thead><tr>'+['✓','Data','De → Para','O que veio','Categoria','Valor','Comp.','Pagamento',''].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
   lst.forEach(function(c){
     var _ci=cartCatInfo(c.categoria); var _cc=_ci?cartCor(_ci.group_label):null;
     h+='<tr style="'+(_cc?('box-shadow:inset 4px 0 0 '+_cc[1]+';'):'')+(c.conferido?'background:#F3F7F3;':'')+'">'
       +'<td class="g-chk"><input type="checkbox" id="egchk_'+c.id+'" '+(c.conferido?'checked':'')+' onchange="entToggleConf('+c.id+',this.checked)" title="Marcar = lançar como despesa no Financeiro do destino"></td>'
-      +'<td style="white-space:nowrap;color:var(--muted);font-size:.78rem">'+_escC(fmtDM(c.data))+(c.hora?(' '+_escC(String(c.hora).slice(0,5))):'')+'</td>'
+      +'<td><div style="white-space:nowrap;color:var(--muted);font-size:.74rem">'+_escC(fmtDM(c.data))+(c.hora?(' '+_escC(String(c.hora).slice(0,5))):'')+'</div></td>'
       +'<td><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+entDeParaCell(c)+'</div></td>'
       +'<td><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600" title="'+_escA(c.descricao||'')+'">'+_escC(c.descricao||'—')+'</div></td>'
       +'<td class="g-cat">'+entCatCell(c)+'</td>'
