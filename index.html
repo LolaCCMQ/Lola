@@ -2338,7 +2338,7 @@ function cartaoExportar(){
    helpers cart* (cartCatSelect/cartCatInfo/cartCor/cartLoadPlano/_cartNum).
    Quem PAGA a entrega no Financeiro = o destino (Para). Categoria em branco
    vira o frete do destino (Fretes Central / Fretes Lola). */
-var ENTREGAS=[], ENT_F={status:'',origem:'',destino:'',mes:''};
+var ENTREGAS=[], ENT_F={status:'',origem:'',destino:'',mes:'',pago:''};
 function entRpc(fn,id){ return fetch(SUPA_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},body:JSON.stringify({p_id:id})}).then(function(r){ if(!r.ok) return r.text().then(function(t){throw new Error(t);}); }); }
 function entCatDefault(destino){ return (String(destino||'').toLowerCase().indexOf('central')>=0)?'op__fretes_central':'op__transportes_fretes'; }
 function entDeParaCell(c){ return '<span style="white-space:nowrap">'+_escC(c.origem||'?')+' <span style="color:var(--muted)">→</span> <b>'+_escC(c.destino||'?')+'</b></span>'; }
@@ -2350,15 +2350,31 @@ function entCatCell(c){
   groups.forEach(function(g){ h+='<optgroup label="'+_escA(g)+'" style="color:#141414;font-weight:700">'; seen[g].forEach(function(p){ h+='<option value="'+_escA(p.id)+'" style="color:#141414;font-weight:500"'+(p.id===c.categoria?' selected':'')+'>'+_escC(p.label)+'</option>'; }); h+='</optgroup>'; });
   h+='</select>'; return h;
 }
+/* 08/09 (Bianca): pagamento da entrega — já paga? e quem receber/ressarcir */
+function entPagoCell(c){
+  var quem=c.pagar_para?('<div style="font-size:.66rem;color:var(--muted);margin-top:2px" title="'+_escA(c.pagar_para)+'">'+_escC(c.pagar_para)+'</div>'):'';
+  var badge=c.pago
+    ? '<button onclick="entTogglePago('+c.id+',false)" title="Já pago/ressarcido — tocar p/ voltar a A pagar" style="border:0;cursor:pointer;background:#E6F3EA;color:#2C7A4B;font-weight:800;font-size:.62rem;padding:3px 8px;border-radius:20px;white-space:nowrap">✓ pago</button>'
+    : '<button onclick="entTogglePago('+c.id+',true)" title="A pagar — tocar p/ marcar como pago/ressarcido" style="border:1px solid #ECD9AE;cursor:pointer;background:#FBF0DD;color:#9A6B1E;font-weight:800;font-size:.62rem;padding:3px 8px;border-radius:20px;white-space:nowrap">a pagar</button>';
+  return '<td style="text-align:center">'+badge+quem+'</td>';
+}
+async function entTogglePago(id,val){
+  var c=ENTREGAS.find(function(x){return x.id===id;}); if(!c) return;
+  try{ await api.patch('entregas',{pago:val},'id=eq.'+id); c.pago=val; }
+  catch(e){ if(typeof showToast==='function') showToast('Erro ao salvar pagamento'); return; }
+  var el=document.getElementById('entLista'); if(el) el.innerHTML=entGrid();
+  if(typeof showToast==='function') showToast(val?'✓ Marcado como pago':'⏳ Voltou p/ a pagar');
+}
 function entEnsureCss(){ if(document.getElementById('entGridCss')) return; var st=document.createElement('style'); st.id='entGridCss'; st.textContent=
-  '#module-entregas .cart-gridwrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#fff}'+
-  '#module-entregas table.cart-grid{width:100%;min-width:720px;border-collapse:collapse;font-size:.75rem}'+
+  '#module-entregas .cart-gridwrap{overflow-x:hidden;border:1px solid var(--border);border-radius:12px;background:#fff}'+
+  '#module-entregas table.cart-grid{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:.75rem}'+
+  '#module-entregas table.cart-grid td>div{min-width:0;overflow:hidden;text-overflow:ellipsis}'+
   '#module-entregas table.cart-grid th{position:sticky;top:0;background:var(--vinho-pale);z-index:1;text-align:left;padding:5px 7px;font-size:.55rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);white-space:nowrap}'+
   '#module-entregas table.cart-grid td{border:1px solid var(--border);padding:0 4px;vertical-align:middle}'+
   '#module-entregas table.cart-grid select{border:0;background:transparent;font-family:inherit;font-size:.74rem;width:100%;padding:4px 3px;color:var(--ink);box-sizing:border-box;cursor:pointer}'+
   '#module-entregas table.cart-grid select:focus{outline:2px solid var(--vinho);outline-offset:-2px;background:#FFFDF7;border-radius:6px}'+
   '#module-entregas table.cart-grid tr:hover td{background:#FBF7F1}'+
-  '#module-entregas table.cart-grid td.g-val{text-align:right;font-weight:800;color:var(--vinho);font-size:.9rem;white-space:nowrap;letter-spacing:-.01em}'+
+  '#module-entregas table.cart-grid td.g-val{text-align:right;font-weight:800;color:var(--vinho);font-size:.8rem;white-space:nowrap;letter-spacing:-.02em;padding:0 3px}'+
   '#module-entregas table.cart-grid td.g-chk{text-align:center;width:30px}'+
   '#module-entregas table.cart-grid td.g-chk input{width:17px;height:17px;padding:0;cursor:pointer}'+
   '#module-entregas .ent-filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}'+
@@ -2396,9 +2412,13 @@ function entRender(){
   h+='<div class="ent-form-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">'
     +'<div style="flex:2;min-width:200px"><label style="'+L+'">Categoria <span style="text-transform:none;font-weight:600;color:#B79A8E">· Financeiro (em branco = Frete do destino)</span></label>'+cartCatSelect('eCat',ed?ed.categoria:'','— Frete do destino (padrão) —')+'</div>'
     +'</div>';
+  h+='<div class="ent-form-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">'
+    +'<div style="flex:2;min-width:180px"><label style="'+L+'">Pagar / ressarcir a quem</label><input type="text" id="ePagar" value="'+_escA(ed?(ed.pagar_para||''):'')+'" placeholder="Ex: motoboy João · Uber · Bianca (adiantou)" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<div style="flex:1;min-width:130px"><label style="'+L+'">Pagamento</label><select id="ePago" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="0"'+((ed&&ed.pago)?'':' selected')+'>⏳ A pagar</option><option value="1"'+((ed&&ed.pago)?' selected':'')+'>✓ Já pago / ressarcido</option></select></div>'
+    +'</div>';
   h+='<div style="display:flex;gap:9px;margin-top:12px">'+(ed?('<button class="btn btn-primary" onclick="entSalvar()">💾 Salvar alteração</button><button class="btn btn-ghost" onclick="entCancelEdit()">Cancelar</button>'):'<button class="btn btn-primary" onclick="entSalvar()">➕ Adicionar entrega</button>')+'</div>';
   h+='</div>';
-  var _fAtivos=!!(ENT_F.status||ENT_F.origem||ENT_F.destino||ENT_F.mes);
+  var _fAtivos=!!(ENT_F.status||ENT_F.origem||ENT_F.destino||ENT_F.mes||ENT_F.pago);
   var _fAberto=window.__entFiltAberto||_fAtivos;
   h+='<button class="btn btn-ghost btn-sm" onclick="entToggleFiltros()" style="margin-bottom:10px"><i class="ph-duotone ph-magnifying-glass"></i> Filtros'+(_fAtivos?' <span style="color:var(--vinho);font-weight:800">•</span>':'')+'</button>';
   h+='<div id="entFiltrosBox" class="ent-filtros" style="'+(_fAberto?'':'display:none;')+'">'
@@ -2406,6 +2426,7 @@ function entRender(){
     +'<div style="flex:1;min-width:112px"><label style="'+L+'">De</label><select id="efOrig" onchange="entFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todos</option>'+UNS.map(function(o){return '<option'+(ENT_F.origem===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
     +'<div style="flex:1;min-width:112px"><label style="'+L+'">Para</label><select id="efDest" onchange="entFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todos</option>'+UNS.map(function(o){return '<option'+(ENT_F.destino===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
     +'<div style="flex:1;min-width:118px"><label style="'+L+'">Competência</label><input type="month" id="efMes" value="'+_escA(ENT_F.mes)+'" onchange="entFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"></div>'
+    +'<div style="flex:1;min-width:112px"><label style="'+L+'">Pagamento</label><select id="efPago" onchange="entFiltro()" style="'+_hin('width:100%;box-sizing:border-box')+'"><option value="">Todos</option><option value="apagar"'+(ENT_F.pago==='apagar'?' selected':'')+'>⏳ A pagar</option><option value="pago"'+(ENT_F.pago==='pago'?' selected':'')+'>✓ Pago</option></select></div>'
     +'<button class="btn btn-ghost btn-sm" onclick="entLimpar()" style="align-self:flex-end">Limpar</button>'
     +'<button class="btn btn-ghost btn-sm" onclick="entExportar()" style="align-self:flex-end">⬇️ Exportar</button>'
     +'</div>';
@@ -2413,8 +2434,8 @@ function entRender(){
   h+='</div>'; panel.innerHTML=h;
 }
 function entToggleFiltros(){ window.__entFiltAberto=!window.__entFiltAberto; entRender(); }
-function entFiltro(){ ENT_F.status=(document.getElementById('efStatus')||{}).value||''; ENT_F.origem=(document.getElementById('efOrig')||{}).value||''; ENT_F.destino=(document.getElementById('efDest')||{}).value||''; ENT_F.mes=(document.getElementById('efMes')||{}).value||''; var el=document.getElementById('entLista'); if(el) el.innerHTML=entGrid(); }
-function entLimpar(){ ENT_F={status:'',origem:'',destino:'',mes:''}; entRender(); }
+function entFiltro(){ ENT_F.status=(document.getElementById('efStatus')||{}).value||''; ENT_F.origem=(document.getElementById('efOrig')||{}).value||''; ENT_F.destino=(document.getElementById('efDest')||{}).value||''; ENT_F.mes=(document.getElementById('efMes')||{}).value||''; ENT_F.pago=(document.getElementById('efPago')||{}).value||''; var el=document.getElementById('entLista'); if(el) el.innerHTML=entGrid(); }
+function entLimpar(){ ENT_F={status:'',origem:'',destino:'',mes:'',pago:''}; entRender(); }
 function entFiltrar(){
   return ENTREGAS.filter(function(c){
     if(ENT_F.status==='pend' && c.conferido) return false;
@@ -2422,6 +2443,8 @@ function entFiltrar(){
     if(ENT_F.origem && c.origem!==ENT_F.origem) return false;
     if(ENT_F.destino && c.destino!==ENT_F.destino) return false;
     if(ENT_F.mes && c.competencia!==ENT_F.mes) return false;
+    if(ENT_F.pago==='pago' && !c.pago) return false;
+    if(ENT_F.pago==='apagar' && c.pago) return false;
     return true;
   });
 }
@@ -2436,18 +2459,21 @@ function entGrid(){
   var resumo=(tot>0)?('<div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px">'+_chip('Por rota',porRota)+_mesHtml+'</div>'):'';
   var h='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">'+lst.length+' entrega(s)'+(pend?(' · <b style="color:#9a5b1a">'+pend+' pendente(s) de lançar</b>'):'')+(tot>0?(' · Total <b style="color:var(--vinho-deep)">'+cartBRL(tot)+'</b>'):'')+'</div>'+resumo;
   if(!lst.length) return h+'<div style="padding:18px;color:var(--muted);text-align:center">Nenhuma entrega com esse filtro.</div>';
-  h+='<div class="cart-gridwrap"><table class="cart-grid"><thead><tr>'+['✓','Data','De → Para','O que veio','Categoria','Valor','Comp.',''].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+  h+='<div class="cart-gridwrap"><table class="cart-grid"><colgroup>'
+    +'<col style="width:26px"><col style="width:56px"><col><col><col style="width:92px"><col style="width:66px"><col style="width:42px"><col style="width:82px"><col style="width:50px">'
+    +'</colgroup><thead><tr>'+['✓','Data','De → Para','O que veio','Categoria','Valor','Comp.','Pagamento',''].map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
   lst.forEach(function(c){
     var _ci=cartCatInfo(c.categoria); var _cc=_ci?cartCor(_ci.group_label):null;
     h+='<tr style="'+(_cc?('box-shadow:inset 4px 0 0 '+_cc[1]+';'):'')+(c.conferido?'background:#F3F7F3;':'')+'">'
       +'<td class="g-chk"><input type="checkbox" id="egchk_'+c.id+'" '+(c.conferido?'checked':'')+' onchange="entToggleConf('+c.id+',this.checked)" title="Marcar = lançar como despesa no Financeiro do destino"></td>'
       +'<td style="white-space:nowrap;color:var(--muted);font-size:.78rem">'+_escC(fmtDM(c.data))+(c.hora?(' '+_escC(String(c.hora).slice(0,5))):'')+'</td>'
-      +'<td>'+entDeParaCell(c)+'</td>'
-      +'<td style="max-width:230px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600" title="'+_escA(c.descricao||'')+'">'+_escC(c.descricao||'—')+'</div></td>'
-      +'<td class="g-cat" style="min-width:150px">'+entCatCell(c)+'</td>'
+      +'<td><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+entDeParaCell(c)+'</div></td>'
+      +'<td><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600" title="'+_escA(c.descricao||'')+'">'+_escC(c.descricao||'—')+'</div></td>'
+      +'<td class="g-cat">'+entCatCell(c)+'</td>'
       +'<td class="g-val">'+cartBRL(c.valor)+'</td>'
-      +'<td style="white-space:nowrap;color:var(--muted);font-size:.78rem">'+cartMesShort(c.competencia)+'</td>'
-      +'<td style="text-align:center;white-space:nowrap"><button title="Editar" onclick="entEditar('+c.id+')" style="border:0;background:transparent;color:#2C5AA0;cursor:pointer;font-size:1.05rem">✏️</button> <button title="Excluir" onclick="entExcluir('+c.id+')" style="border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1.05rem">🗑</button></td>'
+      +'<td style="white-space:nowrap;color:var(--muted);font-size:.74rem">'+cartMesShort(c.competencia)+'</td>'
+      +entPagoCell(c)
+      +'<td style="text-align:center;white-space:nowrap"><button title="Editar" onclick="entEditar('+c.id+')" style="border:0;background:transparent;color:#2C5AA0;cursor:pointer;font-size:1rem">✏️</button> <button title="Excluir" onclick="entExcluir('+c.id+')" style="border:0;background:transparent;color:#C0392B;cursor:pointer;font-size:1rem">🗑</button></td>'
       +'</tr>';
   });
   h+='</tbody></table></div>'; return h;
@@ -2492,7 +2518,8 @@ async function entSalvar(){
   var info=cartCatInfo(cat);
   var p={ data:g('eData')||null, hora:g('eHora')||null, origem:origem, destino:destino,
     descricao:desc||null, valor:_cartNum(g('eValor')), empresa:destino,
-    competencia:g('eComp')||null, categoria:cat||null, categoria_label:info?info.label:null };
+    competencia:g('eComp')||null, categoria:cat||null, categoria_label:info?info.label:null,
+    pagar_para:g('ePagar').trim()||null, pago:(g('ePago')==='1') };
   try{
     if(window.__entEdit){
       var ex=ENTREGAS.find(function(x){return x.id===window.__entEdit;});
@@ -2516,11 +2543,11 @@ async function entExcluir(id){
 function entExportar(){
   var lst=entFiltrar();
   if(!lst.length){ if(typeof showToast==='function')showToast('Nada para exportar'); return; }
-  var cols=['Data','Hora','De','Para','O que veio','Categoria','Competência','Valor','Lançado no Financeiro'];
+  var cols=['Data','Hora','De','Para','O que veio','Categoria','Competência','Valor','Pago','Pagar/ressarcir a','Lançado no Financeiro'];
   var esc=function(v){ v=(v==null?'':String(v)); if(/[";\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"'; return v; };
-  var rows=lst.map(function(c){ return [c.data||'',(c.hora||''),c.origem||'',c.destino||'',c.descricao||'',(c.categoria_label||((cartCatInfo(c.categoria)||{}).label)||''),cartMes(c.competencia),(c.valor!=null?String(c.valor).replace('.',','):''),c.conferido?'Sim':'Não'].map(esc).join(';'); });
+  var rows=lst.map(function(c){ return [c.data||'',(c.hora||''),c.origem||'',c.destino||'',c.descricao||'',(c.categoria_label||((cartCatInfo(c.categoria)||{}).label)||''),cartMes(c.competencia),(c.valor!=null?String(c.valor).replace('.',','):''),c.pago?'Sim':'Não',(c.pagar_para||''),c.conferido?'Sim':'Não'].map(esc).join(';'); });
   var tot=lst.reduce(function(s,c){return s+(Number(c.valor)||0);},0);
-  rows.push(['','','','','','','TOTAL',tot.toFixed(2).replace('.',','),''].map(esc).join(';'));
+  rows.push(['','','','','','','TOTAL',tot.toFixed(2).replace('.',','),'','',''].map(esc).join(';'));
   var csv='﻿'+cols.join(';')+'\n'+rows.join('\n');
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='entregas-'+new Date().toISOString().slice(0,10)+'.csv';
