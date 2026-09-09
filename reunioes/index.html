@@ -715,9 +715,11 @@ if(travada){
   cont=a.conteudo?('<div class="conteudo" id="ata'+a.id+'">'+highlightMentions(esc(a.conteudo))+'</div><span class="vermais" onclick="var e=document.getElementById(\'ata'+a.id+'\');e.classList.toggle(\'open\');this.textContent=e.classList.contains(\'open\')?\'ver menos\':\'ver mais\'">ver mais</span>'):'';
 }
 var lockBadge=a.trancada?' <i class="ph-duotone ph-lock-key" title="Trancada" style="color:#6B4FA8;font-size:.9em"></i>':'';
-var lockBtn=ehAdmin()?('<div class="cardfoot" style="margin-top:8px">'+(a.trancada
+/* 09/09 (Bianca): trancar é pra QUALQUER pessoa que usa a ferramenta (não só admin) —
+   a senha é a proteção; quem trancar compartilha a senha com quem pode ver. */
+var lockBtn='<div class="cardfoot" style="margin-top:8px">'+(a.trancada
    ?'<button class="btn btn-ghost btn-sm" onclick="ataDestrancar('+a.id+')"><i class="ph-duotone ph-lock-key-open"></i> Destrancar</button>'
-   :'<button class="btn btn-ghost btn-sm" onclick="ataTrancar('+a.id+')"><i class="ph-duotone ph-lock-key"></i> Trancar</button>')+'</div>'):'';
+   :'<button class="btn btn-ghost btn-sm" onclick="ataTrancar('+a.id+')"><i class="ph-duotone ph-lock-key"></i> Trancar</button>')+'</div>';
 return '<div class="card ata-card">'
 +'<div class="cardtop"><span class="badge" style="background:#6B4FA822;color:#6B4FA8"><i class="ph-duotone ph-notebook"></i> Ata</span><span class="dt">'+esc(d)+'</span></div>'
 +'<h3>'+esc(a.title||'(sem título)')+lockBadge+'</h3>'
