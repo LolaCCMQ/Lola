@@ -289,6 +289,14 @@
   .orc-line label{font-size:12px;font-weight:700;color:var(--muted)}
   .orc-line input{max-width:140px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* Cabeçalho fixo da tabela de montagem do menu, ao rolar a página */
+  table.sticky-th thead th{position:sticky;top:131px;background:var(--cream);z-index:6;box-shadow:0 1px 0 var(--border)}
+  @media(max-width:640px){table.sticky-th thead{display:none}}
+  .ck-item.na{opacity:.5}
+  .ck-item.na .txt{text-decoration:line-through;font-style:italic}
+  .na-btn{flex-shrink:0;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-size:10.5px;font-weight:800;padding:3px 8px;height:fit-content;margin-top:1px}
+  .na-btn.on{background:var(--warm);color:var(--ink);border-color:var(--ink)}
+  .pay-row{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700}
   @media(max-width:640px){
     .wrap{padding:12px}
     .detail-head{padding:16px}
@@ -521,6 +529,10 @@ async function init(){
     return;
   }
   renderFilters();renderList();
+  try{
+    const p=new URLSearchParams(location.search);const evId=p.get('ev');
+    if(evId&&getEvent(evId))open_(evId);
+  }catch(e){}
 }
 function setConn(ok){const c=document.getElementById('conn');c.textContent=ok?'● conectado':'● offline';c.className='conn'+(ok?'':' off');}
 async function reloadAll(){document.getElementById('list').innerHTML='<div class="loading">Atualizando…</div>';view.screen="dash";document.getElementById('detail').classList.add('hidden');document.getElementById('dashboard').classList.remove('hidden');await init();}
@@ -539,6 +551,7 @@ async function persist(ev,doFlash){
   else if(doFlash)showFlash();
 }
 const fmt = n => "R$ "+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtQty = n => (Number(n)||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 function esc(s){return (s==null?'':s.toString()).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function currentUserName(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.name)return pp.__portalUser.name;}catch(e){}return 'portal';}
 function blankEvent(){
@@ -555,8 +568,12 @@ function blankEvent(){
 function getEvent(id){return DB.events.find(e=>e.id===id);}
 function relevantSections(ev){return SECTIONS.filter(s=>s.tipos.includes(ev.tipo));}
 function relevantFases(ev){return FASES.filter(f=>f.tipos.includes(ev.tipo));}
-function progress(ev){let tot=0,done=0;relevantFases(ev).forEach(f=>f.itens.forEach((it,i)=>{tot++;if(ev.checks[f.id+"_"+i]&&ev.checks[f.id+"_"+i].done)done++;}));return tot?Math.round(done/tot*100):0;}
-function faseProgress(ev,f){let tot=f.itens.length,done=0;f.itens.forEach((it,i)=>{if(ev.checks[f.id+"_"+i]&&ev.checks[f.id+"_"+i].done)done++;});return {done,tot,pct:tot?Math.round(done/tot*100):0};}
+function progress(ev){let tot=0,done=0;relevantFases(ev).forEach(f=>f.itens.forEach((it,i)=>{const ck=ev.checks[f.id+"_"+i];tot++;if(ck&&(ck.done||ck.na))done++;}));return tot?Math.round(done/tot*100):0;}
+function faseProgress(ev,f){
+  let tot=f.itens.length,done=0;
+  f.itens.forEach((it,i)=>{const ck=ev.checks[f.id+"_"+i];if(ck&&(ck.done||ck.na))done++;});
+  return {done,tot,pct:tot?Math.round(done/tot*100):0};
+}
 function locPill(v){const l=LOCAIS.find(x=>x.v===v);if(!l||!v)return '';return `<span class="loc-pill ${l.c}">📍 ${l.l.replace('Lola ','')}</span>`;}
 
 function payStatus(ev){
@@ -751,6 +768,7 @@ function renderDetail(){
           <select onchange="setField('status',this.value)" style="width:auto;font-weight:700">
             ${STATUS.map(s=>`<option value="${s.v}" ${ev.status===s.v?'selected':''}>${s.l}</option>`).join('')}
           </select>
+          <button class="btn-ghost btn-sm no-print" onclick="openTaskModal('','','${ev.id}')">📌 Nova tarefa</button>
           <button class="btn-ghost no-print" onclick="openPrintDialog()">🖨</button>
           <button class="danger no-print" onclick="delEvent('${ev.id}')">🗑</button>
         </div>
@@ -875,21 +893,32 @@ function faseItemHTML(ev,f,it,i){
           <input type="number" step="0.01" value="${esc(ck.orc||'')}" placeholder="0,00" onchange="setCheckField('${f.id}',${i},'orc',Number(this.value))">
           ${temOrc?`<span class="pill-ok">no orçamento</span>`:'<span class="hint">soma na aba Orçamento</span>'}
         </div>`:''}`;
+  const naBtn=`<button class="na-btn no-print${ck.na?' on':''}" onclick="event.stopPropagation();toggleNA('${f.id}',${i})" title="Marcar como não se aplica a este evento">N/A</button>`;
+  const tarefaBtn=`<button class="btn-ghost btn-sm no-print" style="margin-top:8px" onclick="openTaskModal('${it.t.replace(/'/g,"\\'")}','${faseEtapa(f.id)}','${ev.id}')">📌 Criar tarefa em Reuniões e Tarefas</button>`;
   if(!acc){
-    return `<div class="ck-item ${ck.done?'done':''}">
-      <div class="ck-cb ${ck.done?'on':''}" onclick="toggleCheck('${f.id}',${i})">${ck.done?'✓':''}</div>
-      <div class="ck-body"><div class="txt">${it.t}</div>${corpo}</div>
+    return `<div class="ck-item ${(ck.done||ck.na)?'done':''} ${ck.na?'na':''}">
+      <div class="ck-cb ${(ck.done||ck.na)?'on':''}" onclick="toggleCheck('${f.id}',${i})">${ck.na?'–':(ck.done?'✓':'')}</div>
+      <div class="ck-body"><div class="txt">${it.t}</div>${corpo}${tarefaBtn}</div>
+      ${naBtn}
     </div>`;
   }
-  return `<div class="facc ${open?'on':''}">
+  return `<div class="facc ${open?'on':''} ${ck.na?'na':''}">
     <div class="facc-h">
-      <div class="ck-cb ${ck.done?'on':''}" onclick="event.stopPropagation();toggleCheck('${f.id}',${i})">${ck.done?'✓':''}</div>
+      <div class="ck-cb ${(ck.done||ck.na)?'on':''}" onclick="event.stopPropagation();toggleCheck('${f.id}',${i})">${ck.na?'–':(ck.done?'✓':'')}</div>
       <div class="facc-t" onclick="toggleAcc('${f.id}',${i})">${it.t}${marca&&!open?'<span class="facc-dot">•</span>':''}</div>
       ${temOrc?`<span class="facc-money">${fmt(ck.orc)}</span>`:''}
+      ${naBtn}
       <span class="facc-chev" onclick="toggleAcc('${f.id}',${i})">${open?'▲':'▼'}</span>
     </div>
-    ${open?`<div class="facc-b">${corpo}</div>`:''}
+    ${open?`<div class="facc-b">${corpo}${tarefaBtn}</div>`:''}
   </div>`;
+}
+function toggleNA(fid,i){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].na=!ev.checks[k].na;if(ev.checks[k].na)ev.checks[k].done=false;save();renderDetail();}
+function faseEtapa(fid){
+  if(fid==='triagem'||fid==='negociacao')return 'planejamento';
+  if(fid==='dia')return 'no dia';
+  if(fid==='despro')return 'pós-produção';
+  return 'produção';
 }
 function fluxoHTML(ev){
   const fl=ev.fluxo||[];
@@ -1162,6 +1191,47 @@ function openPrintDialog(){
   m.style.display='flex';
 }
 function closePrintDialog(){const m=document.getElementById('printModal');if(m)m.style.display='none';}
+/* ===== Criar tarefa em Reuniões e Tarefas (tabela lola_assuntos), linkada ao evento ===== */
+function openTaskModal(tituloDefault,etapaDefault,evId){
+  const ev=getEvent(evId);if(!ev)return;
+  let m=document.getElementById('taskModal');
+  if(!m){m=document.createElement('div');m.id='taskModal';m.className='pm-overlay';document.body.appendChild(m);}
+  const etapas=[{v:'',l:'Selecione...'},{v:'planejamento',l:'Planejamento'},{v:'produção',l:'Produção'},{v:'no dia',l:'No dia do evento'},{v:'pós-produção',l:'Pós-produção'}];
+  m.innerHTML='<div class="pm-box" style="max-width:420px;text-align:left">'
+   +'<h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:4px">📌 Nova tarefa em Reuniões e Tarefas</h3>'
+   +'<p style="color:var(--muted);margin:0 0 14px;font-size:13px">Fica linkada ao evento <b>'+esc(ev.nome||'(sem nome)')+'</b> — dá pra abrir o evento direto a partir da tarefa.</p>'
+   +'<div class="field" style="margin-bottom:10px"><label>O que precisa ser feito</label><input id="tkTitulo" type="text" value="'+esc(tituloDefault||'')+'" placeholder="ex.: Confirmar locação de som"></div>'
+   +'<div class="field" style="margin-bottom:10px"><label>Responsável(is) <span class="hint">separados por vírgula</span></label><input id="tkResp" type="text" placeholder="ex.: Bianca, Paola"></div>'
+   +'<div class="form-grid" style="margin-bottom:6px">'
+     +'<div class="field"><label>Fase do evento</label><select id="tkEtapa">'+etapas.map(function(o){return '<option value="'+o.v+'"'+(o.v===(etapaDefault||'')?' selected':'')+'>'+o.l+'</option>';}).join('')+'</select></div>'
+     +'<div class="field"><label>Prazo</label><input id="tkPrazo" type="date" value="'+esc(ev.data||'')+'"></div>'
+   +'</div>'
+   +'<div style="display:flex;gap:8px;margin-top:14px"><button class="btn-ghost" style="flex:1;padding:10px" onclick="closeTaskModal()">Cancelar</button><button class="btn-primary" style="flex:1;padding:10px" onclick="submitTask(\''+evId+'\')">Criar tarefa</button></div>'
+   +'</div>';
+  m.style.display='flex';
+  setTimeout(function(){const el=document.getElementById('tkTitulo');if(el)el.focus();},50);
+}
+function closeTaskModal(){const m=document.getElementById('taskModal');if(m)m.style.display='none';}
+async function submitTask(evId){
+  const ev=getEvent(evId);if(!ev)return;
+  const titulo=(document.getElementById('tkTitulo').value||'').trim();
+  if(!titulo){showFlash('Escreva o que precisa ser feito.',true);return;}
+  const resp=(document.getElementById('tkResp').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  const etapa=document.getElementById('tkEtapa').value||null;
+  const prazo=document.getElementById('tkPrazo').value||null;
+  const link='https://equipelola.net/eventos/?ev='+encodeURIComponent(ev.id);
+  const unidade=(LOCAIS.find(function(l){return l.v===ev.local;})||{}).l;
+  const linha={
+    titulo:titulo, tipo:'Tarefa', eh_tarefa:true, status:'aberto',
+    categorias:['Eventos'], tags:['eventos'], responsaveis:resp,
+    unidades:unidade?[unidade]:[], pessoas:[], relacionados:[],
+    etapa:etapa, prazo:prazo, criado_por:currentUserName(),
+    conteudo:'🔗 Evento: '+(ev.nome||'(sem nome)')+(ev.data?(' · '+new Date(ev.data+'T00:00').toLocaleDateString('pt-BR')):'')+'\n'+link
+  };
+  const {error}=await sb.from('lola_assuntos').insert(linha);
+  if(error){console.error(error);showFlash('Não consegui criar a tarefa. Confira o acesso ao Reuniões e Tarefas.',true);return;}
+  closeTaskModal();showFlash('Tarefa criada em Reuniões e Tarefas ✓');
+}
 async function printEvent(withValues,sel){
   closePrintDialog();
   const ev=getEvent(view.id);if(!ev)return;
@@ -1253,12 +1323,13 @@ function horasEq(r){if(!r.entrada||!r.saida)return 0;const a=String(r.entrada).s
 function eqTotal(r){return Math.round(horasEq(r)*(Number(r.valor==null?15:r.valor)||0)*100)/100;}
 function equipeHTML(ev){
   const g=ev.equipe||[];const soma=g.reduce((s,r)=>s+eqTotal(r),0);
+  const pago=g.reduce((s,r)=>s+(r.pago?eqTotal(r):0),0);
   const vagas=g.filter(r=>!String(r.nome||'').trim()).length;
   return `<div class="section-title">Equipe do evento</div>
-  <div class="intro">Escale a equipe: cargo, nome, entrada e saída. Valor padrão <b>R$ 15/h</b> — o total calcula sozinho. Linha sem nome conta como <b>vaga em aberto</b>.${vagas?` <b style="color:var(--vinho)">${vagas} vaga(s) em aberto.</b>`:''}</div>
+  <div class="intro">Escale a equipe: cargo, nome, entrada e saída. Valor padrão <b>R$ 15/h</b> — o total calcula sozinho. Linha sem nome conta como <b>vaga em aberto</b>. Marque <b>Pago</b> quando o freela/equipe já recebeu — isso entra no resumo da aba Orçamento e Pagamentos.${vagas?` <b style="color:var(--vinho)">${vagas} vaga(s) em aberto.</b>`:''}</div>
   <div class="toolrow no-print"><button class="btn-ghost btn-sm" onclick="addEq()">+ Pessoa</button></div>
   <table>
-    <thead><tr><th style="width:130px">Cargo</th><th>Nome (freela)</th><th style="width:90px">Entrada</th><th style="width:90px">Saída</th><th style="width:90px">R$/hora</th><th class="num" style="width:100px">Total</th><th style="width:30px" class="no-print"></th></tr></thead>
+    <thead><tr><th style="width:130px">Cargo</th><th>Nome (freela)</th><th style="width:90px">Entrada</th><th style="width:90px">Saída</th><th style="width:90px">R$/hora</th><th class="num" style="width:100px">Total</th><th style="width:80px">Pago?</th><th style="width:120px">Data pagto</th><th style="width:30px" class="no-print"></th></tr></thead>
     <tbody>
     ${g.length?g.map((r,i)=>`<tr>
       <td><select onchange="setEq(${i},'cargo',this.value)">${CARGOS.map(c=>`<option ${r.cargo===c?'selected':''}>${c}</option>`).join('')}</select></td>
@@ -1267,13 +1338,15 @@ function equipeHTML(ev){
       <td><input type="time" value="${esc(r.saida)}" onchange="setEq(${i},'saida',this.value)"></td>
       <td><input type="number" step="0.5" value="${esc(r.valor==null?15:r.valor)}" onchange="setEq(${i},'valor',this.value)"></td>
       <td class="num">${fmt(eqTotal(r))}</td>
+      <td style="text-align:center"><input type="checkbox" style="width:auto" ${r.pago?'checked':''} onchange="setEq(${i},'pago',this.checked)"></td>
+      <td><input type="date" value="${esc(r.pagoEm||'')}" onchange="setEq(${i},'pagoEm',this.value)"></td>
       <td class="no-print"><button class="del-row" onclick="delEq(${i})">×</button></td>
-    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">Ninguém escalado ainda. Clique em <b>+ Pessoa</b>.</td></tr>`}
+    </tr>`).join(''):`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">Ninguém escalado ainda. Clique em <b>+ Pessoa</b>.</td></tr>`}
     </tbody>
   </table>
-  <div class="totals"><div class="line grand"><span>Total equipe</span><span>${fmt(soma)}</span></div></div>`;
+  <div class="totals"><div class="line"><span>Já pago</span><b>${fmt(pago)}</b></div><div class="line grand"><span>Total equipe</span><span>${fmt(soma)}</span></div></div>`;
 }
-function addEq(){const ev=getEvent(view.id);ev.equipe=ev.equipe||[];ev.equipe.push({cargo:"Cozinha",nome:"",entrada:"",saida:"",valor:15});save(false);renderDetail();}
+function addEq(){const ev=getEvent(view.id);ev.equipe=ev.equipe||[];ev.equipe.push({cargo:"Cozinha",nome:"",entrada:"",saida:"",valor:15,pago:false,pagoEm:""});save(false);renderDetail();}
 function setEq(i,k,v){const ev=getEvent(view.id);ev.equipe[i][k]=v;save(false);renderDetail();}
 function delEq(i){const ev=getEvent(view.id);ev.equipe.splice(i,1);save(false);renderDetail();}
 /* ===== ABA MENU (Rodada 1 · 08/07/2026) ===== */
@@ -1316,7 +1389,8 @@ function menuHTML(ev){
     +'<div class="field" style="max-width:95px"><label>Unidade</label><input id="addUn" type="text" placeholder="un/porção/g"></div>'
     +'<button class="btn-primary" style="height:38px" onclick="addMenuItem()">+ Adicionar</button>'
   +'</div>'
-  +'<table><thead><tr><th style="width:105px">Cat</th><th>Item</th><th style="width:130px">Seção</th><th style="width:78px">Qtd</th><th style="width:60px">Un</th><th style="width:52px">/pax</th><th style="width:90px">Preço</th><th>Descrição p/ cliente</th><th style="width:150px">Louça / talher</th><th class="num" style="width:105px">Total</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>'
+  +'<div class="intro" style="margin:0 0 8px">Use as setinhas ↑↓ pra reordenar os itens e enxergar melhor a sequência de montagem do menu.</div>'
+  +'<table class="sticky-th"><thead><tr><th style="width:105px">Cat</th><th>Item</th><th style="width:130px">Seção</th><th style="width:78px">Qtd</th><th style="width:60px">Un</th><th style="width:52px">/pax</th><th style="width:90px">Preço</th><th>Descrição p/ cliente</th><th style="width:150px">Louça / talher</th><th class="num" style="width:105px">Total</th><th style="width:150px" class="no-print">Fator de correção (pedido)</th><th style="width:52px" class="no-print"></th></tr></thead><tbody>'
   +((ev.menu||[]).length?ev.menu.map((m,i)=>'<tr>'
       +'<td data-l="Categoria"><span class="menu-cat">'+['C','B'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
       +'<td data-l="Item" class="name">'+esc(m.nome)+'</td>'
@@ -1328,8 +1402,9 @@ function menuHTML(ev){
       +'<td data-l="Descrição"><input type="text" placeholder="texto que sai no PDF" value="'+esc(m.desc||'')+'" onchange="setMenu('+i+',\'desc\',this.value)"></td>'
       +'<td data-l="Louça"><input type="text" placeholder="ex.: prato P + garfo" value="'+esc(m.louca||'')+'" onchange="setMenu('+i+',\'louca\',this.value)"></td>'
       +'<td data-l="Total" class="num">'+fmt(lineTotal(m,pax))+'</td>'
-      +'<td class="no-print"><button class="del-row" onclick="delMenu('+i+')">×</button></td></tr>').join('')
-    :'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione acima.</td></tr>')
+      +'<td data-l="Pedido" class="no-print"><div style="display:flex;gap:4px;margin-bottom:4px"><input type="text" placeholder="ex: garrafa" value="'+esc(m.unCompra||'')+'" onchange="setMenu('+i+',\'unCompra\',this.value)" style="min-width:0"><input type="number" step="0.01" placeholder="tam. (ex: 750)" value="'+esc(m.tamCompra||'')+'" onchange="setMenu('+i+',\'tamCompra\',this.value)" style="min-width:0"></div><div style="font-size:12px">'+pedidoHTML(m,pax)+'</div></td>'
+      +'<td class="no-print"><div class="row-actions" style="gap:3px;flex-wrap:nowrap"><button class="del-row" style="font-size:13px" onclick="moveMenu('+i+',-1)" title="Mover pra cima">▲</button><button class="del-row" style="font-size:13px" onclick="moveMenu('+i+',1)" title="Mover pra baixo">▼</button><button class="del-row" onclick="delMenu('+i+')" title="Remover">×</button></div></td></tr>').join('')
+    :'<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione acima.</td></tr>')
   +'</tbody></table>'
   +'<div class="section-title" style="margin-top:22px">Listas separadas</div>'
   +listaCatHTML(ev,'C')+listaCatHTML(ev,'B')
@@ -1381,16 +1456,19 @@ function orcHTML(ev){
     </tbody>
   </table>`:`<div class="intro">Nenhum item no pacote ainda. <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Ir para o Menu →</button></div>`}
   </table>
-  <div class="section-title" style="margin-top:22px">Custos extras</div>
-  <div class="intro">Gelo, transporte, aluguel… somam no orçamento, depois da mão de obra.</div>
-  <table><thead><tr><th>Descrição</th><th class="num" style="width:130px">Valor</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>
+  <div class="section-title" style="margin-top:22px">Custos extras e fornecedores externos</div>
+  <div class="intro">Gelo, transporte, aluguel, fornecedores contratados pro evento… somam no orçamento, depois da mão de obra. Marque <b>Pago</b> quando o fornecedor já recebeu.</div>
+  <table><thead><tr><th>Descrição / fornecedor</th><th class="num" style="width:130px">Valor</th><th style="width:80px">Pago?</th><th style="width:120px">Data pagto</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>
   ${(ev.orcExtras||[]).length?(ev.orcExtras||[]).map((e,i)=>`<tr>
-    <td data-l="Descrição"><input type="text" value="${esc(e.desc||'')}" onchange="setExtra(${i},'desc',this.value)" placeholder="ex.: transporte / frete"></td>
+    <td data-l="Descrição"><input type="text" value="${esc(e.desc||'')}" onchange="setExtra(${i},'desc',this.value)" placeholder="ex.: transporte / frete / fornecedor X"></td>
     <td data-l="Valor"><input type="number" step="0.01" value="${esc(e.valor||'')}" onchange="setExtra(${i},'valor',Number(this.value))"></td>
+    <td data-l="Pago?" style="text-align:center"><input type="checkbox" style="width:auto" ${e.pago?'checked':''} onchange="setExtra(${i},'pago',this.checked)"></td>
+    <td data-l="Data pagto"><input type="date" value="${esc(e.pagoEm||'')}" onchange="setExtra(${i},'pagoEm',this.value)"></td>
     <td class="no-print"><button class="del-row" onclick="delExtra(${i})">×</button></td></tr>`).join('')
-   :`<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:18px">Nenhum custo extra.</td></tr>`}
+   :`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px">Nenhum custo extra.</td></tr>`}
   </tbody></table>
-  <div style="margin-top:10px" class="no-print"><button class="btn-ghost btn-sm" onclick="addExtra()">+ Adicionar extra</button></div>
+  <div style="margin-top:10px" class="no-print"><button class="btn-ghost btn-sm" onclick="addExtra()">+ Adicionar extra / fornecedor</button></div>
+  ${pagamentosEquipeFornecedoresHTML(ev)}
 
   <div class="totals" style="margin-top:18px">
     <div class="line"><span>Subtotal do pacote (comida + bebida)</span><b>${fmt(sub)}</b></div>
@@ -1587,7 +1665,24 @@ function gerarProposta(){
 }
 function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);if(f){document.getElementById('addPreco').value=f.p;var u=document.getElementById('addUn');if(u)u.value=f.un||'';}}
 function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();renderDetail();}
-function addExtra(){const ev=getEvent(view.id);ev.orcExtras=ev.orcExtras||[];ev.orcExtras.push({desc:'',valor:0});save(false);renderDetail();}
+function addExtra(){const ev=getEvent(view.id);ev.orcExtras=ev.orcExtras||[];ev.orcExtras.push({desc:'',valor:0,pago:false,pagoEm:''});save(false);renderDetail();}
+function pagamentosEquipeFornecedoresHTML(ev){
+  const eq=(ev.equipe||[]).filter(function(r){return String(r.nome||'').trim();});
+  const ex=(ev.orcExtras||[]).filter(function(e){return e.desc||Number(e.valor);});
+  if(!eq.length&&!ex.length)return '';
+  const rows=eq.map(function(r){return {nome:r.nome+' ('+r.cargo+')',valor:eqTotal(r),pago:!!r.pago,pagoEm:r.pagoEm};})
+    .concat(ex.map(function(e){return {nome:e.desc||'(sem descrição)',valor:Number(e.valor)||0,pago:!!e.pago,pagoEm:e.pagoEm};}));
+  const totPago=rows.reduce(function(s,r){return s+(r.pago?r.valor:0);},0);
+  const totGeral=rows.reduce(function(s,r){return s+r.valor;},0);
+  return '<div class="section-title" style="margin-top:22px">Resumo — pagamentos de equipe e fornecedores</div>'
+   +'<div class="intro">Consolidado da aba Equipe e dos custos extras acima — não é o pagamento do cliente (isso fica na seção Pagamento, embaixo).</div>'
+   +'<table><thead><tr><th>Quem / o quê</th><th class="num" style="width:110px">Valor</th><th style="width:90px">Status</th><th style="width:110px">Data</th></tr></thead><tbody>'
+   +rows.map(function(r){return '<tr><td data-l="Quem">'+esc(r.nome)+'</td><td data-l="Valor" class="num">'+fmt(r.valor)+'</td>'
+     +'<td data-l="Status"><span class="pay '+(r.pago?'pay-pago':'pay-pend')+'">'+(r.pago?'✓ Pago':'○ Pendente')+'</span></td>'
+     +'<td data-l="Data">'+(r.pagoEm?new Date(r.pagoEm+'T00:00').toLocaleDateString('pt-BR'):'—')+'</td></tr>';}).join('')
+   +'</tbody></table>'
+   +'<div class="totals" style="margin-top:10px"><div class="line"><span>Já pago</span><b>'+fmt(totPago)+'</b></div><div class="line grand"><span>Falta pagar</span><span>'+fmt(totGeral-totPago)+'</span></div></div>';
+}
 function setExtra(i,k,v){const ev=getEvent(view.id);ev.orcExtras[i][k]=v;save(false);renderDetail();}
 function delExtra(i){const ev=getEvent(view.id);ev.orcExtras.splice(i,1);save(false);renderDetail();}
 function setPag(k,v){const ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag[k]=v;save(false);renderTab();}
@@ -1642,11 +1737,34 @@ function addMenuItem(){
   ev.menu=ev.menu||[];
   const cat=(document.getElementById('addCat')&&document.getElementById('addCat').value)||'C';
   const secao=(document.getElementById('addSecao')&&document.getElementById('addSecao').value)||'';
-  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:true,ficha,cat,secao,desc:'',louca:''});
+  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:true,ficha,cat,secao,desc:'',louca:'',unCompra:'',tamCompra:''});
   save(false);renderTab();renderDetail();
 }
 function setMenu(i,k,v){const ev=getEvent(view.id);ev.menu[i][k]=v;save(false);renderTab();renderDetail();}
 function delMenu(i){const ev=getEvent(view.id);ev.menu.splice(i,1);save(false);renderTab();renderDetail();}
+function moveMenu(i,dir){
+  const ev=getEvent(view.id);const m=ev.menu;const j=i+dir;
+  if(!m||j<0||j>=m.length)return;
+  const t=m[i];m[i]=m[j];m[j]=t;
+  save(false);renderTab();renderDetail();
+}
+/* Fator de correção: converte o total calculado (na unidade do menu) para a unidade real de compra,
+   ex.: vinho a 120ml/pessoa × 10 pax = 1200ml ÷ garrafa de 750ml = 1,6 → arredonda pra 2 garrafas. */
+function baseQtd(m,pax){return m.perPax?(Number(m.qtd)||0)*pax:(Number(m.qtd)||0);}
+function pedidoInfo(m,pax){
+  const tam=Number(m.tamCompra);
+  if(!tam)return null;
+  const total=baseQtd(m,pax);
+  const bruto=total/tam;
+  const arred=Math.ceil(bruto-1e-9);
+  return {total,tam,bruto,arred,unCompra:(m.unCompra||'un').trim()||'un'};
+}
+function pedidoHTML(m,pax){
+  const p=pedidoInfo(m,pax);
+  if(!p)return '<span class="hint">—</span>';
+  const plural=p.arred===1?'':'s';
+  return '<b>'+p.arred+' '+esc(p.unCompra)+plural+'</b><br><span class="hint">'+fmtQty(p.total)+(m.un?' '+esc(m.un):'')+' ÷ '+fmtQty(p.tam)+(m.un?' '+esc(m.un):'')+' = '+p.bruto.toFixed(2).replace('.',',')+'</span>';
+}
 async function delEvent(id){
   if(!confirm("Excluir este evento? Esta ação não pode ser desfeita."))return;
   const {error}=await sb.from('lola_eventos').delete().eq('id',id);
