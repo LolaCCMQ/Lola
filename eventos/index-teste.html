@@ -568,10 +568,10 @@ function blankEvent(){
 function getEvent(id){return DB.events.find(e=>e.id===id);}
 function relevantSections(ev){return SECTIONS.filter(s=>s.tipos.includes(ev.tipo));}
 function relevantFases(ev){return FASES.filter(f=>f.tipos.includes(ev.tipo));}
-function progress(ev){let tot=0,done=0;relevantFases(ev).forEach(f=>f.itens.forEach((it,i)=>{const ck=ev.checks[f.id+"_"+i];if(ck&&ck.na)return;tot++;if(ck&&ck.done)done++;}));return tot?Math.round(done/tot*100):0;}
+function progress(ev){let tot=0,done=0;relevantFases(ev).forEach(f=>f.itens.forEach((it,i)=>{const ck=ev.checks[f.id+"_"+i];tot++;if(ck&&(ck.done||ck.na))done++;}));return tot?Math.round(done/tot*100):0;}
 function faseProgress(ev,f){
-  let tot=0,done=0;
-  f.itens.forEach((it,i)=>{const ck=ev.checks[f.id+"_"+i];if(ck&&ck.na)return;tot++;if(ck&&ck.done)done++;});
+  let tot=f.itens.length,done=0;
+  f.itens.forEach((it,i)=>{const ck=ev.checks[f.id+"_"+i];if(ck&&(ck.done||ck.na))done++;});
   return {done,tot,pct:tot?Math.round(done/tot*100):0};
 }
 function locPill(v){const l=LOCAIS.find(x=>x.v===v);if(!l||!v)return '';return `<span class="loc-pill ${l.c}">📍 ${l.l.replace('Lola ','')}</span>`;}
@@ -896,15 +896,15 @@ function faseItemHTML(ev,f,it,i){
   const naBtn=`<button class="na-btn no-print${ck.na?' on':''}" onclick="event.stopPropagation();toggleNA('${f.id}',${i})" title="Marcar como não se aplica a este evento">N/A</button>`;
   const tarefaBtn=`<button class="btn-ghost btn-sm no-print" style="margin-top:8px" onclick="openTaskModal('${it.t.replace(/'/g,"\\'")}','${faseEtapa(f.id)}','${ev.id}')">📌 Criar tarefa em Reuniões e Tarefas</button>`;
   if(!acc){
-    return `<div class="ck-item ${ck.done?'done':''} ${ck.na?'na':''}">
-      <div class="ck-cb ${ck.done?'on':''}" onclick="toggleCheck('${f.id}',${i})">${ck.done?'✓':''}</div>
+    return `<div class="ck-item ${(ck.done||ck.na)?'done':''} ${ck.na?'na':''}">
+      <div class="ck-cb ${(ck.done||ck.na)?'on':''}" onclick="toggleCheck('${f.id}',${i})">${ck.na?'–':(ck.done?'✓':'')}</div>
       <div class="ck-body"><div class="txt">${it.t}</div>${corpo}${tarefaBtn}</div>
       ${naBtn}
     </div>`;
   }
   return `<div class="facc ${open?'on':''} ${ck.na?'na':''}">
     <div class="facc-h">
-      <div class="ck-cb ${ck.done?'on':''}" onclick="event.stopPropagation();toggleCheck('${f.id}',${i})">${ck.done?'✓':''}</div>
+      <div class="ck-cb ${(ck.done||ck.na)?'on':''}" onclick="event.stopPropagation();toggleCheck('${f.id}',${i})">${ck.na?'–':(ck.done?'✓':'')}</div>
       <div class="facc-t" onclick="toggleAcc('${f.id}',${i})">${it.t}${marca&&!open?'<span class="facc-dot">•</span>':''}</div>
       ${temOrc?`<span class="facc-money">${fmt(ck.orc)}</span>`:''}
       ${naBtn}
