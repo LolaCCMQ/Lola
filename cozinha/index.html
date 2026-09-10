@@ -4231,10 +4231,15 @@ function _delProducao(reg,parentOv,onSave){
 /* 19/08 (Bianca): DESCARTES — planilha de insumos jogados fora (vencido/estragado/quebra/
    sobra). Cada descarte grava um movimento origem_tipo='descarte' que DÁ BAIXA no saldo
    (carregarSaldoInsumos subtrai) e guarda o custo perdido. Só CCMQ por enquanto. */
-const DESC_MOTIVOS=[['vencido','Vencido'],['estragado','Estragado / deteriorado'],['quebra','Quebra / derramamento'],['sobra','Sobra de produção']];
+const DESC_MOTIVOS=[['vencido','Vencido'],['estragado','Estragado / deteriorado'],['quebra','Quebra / derramamento'],['sobra','Sobra de produção'],['outro','Outro motivo']];
 function _descMotLb(k){ const base=String(k||'').split(' · ')[0]; const m=DESC_MOTIVOS.find(x=>x[0]===base); return m?m[1]:(base||'—'); }
 let DESC_ST=null;
+/* 10/09 (Bianca): Descartes unificado (CCMQ e Central) — insumo, equipamento, louça e item novo,
+   com foto opcional e baixa em cada lugar certo. MAC fica na versão antiga (não tem estoque). */
+const DESC_MOV_TABLE={ccmq:'lola_ccmq_estoque_mov',central:'lola_central_estoque_mov'};
+const DESC_INV_UNIDADE={ccmq:'Lola CCMQ',central:'Cozinha Central'};
 async function pgDescartes(c){
+  if(APP_COZ_ID==='ccmq'||APP_COZ_ID==='central') return pgDescartesV2(c);
   c.appendChild(ld());
   try{
     const [insumos, movs]=await Promise.all([
@@ -4337,6 +4342,213 @@ function modalNovoDescarte(onDone){
   wrap.appendChild(bSave);
   mkModal('🗑️ Novo descarte — estoque CCMQ',[wrap],null,'mo mol');
   upd();
+}
+
+/* ===== Descartes UNIFICADO (CCMQ e Central) — v2 ===== */
+const DESC_TIPO_STY={
+  insumo:['Insumo','ph-jar','#E6F3EA','#2C7A4B'],
+  equipamento:['Equipamento','ph-wrench','#E6EEF8','#2C5AA0'],
+  louca:['Louça','ph-fork-knife','#F6E7EF','#9A3B6B'],
+  outro:['Item novo','ph-plus-circle','#FBF0DD','#9A6B1E']
+};
+function _descTipoLb(t){ return (DESC_TIPO_STY[t]||['—'])[0]; }
+async function pgDescartesV2(c){
+  c.appendChild(ld());
+  try{
+    const uni=APP_COZ_ID, invUni=DESC_INV_UNIDADE[uni]||'';
+    const [insumos, equips, loucas, regs]=await Promise.all([
+      db('lola_insumos','GET',null,'?select=id,nome,categoria,unidade_custo,custo_por_unidade&ativo=eq.true&order=nome.asc').catch(()=>[]),
+      db('equipamentos','GET',null,'?select=id,num,nome,marca,setor,status&status=neq.descartado&order=nome.asc').catch(()=>[]),
+      db('lola_inv_itens','GET',null,'?select=id,nome,categoria,subcategoria,unidade,qtd&categoria=eq.louca&ativo=neq.false&unidade=eq.'+encodeURIComponent(invUni)+'&order=nome.asc').catch(()=>[]),
+      db('lola_descartes','GET',null,'?unidade=eq.'+uni+'&select=*&order=data.desc,criado_em.desc&limit=500').catch(()=>[])
+    ]);
+    const insById={}; insumos.forEach(i=>insById[i.id]=i);
+    const equipsById={}; equips.forEach(e=>equipsById[e.id]=e);
+    const loucasById={}; loucas.forEach(l=>loucasById[l.id]=l);
+    const outros=[...new Set(regs.filter(r=>r.tipo==='outro'&&r.nome).map(r=>r.nome))];
+    DESC_ST={uni,invUni,insumos,insById,equips,equipsById,loucas,loucasById,outros};
+    c.innerHTML='';
+    const note=div(null); note.style.cssText='background:var(--rf);border:1px solid var(--rb);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12.5px;color:var(--ts);line-height:1.5';
+    note.innerHTML='<i class="ph-duotone ph-info" style="color:var(--v)"></i> Registre o que foi <b>jogado fora</b> — insumo, equipamento, louça ou um item novo. Dá <b>baixa no lugar certo</b> e você pode anexar uma <b>foto</b>.';
+    c.appendChild(note);
+    const bNovo=btn('btn bp','＋ Novo descarte',()=>modalNovoDescarteV2(()=>pgDescartesV2(c)));
+    bNovo.style.cssText='margin-bottom:12px;font-weight:700'; c.appendChild(bNovo);
+    const mes=(TD()||'').slice(0,7);
+    const doMes=regs.filter(m=>String(m.data||'').slice(0,7)===mes);
+    const custoMes=doMes.reduce((s,m)=>s+(+m.valor||0),0);
+    const resumo=div(null); resumo.style.cssText='font-size:12px;font-weight:800;color:var(--v);text-transform:uppercase;letter-spacing:.05em;margin:2px 0 10px';
+    resumo.textContent=regs.length+' descarte(s) · '+doMes.length+' no mês · perda no mês '+R(custoMes);
+    c.appendChild(resumo);
+    const listBox=div(null); c.appendChild(listBox);
+    if(!regs.length){ listBox.appendChild(div('tss',null,{style:'padding:16px',html:'Nenhum descarte registrado ainda.'})); return; }
+    const tbl=el('table',null,null,{style:'width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--rb);border-radius:14px;overflow:hidden;table-layout:fixed'});
+    const th='font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--ts);font-weight:800;text-align:left;padding:8px;background:var(--rf);border-bottom:1px solid var(--rb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    tbl.innerHTML='<colgroup><col style="width:50px"><col><col style="width:70px"><col style="width:84px"><col style="width:72px"><col style="width:30px"></colgroup>'
+      +'<thead><tr><th style="'+th+'">Data</th><th style="'+th+'">Item</th><th style="'+th+';text-align:right">Qtd</th><th style="'+th+'">Motivo</th><th style="'+th+';text-align:right">Perda</th><th style="'+th+'"></th></tr></thead>';
+    const tb=el('tbody');
+    regs.forEach(m=>{
+      const sty=DESC_TIPO_STY[m.tipo]||DESC_TIPO_STY.outro; const td='padding:8px;border-bottom:1px solid #F3EBE2;font-size:12.5px;vertical-align:middle;background:#fff';
+      const tr=el('tr');
+      const badge='<span style="display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:'+sty[3]+';background:'+sty[2]+';border-radius:6px;padding:1px 5px;margin-top:2px">'+sty[0]+'</span>';
+      const cam=m.foto_url?' <i class="ph-duotone ph-camera" style="color:#9A6B1E" title="tem foto"></i>':'';
+      tr.innerHTML='<td style="'+td+';white-space:nowrap;color:var(--ts)">'+String(DBR(m.data)||'').slice(0,5)+'</td>'
+        +'<td style="'+td+';overflow:hidden"><span style="display:block;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_envEsc(m.nome||'?')+cam+'</span>'+badge+'</td>'
+        +'<td style="'+td+';text-align:right;white-space:nowrap">'+(m.qtd?_enQ(+m.qtd)+' '+_envEsc(m.un||''):'—')+'</td>'
+        +'<td style="'+td+'"><span style="font-size:10.5px;font-weight:800;color:#9A6B1E">'+_descMotLb(m.motivo)+'</span></td>'
+        +'<td style="'+td+';text-align:right;white-space:nowrap;font-weight:700">'+(m.valor?R(+m.valor):'—')+'</td>';
+      const tdAc=el('td',null,null,{style:td+';text-align:center'});
+      const bx=btn('','',()=>excluirDescarteV2(m,()=>pgDescartesV2(c))); bx.innerHTML='<i class="ph-duotone ph-trash"></i>'; bx.title='Excluir descarte'; bx.style.cssText='border:0;background:none;color:#B0928A;cursor:pointer;font-size:15px;padding:4px';
+      tdAc.appendChild(bx); tr.appendChild(tdAc); tb.appendChild(tr);
+      if(m.foto_url){ tr.style.cursor='pointer'; tr.querySelector('td:nth-child(2)').onclick=()=>_descVerFoto(m.foto_url,m.nome); }
+    });
+    tbl.appendChild(tb); listBox.appendChild(tbl);
+  }catch(e){ c.innerHTML='<div style="padding:20px;color:red;font-weight:700">❌ Erro ao carregar.<br><small>'+_envEsc(e.message)+'</small></div>'; }
+}
+function _descVerFoto(url,nome){
+  const ov=div('ov'); ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick=()=>ov.remove();
+  const img=el('img',null,null,{src:url}); img.style.cssText='max-width:94vw;max-height:88vh;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.5)';
+  ov.appendChild(img); document.body.appendChild(ov);
+}
+async function excluirDescarteV2(m,onDone){
+  if(!confirm('Excluir o descarte de "'+(m.nome||'?')+'"?'+(m.tipo==='insumo'?'\n\nA quantidade volta pro saldo do estoque.':(m.tipo==='louca'?'\n\nA quantidade volta pro Inventário.':(m.tipo==='equipamento'?'\n\nO equipamento volta a ficar ativo em Manutenções.':'')))))return;
+  try{
+    if(m.tipo==='insumo'&&m.mov_id){ await db(DESC_MOV_TABLE[m.unidade]||'lola_ccmq_estoque_mov','DELETE',null,'?id=eq.'+m.mov_id).catch(()=>{}); }
+    else if(m.tipo==='louca'&&m.item_id){ const cur=await db('lola_inv_itens','GET',null,'?select=qtd&id=eq.'+m.item_id).catch(()=>[]); if(cur&&cur[0]){ await db('lola_inv_itens','PATCH',{qtd:(+cur[0].qtd||0)+(+m.qtd||0),updated_at:new Date().toISOString()},'?id=eq.'+m.item_id).catch(()=>{}); } }
+    else if(m.tipo==='equipamento'&&m.item_id){ await db('equipamentos','PATCH',{status:'ativo'},'?id=eq.'+m.item_id).catch(()=>{}); }
+    if(m.foto_url){ try{ const pth=m.foto_url.split('/producao/')[1]; if(pth) await fetch(SB+'/storage/v1/object/producao/'+pth,{method:'DELETE',headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}}); }catch(_e){} }
+    await db('lola_descartes','DELETE',null,'?id=eq.'+m.id);
+    if(onDone)onDone();
+  }catch(e){ alert('Erro ao excluir: '+e.message); }
+}
+function modalNovoDescarteV2(onDone){
+  const UNS=['kg','g','L','ml','un','pct','cx','fd','dz'];
+  const st={tipo:'insumo', selId:null, nome:'', foto:null};
+  const wrap=div(null);
+  // seletor de tipo
+  const tipoRow=div(null); tipoRow.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px';
+  const tipoBtns={};
+  Object.keys(DESC_TIPO_STY).forEach(t=>{
+    const s=DESC_TIPO_STY[t]; const b=el('button',null,null,{type:'button',html:'<i class="ph-duotone '+s[1]+'"></i> '+s[0]});
+    b.style.cssText='flex:1 1 auto;min-width:calc(50% - 3px);border:1.5px solid var(--rb);background:#fff;border-radius:11px;padding:9px 8px;font:inherit;font-size:12.5px;font-weight:700;color:var(--tx);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px';
+    b.onclick=()=>{ st.tipo=t; st.selId=null; st.nome=''; inp.value=''; setTipo(); };
+    tipoBtns[t]=b; tipoRow.appendChild(b);
+  });
+  // campos
+  const inp=el('input','fi',null,{placeholder:'Buscar…',autocomplete:'off'}); inp.style.cssText='width:100%;font-size:13px';
+  const buscaG=fgrp('Insumo',inp); const lblBusca=buscaG.querySelector('.fl');
+  const qtdInp=el('input','fi',null,{type:'number',step:'0.001',inputmode:'decimal',placeholder:'Qtd'});
+  const unSel=el('select','fi',null,{style:'width:90px'}); UNS.forEach(u=>unSel.appendChild(el('option',null,u,{value:u})));
+  const motSel=el('select','fi',null,{}); DESC_MOTIVOS.forEach(mm=>motSel.appendChild(el('option',null,mm[1],{value:mm[0]})));
+  const dataInp=el('input','fi',null,{type:'date',value:TD()});
+  const valInp=el('input','fi',null,{type:'number',step:'0.01',inputmode:'decimal',placeholder:'Valor R$ (opcional)'});
+  const obsInp=el('input','fi',null,{placeholder:'Observação (opcional)'});
+  const calc=el('div','tss',null,{style:'margin-top:8px'});
+  // foto
+  const fileInp=document.createElement('input'); fileInp.type='file'; fileInp.accept='image/*'; fileInp.style.display='none';
+  const fotoBtn=el('button',null,null,{type:'button',html:'<i class="ph-duotone ph-camera"></i> Adicionar foto'});
+  fotoBtn.style.cssText='width:100%;border:1.5px dashed var(--rb);background:var(--rf);border-radius:11px;padding:11px;font:inherit;font-size:13px;font-weight:700;color:var(--v);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px';
+  const fotoPrev=div(null); fotoPrev.style.cssText='margin-top:8px';
+  fotoBtn.onclick=()=>fileInp.click();
+  fileInp.addEventListener('change',()=>{ const f=fileInp.files&&fileInp.files[0]; if(!f)return; _resizeImg(f,(durl)=>{ st.foto=durl; paintFoto(); }); });
+  function paintFoto(){ fotoPrev.innerHTML=''; if(!st.foto){ fotoBtn.innerHTML='<i class="ph-duotone ph-camera"></i> Adicionar foto'; return; }
+    fotoBtn.innerHTML='<i class="ph-duotone ph-camera"></i> Trocar foto';
+    const im=el('img',null,null,{src:st.foto}); im.style.cssText='max-width:100%;max-height:150px;border-radius:10px;border:1px solid var(--rb);display:block';
+    const rm=el('button',null,null,{type:'button',html:'✕ remover foto'}); rm.style.cssText='margin-top:6px;border:0;background:none;color:var(--neg,#B5302E);font-size:12px;font-weight:700;cursor:pointer';
+    rm.onclick=()=>{ st.foto=null; fileInp.value=''; paintFoto(); };
+    fotoPrev.appendChild(im); fotoPrev.appendChild(rm);
+  }
+  // dropdown de busca
+  const box=document.createElement('div'); box.style.cssText='position:fixed;z-index:1300;background:#fff;border:1.5px solid var(--rb);border-radius:12px;box-shadow:0 8px 24px rgba(42,26,23,.15);max-height:240px;overflow-y:auto;display:none'; document.body.appendChild(box);
+  let _skip=false;
+  function fechar(){ box.style.display='none'; }
+  function fonte(){ const S=DESC_ST||{};
+    if(st.tipo==='insumo') return (S.insumos||[]).map(i=>({id:i.id,nome:i.nome,extra:'',cu:+i.custo_por_unidade||0,un:i.unidade_custo}));
+    if(st.tipo==='equipamento') return (S.equips||[]).map(e=>({id:e.id,nome:e.nome,extra:(e.marca||'')+(e.num?(' · #'+e.num):'')}));
+    if(st.tipo==='louca') return (S.loucas||[]).map(l=>({id:l.id,nome:l.nome,extra:l.subcategoria||''}));
+    return (S.outros||[]).map(n=>({id:null,nome:n,extra:'já usado antes'}));
+  }
+  function render(){
+    if(_skip){_skip=false;fechar();return;}
+    const q=_jnorm(inp.value||''); if(q.length<1){ fechar(); return; }
+    const hits=fonte().filter(i=>_jnorm(i.nome+' '+(i.extra||'')).includes(q)).slice(0,14);
+    if(!hits.length){ fechar(); return; }
+    box.innerHTML=''; hits.forEach(i=>{ const it=document.createElement('div'); it.style.cssText='padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid #F3EBE2';
+      it.innerHTML=_envEsc(i.nome)+(i.extra?(' <span style="font-size:11px;color:var(--ts);font-weight:500">· '+_envEsc(i.extra)+'</span>'):'');
+      it.onmouseenter=()=>it.style.background='var(--rf)'; it.onmouseleave=()=>it.style.background='#fff';
+      it.onmousedown=(e)=>{ e.preventDefault(); _skip=true; st.selId=i.id; st.nome=i.nome; inp.value=i.nome;
+        if(st.tipo==='insumo'&&i.un){ let u=String(i.un).trim(); if(u.toLowerCase()==='l')u='L'; if(UNS.includes(u))unSel.value=u; }
+        upd(); fechar(); };
+      box.appendChild(it); });
+    const r=inp.getBoundingClientRect(); box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.width=Math.max(r.width,240)+'px'; box.style.display='block';
+  }
+  inp.addEventListener('input',()=>{ st.selId=null; if(st.tipo==='outro') st.nome=inp.value.trim(); upd(); render(); });
+  inp.addEventListener('focus',render); inp.addEventListener('blur',()=>setTimeout(fechar,150));
+  qtdInp.oninput=upd; unSel.onchange=upd; valInp.oninput=upd;
+  function upd(){
+    Object.keys(tipoBtns).forEach(t=>{ const on=t===st.tipo; const s=DESC_TIPO_STY[t]; tipoBtns[t].style.borderColor=on?s[3]:'var(--rb)'; tipoBtns[t].style.background=on?s[2]:'#fff'; tipoBtns[t].style.color=on?s[3]:'var(--tx)'; });
+    if(st.tipo==='insumo'){ const ins=(DESC_ST.insById||{})[st.selId]; const q=+qtdInp.value||0; const cu=ins?(+ins.custo_por_unidade||0):0; const perda=cu*q;
+      calc.innerHTML=(st.selId&&q>0)?('Perda estimada: <b style="color:var(--v)">'+R(perda)+'</b>'):(st.selId?'informe a quantidade':'escolha o insumo');
+    } else { calc.innerHTML=st.nome?'':'escolha ou digite o item'; }
+  }
+  function setTipo(){
+    const isIns=st.tipo==='insumo', isOutro=st.tipo==='outro';
+    lblBusca.textContent=isIns?'Insumo':(st.tipo==='equipamento'?'Equipamento':(st.tipo==='louca'?'Louça':'Nome do item novo'));
+    inp.placeholder=isOutro?'Digite o nome do item…':'Buscar…';
+    valInp.parentNode.style.display=isIns?'none':''; // insumo calcula sozinho
+    unSel.value=(st.tipo==='equipamento')?'un':unSel.value;
+    fechar(); upd();
+  }
+  const bSave=btn('btn bp','✓ Registrar descarte',async()=>{
+    const nome=(st.tipo==='outro')?(inp.value.trim()):st.nome;
+    if(st.tipo!=='outro'&&!st.selId){ alert('Escolha um item da lista.'); inp.focus(); return; }
+    if(!nome){ alert('Informe o item.'); inp.focus(); return; }
+    const q=+qtdInp.value||0;
+    if((st.tipo==='insumo'||st.tipo==='louca')&&!(q>0)){ alert('Informe a quantidade.'); qtdInp.focus(); return; }
+    const uni=DESC_ST.uni, invUni=DESC_ST.invUni;
+    const ins=(DESC_ST.insById||{})[st.selId]||{};
+    const cu=+ins.custo_por_unidade||0;
+    let valor = (st.tipo==='insumo') ? +(cu*q).toFixed(2) : (valInp.value!==''?+valInp.value:null);
+    const un=(q>0)?unSel.value:null;
+    const motivo=motSel.value, obs=obsInp.value.trim(), data=dataInp.value||TD();
+    if(!confirm('Registrar descarte de "'+nome+'"'+(q>0?(' ('+_enQ(q)+' '+unSel.value+')'):'')+'?'+(st.tipo==='insumo'?'\n\nSai do saldo do estoque.':(st.tipo==='louca'?'\n\nBaixa no Inventário.':(st.tipo==='equipamento'?'\n\nMarca como descartado em Manutenções.':'')))))return;
+    bSave.disabled=true; bSave.textContent='Registrando...';
+    try{
+      let fotoUrl=null; if(st.foto){ try{ fotoUrl=await _uploadFotoProd(st.foto); }catch(fe){ if(!confirm('Não consegui enviar a foto ('+fe.message+'). Registrar o descarte mesmo assim, sem foto?')){ bSave.disabled=false; bSave.textContent='✓ Registrar descarte'; return; } } }
+      let movId=null;
+      if(st.tipo==='insumo'){
+        const mv=await db(DESC_MOV_TABLE[uni],'POST',{insumo_id:st.selId,tipo:'perda',qtd:q,unidade:un,custo_unit:(cu||null),custo_total:(valor||null),origem_tipo:'descarte',origem_ref:motivo+(obs?' · '+obs:''),data:data,criado_por:ME||null});
+        if(mv&&mv[0]) movId=String(mv[0].id);
+      } else if(st.tipo==='louca'){
+        const it=(DESC_ST.loucasById||{})[st.selId];
+        if(it){ const nova=Math.max(0,(+it.qtd||0)-q); await db('lola_inv_itens','PATCH',{qtd:nova,updated_at:new Date().toISOString()},'?id=eq.'+st.selId);
+          await db('lola_inv_mov','POST',{item_id:st.selId,tipo:'descarte',quantidade:q,origem:invUni,motivo:motivo+(obs?' · '+obs:''),quem:ME||null}).catch(()=>{}); }
+      } else if(st.tipo==='equipamento'){
+        try{ const eqf=await db('equipamentos','GET',null,'?select=historico&id=eq.'+st.selId); const hist=(eqf&&eqf[0]&&Array.isArray(eqf[0].historico))?eqf[0].historico:[];
+          hist.unshift({tipo:'descarte',data:data,texto:'Descartado'+(motivo&&motivo!=='outro'?(' — '+_descMotLb(motivo)):'')+(obs?(' · '+obs):''),por:ME||null});
+          await db('equipamentos','PATCH',{status:'descartado',historico:hist},'?id=eq.'+st.selId);
+        }catch(_e){ await db('equipamentos','PATCH',{status:'descartado'},'?id=eq.'+st.selId).catch(()=>{}); }
+      }
+      await db('lola_descartes','POST',{unidade:uni,tipo:st.tipo,item_id:st.selId||null,nome:nome,qtd:(q>0?q:null),un:un,motivo:motivo,obs:(obs||null),valor:(valor!=null?valor:null),foto_url:fotoUrl,mov_id:movId,data:data,criado_por:ME||null});
+      fechar(); box.remove(); document.querySelectorAll('.ov').forEach(o=>o.remove());
+      if(onDone)onDone();
+    }catch(e){ alert('Erro: '+e.message); bSave.disabled=false; bSave.textContent='✓ Registrar descarte'; }
+  });
+  bSave.style.cssText='width:100%;margin-top:12px;padding:13px;font-weight:800;font-size:14px';
+  wrap.appendChild(tipoRow);
+  wrap.appendChild(buscaG);
+  wrap.appendChild(el('div',null,null,{style:'height:10px'}));
+  wrap.appendChild(div('fg2',[fgrp('Quantidade',div(null,[qtdInp,unSel],{style:'display:flex;gap:8px;align-items:center'})),fgrp('Motivo',motSel)]));
+  wrap.appendChild(el('div',null,null,{style:'height:10px'}));
+  wrap.appendChild(div('fg2',[fgrp('Data',dataInp),fgrp('Valor da perda',valInp)]));
+  wrap.appendChild(el('div',null,null,{style:'height:10px'}));
+  wrap.appendChild(fgrp('Observação',obsInp));
+  wrap.appendChild(el('div',null,null,{style:'height:12px'}));
+  wrap.appendChild(fotoBtn); wrap.appendChild(fileInp); wrap.appendChild(fotoPrev);
+  wrap.appendChild(calc);
+  wrap.appendChild(bSave);
+  mkModal('🗑️ Novo descarte — '+(COZ_NOME[APP_COZ_ID]||'estoque'),[wrap],null,'mo mol');
+  setTipo();
 }
 async function pgSaidas(c){
   c.appendChild(ld());
