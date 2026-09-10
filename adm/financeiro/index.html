@@ -1977,10 +1977,10 @@ function openLinkPagamento(lancId, forcePicker){
         ${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;font-size:11.5px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div style="font-size:10px;color:var(--mut)">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:11.5px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}
       </div>`;
   };
-  const ligHTML=jaLig.length?`<div class="cg">Notas já associadas (${jaLig.length}) — toque em “ver produtos” p/ classificar</div>`+jaLig.map(n=>{ const its=Array.isArray(n.itens)?n.itens:[];
+  const ligHTML=jaLig.length?`<div class="cg">Já associadas (${jaLig.length})</div>`+jaLig.map(n=>{ const its=Array.isArray(n.itens)?n.itens:[];
     return `<div class="catopt"><span class="cbar" style="background:#2C7A4B"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.emitente||'')}</div><div class="date" style="font-size:11px">NF ${esc(n.numero||'—')} · ${fmtDate(n.data_emissao)}</div>${(function(){var v=notaVencChips(n,vlanc);return v?`<div style="font-size:10.5px;margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;line-height:1.5">${v}</div>`:'';})()}${its.length?`<button type="button" class="verprod" data-vn="${n.chave}" style="margin-top:4px;font-size:11px;color:var(--vinho);font-weight:600;background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:4px"><i class="ph-duotone ph-package"></i> ver ${its.length} produto(s)</button>`:''}</div><div class="amt neg">${brl(-(+n.valor_total||0))}</div><button class="iconbtn" data-unl="${n.chave}" title="Remover"><i class="ph-duotone ph-link-break"></i></button></div>
     <div class="prodbox" data-pn="${n.chave}" style="display:none;padding:2px 12px 10px 34px">${its.map(i=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px"><div style="flex:1;min-width:0"><div style="font-weight:600">${esc(i.desc)}</div><div class="date" style="font-size:10.5px">${(+i.qtd||0).toLocaleString('pt-BR')} ${esc(i.un||'')} × ${brl(+i.vunit||0)}</div></div><div class="amt neg" style="font-size:12px">${brl(-(+i.vtotal||0))}</div></div>`).join('')}</div>`;}).join('')
-    +`<button class="btn o" id="pgReclass" style="margin:4px 0 6px"><i class="ph-duotone ph-tag"></i> Reclassificar este lançamento</button>`:'';
+    +`<button type="button" id="pgReclass" style="background:none;border:0;color:var(--vinho);font-weight:600;font-size:11.5px;padding:2px 0;margin:2px 0 6px;cursor:pointer"><i class="ph-duotone ph-tag"></i> Reclassificar este lançamento</button>`:'';
   const allCands=scoreNotas(l); // todas as notas sem pagamento (qualquer mês) — base da busca
   const buildRows=(query)=>{
     const q=normSearch(query||''), qd=q.replace(/\D/g,'');
@@ -1999,32 +1999,40 @@ function openLinkPagamento(lancId, forcePicker){
     return h||'<div class="note">Nenhuma nota deste mês sem pagamento. Use “ver todos os meses” ou busque acima.</div>';
   };
   const forn=splitFornecedor(l.memo).disp||l.memo||'(sem descrição)';
-  openSheet(`<div style="position:sticky;top:0;z-index:6;background:#fff;padding:2px 0 9px;margin-bottom:11px;border-bottom:1px solid var(--fio)">
-      <h3 style="margin:0 0 4px">Associar notas ao pagamento</h3>
+  openSheet(`<div style="position:sticky;top:0;z-index:6;background:#fff;padding:2px 0 6px;margin-bottom:6px;border-bottom:1px solid var(--fio)">
       <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
-        <div style="font-weight:700;font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(forn)}</div>
+        <div style="font-weight:700;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(forn)}</div>
         <div style="text-align:right;white-space:nowrap"><span class="amt neg" style="font-weight:700;font-size:14px">${brl(+l.amount)}</span></div>
       </div>
-      <div class="mut" style="font-size:11.5px;margin-top:1px">Pagamento · ${fmtDate(l.date)}</div>
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:2px">
+        <span class="mut" style="font-size:10.5px">Pagamento · ${fmtDate(l.date)}</span>
+        <span id="lnkFalta" style="font-size:12.5px;font-weight:800"></span>
+      </div>
     </div>
-    <div class="catsearch" style="margin:2px 0 10px"><i class="ph-duotone ph-magnifying-glass"></i><input id="lnkSearch" placeholder="Buscar nota por nome ou valor…" autocomplete="off"></div>
-    <button class="chip" id="lnkMes" style="margin-bottom:10px;color:var(--vinho);border-color:var(--vinho)"><i class="ph-duotone ph-funnel"></i> ${soMes?`Só ${compLabel(pcomp)} · tocar p/ ver todos os meses`:`Todos os meses · tocar p/ ver só ${compLabel(pcomp)}`}</button>
+    <div class="catsearch" style="margin:2px 0 7px"><i class="ph-duotone ph-magnifying-glass"></i><input id="lnkSearch" placeholder="Buscar nota por nome ou valor…" autocomplete="off"></div>
+    <button class="chip" id="lnkMes" style="margin-bottom:7px;color:var(--vinho);border-color:var(--vinho);font-size:11px"><i class="ph-duotone ph-funnel"></i> ${soMes?`Só ${compLabel(pcomp)} · ver todos`:`Todos os meses · ver só ${compLabel(pcomp)}`}</button>
     ${ligHTML}
-    <div class="note" style="font-size:12px;margin-bottom:8px"><i class="ph-duotone ph-hand-tap"></i> Toque em <b>cada nota</b> que faz parte deste pagamento — pode marcar várias — e depois no botão <b>Associar</b> lá embaixo.</div>
+    <div class="mut" style="font-size:10.5px;margin:0 0 5px">Toque nas notas que fazem parte e depois em <b>Associar</b>.</div>
     <div class="catlist" id="lnkList"></div>
-    <div class="note" id="lnkTot" style="font-size:12.5px"></div>
-    <button class="btn o" id="lnkSug" style="margin-bottom:8px"><i class="ph-duotone ph-magic-wand"></i> Sugerir as notas que fecham ${brl(vlanc)}</button>
-    <div style="position:sticky;bottom:0;background:#fff;padding:8px 0 2px;margin-top:2px;border-top:1px solid var(--fio);z-index:6">
-      <button class="btn p" id="lnkGoN" disabled style="opacity:.5"><i class="ph-duotone ph-link"></i> Marque as notas e toque aqui</button>
-      <button class="btn o" id="lnkDiv" style="margin-top:8px"><i class="ph-duotone ph-flag"></i> Não achei a nota — pedir pra localizar</button>
+    <div class="mut" id="lnkTot" style="font-size:11px;margin-top:6px"></div>
+    <button type="button" id="lnkSug" style="width:100%;margin-top:6px;background:none;border:1px dashed var(--vinho);color:var(--vinho);font-weight:600;font-size:11.5px;border-radius:9px;padding:7px;cursor:pointer"><i class="ph-duotone ph-magic-wand"></i> Sugerir notas que fecham ${brl(vlanc)}</button>
+    <div style="position:sticky;bottom:0;background:#fff;padding:7px 0 2px;margin-top:4px;border-top:1px solid var(--fio);z-index:6">
+      <button class="btn p" id="lnkGoN" disabled style="opacity:.5;padding:10px;font-size:13px"><i class="ph-duotone ph-link"></i> Marque as notas e toque aqui</button>
+      <button type="button" id="lnkDiv" style="width:100%;margin-top:6px;background:none;border:0;color:var(--mut);font-weight:600;font-size:11px;padding:4px;cursor:pointer"><i class="ph-duotone ph-flag"></i> Não achei a nota — pedir pra localizar</button>
     </div>`);
   { const mb=$('#lnkMes'); if(mb) mb.onclick=()=>{ ST.linkAllMeses=!ST.linkAllMeses; openLinkPagamento(lancId, true); }; }
   { const db=$('#lnkDiv'); if(db) db.onclick=()=>openDivergencia(lancId); }
   const sel=new Set();
+  const jaSum=jaLig.reduce((a,n)=>a+(+n.valor_total||0),0);
   const recalc=()=>{ let s=0; sel.forEach(ch=>{const n=notaObj(ch); if(n)s+=+n.valor_total||0;});
-    const dif=s-vlanc; $('#lnkTot').innerHTML=`Pagamento ${brl(-vlanc)} · Notas marcadas ${brl(-s)} · <b style="color:${Math.abs(dif)<0.01?'var(--pos)':'var(--ink)'}">Diferença ${brl(-(vlanc-s))}</b>`;
+    const cobre=jaSum+s; const falta=+(vlanc-cobre).toFixed(2);
+    const fa=$('#lnkFalta');
+    if(fa){ if(Math.abs(falta)<0.01) fa.innerHTML='<span style="color:var(--pos)">✓ fecha certinho</span>';
+      else if(falta>0) fa.innerHTML='Falta <span style="color:var(--vinho)">'+brl(falta)+'</span>';
+      else fa.innerHTML='Passou <span style="color:var(--vinho)">'+brl(-falta)+'</span>'; }
+    const t=$('#lnkTot'); if(t) t.innerHTML=`Pago ${brl(vlanc)} · já associado ${brl(jaSum)}${s?` · marcadas ${brl(s)}`:''}`;
     const g=$('#lnkGoN'); if(g){g.disabled=sel.size===0;g.style.opacity=sel.size?'1':'.5';
-      g.innerHTML=sel.size?`<i class="ph-duotone ph-link"></i> Associar ${sel.size} nota${sel.size>1?'s':''} · ${brl(-s)}`:`<i class="ph-duotone ph-link"></i> Marque as notas e toque aqui`; } };
+      g.innerHTML=sel.size?`<i class="ph-duotone ph-link"></i> Associar ${sel.size} nota${sel.size>1?'s':''} · ${brl(s)}`:`<i class="ph-duotone ph-link"></i> Marque as notas e toque aqui`; } };
   const wireRows=()=>{
     $$('#sheetBody .lnkchk').forEach(o=>{ const ch=o.dataset.n;
       if(sel.has(ch)){o.style.background='var(--posBg)';const b=o.querySelector('.lnkbox');b.innerHTML='<i class="ph-duotone ph-check"></i>';b.style.background='var(--vinho)';b.style.borderColor='var(--vinho)';}
