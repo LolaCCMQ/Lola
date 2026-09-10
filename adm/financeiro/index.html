@@ -1399,20 +1399,53 @@ function openMoverLanc(lancId){
     <div class="catlist">${destinos.map(u=>`<div class="catopt" data-dest="${u.id}"><span class="cbar" style="background:${u.fg}"></span><div style="flex:1;font-weight:600">${u.nome}</div><i class="ph-duotone ph-caret-right"></i></div>`).join('')}</div>`);
   $$('#sheetBody [data-dest]').forEach(o=>o.onclick=async()=>{
     const dest=o.dataset.dest;
+    // O destino já tem esse MESMO pagamento? (extrato importado nas duas empresas)
+    if(l.fitid){
+      try{
+        const dup=await api(`financeiro_lancamentos?unit=eq.${dest}&fitid=eq.${encodeURIComponent(l.fitid)}&select=id,amount,date,memo`);
+        if(Array.isArray(dup)&&dup.length){ moverConflito(l,dest,dup[0]); return; }
+      }catch(e){/* se a checagem falhar, segue e o mover trata o erro */}
+    }
+    moverLancFazer(l,dest);
+  });
+}
+/* executa a mudança de empresa de fato */
+async function moverLancFazer(l,dest){
+  try{
+    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},
+      body:JSON.stringify({unit:dest, conciliado:false})});
+    // vínculos de nota são por empresa: desfaz
+    await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+    ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
+    // a pendência (se houver) acompanha o lançamento
+    api(`lola_divergencias?lanc_id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:dest})}).catch(()=>{});
+    ST.divs=(ST.divs||[]).filter(d=>String(d.lanc_id)!==String(l.id));
+    ST.lanc=ST.lanc.filter(x=>String(x.id)!==String(l.id));
+    ST.sel.delete(l.id);
+    closeSheet(); toast('Movido para '+U(dest).nome); renderAll(); updateSelBar();
+  }catch(e){ toast('Erro: '+e.message); }
+}
+/* destino já tem o mesmo pagamento: oferece remover a cópia daqui */
+function moverConflito(l,dest,ex){
+  const mesmoValor = Math.abs((+l.amount||0)-(+ex.amount||0))<0.005 && String(l.date)===String(ex.date);
+  openSheet(`<h3>Esse pagamento já está em ${esc(U(dest).nome)}</h3>
+    <div class="hint">${esc((l.memo||'').slice(0,44))} · ${brl(+l.amount)} · ${fmtDate(l.date)}</div>
+    <div class="note" style="font-size:12px">A ${esc(U(dest).nome)} <b>já tem esse mesmo lançamento</b>${mesmoValor?' (mesma data e mesmo valor)':''} — o extrato foi importado nas duas empresas. Por isso não dá pra mover: ficariam dois iguais lá.<br><br>O que sobrou foi uma <b>cópia duplicada aqui em ${esc(U(ST.unit).nome)}</b>. Você pode removê-la agora, mantendo a que já está em ${esc(U(dest).nome)}.</div>
+    <button class="btn" id="mv_rm" style="width:100%;background:var(--neg);color:#fff;border:0;font-weight:700">Remover a cópia daqui</button>
+    <button class="btn" id="mv_cancel" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Cancelar</button>`);
+  $('#mv_cancel').onclick=()=>closeSheet();
+  $('#mv_rm').onclick=async()=>{
     try{
-      await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},
-        body:JSON.stringify({unit:dest, conciliado:false})});
-      // vínculos de nota são por empresa: desfaz
       await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+      await api(`lola_divergencias?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
+      await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
       ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
-      // a pendência (se houver) acompanha o lançamento
-      api(`lola_divergencias?lanc_id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({unit:dest})}).catch(()=>{});
       ST.divs=(ST.divs||[]).filter(d=>String(d.lanc_id)!==String(l.id));
       ST.lanc=ST.lanc.filter(x=>String(x.id)!==String(l.id));
       ST.sel.delete(l.id);
-      closeSheet(); toast('Movido para '+U(dest).nome); renderAll(); updateSelBar();
+      closeSheet(); toast('Cópia removida — a despesa segue em '+U(dest).nome); renderAll(); updateSelBar();
     }catch(e){ toast('Erro: '+e.message); }
-  });
+  };
 }
 
 /* ========================= DIVIDIR (rateio) ========================= */
