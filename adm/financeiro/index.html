@@ -1110,11 +1110,21 @@ function openCatPicker(lancId){
 
 /* ========================= EDIT / TOGGLE ========================= */
 async function patchLanc(id,body){
-  const i=ST.lanc.findIndex(l=>l.id===id); if(i>=0)Object.assign(ST.lanc[i],body);
+  const i=ST.lanc.findIndex(l=>l.id===id);
+  // guarda o valor anterior das chaves que vão mudar (para desfazer se a gravação falhar)
+  const prev = i>=0 ? Object.fromEntries(Object.keys(body).map(k=>[k, ST.lanc[i][k]])) : null;
+  if(i>=0)Object.assign(ST.lanc[i],body);
   // conciliado é MANUAL (o "conferi" da Bianca) — nada marca sozinho.
-  await api(`financeiro_lancamentos?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(body)});
+  try{
+    await api(`financeiro_lancamentos?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(body)});
+  }catch(e){
+    if(i>=0 && prev)Object.assign(ST.lanc[i],prev); // desfaz a mudança otimista da tela
+    try{renderLanc();}catch(_){}
+    toast('⚠️ Não salvou (verifique a conexão e tente de novo): '+e.message);
+    throw e;
+  }
 }
-async function toggleConc(id){const l=ST.lanc.find(x=>x.id===id);await patchLanc(id,{conciliado:!l.conciliado});renderLanc();}
+async function toggleConc(id){const l=ST.lanc.find(x=>x.id===id); try{await patchLanc(id,{conciliado:!l.conciliado});}catch(e){return;} renderLanc();}
 async function deleteLanc(id){
   const l=ST.lanc.find(x=>x.id===id); if(!l)return;
   if(!confirm(`Excluir este lançamento?\n${(l.memo||'').slice(0,60)} · ${brl(+l.amount)}${pairNote(l)}`))return;
