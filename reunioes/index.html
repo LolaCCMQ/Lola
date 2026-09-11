@@ -1289,7 +1289,7 @@ async function rlPersist(){try{var r=window.__RL.rec;var payload={semana:window.
 function rlObsInput(key,v){rlC().obs[key]=v;rlPersistSoon();}
 function rlCampoInput(key,v){rlC().campos[key]=v;rlPersistSoon();}
 function rlAcToggle(key,el){rlC().acoes[key]=el.checked;el.closest('.rl-ac').classList.toggle('done',el.checked);rlPersistSoon();}
-function rlPessoasInput(iso,v,idxTicket){var n=parseInt(String(v).replace(/\D/g,''),10);rlC().pessoas[iso]=isNaN(n)?null:n;var day=(window.__RL.bitbar||[]).find(function(x){return x.data===iso;});var tot=day?(+day.total||0):0;var tk=document.getElementById(idxTicket);if(tk)tk.textContent=(n>0&&tot>0)?rlBRL(tot/n):'—';rlPersistSoon();}
+function rlPessoasInput(iso,v,idxTicket){var n=parseInt(String(v).replace(/\D/g,''),10);rlC().pessoas[iso]=isNaN(n)?null:n;var day=(window.__RL.bitbar||[]).find(function(x){return x.data===iso;});var tot=day?(+day.venda_produtos||0):0;var tk=document.getElementById(idxTicket);if(tk)tk.textContent=(n>0&&tot>0)?rlBRL(tot/n):'—';rlPersistSoon();}
 function rlWeekMove(delta){var m=rlDateObj(window.__RL.semana);m.setDate(m.getDate()+delta*7);window.__RL.semana=rlIso(rlWeekStart(m));renderReuniaoView(document.getElementById('lista'));}
 function rlWeekPick(v){if(!v)return;window.__RL.semana=rlIso(rlWeekStart(rlDateObj(v)));renderReuniaoView(document.getElementById('lista'));}
 async function renderReuniaoView(box){
@@ -1300,7 +1300,7 @@ async function renderReuniaoView(box){
   try{
     var mes=ini.slice(0,7);
     var res=await Promise.all([
-      sb.from('lola_bitbar_dias').select('data,total,pax,pax_ajustado,percapta,qtde_cancelados').gte('data',ini).lte('data',fim).eq('unidade',RL_UNIDADE),
+      sb.from('lola_bitbar_dias').select('data,total,venda_produtos,pax,pax_ajustado,percapta,qtde_cancelados').gte('data',ini).lte('data',fim).eq('unidade',RL_UNIDADE),
       sb.from('lola_vendas_metas').select('*').eq('unidade',RL_UNIDADE).eq('mes',mes).maybeSingle(),
       sb.from('lola_descartes').select('*').gte('data',ini).lte('data',fim).order('data',{ascending:true}),
       sb.from('lola_reuniao_lideres').select('*').eq('semana',semana).maybeSingle()
@@ -1323,14 +1323,14 @@ function rlRenderCards(){
   var H='';
   /* 1 — Meta & movimento */
   var fatTot=0,cancTot=0;
-  var rows=days.map(function(iso,i){var d=rlDateObj(iso);var day=bb[iso]||{};var fat=+day.total||0;fatTot+=fat;var canc=+day.qtde_cancelados||0;cancTot+=canc;var pes=c.pessoas[iso];var tkId='rlTk'+i;var tk=(pes>0&&fat>0)?rlBRL(fat/pes):'—';
+  var rows=days.map(function(iso,i){var d=rlDateObj(iso);var day=bb[iso]||{};var fat=+day.venda_produtos||0;fatTot+=fat;var canc=+day.qtde_cancelados||0;cancTot+=canc;var pes=c.pessoas[iso];var tkId='rlTk'+i;var tk=(pes>0&&fat>0)?rlBRL(fat/pes):'—';
     return '<tr><td>'+RL_WLBL[d.getDay()]+' '+rlDia(iso)+'</td><td class="num">'+(fat?rlBRL(fat):'—')+'</td><td class="num"><input class="rl-in" inputmode="numeric" value="'+(pes!=null?pes:'')+'" oninput="rlPessoasInput(\''+iso+'\',this.value,\''+tkId+'\')"></td><td class="num" id="'+tkId+'">'+tk+'</td><td class="num">'+(canc||'—')+'</td></tr>';}).join('');
   var metaS=rlMetaSemana();var bateu=(metaS!=null)?(fatTot>=metaS):null;
-  var kpi='<div class="rl-kpi"><div class="k"><div class="v">'+rlBRL(fatTot)+'</div><div class="l">Faturamento semana</div></div><div class="k"><div class="v">'+(metaS!=null?rlBRL(metaS):'—')+'</div><div class="l">Meta da semana</div></div><div class="k"><div class="v">'+(bateu==null?'—':'<span class="rl-pill '+(bateu?'rl-badge-g':'rl-badge-r')+'">'+(bateu?'Bateu ✓':'Não bateu')+'</span>')+'</div><div class="l">Meta batida?</div></div></div>';
-  var tbl='<table class="rl-tbl"><thead><tr><th>Dia</th><th class="num">Faturamento</th><th class="num">Pessoas</th><th class="num">Ticket</th><th class="num">Cancel.</th></tr></thead><tbody>'+rows+'<tr class="tot"><td>Total</td><td class="num">'+rlBRL(fatTot)+'</td><td class="num">—</td><td class="num">—</td><td class="num">'+(cancTot||'—')+'</td></tr></tbody></table>';
+  var kpi='<div class="rl-kpi"><div class="k"><div class="v">'+rlBRL(fatTot)+'</div><div class="l">Faturamento produtos</div></div><div class="k"><div class="v">'+(metaS!=null?rlBRL(metaS):'—')+'</div><div class="l">Meta da semana</div></div><div class="k"><div class="v">'+(bateu==null?'—':'<span class="rl-pill '+(bateu?'rl-badge-g':'rl-badge-r')+'">'+(bateu?'Bateu ✓':'Não bateu')+'</span>')+'</div><div class="l">Meta batida?</div></div></div>';
+  var tbl='<table class="rl-tbl"><thead><tr><th>Dia</th><th class="num">Fat. Produtos</th><th class="num">Pessoas</th><th class="num">Ticket</th><th class="num">Cancel.</th></tr></thead><tbody>'+rows+'<tr class="tot"><td>Total</td><td class="num">'+rlBRL(fatTot)+'</td><td class="num">—</td><td class="num">—</td><td class="num">'+(cancTot||'—')+'</td></tr></tbody></table>';
   var acP=!!c.acoes.pedir_pessoas;
   var acao='<label class="rl-ac'+(acP?' done':'')+'"><input type="checkbox" '+(acP?'checked':'')+' onchange="rlAcToggle(\'pedir_pessoas\',this)"><span>Pedir pro Bibo atualizar o <b>nº de pessoas</b> pelo que atendemos de fato (não o do Bitbar)</span></label>';
-  var note='<div class="rl-mini" style="margin-bottom:8px">Faturamento e cancelamentos vêm do Bitbar. <b>Pessoas</b> você preenche (o real atendido) e o ticket é calculado.</div>';
+  var note='<div class="rl-mini" style="margin-bottom:8px">Faturamento = coluna <b>Produtos</b> do Bitbar (cancelamentos também). <b>Pessoas</b> você preenche (o real atendido) e o ticket é calculado.</div>';
   H+=rlCard('🎯','Meta de vendas & movimento','auto',note+kpi+tbl+acao,'meta','Bateu a meta? o que puxou pra cima/baixo, dias fortes/fracos…');
   /* 2 — Campeões de venda */
   H+=rlCard('🏆','Quem vendeu mais (ranking em %)','man','<div class="rl-mini">Ranking dos campeões da semana em porcentagem, sem valores. Preencha ao lado.</div>','campeoes','1º Fulana 32%, 2º Beltrano ertc… (sem valores)');
