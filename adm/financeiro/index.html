@@ -2391,7 +2391,7 @@ function relNotasAccrual(comp){
     if(pagsDaNota(n.chave).length) return;             // já tem pagamento -> conta pelo lançamento
     if(n.xml_motivo==='nfe_cancelada') return;         // nota cancelada não é despesa
     const val=+n.valor_total||0; if(!(val>0)) return;
-    const cat = mem[_emitKey(n.emitente)] || applyRules(n.emitente||'') || null;
+    const cat = n.categoria || mem[_emitKey(n.emitente)] || applyRules(n.emitente||'') || null;
     out.push({ id:'nota:'+n.chave, chave:n.chave, memo:(n.emitente||('Nota '+(n.numero||''))),
                date:n.data_emissao, amount:-val, competencia:mesN, category:cat, _nota:true });
   });
