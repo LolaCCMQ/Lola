@@ -301,6 +301,48 @@ header{position:static}
     .filters select,.filters>.btn-ghost{display:none}
     .filters.open select,.filters.open>.btn-ghost{display:block}
   }
+  /* ===== Reunião de Líderes ===== */
+  body.mode-reuniao .unibar,body.mode-reuniao .freqbar,body.mode-reuniao .filters,body.mode-reuniao #btnNovo,body.mode-reuniao #btnRoteiro,body.mode-reuniao #quickBox{display:none!important}
+  .rl-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 14px}
+  .rl-weeknav{display:flex;align-items:center;gap:6px}
+  .rl-weeknav button{width:34px;height:34px;border-radius:10px;border:1.5px solid var(--vinho-muted);background:var(--vinho-pale);color:var(--vinho);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center}
+  .rl-weeklbl{font-family:'Fraunces',serif;font-weight:600;color:var(--vinho);font-size:1.05rem}
+  .rl-sub{font-size:.78rem;color:#8a7d74;font-weight:600}
+  .rl-saved{font-size:.72rem;color:#2C7A4B;font-weight:700}
+  .rl-card{background:#fff;border:1.5px solid #EADFD2;border-radius:16px;padding:0;margin-bottom:14px;overflow:hidden;box-shadow:0 2px 10px rgba(168,39,42,.05)}
+  .rl-head{display:flex;align-items:center;gap:9px;padding:12px 15px;background:var(--vinho-pale);border-bottom:1px solid #EADFD2}
+  .rl-head .ic{width:30px;height:30px;border-radius:9px;background:var(--vinho);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+  .rl-head h3{font-family:'Fraunces',serif;font-weight:600;font-size:1.02rem;color:var(--vinho-deep);margin:0}
+  .rl-head .tag{margin-left:auto;font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:7px}
+  .rl-tag-auto{background:#E6F3EA;color:#2C7A4B}.rl-tag-man{background:#FBF0DD;color:#9A6B1E}
+  .rl-body{display:grid;grid-template-columns:1.1fr .9fr;gap:0}
+  @media(max-width:720px){.rl-body{grid-template-columns:1fr}}
+  .rl-dados{padding:13px 15px;border-right:1px solid #F1E9DF}
+  @media(max-width:720px){.rl-dados{border-right:0;border-bottom:1px solid #F1E9DF}}
+  .rl-obs{padding:13px 15px;background:#FCFAF6}
+  .rl-obs label{display:block;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#9A6B1E;margin-bottom:5px}
+  .rl-obs textarea{width:100%;min-height:96px;border:1.5px solid #EADFD2;border-radius:11px;padding:9px 11px;font:inherit;font-size:.9rem;resize:vertical;background:#fff}
+  .rl-obs textarea:focus{outline:none;border-color:var(--vinho-muted)}
+  .rl-tbl{width:100%;border-collapse:collapse;font-size:.82rem}
+  .rl-tbl th{text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.03em;color:#8a7d74;font-weight:800;padding:5px 6px;border-bottom:1.5px solid #EADFD2}
+  .rl-tbl td{padding:5px 6px;border-bottom:1px solid #F3EBE2;white-space:nowrap}
+  .rl-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .rl-tbl tr.tot td{font-weight:800;border-top:1.5px solid #EADFD2;border-bottom:0}
+  .rl-kpi{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .rl-kpi .k{flex:1;min-width:110px;background:#FCFAF6;border:1px solid #EADFD2;border-radius:11px;padding:8px 11px}
+  .rl-kpi .k .v{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem;color:var(--vinho-deep);font-variant-numeric:tabular-nums}
+  .rl-kpi .k .l{font-size:.68rem;color:#8a7d74;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .rl-in{width:64px;border:1.5px solid #EADFD2;border-radius:8px;padding:4px 6px;font:inherit;font-size:.82rem;text-align:right;background:#fff}
+  .rl-fld{margin-bottom:8px}
+  .rl-fld label{display:block;font-size:.72rem;font-weight:700;color:#6b5;color:#8a7d74;margin-bottom:3px}
+  .rl-fld textarea,.rl-fld input{width:100%;border:1.5px solid #EADFD2;border-radius:10px;padding:8px 10px;font:inherit;font-size:.88rem;background:#fff;resize:vertical}
+  .rl-ac{display:flex;align-items:flex-start;gap:8px;background:#FFF7E8;border:1px solid #F0DFC0;border-radius:10px;padding:8px 11px;margin-top:8px;font-size:.82rem;cursor:pointer}
+  .rl-ac input{margin-top:2px;width:16px;height:16px;flex-shrink:0}
+  .rl-ac.done{opacity:.6;text-decoration:line-through}
+  .rl-badge-g{background:#dcfce7;color:#166534}.rl-badge-r{background:#FBEAE7;color:#B5302E}
+  .rl-pill{display:inline-block;font-size:.7rem;font-weight:800;padding:2px 8px;border-radius:8px}
+  .rl-mini{font-size:.72rem;color:#8a7d74}
+  .rl-btn{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:700;padding:7px 12px;border-radius:10px;border:1.5px solid var(--vinho-muted);background:var(--vinho-pale);color:var(--vinho);cursor:pointer;margin-top:8px}
 </style>
 </head>
 <body>
@@ -314,7 +356,7 @@ header{position:static}
 <button class="hdr-ic" onclick="hdrBusca()" title="Buscar"><i class="ph-duotone ph-magnifying-glass"></i></button>
 <button class="hdr-ic" onclick="abrirMovimentacoes()" title="Movimentações recentes"><i class="ph-duotone ph-bell"></i><span class="hdr-badge" id="hdrBadge" style="display:none">0</span></button>
 </div>
-<div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('lista')"></i></span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-table"></i> Planilha<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('mapa')"></i></span><span class="vt" data-v="minhas" onclick="setView('minhas')"><i class="ph-duotone ph-user-check"></i> Minhas<span class="vt-badge" id="minhasBadge" style="display:none">0</span></span><span class="vt vt-socias" data-v="socias" onclick="setView('socias')" style="display:none"><i class="ph-duotone ph-lock-key"></i> Sócias</span></div>
+<div class="viewtoggle"><span class="vt on" data-v="lista" onclick="setView('lista')"><i class="ph-duotone ph-list-bullets"></i> Lista<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('lista')"></i></span><span class="vt" data-v="mapa" onclick="setView('mapa')"><i class="ph-duotone ph-table"></i> Planilha<i class="ph-duotone ph-star vt-star" title="Tornar padrão" onclick="event.stopPropagation();toggleViewFav('mapa')"></i></span><span class="vt" data-v="reuniao" onclick="setView('reuniao')"><i class="ph-duotone ph-chart-bar"></i> Reunião de Líderes</span><span class="vt" data-v="minhas" onclick="setView('minhas')"><i class="ph-duotone ph-user-check"></i> Minhas<span class="vt-badge" id="minhasBadge" style="display:none">0</span></span><span class="vt vt-socias" data-v="socias" onclick="setView('socias')" style="display:none"><i class="ph-duotone ph-lock-key"></i> Sócias</span></div>
 </header>
 
 <div class="wrap">
@@ -870,7 +912,7 @@ function renderPlanilhaView(lst,box){
   var info='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap"><div style="font-size:.75rem;color:#8A7A72">'+data.length+' de '+lst.length+' registro(s)</div>'+(nF?'<button class="btn btn-ghost btn-sm" onclick="plLimparFiltros()">✕ Limpar filtros ('+nF+')</button>':'')+'</div>';
   box.innerHTML=info+'<div class="pl-wrap"><table class="pl-grid">'+head+'<tbody>'+(data.length?body:'<tr><td colspan="7" style="padding:16px;text-align:center;color:#8A7A72">Nada com esses filtros.</td></tr>')+'</tbody></table></div>';
 }
-function setView(v){VIEW=v;Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);});try{updateViewStars();}catch(e){}render();}
+function setView(v){VIEW=v;Array.prototype.forEach.call(document.querySelectorAll('.viewtoggle .vt'),function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);});try{document.body.classList.toggle('mode-reuniao',v==='reuniao');}catch(e){}try{updateViewStars();}catch(e){}render();}
 function renderMapaView(lst,box){
 if(!lst.length){box.innerHTML='<div class="empty">Nenhum registro com esse filtro.</div>';return;}
 var inSet={}; lst.forEach(function(f){inSet[f.id]=f;});
@@ -1114,6 +1156,100 @@ async function blocoDelItem(id){if(!confirm('Excluir?'))return;try{await sb.from
 function blocoEditNota(id){var n=(window.__blocoItens||[]).find(function(i){return i.id===id;});if(!n)return;var el=document.getElementById('bn'+id);if(!el)return;el.innerHTML='<textarea id="bnEdit'+id+'" rows="3" style="width:100%">'+esc(n.texto)+'</textarea><button class="btn btn-ghost btn-sm" onclick="blocoSalvarNota('+id+')"><i class="ph-duotone ph-check"></i> Salvar</button>';}
 async function blocoSalvarNota(id){var t=(document.getElementById('bnEdit'+id).value||'').trim();if(!t)return;try{await sb.from('lola_blocos_itens').update({texto:t,updated_at:new Date().toISOString()}).eq('id',id);(window.__blocoItens||[]).forEach(function(i){if(i.id===id)i.texto=t;});renderBloco();}catch(e){toast('Erro');}}
 async function blocoLimpar(){if(!confirm('Limpar os itens concluídos da listinha?'))return;try{await sb.from('lola_blocos_itens').delete().eq('assunto',_blocoAberto).eq('tipo','item').eq('feito',true);var r=await sb.from('lola_blocos_itens').select('*').eq('assunto',_blocoAberto).order('created_at',{ascending:true});window.__blocoItens=r.data||[];renderBloco();}catch(e){toast('Erro');}}
+/* ============================ REUNIÃO DE LÍDERES ============================ */
+var RL_UNIDADE='CCMQ';
+var RL_WKEYS=['dom','seg','ter','qua','qui','sex','sab'];
+var RL_WLBL=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+window.__RL=window.__RL||{semana:null};
+var _rlSaveT=null;
+function rlBRL(n){n=+n||0;return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function rlDia(iso){if(!iso)return '';var p=String(iso).slice(0,10).split('-');return p[2]+'/'+p[1];}
+function rlDateObj(iso){return new Date(String(iso).slice(0,10)+'T12:00:00');}
+function rlIso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function rlMonday(d){d=new Date(d.getTime());var w=d.getDay();var diff=(w===0?-6:1-w);d.setDate(d.getDate()+diff);d.setHours(12,0,0,0);return d;}
+function rlDefaultSemana(){var t=new Date();t.setDate(t.getDate()-7);return rlIso(rlMonday(t));}
+function rlWeekDays(monIso){var m=rlDateObj(monIso);var a=[];for(var i=0;i<7;i++){var d=new Date(m.getTime());d.setDate(m.getDate()+i);a.push(rlIso(d));}return a;}
+function rlCountWeekday(year,month0,dow){var c=0,d=new Date(year,month0,1);while(d.getMonth()===month0){if(d.getDay()===dow)c++;d.setDate(d.getDate()+1);}return c;}
+function rlC(){var r=window.__RL.rec;if(!r.conteudo||typeof r.conteudo!=='object')r.conteudo={};var c=r.conteudo;c.obs=c.obs||{};c.campos=c.campos||{};c.pessoas=c.pessoas||{};c.acoes=c.acoes||{};return c;}
+function rlPersistSoon(){var ind=document.getElementById('rlSaved');if(ind){ind.textContent='salvando…';ind.style.color='#8a7d74';}if(_rlSaveT)clearTimeout(_rlSaveT);_rlSaveT=setTimeout(rlPersist,700);}
+async function rlPersist(){try{var r=window.__RL.rec;var payload={semana:window.__RL.semana,conteudo:r.conteudo||{},atualizado_em:new Date().toISOString(),atualizado_por:meuNome()||null};var res=await sb.from('lola_reuniao_lideres').upsert(payload,{onConflict:'semana'}).select().maybeSingle();if(res.error)throw res.error;if(res.data)window.__RL.rec=res.data;var ind=document.getElementById('rlSaved');if(ind){ind.textContent='✓ salvo';ind.style.color='#2C7A4B';}}catch(e){var ind2=document.getElementById('rlSaved');if(ind2){ind2.textContent='⚠️ não salvou';ind2.style.color='#B5302E';}}}
+function rlObsInput(key,v){rlC().obs[key]=v;rlPersistSoon();}
+function rlCampoInput(key,v){rlC().campos[key]=v;rlPersistSoon();}
+function rlAcToggle(key,el){rlC().acoes[key]=el.checked;el.closest('.rl-ac').classList.toggle('done',el.checked);rlPersistSoon();}
+function rlPessoasInput(iso,v,idxTicket){var n=parseInt(String(v).replace(/\D/g,''),10);rlC().pessoas[iso]=isNaN(n)?null:n;var day=(window.__RL.bitbar||[]).find(function(x){return x.data===iso;});var tot=day?(+day.total||0):0;var tk=document.getElementById(idxTicket);if(tk)tk.textContent=(n>0&&tot>0)?rlBRL(tot/n):'—';rlPersistSoon();}
+function rlWeekMove(delta){var m=rlDateObj(window.__RL.semana);m.setDate(m.getDate()+delta*7);window.__RL.semana=rlIso(rlMonday(m));renderReuniaoView(document.getElementById('lista'));}
+function rlWeekPick(v){if(!v)return;window.__RL.semana=rlIso(rlMonday(rlDateObj(v)));renderReuniaoView(document.getElementById('lista'));}
+async function renderReuniaoView(box){
+  if(!window.__RL.semana)window.__RL.semana=rlDefaultSemana();
+  var semana=window.__RL.semana, days=rlWeekDays(semana);
+  var ini=days[0], fim=days[6];
+  box.innerHTML='<div class="rl-top"><div class="rl-weeknav"><button onclick="rlWeekMove(-1)" title="Semana anterior">‹</button><div><div class="rl-weeklbl">Semana '+rlDia(ini)+' – '+rlDia(fim)+'</div><div class="rl-sub">reunião de líderes · '+RL_UNIDADE+'</div></div><button onclick="rlWeekMove(1)" title="Próxima semana">›</button></div><input type="date" value="'+ini+'" onchange="rlWeekPick(this.value)" style="border:1.5px solid var(--vinho-muted);border-radius:10px;padding:6px 9px;color:var(--vinho);font:inherit"><span id="rlSaved" class="rl-saved"></span></div><div id="rlCards"><div class="empty">Carregando indicadores…</div></div>';
+  try{
+    var mes=ini.slice(0,7);
+    var res=await Promise.all([
+      sb.from('lola_bitbar_dias').select('data,total,pax,pax_ajustado,percapta,qtde_cancelados').gte('data',ini).lte('data',fim).eq('unidade',RL_UNIDADE),
+      sb.from('lola_vendas_metas').select('*').eq('unidade',RL_UNIDADE).eq('mes',mes).maybeSingle(),
+      sb.from('lola_descartes').select('*').gte('data',ini).lte('data',fim).order('data',{ascending:true}),
+      sb.from('lola_reuniao_lideres').select('*').eq('semana',semana).maybeSingle()
+    ]);
+    window.__RL.bitbar=(res[0].data)||[];
+    window.__RL.metas=(res[1].data)||null;
+    window.__RL.descartes=(res[2].data)||[];
+    window.__RL.rec=(res[3].data)||{semana:semana,conteudo:{}};
+    rlRenderCards();
+  }catch(e){document.getElementById('rlCards').innerHTML='<div class="empty">Erro ao carregar: '+esc(e.message||e)+'</div>';}
+}
+function rlCard(icon,title,tag,dadosHtml,obsKey,obsPlaceholder){
+  var c=rlC();var obs=(c.obs[obsKey]||'');
+  var tagHtml=tag?('<span class="tag '+(tag==='auto'?'rl-tag-auto':'rl-tag-man')+'">'+(tag==='auto'?'automático':'preencher')+'</span>'):'';
+  return '<div class="rl-card"><div class="rl-head"><span class="ic">'+icon+'</span><h3>'+esc(title)+'</h3>'+tagHtml+'</div><div class="rl-body"><div class="rl-dados">'+dadosHtml+'</div><div class="rl-obs"><label>Observações</label><textarea placeholder="'+esc(obsPlaceholder||'Anotações da reunião sobre este ponto…')+'" oninput="rlObsInput(\''+obsKey+'\',this.value)">'+esc(obs)+'</textarea></div></div></div>';
+}
+function rlMetaSemana(){var m=window.__RL.metas;if(!m||!m.meta_mensal)return null;var pct=m.pct||{};var days=rlWeekDays(window.__RL.semana);var tot=0;days.forEach(function(iso){var d=rlDateObj(iso);var key=RL_WKEYS[d.getDay()];var p=+pct[key]||0;if(!p)return;var cnt=rlCountWeekday(d.getFullYear(),d.getMonth(),d.getDay());if(cnt>0)tot+=(+m.meta_mensal)*(p/100)/cnt;});return tot;}
+function rlRenderCards(){
+  var c=rlC();var days=rlWeekDays(window.__RL.semana);var bb={};(window.__RL.bitbar||[]).forEach(function(x){bb[x.data]=x;});
+  var H='';
+  /* 1 — Meta & movimento */
+  var fatTot=0,cancTot=0;
+  var rows=days.map(function(iso,i){var d=rlDateObj(iso);var day=bb[iso]||{};var fat=+day.total||0;fatTot+=fat;var canc=+day.qtde_cancelados||0;cancTot+=canc;var pes=c.pessoas[iso];var tkId='rlTk'+i;var tk=(pes>0&&fat>0)?rlBRL(fat/pes):'—';
+    return '<tr><td>'+RL_WLBL[d.getDay()]+' '+rlDia(iso)+'</td><td class="num">'+(fat?rlBRL(fat):'—')+'</td><td class="num"><input class="rl-in" inputmode="numeric" value="'+(pes!=null?pes:'')+'" oninput="rlPessoasInput(\''+iso+'\',this.value,\''+tkId+'\')"></td><td class="num" id="'+tkId+'">'+tk+'</td><td class="num">'+(canc||'—')+'</td></tr>';}).join('');
+  var metaS=rlMetaSemana();var bateu=(metaS!=null)?(fatTot>=metaS):null;
+  var kpi='<div class="rl-kpi"><div class="k"><div class="v">'+rlBRL(fatTot)+'</div><div class="l">Faturamento semana</div></div><div class="k"><div class="v">'+(metaS!=null?rlBRL(metaS):'—')+'</div><div class="l">Meta da semana</div></div><div class="k"><div class="v">'+(bateu==null?'—':'<span class="rl-pill '+(bateu?'rl-badge-g':'rl-badge-r')+'">'+(bateu?'Bateu ✓':'Não bateu')+'</span>')+'</div><div class="l">Meta batida?</div></div></div>';
+  var tbl='<table class="rl-tbl"><thead><tr><th>Dia</th><th class="num">Faturamento</th><th class="num">Pessoas</th><th class="num">Ticket</th><th class="num">Cancel.</th></tr></thead><tbody>'+rows+'<tr class="tot"><td>Total</td><td class="num">'+rlBRL(fatTot)+'</td><td class="num">—</td><td class="num">—</td><td class="num">'+(cancTot||'—')+'</td></tr></tbody></table>';
+  var acP=!!c.acoes.pedir_pessoas;
+  var acao='<label class="rl-ac'+(acP?' done':'')+'"><input type="checkbox" '+(acP?'checked':'')+' onchange="rlAcToggle(\'pedir_pessoas\',this)"><span>Pedir pro Bibo atualizar o <b>nº de pessoas</b> pelo que atendemos de fato (não o do Bitbar)</span></label>';
+  var note='<div class="rl-mini" style="margin-bottom:8px">Faturamento e cancelamentos vêm do Bitbar. <b>Pessoas</b> você preenche (o real atendido) e o ticket é calculado.</div>';
+  H+=rlCard('🎯','Meta de vendas & movimento','auto',note+kpi+tbl+acao,'meta','Bateu a meta? o que puxou pra cima/baixo, dias fortes/fracos…');
+  /* 2 — Campeões de venda */
+  H+=rlCard('🏆','Quem vendeu mais (ranking em %)','man','<div class="rl-mini">Ranking dos campeões da semana em porcentagem, sem valores. Preencha ao lado.</div>','campeoes','1º Fulana 32%, 2º Beltrano ertc… (sem valores)');
+  /* 3 — Ranking de vendas */
+  H+=rlCard('📊','Ranking de vendas (pratos/itens)','man','<div class="rl-mini">O que mais e menos saiu na semana. Preencha ao lado.</div>','rankvendas','Mais vendidos / menos vendidos da semana…');
+  /* 4 — CMV */
+  H+=rlCard('📉','Itens com melhores e piores CMVs','man','<div class="rl-mini">Consulte no app de <b>Estoque › Compras / CMV</b> e anote aqui os destaques.</div>','cmv','Melhores CMVs: … · Piores CMVs: …');
+  /* 5 — Descartes e desperdícios */
+  var ds=window.__RL.descartes||[];var dTot=ds.reduce(function(s,d){return s+(+d.valor||0);},0);
+  var dtbl;
+  if(!ds.length){dtbl='<div class="rl-mini">Nenhum descarte registrado nesta semana.</div>';}
+  else{dtbl='<table class="rl-tbl"><thead><tr><th>Data</th><th>Item</th><th class="num">Qtd</th><th>Motivo</th><th>Resp.</th><th>Foto</th></tr></thead><tbody>'+ds.map(function(d){return '<tr><td>'+rlDia(d.data)+'</td><td>'+esc(d.nome||'')+'</td><td class="num">'+(d.qtd?(d.qtd+' '+esc(d.un||'')):'—')+'</td><td>'+esc((d.motivo||'').split(' · ')[0])+'</td><td>'+esc(d.criado_por||'—')+'</td><td>'+(d.foto_url?'<a href="'+esc(d.foto_url)+'" target="_blank">📷</a>':'—')+'</td></tr>';}).join('')+'<tr class="tot"><td colspan="6">'+ds.length+' descarte(s) · perda '+rlBRL(dTot)+'</td></tr></tbody></table>';}
+  var acD=!!c.acoes.passar_descartes;
+  var acaoD='<label class="rl-ac'+(acD?' done':'')+'"><input type="checkbox" '+(acD?'checked':'')+' onchange="rlAcToggle(\'passar_descartes\',this)"><span>Passar a <b>planilha de descartes</b> pro Bibo (Data, Item, Qtd, Motivo, Responsável, Foto)</span></label>';
+  var btnCopy=ds.length?'<button class="rl-btn" onclick="rlCopyDescartes()"><i class="ph-duotone ph-copy"></i> Copiar planilha</button>':'';
+  H+=rlCard('🗑️','Descartes e desperdícios','auto',dtbl+btnCopy+acaoD,'descartes','Desperdícios da semana, o que gerou, como evitar…');
+  /* 6 — Excedente / testes / menus */
+  H+=rlCard('📦','Excedente de estoque, testes e menus a desenvolver','man','<div class="rl-fld"><label>Excedente de estoque que deve ser usado</label><textarea rows="2" oninput="rlCampoInput(\'excedente\',this.value)">'+esc(c.campos.excedente||'')+'</textarea></div><div class="rl-fld"><label>Testes que precisam ser feitos</label><textarea rows="2" oninput="rlCampoInput(\'testes\',this.value)">'+esc(c.campos.testes||'')+'</textarea></div><div class="rl-fld"><label>Menus para desenvolver</label><textarea rows="2" oninput="rlCampoInput(\'menus\',this.value)">'+esc(c.campos.menus||'')+'</textarea></div>','excedente_obs','Outras observações…');
+  /* 7 — Cancelamentos */
+  var crows=days.map(function(iso){var d=rlDateObj(iso);var day=bb[iso]||{};var canc=+day.qtde_cancelados||0;return '<tr><td>'+RL_WLBL[d.getDay()]+' '+rlDia(iso)+'</td><td class="num">'+(canc||'—')+'</td></tr>';}).join('');
+  var ctbl='<table class="rl-tbl"><thead><tr><th>Dia</th><th class="num">Cancelados</th></tr></thead><tbody>'+crows+'<tr class="tot"><td>Total</td><td class="num">'+(cancTot||'—')+'</td></tr></tbody></table>';
+  H+=rlCard('❌','Cancelamentos de pedidos','auto',ctbl,'cancelamentos','Por que cancelou? padrão em algum dia/prato?…');
+  /* 8 — Freelas */
+  var fz=c.campos;var freHtml='<div class="rl-mini" style="margin-bottom:8px">Nº de freelas e valor gasto por dia/setor.</div>'
+    +'<div class="rl-fld"><label>Cozinha — nº e valores</label><textarea rows="2" oninput="rlCampoInput(\'freela_coz\',this.value)">'+esc(fz.freela_coz||'')+'</textarea></div>'
+    +'<div class="rl-fld"><label>Salão — nº e valores</label><textarea rows="2" oninput="rlCampoInput(\'freela_sal\',this.value)">'+esc(fz.freela_sal||'')+'</textarea></div>';
+  H+=rlCard('🧑‍🍳','Freelas — nº e valores por setor','man',freHtml,'freelas','Total gasto na semana, dias de pico, ajustes…');
+  /* 9 — Reclamações / elogios */
+  H+=rlCard('💬','Reclamações e elogios','man','<div class="rl-fld"><label>Reclamações</label><textarea rows="2" oninput="rlCampoInput(\'reclamacoes\',this.value)">'+esc(c.campos.reclamacoes||'')+'</textarea></div><div class="rl-fld"><label>Elogios</label><textarea rows="2" oninput="rlCampoInput(\'elogios\',this.value)">'+esc(c.campos.elogios||'')+'</textarea></div>','reclam_obs','Ações a partir do feedback…');
+  document.getElementById('rlCards').innerHTML=H;
+}
+function rlCopyDescartes(){var ds=window.__RL.descartes||[];var lines=['Data\tItem\tQtd\tMotivo\tResponsável\tFoto'];ds.forEach(function(d){lines.push([rlDia(d.data),(d.nome||''),(d.qtd?(d.qtd+' '+(d.un||'')):''),((d.motivo||'').split(' · ')[0]),(d.criado_por||''),(d.foto_url||'')].join('\t'));});var txt=lines.join('\n');try{navigator.clipboard.writeText(txt);toast('Planilha copiada — cole no que for mandar pro Bibo');}catch(e){toast('Não consegui copiar');}}
 function render(){
 renderUnibar();
 renderFreqBar();
@@ -1125,6 +1261,7 @@ lst=lst.slice().sort(function(a,b){ var ra=_rank(a),rb=_rank(b); if(ra!==rb) ret
 var _ab=lst.filter(function(c){return c.eh_tarefa&&!c.concluido;}).length;
 document.getElementById('count').textContent=lst.length+' registro(s)'+(_ab?(' · '+_ab+' tarefa(s) a fazer'):'');
 var box=document.getElementById('lista');
+if(VIEW==='reuniao'){renderReuniaoView(box);return;}
 if(VIEW==='minhas'){renderMinhasView(box);return;}
 if(VIEW==='socias'){renderSociasView(box);return;}
 if(document.getElementById('ftt').value==='ata'){renderAtasView(box);return;}
