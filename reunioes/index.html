@@ -1252,8 +1252,9 @@ function intRenderEditor(box){
     +'<button class="btn" style="width:100%;margin-top:12px;background:'+INT_ROXO+';color:#fff;border:0" onclick="intSalvar()"><i class="ph-duotone ph-check"></i> Salvar reunião</button>'
     +'</div>';
 }
-function intAddTask(){window.__INT.editing.tarefas.push({id:'t'+Date.now()+Math.random().toString(36).slice(2,6),texto:'',resp:'',prazo:'',feito:false});render();}
-function intDelTask(i){window.__INT.editing.tarefas.splice(i,1);render();}
+function intSyncEditor(){var e=window.__INT.editing;if(!e)return;var d=document.getElementById('intData'),t=document.getElementById('intTitulo'),a=document.getElementById('intAta');if(d)e.data=d.value;if(t)e.titulo=t.value;if(a)e.ata=a.value;}
+function intAddTask(){intSyncEditor();window.__INT.editing.tarefas.push({id:'t'+Date.now()+Math.random().toString(36).slice(2,6),texto:'',resp:'',prazo:'',feito:false});render();}
+function intDelTask(i){intSyncEditor();window.__INT.editing.tarefas.splice(i,1);render();}
 async function intSalvar(){
   var e=window.__INT.editing;
   e.data=(document.getElementById('intData')||{}).value||e.data;
