@@ -1166,9 +1166,10 @@ function rlBRL(n){n=+n||0;return 'R$ '+n.toLocaleString('pt-BR',{minimumFraction
 function rlDia(iso){if(!iso)return '';var p=String(iso).slice(0,10).split('-');return p[2]+'/'+p[1];}
 function rlDateObj(iso){return new Date(String(iso).slice(0,10)+'T12:00:00');}
 function rlIso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function rlMonday(d){d=new Date(d.getTime());var w=d.getDay();var diff=(w===0?-6:1-w);d.setDate(d.getDate()+diff);d.setHours(12,0,0,0);return d;}
-function rlDefaultSemana(){var t=new Date();t.setDate(t.getDate()-7);return rlIso(rlMonday(t));}
-function rlWeekDays(monIso){var m=rlDateObj(monIso);var a=[];for(var i=0;i<7;i++){var d=new Date(m.getTime());d.setDate(m.getDate()+i);a.push(rlIso(d));}return a;}
+/* semana Lola = terça a domingo (fecha segunda) */
+function rlWeekStart(d){d=new Date(d.getTime());var w=d.getDay();var back=(w-2+7)%7;d.setDate(d.getDate()-back);d.setHours(12,0,0,0);return d;}
+function rlDefaultSemana(){var t=new Date();var ws=rlWeekStart(t);ws.setDate(ws.getDate()-7);return rlIso(ws);}
+function rlWeekDays(startIso){var m=rlDateObj(startIso);var a=[];for(var i=0;i<6;i++){var d=new Date(m.getTime());d.setDate(m.getDate()+i);a.push(rlIso(d));}return a;}
 function rlCountWeekday(year,month0,dow){var c=0,d=new Date(year,month0,1);while(d.getMonth()===month0){if(d.getDay()===dow)c++;d.setDate(d.getDate()+1);}return c;}
 function rlC(){var r=window.__RL.rec;if(!r.conteudo||typeof r.conteudo!=='object')r.conteudo={};var c=r.conteudo;c.obs=c.obs||{};c.campos=c.campos||{};c.pessoas=c.pessoas||{};c.acoes=c.acoes||{};return c;}
 function rlPersistSoon(){var ind=document.getElementById('rlSaved');if(ind){ind.textContent='salvando…';ind.style.color='#8a7d74';}if(_rlSaveT)clearTimeout(_rlSaveT);_rlSaveT=setTimeout(rlPersist,700);}
@@ -1177,12 +1178,12 @@ function rlObsInput(key,v){rlC().obs[key]=v;rlPersistSoon();}
 function rlCampoInput(key,v){rlC().campos[key]=v;rlPersistSoon();}
 function rlAcToggle(key,el){rlC().acoes[key]=el.checked;el.closest('.rl-ac').classList.toggle('done',el.checked);rlPersistSoon();}
 function rlPessoasInput(iso,v,idxTicket){var n=parseInt(String(v).replace(/\D/g,''),10);rlC().pessoas[iso]=isNaN(n)?null:n;var day=(window.__RL.bitbar||[]).find(function(x){return x.data===iso;});var tot=day?(+day.total||0):0;var tk=document.getElementById(idxTicket);if(tk)tk.textContent=(n>0&&tot>0)?rlBRL(tot/n):'—';rlPersistSoon();}
-function rlWeekMove(delta){var m=rlDateObj(window.__RL.semana);m.setDate(m.getDate()+delta*7);window.__RL.semana=rlIso(rlMonday(m));renderReuniaoView(document.getElementById('lista'));}
-function rlWeekPick(v){if(!v)return;window.__RL.semana=rlIso(rlMonday(rlDateObj(v)));renderReuniaoView(document.getElementById('lista'));}
+function rlWeekMove(delta){var m=rlDateObj(window.__RL.semana);m.setDate(m.getDate()+delta*7);window.__RL.semana=rlIso(rlWeekStart(m));renderReuniaoView(document.getElementById('lista'));}
+function rlWeekPick(v){if(!v)return;window.__RL.semana=rlIso(rlWeekStart(rlDateObj(v)));renderReuniaoView(document.getElementById('lista'));}
 async function renderReuniaoView(box){
   if(!window.__RL.semana)window.__RL.semana=rlDefaultSemana();
   var semana=window.__RL.semana, days=rlWeekDays(semana);
-  var ini=days[0], fim=days[6];
+  var ini=days[0], fim=days[days.length-1];
   box.innerHTML='<div class="rl-top"><div class="rl-weeknav"><button onclick="rlWeekMove(-1)" title="Semana anterior">‹</button><div><div class="rl-weeklbl">Semana '+rlDia(ini)+' – '+rlDia(fim)+'</div><div class="rl-sub">reunião de líderes · '+RL_UNIDADE+'</div></div><button onclick="rlWeekMove(1)" title="Próxima semana">›</button></div><input type="date" value="'+ini+'" onchange="rlWeekPick(this.value)" style="border:1.5px solid var(--vinho-muted);border-radius:10px;padding:6px 9px;color:var(--vinho);font:inherit"><span id="rlSaved" class="rl-saved"></span></div><div id="rlCards"><div class="empty">Carregando indicadores…</div></div>';
   try{
     var mes=ini.slice(0,7);
