@@ -24,7 +24,7 @@ header{background:transparent;padding:12px 15px;position:static;z-index:30;color
 .hdr-badge{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;background:var(--vinho);color:#fff;font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
 .hdr-title{font-family:'Fraunces',serif;font-weight:600;font-size:1.25rem;line-height:1.05;color:var(--vinho);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hdr-count{color:#8A7A72;font-size:.78rem;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wrap{max-width:none;margin:0;padding:18px 18px 80px}
+.wrap{max-width:none;margin:0;padding:12px 14px 80px}
 .btn{border:0;border-radius:11px;padding:11px 15px;font-size:.9rem;font-weight:600;cursor:pointer;font-family:inherit;min-height:44px}
 .btn-primary{background:var(--grad);color:#fff;width:100%}
 .btn-primary:active{background:var(--vinho-deep)}
@@ -91,8 +91,8 @@ header{background:transparent;padding:12px 15px;position:static;z-index:30;color
 .filters input,.filters select{font-family:inherit;font-size:.83rem;padding:9px 10px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--ink)}
 .filters input[type=search]{flex:1;min-width:0}
 .count{font-size:.76rem;color:var(--muted);margin:2px 0 12px}
-.unibar{display:flex;gap:6px;flex-wrap:nowrap;margin:4px 0 12px}
-.unibar .ub{flex:1;min-width:0;text-align:center;font-size:.82rem;font-weight:700;padding:9px 4px;border-radius:11px;border:1.5px solid var(--vinho-muted);background:#fff;color:var(--vinho-deep);cursor:pointer;white-space:nowrap}
+.unibar{display:flex;gap:5px;flex-wrap:nowrap;margin:2px 0 8px}
+.unibar .ub{flex:1;min-width:0;text-align:center;font-size:.78rem;font-weight:700;padding:6px 4px;border-radius:9px;border:1.5px solid var(--vinho-muted);background:#fff;color:var(--vinho-deep);cursor:pointer;white-space:nowrap}
 .unibar .ub.on{background:var(--vinho);color:#fff;border-color:var(--vinho)}
 .feed{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin:0}
 .searchrow{display:flex;gap:7px;align-items:center;flex:1 0 100%}
@@ -244,11 +244,13 @@ header{position:static}
   .ddpop button{display:flex;gap:9px;align-items:center;width:100%;text-align:left;background:none;border:0;font-family:inherit;font-size:.84rem;font-weight:600;color:#2A1A17;padding:9px 10px;border-radius:9px;cursor:pointer}
   .ddpop button:hover{background:#F7EFE6}
   .ddpop button i{font-size:1rem;color:#5A463E}
-  .freqbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:7px;margin:0 0 12px}
+  .freqbar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
   .freqbar:empty{display:none}
-  .freq{background:#fff;border:1px solid #ECE3D9;border-top:3px solid var(--fc,#8A7A72);border-radius:13px;padding:7px 10px;cursor:pointer}
-  .freq b{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem;color:var(--fc,#8A7A72);display:block;line-height:1.15}
-  .freq span{font-size:.66rem;font-weight:600;color:#5A463E;letter-spacing:.02em}
+  .freq{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1.5px solid #ECE3D9;border-left:4px solid var(--fc,#8A7A72);border-radius:11px;padding:6px 11px;cursor:pointer;line-height:1}
+  .freq i{color:var(--fc,#8A7A72);font-size:1.05rem}
+  .freq b{font-weight:700;font-size:.84rem;color:var(--vinho-deep)}
+  .freq .fq-badge{background:var(--fc,#8A7A72);color:#fff;font-size:.66rem;font-weight:800;border-radius:20px;padding:1px 6px;min-width:16px;text-align:center}
+  .freq .fq-badge.notas{background:transparent;color:var(--fc,#8A7A72);border:1px solid var(--fc,#8A7A72)}
   .freq.on{box-shadow:inset 0 0 0 1.5px var(--fc,#8A7A72)}
   @media(max-width:640px){
     .hdr-title{font-size:1.12rem!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.15}
@@ -296,10 +298,16 @@ header{position:static}
   .bl-row input{border:0;background:transparent;outline:0;font:inherit;font-size:.9rem;flex:1;color:var(--ink)}
   .bloco-limpar{color:var(--vinho);cursor:pointer;text-transform:none;letter-spacing:0;font-weight:600}
   .searchrow #fToggle{flex-shrink:0}
-  @media(min-width:641px){.searchrow #fToggle{display:none}}
-  @media(max-width:640px){
-    .filters select,.filters>.btn-ghost{display:none}
-    .filters.open select,.filters.open>.btn-ghost{display:block}
+  /* filtros recolhidos por padrão em qualquer tela — só busca + ações na linha */
+  .filters>select,.filters>.btn-ghost{display:none}
+  .filters.open>select,.filters.open>.btn-ghost{display:inline-block}
+  .filters.open{padding:8px;background:#FBF5EE;border:1px solid #EFE3D5;border-radius:12px}
+  .filters.open>select{width:auto;min-width:150px}
+  @media(max-width:560px){
+    .filters.open{display:grid;grid-template-columns:1fr 1fr}
+    .filters.open .searchrow{grid-column:1/-1}
+    .filters.open>select{width:100%;min-width:0}
+    .filters.open>.btn-ghost{width:100%}
   }
   /* ===== Reunião de Líderes ===== */
   body.mode-reuniao .unibar,body.mode-reuniao .freqbar,body.mode-reuniao .filters,body.mode-reuniao #btnNovo,body.mode-reuniao #btnRoteiro,body.mode-reuniao #quickBox{display:none!important}
@@ -369,7 +377,7 @@ header{position:static}
 
 <!-- FILTROS -->
 <div class="filters">
-<div class="searchrow"><input type="search" id="q" placeholder="🔍 Buscar…" oninput="render()"><button type="button" class="btn btn-ghost btn-sm" id="fToggle" onclick="this.closest('.filters').classList.toggle('open')"><i class="ph-duotone ph-funnel"></i> Filtros</button></div>
+<div class="searchrow"><input type="search" id="q" placeholder="🔍 Buscar…" oninput="render()"><button type="button" class="btn btn-ghost btn-sm" id="fToggle" onclick="this.closest('.filters').classList.toggle('open')"><i class="ph-duotone ph-funnel"></i> Filtros</button><button class="btn btn-primary btn-sm" id="btnNovo" onclick="toggleNovo()"><i class="ph-duotone ph-plus"></i> Novo</button><button type="button" class="btn btn-ghost btn-sm" id="btnRoteiro" onclick="abrirRoteiro()" title="Manual do Lola"><i class="ph-duotone ph-book-open-text"></i></button></div>
 <select id="ftt" onchange="render()"><option value="">Tudo</option><option value="tarefa">Só tarefas</option><option value="aviso">Só avisos</option><option value="ata">Só atas de reunião</option></select>
 <select id="fcat" onchange="render()"><option value="">Categoria: todas</option></select>
 <select id="fresp" onchange="render()"><option value="">Responsável: todos</option></select>
@@ -383,8 +391,7 @@ header{position:static}
 </select>
 <button class="btn btn-ghost btn-sm" onclick="limpar()">Limpar</button>
 </div>
-<!-- BOTAO + FORM COLAPSAVEL -->
-<div style="margin:2px 0 14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" id="btnNovo" onclick="toggleNovo()"><i class="ph-duotone ph-plus"></i> Adicionar novo registro</button><button class="btn btn-ghost" id="btnRoteiro" onclick="abrirRoteiro()"><i class="ph-duotone ph-book-open-text"></i> Manual do Lola</button></div>
+<!-- FORM COLAPSAVEL (botões Novo/Manual agora na barra de busca) -->
 <!-- NOVO REGISTRO -->
 <div class="quick" id="quickBox" style="display:none">
 <div class="quickhead"><b>Novo registro</b><span class="dt" id="qData"></span></div>
@@ -1116,8 +1123,9 @@ var el=document.getElementById('freqbar');if(!el)return;
 if(VIEW==='minhas'||VIEW==='socias'){el.innerHTML='';return;}
 el.innerHTML=BLOCOS.map(function(b){
 var c=__bcCounts[b.a]||{notas:0,itens:0,feitos:0};
-var sub=c.itens?((c.itens-c.feitos)+' na listinha'+(c.notas?(' · '+c.notas+' nota'+(c.notas>1?'s':'')):'')):(c.notas?(c.notas+' nota'+(c.notas>1?'s':'')):'toque pra abrir');
-return '<div class="freq" style="--fc:'+b.cor+'" onclick="abrirBloco(\''+b.a+'\')"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:1rem">'+esc(b.a)+'</b><i class="ph-duotone ph-notebook" style="color:'+b.cor+'"></i></div><span>'+esc(sub)+'</span></div>';
+var pend=c.itens?(c.itens-c.feitos):0;
+var badge=pend>0?('<span class="fq-badge">'+pend+'</span>'):(c.notas?('<span class="fq-badge notas">'+c.notas+'</span>'):'');
+return '<div class="freq" style="--fc:'+b.cor+'" onclick="abrirBloco(\''+b.a+'\')" title="'+esc(b.a)+' — toque pra abrir"><i class="ph-duotone ph-notebook"></i><b>'+esc(b.a)+'</b>'+badge+'</div>';
 }).join('');
 }
 var _blocoAberto=null;
