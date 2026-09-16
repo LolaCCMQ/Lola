@@ -1349,7 +1349,7 @@ async function aplicarSplitPorNotas(l, mag){
 }
 
 /* ===== DIFERENÇA pagamento × nota (tarifa, juros, IOF...) ===== */
-const CATS_DIF=[['financeiras__tarifas_bancarias','Tarifa bancária'],['op__tarifas_encargos','Juros / Encargos'],['financeiras__iof','IOF']];
+const CATS_DIF=[['financeiras__tarifas_bancarias','Tarifa bancária'],['financeiras__juros','Juros'],['op__transportes_fretes','Frete'],['financeiras__iof','IOF']];
 function sobraDoLanc(lancId){
   const l=ST.lanc.find(x=>String(x.id)===String(lancId)); if(!l) return null;
   const chs=notasDoLanc(lancId); if(!chs.length) return null;
