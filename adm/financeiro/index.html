@@ -436,9 +436,17 @@ function currentComp(){const d=new Date();return d.getFullYear()+'-'+String(d.ge
 function prevComp(c){const[y,m]=c.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 
 async function api(path,opt){ await lolaEnsure(); H=lolaHeaders(); // token do usuário sempre válido
-  const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:H,...opt});
-  if(!r.ok){const t=await r.text();throw new Error(r.status+' '+t);}
-  const txt=await r.text(); return txt?JSON.parse(txt):[]; }
+  let lastErr;
+  for(let attempt=0; attempt<3; attempt++){
+    let r;
+    try{ r=await fetch(SB_URL+'/rest/v1/'+path,{headers:H,...opt}); }
+    catch(e){ lastErr=e; if(attempt<2){ await new Promise(res=>setTimeout(res,500*(attempt+1))); continue; } throw new Error('Sem conexão com o servidor — tente de novo. ('+((e&&e.message)||e)+')'); }
+    if(!r.ok){ const t=await r.text();
+      if(r.status>=500 && attempt<2){ lastErr=new Error(r.status+' '+t); await new Promise(res=>setTimeout(res,500*(attempt+1))); continue; }
+      throw new Error(r.status+' '+t); }
+    const txt=await r.text(); return txt?JSON.parse(txt):[];
+  }
+  throw lastErr||new Error('Falha de rede'); }
 async function apiCount(path){ await lolaEnsure(); H=lolaHeaders();
   const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:{...H,'Prefer':'count=exact','Range':'0-0'}});
   const cr=r.headers.get('content-range')||''; const m=cr.match(/\/(\d+)$/); return m?+m[1]:0; }
@@ -1331,11 +1339,12 @@ async function aplicarSplitPorNotas(l, mag){
     const catLab=p.cat?((ST.planoById[p.cat]||{}).label||''):'';
     const rotulo=catLab?`${String(forn).slice(0,18)} · ${catLab}`:String(forn).slice(0,24);
     const compN=(n&&n.data_emissao)?n.data_emissao.slice(0,7):l.competencia;   // competência = mês da nota
-    return {unit:l.unit, fitid:i===0?baseFit:(baseFit+'__n'+i), date:l.date, competencia:compN,
+    return {unit:l.unit, fitid:baseFit+'__n'+(i+1), date:l.date, competencia:compN,
       memo:(l.memo||'')+` (${rotulo})`, amount:sign*p.valor, category:p.cat, manual:true};
   });
   try{
     const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
+    if(!ins || ins.length<rows.length){ throw new Error('Gravou '+((ins&&ins.length)||0)+' de '+rows.length+' partes. Nada foi apagado — tente de novo.'); }
     // apaga o original e seus vínculos
     await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
@@ -1383,11 +1392,12 @@ async function aplicarDiferenca(l,soma,dif,catDif){
   const compNota=(comps.length===1)?comps[0]:l.competencia;   // parte da nota = competência da nota
   const catLab=catDif?((ST.planoById[catDif]||{}).label||'diferença'):'diferença';
   const rows=[
-    {unit:l.unit, fitid:baseFit,          date:l.date, competencia:compNota,     memo:(l.memo||'')+' (nota)',        amount:sign*soma, category:l.category||null, manual:true},
+    {unit:l.unit, fitid:baseFit+'__nota',  date:l.date, competencia:compNota,     memo:(l.memo||'')+' (nota)',        amount:sign*soma, category:l.category||null, manual:true},
     {unit:l.unit, fitid:baseFit+'__dif',  date:l.date, competencia:l.competencia, memo:(l.memo||'')+` (${catLab})`,  amount:sign*dif,  category:catDif||null,    manual:true}
   ];
   try{
     const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
+    if(!ins || ins.length<rows.length){ throw new Error('Gravou '+((ins&&ins.length)||0)+' de '+rows.length+' partes. Nada foi apagado — tente de novo.'); }
     await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
     ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
@@ -1521,18 +1531,20 @@ async function doSplit(id){
   if(parts.length<2){toast('Preencha ao menos 2 partes');return;}
   const sum=parts.reduce((s,p)=>s+Math.abs(p.amount),0);
   if(Math.abs(sum-mag)>0.005 && !confirm(`As partes somam ${brl(sum)}, diferente do original ${brl(mag)}. Dividir mesmo assim?`))return;
-  const rows=parts.map((p,i)=>({unit:l.unit, fitid:i===0?baseFit:(baseFit+'__s'+i), date:l.date, competencia:p.competencia,
+  const rows=parts.map((p,i)=>({unit:l.unit, fitid:baseFit+'__p'+(i+1), date:l.date, competencia:p.competencia,
     memo:(l.memo||'')+` (parte ${i+1}/${parts.length})`, amount:p.amount, category:p.category, manual:true}));
   try{
     const notasVinc=notasDoLanc(id); // vínculos N:N a migrar p/ a parte 1
     const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
+    // só apaga o original se TODAS as partes gravaram (evita sobrar o inteiro + faltar parte)
+    if(!ins || ins.length<rows.length){ throw new Error('Gravou '+((ins&&ins.length)||0)+' de '+rows.length+' partes. Nada foi apagado — tente de novo.'); }
     await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
     ST.lanc=ST.lanc.filter(x=>x.id!==id); ins.forEach(r=>ST.lanc.unshift(r));
     // re-vincula as notas na parte 1 (o lançamento original foi apagado)
     ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(id));
     if(notasVinc.length && ins[0]){ for(const ch of notasVinc){ await linkNotaLanc(ch, ins[0].id); } }
     closeSheet(); toast('Dividido em '+parts.length+' partes'); renderAll();
-  }catch(e){toast('Erro: '+e.message);}
+  }catch(e){toast('Erro ao dividir: '+e.message);}
 }
 
 /* ========================= IMPORT / ADD SHEET ========================= */
@@ -1940,8 +1952,9 @@ function openLinkNota(chave){
   if(go) go.onclick=async()=>{ if(!sel.size)return;
     const difIds=[...sel].filter(id=>$(`#sheetBody .lnkchk[data-l="${id}"]`)?.dataset.diff);
     if(difIds.length && !confirm(`${difIds.length} pagamento(s) parecem de fornecedor diferente da nota. Associar mesmo assim?`)) return;
-    for(const id of sel){ await linkNotaLanc(chave,id); }
-    let comp=null; for(const id of sel){ const c=await syncCompDaNota(id); if(c) comp=c; }
+    try{ for(const id of sel){ await linkNotaLanc(chave,id); } }
+    catch(e){ toast('Não deu pra associar (verifique a conexão e tente de novo): '+e.message); renderNotas(); renderLanc(); return; }
+    let comp=null; for(const id of sel){ const c=await syncCompDaNota(id).catch(()=>null); if(c) comp=c; }
     if(difIds.length && confirm(`Criar apelido pra SEMPRE reconhecer esse(s) pagamento(s) como "${(n.emitente||'').slice(0,40)}"?`)){
       for(const id of difIds){ const l=ST.lanc.find(x=>String(x.id)===String(id)); if(l) await salvarApelido(splitFornecedor(l.memo).disp, n.emitente); } }
     const qtd=sel.size, unico=qtd===1?[...sel][0]:null;
@@ -2109,7 +2122,8 @@ function openLinkPagamento(lancId, forcePicker){
   if(go) go.onclick=async()=>{ if(!sel.size)return;
     const difChs=[...sel].filter(ch=>$(`#sheetBody .lnkchk[data-n="${ch}"]`)?.dataset.diff);
     if(difChs.length && !confirm(`${difChs.length} nota(s) parecem de fornecedor diferente do pagamento. Associar mesmo assim?`)) return;
-    for(const ch of sel){ await linkNotaLanc(ch,lancId); }
+    try{ for(const ch of sel){ await linkNotaLanc(ch,lancId); } }
+    catch(e){ toast('Não deu pra associar (verifique a conexão e tente de novo): '+e.message); renderNotas(); renderLanc(); return; }
     if(difChs.length){ const termo=splitFornecedor(l.memo).disp;
       if(confirm(`Criar apelido pra SEMPRE reconhecer "${termo}" como esse(s) fornecedor(es)?`)){
         for(const ch of difChs){ const nn=notaObj(ch); if(nn) await salvarApelido(termo, nn.emitente); } } }
