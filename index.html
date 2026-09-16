@@ -878,6 +878,7 @@
              (cards do hub, só admin). Os módulos continuam aqui dentro; o /adm abre
              com ?mod=usuarios | ?mod=rh (deep-link no startPortal). -->
         <button class="nav-item" data-mod="lolamac" data-menu="lolamac" onclick="openLolaMAC()"><span class="ni"><i class="ph-duotone ph-chart-line-up"></i></span><span class="nl">Lola MAC</span></button>
+        <button class="nav-item" data-mod="equipe" data-menu="equipe" onclick="openEquipe()"><span class="ni"><i class="ph-duotone ph-identification-badge"></i></span><span class="nl">Equipe</span></button>
       </div>
       <div class="sb-section" id="sb-estoque" style="display:none"><span class="sb-label">Estoque</span><button class="nav-item nav-estoque" data-page="insumos" data-menu="est_insumos" onclick="openEstoque('insumos')"><span class="ni"><i class="ph-duotone ph-jar"></i></span><span class="nl">Insumos</span></button><button class="nav-item nav-estoque" data-page="entnotas" data-menu="est_entnotas" onclick="openEstoque('entnotas')"><span class="ni"><i class="ph-duotone ph-receipt"></i></span><span class="nl">Entrada de Notas</span></button><button class="nav-item nav-estoque" data-page="compras" data-menu="est_compras" onclick="openEstoque('compras')"><span class="ni"><i class="ph-duotone ph-chart-line-up"></i></span><span class="nl">Compras / CMV</span></button><button class="nav-item nav-estoque" data-page="preproducoes" data-menu="est_preproducoes" onclick="openEstoque('preproducoes')"><span class="ni"><i class="ph-duotone ph-cooking-pot"></i></span><span class="nl">Pré-produções</span></button><button class="nav-item nav-estoque" data-page="fichas" data-menu="est_fichas" onclick="openEstoque('fichas')"><span class="ni"><i class="ph-duotone ph-book-open"></i></span><span class="nl">Fichas Técnicas</span></button><button class="nav-item nav-estoque" data-page="producao" data-menu="est_producao" onclick="openEstoque('producao')"><span class="ni"><i class="ph-duotone ph-fork-knife"></i></span><span class="nl">Produção do dia</span></button><button class="nav-item nav-estoque" data-page="contagem" data-menu="est_contagem" onclick="openEstoque('contagem')"><span class="ni"><i class="ph-duotone ph-package"></i></span><span class="nl">Contagem de Estoque</span></button><button class="nav-item nav-estoque" data-page="saidas" data-menu="est_saidas" onclick="openEstoque('saidas')"><span class="ni"><i class="ph-duotone ph-export"></i></span><span class="nl">Saída de Estoque</span></button><button class="nav-item nav-estoque" data-page="descartes" data-menu="est_descartes" onclick="openEstoque('descartes')"><span class="ni"><i class="ph-duotone ph-trash"></i></span><span class="nl">Descartes</span></button><button class="nav-item nav-estoque" data-page="fornecedores" data-menu="est_fornecedores" onclick="openEstoque('fornecedores')"><span class="ni"><i class="ph-duotone ph-truck"></i></span><span class="nl">Fornecedores</span></button><button class="nav-item nav-estoque" data-page="pedidos" data-menu="est_pedidos" onclick="openEstoque('pedidos')"><span class="ni"><i class="ph-duotone ph-shopping-cart"></i></span><span class="nl">Pedidos à Central</span></button><button class="nav-item nav-estoque" data-page="envios" data-menu="est_envios" onclick="openEstoque('envios')"><span class="ni"><i class="ph-duotone ph-tray-arrow-down"></i></span><span class="nl">Envios da Central</span></button><button class="nav-item" data-mod="hortifruti" data-menu="hortifruti" onclick="switchModule('hortifruti')"><span class="ni"><i class="ph-duotone ph-carrot"></i></span><span class="nl">Pedidos Hortifrúti</span></button></div>
       <div class="sb-section">
@@ -907,6 +908,7 @@
       <div class="module-panel" id="module-documentos" style="overflow-y:auto"></div>
       <div class="module-panel" id="module-financeiro"><iframe id="finFrame" title="Financeiro" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-lolamac"><iframe id="lolamacFrame" title="Lola MAC" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
+      <div class="module-panel" id="module-equipe"><iframe id="equipeFrame" title="Equipe" style="flex:1;min-height:0;width:100%;border:0;display:block"></iframe></div>
       <div class="module-panel" id="module-compras"></div>
       <div class="module-panel" id="module-hortifruti"></div>
       <div class="module-panel" id="module-comprascartao"></div>
@@ -987,7 +989,7 @@ window.__portalUser=null;
 var MENU_GROUPS=[
  {label:'Principal',items:[['inicio','🏠 Início']]},
  {label:'Aplicativos',items:[['tarefas','📋 Reuniões & Tarefas'],['diario','📓 Diário de Gerentes'],['comprascartao','💳 Compras no Cartão'],['entregas','🚚 Entregas entre Unidades'],['loucas','📦 Inventário'],['eventos','📅 Eventos'],['inbox','💬 Atendimento'],['avaliacoes','⭐ Avaliações'],['doc_escala','🗓️ Escala']]}, /* 19/07: Lista de Compras eliminada */
- {label:'Administração',items:[['lolamac','📈 Lola MAC']]}, /* 19/07: usuarios e rh saíram do menu — moram no /adm */
+ {label:'Administração',items:[['lolamac','📈 Lola MAC'],['equipe','🪪 Equipe']]}, /* 19/07: usuarios e rh saíram do menu — moram no /adm */
  {label:'Estoque',items:[['est_insumos','🧂 Insumos'],['est_entnotas','🧾 Entrada de Notas'],['est_compras','📊 Compras / CMV'],['est_preproducoes','🍳 Pré-produções'],['est_fichas','📒 Fichas Técnicas'],['est_contagem','📦 Contagem de Estoque'],['est_saidas','📤 Saída de Estoque'],['est_descartes','🗑️ Descartes'],['est_fornecedores','🚚 Fornecedores'],['est_pedidos','🛒 Pedidos à Central'],['est_envios','📥 Envios da Central'],['hortifruti','🥬 Pedidos Hortifrúti']]},
  {label:'Manutenções',items:[['man_painel','🔧 Equipamentos']]}, /* 19/07: item único — as outras telas são abas internas do app */
  {label:'Documentos',items:[]} /* 19/07: virou o app Documentos (data-menu-free, todo mundo vê; cadastro em portal_documentos) */
@@ -1049,7 +1051,8 @@ var HOME_APPS=[
     {m:'eventos', label:'Eventos', d:'Reservas e produção', icon:'calendar-dots', col:'#C4622D', bg:'#FBEDE3'}
   ]},
   {g:'Gestão', items:[
-    {m:'lolamac', label:'Lola MAC', d:'Indicadores da unidade MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'}
+    {m:'lolamac', label:'Lola MAC', d:'Indicadores da unidade MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'},
+    {m:'equipe', label:'Equipe', d:'Dados básicos, experiência e aniversários', icon:'identification-badge', col:'#8A6A2B', bg:'#F4EEE2'} /* 16/09 (Bianca): app Equipe — gerente só vê, admin edita; liberar por pessoa no Acesso */
     /* 19/07: RH e Usuários saíram da home (moram no /adm, só admin); Avaliações subiu pra Operação */
   ]}
 ];
@@ -3004,6 +3007,19 @@ window.openLolaMAC=function(){try{
   var ph=document.getElementById('phModname');if(ph)ph.textContent='Lola MAC';
   var f=document.getElementById('lolamacFrame');
   if(f&&!f.dataset.loaded){f.dataset.loaded='1';f.src='/mac/?embed=1&u='+encodeURIComponent((window.__portalUser&&window.__portalUser.name)||'')+'&t='+Date.now();}
+  if(typeof closeSidebar==='function')closeSidebar();
+}catch(e){}};
+
+/* EQUIPE — abre por iframe em /equipe/ (16/09/2026). Dados em rh_funcionarios via rh_equipe_ver/rh_equipe_salvar (sem salário). */
+window.openEquipe=function(){try{
+  document.querySelectorAll('.module-panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  document.querySelectorAll('.nav-estoque,.nav-manut,.nav-fin').forEach(function(n){n.classList.remove('active');});
+  var panel=document.getElementById('module-equipe');if(panel)panel.classList.add('active');
+  var b=document.querySelector('.nav-item[data-menu="equipe"]');if(b)b.classList.add('active');
+  var ph=document.getElementById('phModname');if(ph)ph.textContent='Equipe';
+  var f=document.getElementById('equipeFrame');
+  if(f&&!f.dataset.loaded){f.dataset.loaded='1';f.src='/equipe/?embed=1&t='+Date.now();}
   if(typeof closeSidebar==='function')closeSidebar();
 }catch(e){}};
 </script>
