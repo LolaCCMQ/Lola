@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Equipe</title>
+<!-- Equipe — dados básicos dos funcionários (16/09/2026, pedido da Bianca)
+     Mesma base do RH: tabela rh_funcionarios. Aqui NÃO aparece salário, VT, PIX, comissão.
+     Gerente: só vê. Admin: vê e edita. Login = o mesmo do portal (lola_session).
+     O banco confere nome + senha em cada leitura (funções rh_equipe_ver / rh_equipe_salvar). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+:root{
+  --creme:#FBF7F1; --card:#FFFFFF; --border:#ECE3D9; --fio:#EFE6DC; --cremeDark:#F7EFE6;
+  --vinho:#A82A2A; --vinhoH:#7E1E1F;
+  --ink:#2A1A17; --sec:#5A463E; --mut:#8A7A72; --lbl:#B79A8E;
+  --ok:#2C7A4B; --okBg:#E6F3EA; --amb:#9A6B1E; --ambBg:#FBF0DD; --ruim:#B5302E; --ruimBg:#FBEAE7;
+  --ccmq:#C0392B; --ccmqBg:#FBE4E0; --mac:#2C7A4B; --macBg:#E6F3EA; --cen:#2C5AA0; --cenBg:#E6EEF8; --evt:#B23A6B; --evtBg:#F8E6EE;
+  --r-tag:9px; --r-btn:13px; --r-card:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--creme);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px 110px}
+
+/* ---------- cabeçalho (transparente, título vinho, fio embaixo) ---------- */
+.apphead{display:flex;align-items:center;gap:10px;padding:14px 0 12px;border-bottom:1px solid var(--fio)}
+.sq{width:40px;height:40px;flex-shrink:0;border-radius:13px;background:#fff;border:1px solid var(--border);color:var(--vinho);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer}
+.sq:active{background:var(--cremeDark)}
+.apphead .tt{flex:1;min-width:0}
+.apphead h1{font-family:Fraunces,serif;font-weight:600;font-size:20px;color:var(--vinho);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apphead .sub{font-size:12px;font-weight:600;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.demo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--ambBg);border:1px solid #EFD9AE;color:var(--amb);border-radius:12px;padding:10px 12px;margin-top:12px;font-size:12px;font-weight:600}
+.demo .sw{display:flex;gap:6px;margin-left:auto}
+.demo .sw button{border:1px solid #EFD9AE;background:#fff;color:var(--amb);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer}
+.demo .sw button.on{background:var(--amb);color:#fff;border-color:var(--amb)}
+
+/* ---------- abas ---------- */
+.abas{display:flex;gap:8px;margin:14px 0 0}
+.aba{flex:1;min-height:44px;border-radius:10px;font-size:13px;font-weight:600;color:var(--sec);background:#fff;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.aba.on{background:var(--vinho);color:#fff;border-color:var(--vinho);font-weight:700}
+.aba .n{font-size:11px;font-weight:700;opacity:.75}
+@media(min-width:900px){ .abas{max-width:520px} }
+
+/* busca */
+.busca{display:none;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:13px;padding:0 12px;margin-top:12px;min-height:48px}
+.busca.on{display:flex}
+.busca i{color:var(--mut);font-size:18px}
+.busca input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:16px;color:var(--ink);min-height:46px}
+.busca button{background:none;border:0;color:var(--mut);font-size:18px;cursor:pointer;display:flex}
+
+/* filtro de unidade — rola só dentro dele, nunca a página */
+.filtros{display:flex;gap:7px;overflow-x:auto;margin:12px -16px 0;padding:0 16px 2px;scrollbar-width:none}
+.filtros::-webkit-scrollbar{display:none}
+.fil{flex-shrink:0;min-height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--sec);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.fil.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+.lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:700;margin:26px 0 6px;display:flex;justify-content:space-between;gap:10px}
+.lbl span{letter-spacing:.04em}
+
+/* ---------- lista (fios, não caixas) ---------- */
+.lista{border-top:1px solid var(--fio)}
+.row{display:flex;align-items:center;gap:12px;padding:13px 2px;border:0;border-bottom:1px solid var(--fio);background:none;width:100%;text-align:left;cursor:pointer;color:inherit}
+.row:active{background:var(--cremeDark)}
+.row.off{opacity:.55}
+.av{width:40px;height:40px;border-radius:50%;background:var(--cremeDark);color:var(--vinho);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;font-family:Fraunces,serif}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t .s{display:flex;align-items:center;gap:6px;margin-top:3px;min-width:0}
+.row .t .s em{font-style:normal;font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.row .r{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.row .r .big{font-family:Fraunces,serif;font-weight:600;font-size:18px;line-height:1;color:var(--ink)}
+.row .r .big.amb{color:var(--amb)} .row .r .big.ruim{color:var(--ruim)}
+.row .r small{font-size:10.5px;color:var(--lbl);font-weight:600;white-space:nowrap}
+
+.tag{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;font-size:10.5px;font-weight:700;border-radius:var(--r-tag);padding:2px 7px;white-space:nowrap;line-height:1.5}
+.tag i{font-size:12px}
+.u-ccmq{background:var(--ccmqBg);color:var(--ccmq)} .u-mac{background:var(--macBg);color:var(--mac)}
+.u-central{background:var(--cenBg);color:var(--cen)} .u-eventos{background:var(--evtBg);color:var(--evt)}
+.u-none{background:#F1EEE9;color:#6B6258}
+.st-amb{background:var(--ambBg);color:var(--amb)} .st-ruim{background:var(--ruimBg);color:var(--ruim)} .st-ok{background:var(--okBg);color:var(--ok)}
+
+.vazio{padding:44px 12px;text-align:center;color:var(--mut);font-size:13px}
+.vazio i{display:block;font-size:34px;color:var(--lbl);margin-bottom:8px}
+.mais{display:block;margin:18px auto 0;background:none;border:0;color:var(--mut);font-size:12.5px;font-weight:600;text-decoration:underline;cursor:pointer;min-height:44px}
+.aviso{font-size:12px;color:var(--mut);margin-top:8px;line-height:1.5}
+
+/* ---------- CTA fixo (só admin) ---------- */
+.cta-fix{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--creme) 72%,transparent);z-index:20;display:none}
+.cta{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;max-width:948px;margin:0 auto;background:var(--vinho);color:#fff;border:0;border-radius:var(--r-btn);min-height:50px;font-size:14.5px;font-weight:700;cursor:pointer}
+.cta:active{background:var(--vinhoH)}
+.cta i{font-size:19px}
+
+/* ---------- folhas (celular: de baixo · computador: painel à direita) ---------- */
+.sheet-bg{position:fixed;inset:0;background:rgba(42,26,23,.35);display:none;z-index:50}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-radius:18px 18px 0 0;padding:8px 16px calc(24px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto;display:none;z-index:51;max-height:92vh;overflow-y:auto;overscroll-behavior:contain}
+.sheet .grab{width:38px;height:4px;border-radius:4px;background:var(--border);margin:4px auto 12px}
+@media(min-width:900px){
+  .sheet{left:auto;right:0;top:0;bottom:0;width:440px;max-width:none;max-height:none;border-radius:0;padding:22px 24px 28px;border-left:1px solid var(--border)}
+  .sheet .grab{display:none}
+}
+.sh-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:4px}
+.sh-top .t{flex:1;min-width:0}
+.sh-top h3{font-family:Fraunces,serif;font-weight:600;font-size:20px;color:var(--vinho);line-height:1.2}
+.sh-top p{font-size:12.5px;color:var(--sec);margin-top:3px}
+.sh-top .x{width:40px;height:40px;border-radius:13px;border:1px solid var(--border);background:#fff;color:var(--sec);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sh-tags{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}
+
+/* detalhe: pares rótulo/valor com fio */
+.kv{border-top:1px solid var(--fio);margin-top:14px}
+.kv .it{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--fio);min-height:52px}
+.kv .it > i{font-size:20px;color:var(--sec);flex-shrink:0}
+.kv .it .t{flex:1;min-width:0}
+.kv .it .l{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl);font-weight:700}
+.kv .it .v{display:block;font-size:14.5px;font-weight:600;color:var(--ink);word-break:break-word}
+.kv .it .v small{font-weight:600;color:var(--mut);font-size:12px}
+.kv .it .v.vazio-v{color:var(--lbl);font-weight:400;padding:0;text-align:left;font-size:13.5px}
+.mini{flex-shrink:0;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--vinho);font-size:12.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;text-decoration:none}
+.mini i{font-size:16px}
+
+.exp-box{margin-top:16px;border:1px solid var(--border);border-radius:14px;padding:14px}
+.exp-box .h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.exp-box .h b{font-size:13px;font-weight:700}
+.exp-box .h span{font-size:12px;color:var(--mut);font-weight:600}
+.barra{position:relative;height:8px;border-radius:8px;background:var(--cremeDark);margin:12px 0 8px;overflow:hidden}
+.barra .p{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:var(--amb)}
+.barra .m{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+.exp-box .leg{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);font-weight:600}
+.obs{margin-top:14px;background:var(--cremeDark);border-radius:12px;padding:12px 14px;font-size:13.5px;color:var(--sec);white-space:pre-wrap}
+.who{font-size:11px;color:var(--lbl);margin-top:14px;text-align:center}
+
+/* formulário */
+.field{margin-bottom:14px}
+.field > label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--lbl);font-weight:700;margin-bottom:6px}
+.field input,.field textarea,.field select{width:100%;border:1px solid var(--border);border-radius:var(--r-btn);min-height:48px;padding:12px 14px;font-size:16px;font-family:inherit;color:var(--ink);background:var(--creme);-webkit-appearance:none;appearance:none}
+.field input:focus,.field textarea:focus{outline:2px solid rgba(168,42,42,.25);border-color:var(--vinho)}
+.field textarea{min-height:72px;resize:vertical}
+.field .hint{font-size:11.5px;color:var(--mut);margin-top:5px}
+.field .hint.err{color:var(--ruim);font-weight:600}
+.dois{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dois .field{min-width:0}
+.pills{display:flex;gap:7px;flex-wrap:wrap}
+.pills button{min-height:42px;padding:0 13px;border-radius:11px;border:1px solid var(--border);background:#fff;color:var(--sec);font-size:13px;font-weight:600;cursor:pointer}
+.pills button.on{background:var(--vinho);border-color:var(--vinho);color:#fff;font-weight:700}
+.sep{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--lbl);font-weight:700;margin:22px 0 10px;padding-top:14px;border-top:1px solid var(--fio)}
+.chk{display:flex;align-items:center;gap:10px;min-height:48px;font-size:14px;font-weight:600;cursor:pointer}
+.chk input{width:22px;height:22px;accent-color:var(--vinho)}
+.acts{display:flex;gap:10px;margin-top:10px}
+.acts button{flex:1;min-height:50px;border-radius:var(--r-btn);font-size:14.5px;font-weight:600;border:1px solid var(--border);background:#fff;color:var(--sec);cursor:pointer}
+.acts button.ok{background:var(--vinho);color:#fff;border:0;font-weight:700}
+.acts button.ok:active{background:var(--vinhoH)}
+.acts button:disabled{opacity:.55}
+.serr{color:var(--ruim);font-size:12.5px;font-weight:600;min-height:18px;margin-top:4px}
+
+/* portão / estados */
+.gate{max-width:350px;margin:70px auto 0;text-align:center}
+.gate .mk{font-family:Fraunces,serif;font-weight:600;font-size:30px;color:var(--vinho);margin-bottom:5px}
+.gate p{font-size:13px;color:var(--mut);margin-bottom:22px;line-height:1.5}
+.gate input{width:100%;background:#fff;border:1px solid var(--border);border-radius:13px;padding:14px;font:inherit;font-size:16px;min-height:50px;margin-bottom:10px;text-align:center}
+.gate button,.gate a.bt{display:flex;align-items:center;justify-content:center;width:100%;background:var(--vinho);color:#fff;border:0;border-radius:13px;min-height:50px;font:inherit;font-weight:700;font-size:14.5px;cursor:pointer;text-decoration:none}
+.gate .er{color:var(--ruim);font-size:12.5px;font-weight:600;min-height:20px;margin-top:12px}
+.carregando{padding:80px 0;text-align:center;color:var(--mut);font-size:13px}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:12px;z-index:80;display:none;max-width:calc(100% - 32px);text-align:center}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="apphead">
+    <button class="sq" id="btMenu" title="Voltar ao menu" aria-label="Voltar ao menu"><i class="ph-duotone ph-caret-left"></i></button>
+    <div class="tt">
+      <h1>Equipe</h1>
+      <div class="sub" id="sub">Dados básicos dos funcionários</div>
+    </div>
+    <button class="sq" id="btBusca" title="Buscar" aria-label="Buscar" style="display:none"><i class="ph-duotone ph-magnifying-glass"></i></button>
+  </div>
+  <div id="demoBar"></div>
+  <div id="app"><div class="carregando">Carregando a equipe…</div></div>
+</div>
+
+<div class="cta-fix" id="ctaFix">
+  <button class="cta" id="btNovo"><i class="ph-duotone ph-user-plus"></i>Cadastrar funcionário</button>
+</div>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================== CONFIG ================== */
+const SB_URL='https://mvjbsdpfjhywhaonvpfl.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12amJzZHBmamh5d2hhb252cGZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDk2OTAsImV4cCI6MjA5NTM4NTY5MH0.i_3sqgQa6umsIYBmAwWz_NP6nYuT3GfIZid24zHXSEI';
+const HASH_KEY='lola_equipe_hash';   // senha (hash) do gerente guardada neste aparelho — admin usa a lola_admhash do portal
+const QS=new URLSearchParams(location.search);
+const EMBED=QS.get('embed')==='1' || window.self!==window.top;
+const DEMO=QS.get('demo')==='1' || location.protocol==='file:';
+
+const UNIDADES=[['ccmq','CCMQ'],['mac','MAC'],['central','Central'],['eventos','Eventos']];
+const UN_NOME=Object.fromEntries(UNIDADES);
+const MES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const MES3=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+/* ================== ESTADO ================== */
+let USER=null, HASH=null, PAPEL=null, EQUIPE=[];
+let ABA='equipe', UN='todas', BUSCA='', VER_DESLIG=false;
+
+const $=s=>document.querySelector(s);
+const esc=s=>(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const podeEditar=()=>PAPEL==='admin';
+
+/* ================== DATAS ================== */
+function hoje(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+function dt(iso){ if(!iso) return null; const p=String(iso).slice(0,10).split('-').map(Number); if(p.length<3||!p[0]) return null; return new Date(p[0],p[1]-1,p[2]); }
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function addDias(isoStr,n){ const d=dt(isoStr); d.setDate(d.getDate()+n); return iso(d); }
+function dias(a,b){ return Math.round((b-a)/86400000); }
+function br(isoStr){ const d=dt(isoStr); return d?String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear():''; }
+function curta(isoStr){ const d=dt(isoStr); return d?d.getDate()+' '+MES3[d.getMonth()]:''; }
+function tempoCasa(isoStr){
+  const a=dt(isoStr); if(!a) return ''; const h=hoje(); if(a>h) return 'começa em '+br(isoStr);
+  let m=(h.getFullYear()-a.getFullYear())*12+(h.getMonth()-a.getMonth()); if(h.getDate()<a.getDate()) m--;
+  if(m<1){ const d=dias(a,h); return d<=0?'entrou hoje':d+(d===1?' dia':' dias'); }
+  const an=Math.floor(m/12), me=m%12, p=[];
+  if(an) p.push(an+(an===1?' ano':' anos')); if(me) p.push(me+(me===1?' mês':' meses'));
+  return p.join(' e ');
+}
+function idade(isoStr){ const n=dt(isoStr); if(!n) return null; const h=hoje(); let i=h.getFullYear()-n.getFullYear(); if(h.getMonth()<n.getMonth()||(h.getMonth()===n.getMonth()&&h.getDate()<n.getDate())) i--; return i; }
+function proxAniv(isoStr){ const n=dt(isoStr); if(!n) return null; const h=hoje(); let p=new Date(h.getFullYear(),n.getMonth(),n.getDate()); if(p<h) p=new Date(h.getFullYear()+1,n.getMonth(),n.getDate()); return {data:p, faltam:dias(h,p)}; }
+
+/* Situação do contrato de experiência.
+   Regra CLT: até 90 dias no total, com no máximo 1 prorrogação. O dia da admissão conta. */
+function experiencia(f){
+  const h=hoje(), adm=dt(f.data_admissao), f1=dt(f.experiencia_fim), f2=dt(f.experiencia_prorrogacao);
+  if(!f1) return {fase:'sem'};
+  if(h<=f1) return {fase:'1', fim:f1, faltam:dias(h,f1), inicio:adm, f1, f2};
+  if(f2 && h<=f2) return {fase:'2', fim:f2, faltam:dias(h,f2), inicio:adm, f1, f2};
+  return {fase:'efetivado', desde:new Date((f2||f1).getTime()+86400000), f1, f2};
+}
+function expTag(f){
+  if(!f.ativo) return '';
+  const e=experiencia(f);
+  if(e.fase==='1'||e.fase==='2'){
+    const cls=e.faltam<=7?'st-ruim':'st-amb';
+    const txt=e.faltam===0?'termina hoje':e.faltam===1?'termina amanhã':'até '+curta(iso(e.fim));
+    return '<span class="tag '+cls+'"><i class="ph-duotone ph-hourglass-medium"></i>'+(e.fase==='2'?'2º período · ':'Experiência · ')+txt+'</span>';
+  }
+  return '';
+}
+
+/* ================== FORMATOS ================== */
+const soDig=s=>(s||'').replace(/\D/g,'');
+function fmtCPF(s){ const d=soDig(s).slice(0,11); return d.replace(/^(\d{3})(\d)/,'$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1-$2'); }
+function cpfMascara(s){ const d=soDig(s); if(d.length!==11) return fmtCPF(s); return '•••.'+d.slice(3,6)+'.'+d.slice(6,9)+'-••'; }
+function cpfValido(s){
+  const d=soDig(s); if(d.length!==11||/^(\d)\1{10}$/.test(d)) return false;
+  const dv=n=>{ let t=0; for(let i=0;i<n;i++) t+=Number(d[i])*(n+1-i); const r=(t*10)%11; return r===10?0:r; };
+  return dv(9)===Number(d[9]) && dv(10)===Number(d[10]);
+}
+function fmtFone(s){ const d=soDig(s).slice(0,11); if(d.length<=2) return d; if(d.length<=6) return '('+d.slice(0,2)+') '+d.slice(2); if(d.length<=10) return '('+d.slice(0,2)+') '+d.slice(2,6)+'-'+d.slice(6); return '('+d.slice(0,2)+') '+d.slice(2,7)+'-'+d.slice(7); }
+function iniciais(n){ const p=(n||'').trim().split(/\s+/); return (((p[0]||'')[0]||'')+((p.length>1?p[p.length-1]:'')[0]||'')).toUpperCase(); }
+function unTag(u){ return u&&UN_NOME[u]?'<span class="tag u-'+u+'">'+UN_NOME[u]+'</span>':''; }
+function toast(t){ const el=$('#toast'); el.textContent=t; el.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>el.style.display='none',2200); }
+
+/* ================== BANCO ================== */
+async function rpc(fn,args){
+  const r=await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify(args||{})});
+  let d=null; try{ d=await r.json(); }catch(e){}
+  if(!r.ok){
+    const m=(d&&(d.message||d.hint||d.error))||('Erro '+r.status);
+    const e=new Error(m); e.status=r.status; e.code=d&&d.code; throw e;
+  }
+  return d;
+}
+async function carregar(){
+  if(DEMO){ EQUIPE=demoDados(); return; }
+  const d=await rpc('rh_equipe_ver',{p_nome:USER.name,p_hash:HASH});
+  PAPEL=d.papel; EQUIPE=d.equipe||[];
+}
+async function salvar(p){
+  if(DEMO){
+    if(p.id){ const i=EQUIPE.findIndex(x=>x.id===p.id); EQUIPE[i]=Object.assign({},EQUIPE[i],p,{atualizado_em:new Date().toISOString(),atualizado_por:USER.name}); return p.id; }
+    const id=Date.now(); EQUIPE.push(Object.assign({},p,{id,atualizado_em:new Date().toISOString(),atualizado_por:USER.name})); return id;
+  }
+  const d=await rpc('rh_equipe_salvar',{p_nome:USER.name,p_hash:HASH,p});
+  return d&&d.id;
+}
+
+/* ================== ENTRADA ================== */
+async function sha256hex(msg){ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(msg)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ v==null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(e){} }
+
+async function iniciar(){
+  if(DEMO){ USER={name:'Bianca',role:'admin'}; PAPEL='admin'; demoBarra(); await carregar(); pronto(); return; }
+
+  try{ USER=JSON.parse(lsGet('lola_session')||'null'); }catch(e){ USER=null; }
+  if(!USER||!USER.name){
+    $('#app').innerHTML='<div class="gate"><div class="mk">Lola</div><p>Entre no portal com seu nome e senha para ver a equipe.</p><a class="bt" href="/">Ir para o portal</a></div>';
+    return;
+  }
+  if(USER.role!=='admin' && USER.role!=='gerente'){ semAcesso(); return; }
+
+  HASH = USER.role==='admin' ? (lsGet('lola_admhash')||lsGet(HASH_KEY)) : lsGet(HASH_KEY);
+  const hashDono=lsGet(HASH_KEY+'_nome');
+  if(USER.role!=='admin' && hashDono!==USER.name) HASH=null;   // aparelho compartilhado: senha de outra pessoa não vale
+  if(!HASH){ pedirSenha(); return; }
+  await tentar();
+}
+async function tentar(){
+  $('#app').innerHTML='<div class="carregando">Carregando a equipe…</div>';
+  try{ await carregar(); pronto(); }
+  catch(e){
+    if(/sem_acesso/.test(e.message)){
+      // senha não confere OU a pessoa não tem o app liberado
+      if(USER.role==='admin' && HASH===lsGet('lola_admhash')){ HASH=null; pedirSenha(); return; }
+      if(lsGet(HASH_KEY)===HASH){ lsSet(HASH_KEY,null); lsSet(HASH_KEY+'_nome',null); }
+      semAcesso(true); return;
+    }
+    if(e.code==='PGRST202'||/Could not find the function/i.test(e.message)){
+      $('#app').innerHTML='<div class="gate"><div class="mk">Lola</div><p>O banco ainda não foi preparado para este app (faltam as funções <b>rh_equipe_ver</b> e <b>rh_equipe_salvar</b>).</p></div>'; return;
+    }
+    $('#app').innerHTML='<div class="gate"><div class="mk">Lola</div><p>Não consegui carregar agora.<br><small>'+esc(e.message)+'</small></p><button onclick="tentar()">Tentar de novo</button></div>';
+  }
+}
+function pedirSenha(){
+  $('#app').innerHTML='<div class="gate"><div class="mk">Lola</div><p>Olá, <b>'+esc(USER.name)+'</b>. Como aqui tem CPF da equipe, confirme sua senha do portal <b>uma vez neste aparelho</b>.</p>'
+    +'<input type="password" id="gPass" placeholder="Sua senha do portal" autocomplete="current-password"><button id="gBtn">Entrar</button><div class="er" id="gErr"></div></div>';
+  const go=async()=>{
+    const v=$('#gPass').value.trim(); if(!v) return;
+    $('#gBtn').disabled=true; $('#gBtn').textContent='Conferindo…'; $('#gErr').textContent='';
+    HASH=await sha256hex(v);
+    try{ await carregar(); lsSet(HASH_KEY,HASH); lsSet(HASH_KEY+'_nome',USER.name); pronto(); }
+    catch(e){
+      $('#gBtn').disabled=false; $('#gBtn').textContent='Entrar';
+      $('#gErr').textContent=/sem_acesso/.test(e.message)?'Senha incorreta, ou o app Equipe ainda não foi liberado pra você.':'Não consegui conferir agora. '+e.message;
+    }
+  };
+  $('#gBtn').onclick=go; $('#gPass').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); }); $('#gPass').focus();
+}
+function semAcesso(talvezSenha){
+  $('#app').innerHTML='<div class="gate"><div class="mk">Lola</div><p>O app <b>Equipe</b> é só para gerentes com acesso liberado e administradoras.'+(talvezSenha?' Se você trocou de senha, entre de novo.':'')+'</p>'
+    +(talvezSenha?'<button onclick="pedirSenha()">Digitar a senha de novo</button>':'<a class="bt" href="/">Voltar ao portal</a>')+'</div>';
+}
+
+/* ================== TELA ================== */
+function pronto(){
+  $('#btBusca').style.display='flex';
+  $('#ctaFix').style.display=podeEditar()?'block':'none';
+  render();
+  const abrir=QS.get('f'); if(abrir){ const f=EQUIPE.find(x=>String(x.id)===abrir); if(f) abrirDetalhe(f.id); }
+}
+
+function ativos(){ return EQUIPE.filter(f=>f.ativo); }
+function filtrar(lista){
+  const q=BUSCA.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  return lista.filter(f=>{
+    if(UN!=='todas' && (f.unidade||'')!==UN) return false;
+    if(q){ const alvo=((f.nome||'')+' '+(f.cargo||'')+' '+(f.setor||'')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); if(alvo.indexOf(q)<0) return false; }
+    return true;
+  });
+}
+function emExperiencia(){ return ativos().filter(f=>{ const e=experiencia(f); return e.fase==='1'||e.fase==='2'; }); }
+
+function render(){
+  const at=ativos();
+  $('#sub').textContent=at.length+' ativos · '+(PAPEL==='admin'?'você pode editar':'somente leitura');
+  const nExp=emExperiencia().length;
+  const mesAtual=hoje().getMonth();
+  const nAniv=at.filter(f=>{ const n=dt(f.data_nascimento); return n&&n.getMonth()===mesAtual; }).length;
+
+  let h='<div class="abas">'
+    +aba('equipe','Equipe',at.length)
+    +aba('exp','Experiência',nExp)
+    +aba('aniv','Aniversários',nAniv)
+    +'</div>'
+    +'<div class="busca'+(BUSCA||buscaAberta?' on':'')+'" id="buscaBox"><i class="ph-duotone ph-magnifying-glass"></i><input id="buscaIn" type="search" placeholder="Buscar nome ou função" value="'+esc(BUSCA)+'"><button id="buscaX" aria-label="Limpar"><i class="ph-duotone ph-x"></i></button></div>'
+    +'<div class="filtros">'+[['todas','Todas']].concat(UNIDADES).map(([k,l])=>'<button class="fil'+(UN===k?' on':'')+'" data-un="'+k+'">'+l+'</button>').join('')+'</div>';
+
+  if(ABA==='equipe') h+=telaEquipe();
+  if(ABA==='exp') h+=telaExperiencia();
+  if(ABA==='aniv') h+=telaAniversarios();
+  $('#app').innerHTML=h;
+
+  document.querySelectorAll('.aba').forEach(b=>b.onclick=()=>{ ABA=b.dataset.aba; render(); });
+  document.querySelectorAll('.fil').forEach(b=>b.onclick=()=>{ UN=b.dataset.un; render(); });
+  document.querySelectorAll('.row').forEach(b=>b.onclick=()=>abrirDetalhe(isNaN(b.dataset.id)?b.dataset.id:Number(b.dataset.id)));
+  const bi=$('#buscaIn'); bi.oninput=()=>{ BUSCA=bi.value; const pos=bi.selectionStart; render(); const n=$('#buscaIn'); n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} };
+  $('#buscaX').onclick=()=>{ BUSCA=''; buscaAberta=false; render(); };
+  const dl=$('#btDeslig'); if(dl) dl.onclick=()=>{ VER_DESLIG=!VER_DESLIG; render(); };
+}
+let buscaAberta=false;
+function aba(k,l,n){ return '<button class="aba'+(ABA===k?' on':'')+'" data-aba="'+k+'">'+l+(n?' <span class="n">'+n+'</span>':'')+'</button>'; }
+
+function linha(f,direita){
+  const sub=[f.cargo?esc(f.cargo):'<span style="color:var(--lbl)">sem função</span>'];
+  return '<button class="row'+(f.ativo?'':' off')+'" data-id="'+esc(f.id)+'">'
+    +'<span class="av">'+esc(iniciais(f.nome))+'</span>'
+    +'<span class="t"><b>'+esc(f.nome)+'</b><span class="s">'+unTag(f.unidade)+'<em>'+sub.join('')+'</em></span></span>'
+    +(direita||'')+'</button>';
+}
+
+function telaEquipe(){
+  const lista=filtrar(ativos()).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const desl=filtrar(EQUIPE.filter(f=>!f.ativo)).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const mes=hoje().getMonth();
+  let h='<div class="lbl">Ativos <span>'+lista.length+'</span></div>';
+  if(!lista.length) h+='<div class="vazio"><i class="ph-duotone ph-users-three"></i>'+(BUSCA?'Ninguém com esse nome.':'Nenhum funcionário nesta unidade.')+'</div>';
+  else h+='<div class="lista">'+lista.map(f=>{
+    const n=dt(f.data_nascimento); const aniv=n&&n.getMonth()===mes;
+    const dir='<span class="r">'+expTag(f)+(aniv?'<small><i class="ph-duotone ph-cake" style="color:var(--vinho);font-size:13px;vertical-align:-2px"></i> '+curta(f.data_nascimento)+'</small>':'')+'</span>';
+    return linha(f,dir);
+  }).join('')+'</div>';
+  const semDados=lista.filter(f=>!f.cpf||!f.data_admissao||!f.data_nascimento).length;
+  if(podeEditar() && semDados) h+='<p class="aviso"><i class="ph-duotone ph-info" style="vertical-align:-2px"></i> '+semDados+' cadastro'+(semDados>1?'s':'')+' sem CPF, admissão ou aniversário — toque no nome pra completar.</p>';
+  if(desl.length){
+    h+='<button class="mais" id="btDeslig">'+(VER_DESLIG?'Esconder desligados':'Mostrar desligados ('+desl.length+')')+'</button>';
+    if(VER_DESLIG) h+='<div class="lbl">Desligados <span>'+desl.length+'</span></div><div class="lista">'+desl.map(f=>linha(f,'<span class="r"><small>'+(f.data_desligamento?'saiu '+curta(f.data_desligamento):'desligado')+'</small></span>')).join('')+'</div>';
+  }
+  return h;
+}
+
+function telaExperiencia(){
+  const lista=filtrar(emExperiencia()).map(f=>({f,e:experiencia(f)})).sort((a,b)=>a.e.faltam-b.e.faltam);
+  let h='';
+  if(!lista.length){
+    h+='<div class="vazio"><i class="ph-duotone ph-hourglass-medium"></i>Ninguém em contrato de experiência'+(UN!=='todas'?' nesta unidade':'')+'.</div>';
+  } else {
+    const logo=lista.filter(x=>x.e.faltam<=15), depois=lista.filter(x=>x.e.faltam>15);
+    const bloco=(tit,arr)=>arr.length?'<div class="lbl">'+tit+' <span>'+arr.length+'</span></div><div class="lista">'+arr.map(({f,e})=>{
+      const cls=e.faltam<=7?'ruim':'amb';
+      const dir='<span class="r"><span class="big '+cls+'">'+e.faltam+'</span><small>'+(e.faltam===1?'dia':'dias')+' · '+curta(iso(e.fim))+'</small></span>';
+      return linha(Object.assign({},f,{cargo:(f.cargo||'')+(e.fase==='2'?' · 2º período':' · 1º período')}),dir);
+    }).join('')+'</div>':'';
+    h+=bloco('Terminam em até 15 dias',logo)+bloco('Mais adiante',depois);
+  }
+  const sem=filtrar(ativos()).filter(f=>{ const a=dt(f.data_admissao); return a && dias(a,hoje())<90 && !f.experiencia_fim; });
+  if(sem.length) h+='<div class="lbl">Admitidos há menos de 90 dias sem data de experiência <span>'+sem.length+'</span></div><div class="lista">'+sem.map(f=>linha(f,'<span class="r"><small>admissão '+curta(f.data_admissao)+'</small></span>')).join('')+'</div>';
+  h+='<p class="aviso">Contrato de experiência vai até 90 dias no total, com no máximo uma prorrogação. Conta a partir do dia da admissão.</p>';
+  return h;
+}
+
+function telaAniversarios(){
+  const h0=hoje(), mAt=h0.getMonth();
+  const chave=n=>((n.getMonth()-mAt+12)%12)*100+n.getDate();   // mês atual primeiro (inclusive quem já fez), depois os próximos
+  const lista=filtrar(ativos()).filter(f=>dt(f.data_nascimento)).map(f=>({f,n:dt(f.data_nascimento),p:proxAniv(f.data_nascimento)})).sort((a,b)=>chave(a.n)-chave(b.n)||a.f.nome.localeCompare(b.f.nome,'pt-BR'));
+  const semData=filtrar(ativos()).filter(f=>!f.data_nascimento).length;
+  if(!lista.length) return '<div class="vazio"><i class="ph-duotone ph-cake"></i>Nenhum aniversário cadastrado'+(UN!=='todas'?' nesta unidade':'')+'.</div>'+(semData?'<p class="aviso" style="text-align:center">'+semData+' sem data de nascimento.</p>':'');
+  const grupos={}, ordem=[];
+  lista.forEach(x=>{ const m=x.n.getMonth(); if(!grupos[m]){ grupos[m]=[]; ordem.push(m); } grupos[m].push(x); });
+  let h='';
+  ordem.forEach(m=>{
+    h+='<div class="lbl">'+(m===mAt?'Este mês · ':'')+MES[m]+' <span>'+grupos[m].length+'</span></div><div class="lista">'
+      +grupos[m].map(({f,n,p})=>{
+        const jaFoi=m===mAt && n.getDate()<h0.getDate();
+        const quando=jaFoi?'já foi':p.faltam===0?'hoje!':p.faltam===1?'amanhã':'em '+p.faltam+' dias';
+        const cor=p.faltam===0?' style="color:var(--vinho)"':jaFoi?' style="color:var(--lbl)"':'';
+        return linha(f,'<span class="r"><span class="big"'+cor+'>'+n.getDate()+'</span><small>'+MES3[m]+' · '+quando+'</small></span>');
+      }).join('')+'</div>';
+  });
+  if(semData) h+='<p class="aviso">'+semData+' funcionário'+(semData>1?'s':'')+' sem data de nascimento.</p>';
+  return h;
+}
+
+/* ================== FOLHAS ================== */
+function abrirSheet(html){
+  const s=$('#sheet'); s.innerHTML='<div class="grab"></div>'+html; s.scrollTop=0;
+  s.style.display='block'; $('#sheetBg').style.display='block'; document.body.style.overflow='hidden';
+  if(!history.state||!history.state.sheet) history.pushState({sheet:1},'');
+}
+function fecharSheet(viaHistorico){
+  $('#sheet').style.display='none'; $('#sheetBg').style.display='none'; document.body.style.overflow='';
+  if(!viaHistorico && history.state&&history.state.sheet) history.back();
+}
+$('#sheetBg').onclick=()=>fecharSheet();
+window.addEventListener('popstate',()=>{ if($('#sheet').style.display==='block') fecharSheet(true); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('#sheet').style.display==='block') fecharSheet(); });
+
+function it(icone,rotulo,valor,extra){
+  return '<div class="it"><i class="ph-duotone ph-'+icone+'"></i><span class="t"><span class="l">'+rotulo+'</span><span class="v'+(valor?'':' vazio-v')+'">'+(valor||'não informado')+'</span></span>'+(extra||'')+'</div>';
+}
+
+function abrirDetalhe(id){
+  const f=EQUIPE.find(x=>x.id===id); if(!f) return;
+  const e=experiencia(f), n=dt(f.data_nascimento), id_=idade(f.data_nascimento);
+  let h='<div class="sh-top"><span class="av" style="width:48px;height:48px;font-size:17px">'+esc(iniciais(f.nome))+'</span><span class="t"><h3>'+esc(f.nome)+'</h3><p>'+esc(f.cargo||'sem função')+(f.setor?' · '+esc(f.setor):'')+'</p></span><button class="x" onclick="fecharSheet()" aria-label="Fechar"><i class="ph-duotone ph-x"></i></button></div>';
+  h+='<div class="sh-tags">'+unTag(f.unidade)+(f.ativo?'':'<span class="tag u-none">Desligado'+(f.data_desligamento?' em '+br(f.data_desligamento):'')+'</span>')+(f.ativo&&e.fase==='efetivado'?'<span class="tag st-ok"><i class="ph-duotone ph-check-circle"></i>Efetivado</span>':'')+'</div>';
+
+  if(f.ativo && (e.fase==='1'||e.fase==='2')){
+    const ini=e.inicio||new Date(e.f1.getTime()-44*86400000), fimTot=e.f2||e.f1;
+    const total=Math.max(1,dias(ini,fimTot)+1), corrido=Math.min(total,Math.max(0,dias(ini,hoje())+1));
+    const marca=e.f2?(dias(ini,e.f1)+1)/total*100:null;
+    h+='<div class="exp-box"><div class="h"><b>'+(e.fase==='1'?'Em experiência · 1º período':'Em experiência · 2º período')+'</b><span>'+(e.faltam===0?'termina hoje':'faltam '+e.faltam+(e.faltam===1?' dia':' dias'))+'</span></div>'
+      +'<div class="barra"><span class="p" style="width:'+(corrido/total*100).toFixed(1)+'%;background:'+(e.faltam<=7?'var(--ruim)':'var(--amb)')+'"></span>'+(marca?'<span class="m" style="left:'+marca.toFixed(1)+'%"></span>':'')+'</div>'
+      +'<div class="leg"><span>'+(e.inicio?'início '+curta(iso(e.inicio)):'')+'</span><span>1º até '+curta(iso(e.f1))+(e.f2?' · 2º até '+curta(iso(e.f2)):'')+'</span></div></div>';
+  }
+
+  h+='<div class="kv">';
+  h+=it('identification-card','CPF',f.cpf?'<span id="cpfV">'+esc(cpfMascara(f.cpf))+'</span>':'',f.cpf?'<button class="mini" id="cpfBt"><i class="ph-duotone ph-eye"></i>Ver</button>':'');
+  h+=it('cake','Aniversário',n?n.getDate()+' de '+MES[n.getMonth()]+(id_!=null&&id_>0&&id_<100?' <small>· '+id_+' anos</small>':''):'');
+  h+=it('calendar-check','Admissão',f.data_admissao?br(f.data_admissao)+' <small>· '+tempoCasa(f.data_admissao)+'</small>':'');
+  h+=it('hourglass-medium','Fim da experiência',f.experiencia_fim?br(f.experiencia_fim)+(f.experiencia_prorrogacao?' <small>· prorrogação até '+br(f.experiencia_prorrogacao)+'</small>':''):'');
+  const zap=soDig(f.contato);
+  h+=it('phone','Contato',f.contato?esc(f.contato):'',zap.length>=10?'<a class="mini" target="_blank" rel="noopener" href="https://wa.me/55'+zap.slice(-11)+'"><i class="ph-duotone ph-whatsapp-logo"></i>WhatsApp</a>':'');
+  h+='</div>';
+  if(f.obs_equipe) h+='<div class="obs">'+esc(f.obs_equipe)+'</div>';
+  if(podeEditar()) h+='<div class="acts" style="margin-top:18px"><button class="ok" onclick="abrirForm('+JSON.stringify(f.id).replace(/"/g,'&quot;')+')"><i class="ph-duotone ph-pencil-simple" style="vertical-align:-3px;margin-right:4px"></i>Editar dados</button></div>';
+  if(f.atualizado_por) h+='<div class="who">Atualizado por '+esc(f.atualizado_por)+(f.atualizado_em?' em '+br(f.atualizado_em):'')+'</div>';
+  abrirSheet(h);
+  const cb=$('#cpfBt'); if(cb){ let aberto=false; cb.onclick=()=>{ aberto=!aberto; $('#cpfV').textContent=aberto?fmtCPF(f.cpf):cpfMascara(f.cpf); cb.innerHTML=aberto?'<i class="ph-duotone ph-eye-slash"></i>Ocultar':'<i class="ph-duotone ph-eye"></i>Ver'; }; }
+}
+
+/* ---------- formulário (só admin) ---------- */
+let FORM=null;
+function abrirForm(id){
+  if(!podeEditar()) return;
+  const f=id!=null?EQUIPE.find(x=>x.id===id):null;
+  FORM=f?Object.assign({},f):{ativo:true,unidade:UN!=='todas'?UN:null};
+  const cargos=[...new Set(EQUIPE.map(x=>x.cargo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  let h='<div class="sh-top"><span class="t"><h3>'+(f?'Editar dados':'Novo funcionário')+'</h3><p>'+(f?esc(f.nome):'Dados básicos — salário e VT continuam no RH.')+'</p></span><button class="x" onclick="fecharSheet()" aria-label="Fechar"><i class="ph-duotone ph-x"></i></button></div>';
+  h+='<div style="height:12px"></div>';
+  h+='<div class="field"><label>Nome completo *</label><input id="fNome" autocomplete="off" value="'+esc(FORM.nome)+'"></div>';
+  h+='<div class="field"><label>CPF</label><input id="fCpf" inputmode="numeric" placeholder="000.000.000-00" value="'+esc(fmtCPF(FORM.cpf))+'"><div class="hint" id="hCpf"></div></div>';
+  h+='<div class="field"><label>Função</label><input id="fCargo" list="dlCargos" autocomplete="off" placeholder="Ex.: Atendimento" value="'+esc(FORM.cargo)+'"><datalist id="dlCargos">'+cargos.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist></div>';
+  h+='<div class="field"><label>Unidade</label><div class="pills" id="fUn">'+UNIDADES.map(([k,l])=>'<button type="button" data-v="'+k+'" class="'+(FORM.unidade===k?'on':'')+'">'+l+'</button>').join('')+'</div></div>';
+  h+='<div class="field"><label>Setor</label><div class="pills" id="fSetor">'+['Salão','Bar','Cozinha','Administrativo','Eventos'].map(s=>'<button type="button" data-v="'+s+'" class="'+(FORM.setor===s?'on':'')+'">'+s+'</button>').join('')+'</div></div>';
+  h+='<div class="dois"><div class="field"><label>Nascimento</label><input type="date" id="fNasc" value="'+esc((FORM.data_nascimento||'').slice(0,10))+'"></div>'
+    +'<div class="field"><label>Admissão</label><input type="date" id="fAdm" value="'+esc((FORM.data_admissao||'').slice(0,10))+'"></div></div>';
+
+  h+='<div class="sep">Contrato de experiência</div>';
+  h+='<div class="field"><label>Preencher a partir da admissão</label><div class="pills" id="fModelo">'
+    +[['45+45','45 + 45 dias'],['30+60','30 + 60 dias'],['90','90 dias'],['nao','Sem experiência']].map(([k,l])=>'<button type="button" data-v="'+k+'">'+l+'</button>').join('')
+    +'</div><div class="hint" id="hModelo">Escolha a admissão primeiro. O dia da admissão conta como dia 1.</div></div>';
+  h+='<div class="dois"><div class="field"><label>1º período termina</label><input type="date" id="fExp1" value="'+esc((FORM.experiencia_fim||'').slice(0,10))+'"></div>'
+    +'<div class="field"><label>Prorrogação termina</label><input type="date" id="fExp2" value="'+esc((FORM.experiencia_prorrogacao||'').slice(0,10))+'"></div></div>';
+  h+='<div class="hint err" id="hExp" style="margin:-6px 0 10px"></div>';
+
+  h+='<div class="sep">Contato e situação</div>';
+  h+='<div class="field"><label>Telefone / WhatsApp</label><input id="fFone" inputmode="tel" placeholder="(51) 99999-9999" value="'+esc(FORM.contato)+'"></div>';
+  h+='<label class="chk"><input type="checkbox" id="fAtivo"'+(FORM.ativo!==false?' checked':'')+'> Funcionário ativo</label>';
+  h+='<div class="field" id="boxDeslig" style="display:'+(FORM.ativo!==false?'none':'block')+'"><label>Data do desligamento</label><input type="date" id="fDeslig" value="'+esc((FORM.data_desligamento||'').slice(0,10))+'"></div>';
+  h+='<div class="field"><label>Observações</label><textarea id="fObs" placeholder="Visível para os gerentes com acesso">'+esc(FORM.obs_equipe)+'</textarea></div>';
+  h+='<div class="serr" id="fErr"></div><div class="acts"><button type="button" onclick="'+(f?'abrirDetalhe('+JSON.stringify(f.id).replace(/"/g,'&quot;')+')':'fecharSheet()')+'">Cancelar</button><button type="button" class="ok" id="fSalvar">Salvar</button></div>';
+  abrirSheet(h);
+
+  const pill=(sel,campo)=>document.querySelectorAll(sel+' button').forEach(b=>b.onclick=()=>{
+    const v=b.dataset.v; FORM[campo]=FORM[campo]===v?null:v;
+    document.querySelectorAll(sel+' button').forEach(x=>x.classList.toggle('on',x.dataset.v===FORM[campo]));
+  });
+  pill('#fUn','unidade'); pill('#fSetor','setor');
+  $('#fCpf').oninput=ev=>{ ev.target.value=fmtCPF(ev.target.value); checaCpf(); };
+  $('#fFone').oninput=ev=>{ ev.target.value=fmtFone(ev.target.value); };
+  $('#fAtivo').onchange=ev=>{ $('#boxDeslig').style.display=ev.target.checked?'none':'block'; if(!ev.target.checked&&!$('#fDeslig').value) $('#fDeslig').value=iso(hoje()); };
+  document.querySelectorAll('#fModelo button').forEach(b=>b.onclick=()=>{
+    const adm=$('#fAdm').value; const k=b.dataset.v;
+    if(k==='nao'){ $('#fExp1').value=''; $('#fExp2').value=''; checaExp(); return; }
+    if(!adm){ $('#hModelo').className='hint err'; $('#hModelo').textContent='Preencha a data de admissão antes.'; $('#fAdm').focus(); return; }
+    $('#hModelo').className='hint'; $('#hModelo').textContent='O dia da admissão conta como dia 1.';
+    if(k==='45+45'){ $('#fExp1').value=addDias(adm,44); $('#fExp2').value=addDias(adm,89); }
+    if(k==='30+60'){ $('#fExp1').value=addDias(adm,29); $('#fExp2').value=addDias(adm,89); }
+    if(k==='90'){ $('#fExp1').value=addDias(adm,89); $('#fExp2').value=''; }
+    checaExp();
+  });
+  ['#fExp1','#fExp2','#fAdm'].forEach(s=>$(s).addEventListener('change',checaExp));
+  $('#fSalvar').onclick=enviarForm;
+  checaCpf(); checaExp();
+  if(!f) setTimeout(()=>$('#fNome').focus(),80);
+}
+function checaCpf(){
+  const v=$('#fCpf').value, d=soDig(v), el=$('#hCpf');
+  if(!d){ el.textContent=''; el.className='hint'; return true; }
+  if(d.length<11){ el.textContent=''; el.className='hint'; return false; }
+  if(!cpfValido(v)){ el.textContent='CPF inválido — confira os números.'; el.className='hint err'; return false; }
+  const dup=EQUIPE.find(x=>soDig(x.cpf)===d && x.id!==(FORM&&FORM.id));
+  if(dup){ el.textContent='Esse CPF já está no cadastro de '+dup.nome+'.'; el.className='hint err'; return false; }
+  el.textContent=''; el.className='hint'; return true;
+}
+function checaExp(){
+  const adm=$('#fAdm').value, a=$('#fExp1').value, b=$('#fExp2').value, el=$('#hExp'); let msg='';
+  if(b&&!a) msg='Preencha o 1º período antes da prorrogação.';
+  else if(a&&b&&b<=a) msg='A prorrogação tem que terminar depois do 1º período.';
+  else if(adm&&a&&a<adm) msg='O 1º período não pode terminar antes da admissão.';
+  else if(adm&&(b||a)&&dias(dt(adm),dt(b||a))+1>90) msg='Passa de 90 dias no total — o limite da CLT.';
+  el.textContent=msg; return !msg;
+}
+async function enviarForm(){
+  const err=$('#fErr'); err.textContent='';
+  const nome=$('#fNome').value.trim().replace(/\s+/g,' ');
+  if(!nome){ err.textContent='Informe o nome.'; $('#fNome').focus(); return; }
+  if(soDig($('#fCpf').value) && !checaCpf()){ err.textContent='Confira o CPF.'; return; }
+  if(!checaExp()){ err.textContent='Confira as datas da experiência.'; return; }
+  const ativo=$('#fAtivo').checked;
+  const p={
+    id:FORM.id||null, nome,
+    cpf:soDig($('#fCpf').value)?fmtCPF($('#fCpf').value):null,
+    cargo:$('#fCargo').value.trim()||null, unidade:FORM.unidade||null, setor:FORM.setor||null,
+    data_nascimento:$('#fNasc').value||null, data_admissao:$('#fAdm').value||null,
+    experiencia_fim:$('#fExp1').value||null, experiencia_prorrogacao:$('#fExp2').value||null,
+    contato:$('#fFone').value.trim()||null, ativo,
+    data_desligamento:ativo?null:($('#fDeslig').value||null),
+    obs_equipe:$('#fObs').value.trim()||null
+  };
+  const bt=$('#fSalvar'); bt.disabled=true; bt.textContent='Salvando…';
+  try{
+    const id=await salvar(p);
+    if(!DEMO) await carregar();
+    render(); toast('Dados salvos');
+    const novoId=id!=null?id:p.id;
+    if(EQUIPE.find(x=>x.id===novoId)) abrirDetalhe(novoId); else fecharSheet();
+  }catch(e){
+    bt.disabled=false; bt.textContent='Salvar';
+    err.textContent=/sem_acesso/.test(e.message)?'Só administradoras podem editar.':'Não salvou: '+e.message;
+  }
+}
+
+/* ================== BOTÕES DO TOPO ================== */
+$('#btMenu').onclick=()=>{
+  if(EMBED){ try{ window.parent.postMessage({lola:'voltar-menu'},'*'); }catch(e){} }
+  else location.href='/';
+};
+$('#btBusca').onclick=()=>{ buscaAberta=!buscaAberta||!!BUSCA; if(ABA==='x') ABA='equipe'; render(); if(buscaAberta){ const i=$('#buscaIn'); i&&i.focus(); } };
+$('#btNovo').onclick=()=>abrirForm(null);
+
+/* ================== MODO PRÉVIA (dados inventados) ================== */
+function demoBarra(){
+  $('#demoBar').innerHTML='<div class="demo"><i class="ph-duotone ph-eye"></i>Prévia com dados de exemplo<div class="sw"><button data-p="gerente">Gerente</button><button data-p="admin" class="on">Admin</button></div></div>';
+  document.querySelectorAll('#demoBar .sw button').forEach(b=>b.onclick=()=>{
+    PAPEL=b.dataset.p; document.querySelectorAll('#demoBar .sw button').forEach(x=>x.classList.toggle('on',x===b));
+    $('#ctaFix').style.display=podeEditar()?'block':'none'; fecharSheet(); render();
+  });
+}
+function demoDados(){
+  const h=iso(hoje()), d=n=>addDias(h,n);
+  const mes=hoje().getMonth()+1, mm=String(mes).padStart(2,'0');
+  const nas=(ano,dia)=>ano+'-'+mm+'-'+String(dia).padStart(2,'0');
+  return [
+    {id:1,nome:'Ana Paula Ribeiro',cpf:'529.982.247-25',cargo:'Atendimento',unidade:'ccmq',setor:'Salão',data_nascimento:nas(1998,Math.min(28,hoje().getDate()+3)),data_admissao:d(-38),experiencia_fim:d(6),experiencia_prorrogacao:d(51),contato:'(51) 99812-3344',ativo:true},
+    {id:2,nome:'Diego Martins',cpf:'',cargo:'Cozinheiro Noite',unidade:'central',setor:'Cozinha',data_nascimento:'1991-02-14',data_admissao:d(-70),experiencia_fim:d(-26),experiencia_prorrogacao:d(19),contato:'(51) 98455-1020',ativo:true},
+    {id:3,nome:'Fernanda Kolling',cpf:'111.444.777-35',cargo:'Sub Chefe',unidade:'central',setor:'Cozinha',data_nascimento:'1989-11-02',data_admissao:'2024-03-11',experiencia_fim:'2024-04-24',experiencia_prorrogacao:'2024-06-08',contato:'(51) 99201-7788',ativo:true},
+    {id:4,nome:'Gabriel Souza',cpf:'390.533.447-05',cargo:'Bar Noite',unidade:'ccmq',setor:'Bar',data_nascimento:nas(2000,Math.max(1,hoje().getDate()-4)),data_admissao:'2025-08-01',contato:'',ativo:true},
+    {id:5,nome:'Helena Duarte',cpf:'',cargo:'Hostess',unidade:'mac',setor:'Salão',data_nascimento:'',data_admissao:d(-9),experiencia_fim:d(35),experiencia_prorrogacao:d(80),contato:'(51) 99977-4411',ativo:true},
+    {id:6,nome:'João Vitor Lima',cpf:'',cargo:'Aux cozinha noite',unidade:'ccmq',setor:'Cozinha',data_nascimento:'2003-05-22',data_admissao:d(-12),contato:'',ativo:true},
+    {id:7,nome:'Luiza Fontana',cpf:'153.509.460-56',cargo:'Maitre',unidade:'ccmq',setor:'Salão',data_nascimento:'1985-07-30',data_admissao:'2022-10-03',contato:'(51) 99633-0909',ativo:true,obs_equipe:'Faz a abertura de terça e quarta.'},
+    {id:8,nome:'Marcos Teixeira',cpf:'',cargo:'Eventos',unidade:'eventos',setor:'Eventos',data_nascimento:nas(1994,15),data_admissao:'2025-01-20',contato:'(51) 98100-2233',ativo:true},
+    {id:9,nome:'Rafaela Nunes',cpf:'',cargo:'Bar dia',unidade:'mac',setor:'Bar',data_nascimento:'1999-12-09',data_admissao:d(-60),experiencia_fim:d(-16),experiencia_prorrogacao:d(29),contato:'',ativo:true},
+    {id:10,nome:'Tiago Brum',cpf:'',cargo:'Atendimento',unidade:'ccmq',setor:'Salão',data_nascimento:'1997-03-03',data_admissao:'2025-02-10',contato:'',ativo:false,data_desligamento:d(-40)}
+  ];
+}
+
+iniciar();
+</script>
+</body>
+</html>
