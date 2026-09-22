@@ -5974,12 +5974,22 @@ function drawPed(w){
     const st=div('ped-status');
     {
       const sel=document.createElement('select');
-      function applySelStyle(status){sel.style.cssText='padding:8px 13px;font-size:12px;font-weight:700;border-radius:11px;border:none;cursor:pointer;font-family:Manrope,sans-serif;'+(STATUS_COLORS[status]||'');}
+      /* 22/09: pedido já enviado (status 'solicitado') mostra o andamento REAL da Central
+         (central_status: novo/aceito/pronto) em vez de cair no rótulo "Rascunho". */
+      const CENTRAL_LBL={novo:'Enviado — aguardando Central',aceito:'Aceito pela Central',pronto:'Pronto na Central ✓'};
+      function solicLabel(){ return CENTRAL_LBL[p.central_status]||'Enviado à Central'; }
+      function styleFor(status){
+        if(status==='solicitado'&&p.central_status==='pronto') return 'background:#E6F3EA;color:#2C7A4B';
+        return STATUS_COLORS[status]||'';
+      }
+      function applySelStyle(status){sel.style.cssText='padding:8px 13px;font-size:12px;font-weight:700;border-radius:11px;border:none;cursor:pointer;font-family:Manrope,sans-serif;'+styleFor(status);}
       applySelStyle(p.status);
       /* 31/08: rascunho agora também aparece no seletor — precisa poder ser cancelado
          ou mudar de status direto por aqui, sem precisar passar por "Enviar" antes. */
-      ['rascunho','em_producao','pronto_entrega','recebido_completo','recebido_divergencia','cancelado'].forEach(s=>{
-        const o=document.createElement('option');o.value=s;o.textContent=STATUS_LBL[s]||s;if(s===p.status)o.selected=true;sel.appendChild(o);
+      const _opts=['rascunho','solicitado','recebido_completo','recebido_divergencia','cancelado'];
+      if(_opts.indexOf(p.status)<0) _opts.push(p.status); // preserva status legado (em_producao, pronto_entrega, confirmado, entregue)
+      _opts.forEach(s=>{
+        const o=document.createElement('option');o.value=s;o.textContent=(s==='solicitado')?solicLabel():(STATUS_LBL[s]||s);if(s===p.status)o.selected=true;sel.appendChild(o);
       });
       sel.addEventListener('change',async e=>{
         const novo=e.target.value, antigo=p.status;
