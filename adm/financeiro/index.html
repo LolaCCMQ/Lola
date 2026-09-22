@@ -537,7 +537,10 @@ async function loadPlano(){
   ST.planoById={}; ST.plano.forEach(p=>ST.planoById[p.id]=p);
 }
 async function loadLanc(){
-  ST.lanc=await api(`financeiro_lancamentos?unit=eq.${ST.unit}&select=*&order=date.desc`);
+  /* 22/09: lançamentos "excluídos" que vinham do extrato voltavam a cada reimportação
+     do OFX. Agora excluir marca ignorado=true (a linha continua no banco, ocupando a
+     trava unit+fitid), e aqui a gente esconde os ignorados. */
+  ST.lanc=await api(`financeiro_lancamentos?unit=eq.${ST.unit}&ignorado=eq.false&select=*&order=date.desc`);
 }
 async function loadNotas(){
   ST.notas=await api(`financeiro_notas?unit=eq.${ST.unit}&select=*&order=data_emissao.desc`);
@@ -874,7 +877,7 @@ async function deleteSelecionados(){
   if(!confirm('Excluir '+ids.length+' lançamento(s)? Não dá pra desfazer.'))return;
   try{
     for(let i=0;i<ids.length;i+=50){const ch=ids.slice(i,i+50);
-      await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});}
+      await api(`financeiro_lancamentos?id=in.(${ch.join(',')})`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})});}
     const set=new Set(ids); ST.lanc=ST.lanc.filter(l=>!set.has(l.id)); ST.sel.clear();
     toast(ids.length+' excluído(s)'); renderAll(); updateSelBar();
   }catch(e){toast('Erro: '+e.message);}
@@ -1137,7 +1140,7 @@ async function deleteLanc(id){
   const l=ST.lanc.find(x=>x.id===id); if(!l)return;
   if(!confirm(`Excluir este lançamento?\n${(l.memo||'').slice(0,60)} · ${brl(+l.amount)}${pairNote(l)}`))return;
   try{
-    await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await api(`financeiro_lancamentos?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})});
     await delMirrorRcc(l);
     api(`financeiro_nota_lanc?lanc_id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
     ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(id));
@@ -1180,7 +1183,7 @@ function openEdit(id){
   };
   $('#e_del').onclick=async()=>{
     if(!confirm('Excluir este lançamento?'+pairNote(l)))return;
-    await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await api(`financeiro_lancamentos?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})});
     await delMirrorRcc(l);
     ST.lanc=ST.lanc.filter(x=>x.id!==id); closeSheet(); toast('Excluído'); renderAll();
   };
@@ -1346,7 +1349,7 @@ async function aplicarSplitPorNotas(l, mag){
     const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
     if(!ins || ins.length<rows.length){ throw new Error('Gravou '+((ins&&ins.length)||0)+' de '+rows.length+' partes. Nada foi apagado — tente de novo.'); }
     // apaga o original e seus vínculos
-    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})});
     await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
     ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
     ST.lanc=ST.lanc.filter(x=>String(x.id)!==String(l.id));
@@ -1398,7 +1401,7 @@ async function aplicarDiferenca(l,soma,dif,catDif){
   try{
     const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
     if(!ins || ins.length<rows.length){ throw new Error('Gravou '+((ins&&ins.length)||0)+' de '+rows.length+' partes. Nada foi apagado — tente de novo.'); }
-    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})});
     await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
     ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
     ST.lanc=ST.lanc.filter(x=>String(x.id)!==String(l.id));
@@ -1458,7 +1461,7 @@ function moverConflito(l,dest,ex){
     try{
       await api(`financeiro_nota_lanc?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
       await api(`lola_divergencias?lanc_id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
-      await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+      await api(`financeiro_lancamentos?id=eq.${l.id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})});
       ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(l.id));
       ST.divs=(ST.divs||[]).filter(d=>String(d.lanc_id)!==String(l.id));
       ST.lanc=ST.lanc.filter(x=>String(x.id)!==String(l.id));
@@ -1538,7 +1541,7 @@ async function doSplit(id){
     const ins=await api('financeiro_lancamentos?on_conflict=unit,fitid',{method:'POST',headers:{...H,'Prefer':'return=representation,resolution=ignore-duplicates'},body:JSON.stringify(rows)});
     // só apaga o original se TODAS as partes gravaram (evita sobrar o inteiro + faltar parte)
     if(!ins || ins.length<rows.length){ throw new Error('Gravou '+((ins&&ins.length)||0)+' de '+rows.length+' partes. Nada foi apagado — tente de novo.'); }
-    await api(`financeiro_lancamentos?id=eq.${id}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    await api(`financeiro_lancamentos?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})});
     ST.lanc=ST.lanc.filter(x=>x.id!==id); ins.forEach(r=>ST.lanc.unshift(r));
     // re-vincula as notas na parte 1 (o lançamento original foi apagado)
     ST.notaLinks=(ST.notaLinks||[]).filter(x=>String(x.lanc_id)!==String(id));
