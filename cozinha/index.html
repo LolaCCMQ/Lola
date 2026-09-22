@@ -6030,6 +6030,7 @@ function drawPed(w){
           drawPed($('#ped-t'));
         }catch(err){ alert('Erro ao enviar: '+err.message); }
       }));
+      btns.appendChild(pab('ph-printer','Imprimir','',()=>imprimirPed(p)));
     } else if(p.status==='em_producao'||p.status==='pronto_entrega'||p.status==='solicitado'||p.status==='confirmado'){
       btns.appendChild(pab('ph-tray-arrow-down','Receber','recv',()=>registrarRecebimento(p)));
       btns.appendChild(pab('ph-printer','Imprimir','',()=>imprimirPed(p)));
@@ -9045,7 +9046,7 @@ async function imprimirPed(ped){
       <div><strong>Pedido Nº:</strong> #${ped.numero_pedido}</div>
       <div><strong>Data:</strong> ${DBR(ped.data_pedido)}</div>
       <div><strong>Destino:</strong> ${destLabel}</div>
-      <div><strong>Status:</strong> ${STATUS_LBL_PRINT[ped.status]||ped.status}</div>
+      <div><strong>Status:</strong> ${ped.status==='solicitado'?(({novo:'Enviado — aguardando Central',aceito:'Aceito pela Central',pronto:'Pronto na Central'})[ped.central_status||'novo']||'Enviado à Central'):(STATUS_LBL_PRINT[ped.status]||ped.status)}</div>
       ${ped.observacoes?`<div style="grid-column:1/-1"><strong>Obs:</strong> ${ped.observacoes}</div>`:''}
     </div>
     <table style="margin-bottom:18px">
