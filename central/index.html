@@ -1086,7 +1086,17 @@ function viewPlanilha(){
   if(PLAN_TIPO==='insumo') list=list.filter(r=>r.tipo==='insumo');
   else if(PLAN_TIPO==='producao') list=list.filter(r=>r.tipo==='producao');
   else if(PLAN_TIPO==='dif') list=list.filter(isDiv);
-  if(ST.busca){ const b=norm(ST.busca); list=list.filter(r=>norm(r.nome).includes(b)); }
+  if(ST.busca){ const b=norm(ST.busca); list=list.filter(r=>norm(r.nome).includes(b));
+    /* 23/09 (Bianca): "não encontrou iogurte" — a planilha só lista o que tem movimento na
+       Central. Ao BUSCAR, também mostramos insumos do catálogo ainda sem estoque (qualquer
+       categoria, sem acento), pra dar pra achar e lançar o 1º saldo. */
+    if(PLAN_TIPO==='tudo'||PLAN_TIPO==='insumo'){
+      const jaIds=new Set(rows.map(r=>r.id));
+      const extra=(ST.insumos||[]).filter(i=>i&&i.ativo!==false && !jaIds.has(i.id) && norm(i.nome).includes(b))
+        .map(i=>({tipo:'insumo', id:i.id, nome:i.nome, un:i.unidade_custo||'', ini:0, contado:false, ent:0, sai:0, teo:0, sis:null, dif:null, semmov:true}));
+      list=list.concat(extra);
+    }
+  }
   let h=`<div class="note">Planilha de <b>saldos do estoque</b> da Central do mês. Parte da <b>contagem inicial</b> que você escolher, soma as <b>produções</b>, tira os <b>envios</b> e mostra o <b>saldo teórico</b>. A coluna <b>Dif.</b> mostra quanto o <b>sistema</b> está diferente do teórico — é o que a contagem semanal ajusta.</div>`;
   const contOpts = conts.length
     ? conts.map(c=>`<option value="${c.id}" ${c.id===PLAN_CONT?'selected':''}>${fmtData(c.data)}</option>`).join('')
@@ -1118,7 +1128,7 @@ function viewPlanilha(){
       const consSrc = r.tipo==='producao' ? (ST.saldo||{})[r.id] : ST.byId[r.id];
       const consHtml = consSrc ? consChip(consSrc.conservacao, consSrc.validade_dias_resfriado!=null?consSrc.validade_dias_resfriado:consSrc.validade_dias, consSrc.validade_dias_congelado, r.tipo==='producao'?consSrc.saldo_data:null) : '';
       body+=`<tr data-id="${r.id}" data-tp="${r.tipo}">
-        <td class="pl-item"><span class="pl-name">${esc(r.nome)}</span><span class="pl-pill ${r.tipo==='producao'?'p':'i'}">${r.tipo==='producao'?'PP':'ins'}</span>${consHtml}</td>
+        <td class="pl-item"><span class="pl-name">${esc(r.nome)}</span><span class="pl-pill ${r.tipo==='producao'?'p':'i'}">${r.tipo==='producao'?'PP':'ins'}</span>${consHtml}${r.semmov?` <span class="pl-pill" style="background:#FBF0DD;color:#9A6B1E">sem estoque — toque p/ lançar</span>`:''}</td>
         <td class="pl-un">${esc(r.un||'')}</td>
         <td class="plc-ini">${r.contado?nf(r.ini):'<span class="pl-nulo" title="não contado nesta data">—</span>'}</td>
         <td class="plc-prod">${r.ent?nf(r.ent):'<span class="pl-nulo">0</span>'}</td>
