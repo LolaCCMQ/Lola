@@ -691,6 +691,33 @@ function buildInsumoOptions(){
     h+=`<option value="${i.id}">${esc(i.nome)}${i.unidade_custo?' ('+esc(i.unidade_custo)+')':''}</option>`; });
   if(cat)h+='</optgroup>'; OPTS_ALL=h;
 }
+/* 23/09 (Bianca): "melhorar a busca por produtos" — os seletores de insumo listam só as
+   categorias de comida, então itens em outras categorias (ex.: "Iogurte natural" em Bebidas
+   Não Alcoólicas) ficavam impossíveis de achar. Esta busca varre TODOS os insumos ativos,
+   sem acento e por qualquer pedaço do nome, sem despejar bebidas na lista padrão. */
+function insSearchOptions(q){
+  const nq=norm(q); if(!nq) return '';
+  const ms=(ST.insumos||[]).filter(i=>i&&i.ativo!==false && norm(i.nome).includes(nq));
+  ms.sort((a,b)=>norm(a.nome).localeCompare(norm(b.nome)));
+  return ms.slice(0,80).map(i=>`<option value="${i.id}">${esc(i.nome)}${i.unidade_custo?' ('+esc(i.unidade_custo)+')':''}${(i.categoria&&!isFood(i))?' · '+esc(i.categoria):''}</option>`).join('');
+}
+function tornarBuscavel(sel){
+  if(!sel || sel._buscavel) return; sel._buscavel=true;
+  const temNovo=!!sel.querySelector('option[value="__novo"]');
+  const orig=sel.innerHTML;
+  const inp=document.createElement('input');
+  inp.type='search'; inp.className='insbusca'; inp.setAttribute('autocomplete','off');
+  inp.placeholder='buscar insumo (qualquer parte, sem acento)…';
+  inp.style.cssText='width:100%;margin:0 0 6px;padding:9px 11px;border:1px solid var(--border,#e2d8cc);border-radius:10px;font:inherit;font-size:13px;background:var(--card,#fff);color:var(--ink,#2a1a17);box-sizing:border-box';
+  sel.parentNode.insertBefore(inp, sel);
+  inp.oninput=()=>{
+    const q=inp.value.trim(), cur=sel.value;
+    if(!q){ sel.innerHTML=orig; sel.value=cur||''; return; }
+    const base=`<option value="">— buscar / escolher —</option>${temNovo?'<option value="__novo">+ criar novo insumo…</option>':''}`;
+    const found=insSearchOptions(q);
+    sel.innerHTML=base+(found||'<option value="" disabled>nenhum insumo encontrado</option>');
+  };
+}
 /* CONVERSÃO automática: converte a unidade da NOTA p/ a unidade de CUSTO do insumo.
    SÓ MULTIPLICA (fardo→un ×6, maço→kg pelo peso médio, g→kg). Desde 17/07/2026 (decisão
    da Bianca) a correção de limpeza (FC) NÃO entra aqui — ela é aplicada NA RECEITA, na
@@ -3597,6 +3624,7 @@ function wireItem(el){
   const ix=+el.dataset.ix, it=ST.itens[ix]; if(!it) return;
   if(el.classList.contains('mini')){ el.onclick=()=>{ it.aberto=true; renderItem(ix); }; return; }
   const s=el.querySelector('.selins'); if(it.insumo_id) s.value=it.insumo_id;
+  tornarBuscavel(s);
   refreshFator(el, it);
   s.onchange=()=>{ if(s.value==='__novo'){ s.value=it.insumo_id||''; openCriarInsumo(it); return; }
     it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
@@ -3788,6 +3816,7 @@ function addManualLine(){
       <button class="mdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>`;
   $('#mLines').appendChild(d);
   const sel=d.querySelector('.mi');
+  tornarBuscavel(sel);
   /* 23/09: dá pra criar um insumo novo aqui mesmo, sem precisar de nota fiscal. */
   sel.onchange=()=>{ if(sel.value!=='__novo') return; sel.value='';
     openCriarInsumo(null, {seedNome:'', onCreate:(row)=>{
