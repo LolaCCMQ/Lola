@@ -3608,7 +3608,7 @@ function wireItem(el){
 }
 function wireItens(){ $$('#shBody .item').forEach(wireItem); }
 /* ===== criar insumo na hora ===== */
-let CRIAR_IT=null, IM_UN='kg', IM_DEST=new Set(), IM_CONFIRM=false;
+let CRIAR_IT=null, IM_UN='kg', IM_DEST=new Set(), IM_CONFIRM=false, IM_ONCREATE=null;
 function similarInsumos(nome){
   const n=norm(nome); if(!n) return [];
   const tk=s=>new Set(norm(s).split(' ').filter(w=>w.length>2));
@@ -3639,9 +3639,11 @@ function usarInsumoExistente(id){
 }
 function toggleHort(){ $('#imHort').style.display = ($('#imCat').value==='Hortifruti')?'block':'none'; }
 function closeIns(){ $('#insBg').classList.remove('on'); $('#insModal').classList.remove('on'); }
-function openCriarInsumo(it){
+function openCriarInsumo(it, opts){
+  opts=opts||{}; IM_ONCREATE=opts.onCreate||null;
   CRIAR_IT=it;
-  $('#imNome').value = (it.desc||'').replace(/\s*[\d.,]+\s*(g|kg|ml|l|un|dz)\b.*$/i,'').trim() || (it.desc||'');
+  const _seed = (opts.seedNome!=null) ? opts.seedNome : ((it&&it.desc)||'');
+  $('#imNome').value = _seed.replace(/\s*[\d.,]+\s*(g|kg|ml|l|un|dz)\b.*$/i,'').trim() || _seed;
   $('#imCat').innerHTML=[...FOOD_CATS,'Material de Limpeza','Materiais de Expediente'].map(c=>`<option>${c}</option>`).join('');
   IM_UN='kg';
   $('#imUn').innerHTML=['kg','un','L','g'].map(u=>`<button data-u="${u}" class="${u==='kg'?'on':''}">${u}</button>`).join('');
@@ -3649,7 +3651,7 @@ function openCriarInsumo(it){
   IM_DEST=new Set(['central']);
   $('#imDest').innerHTML=[['ccmq','CCMQ'],['mac','MAC'],['central','Central']].map(([v,l])=>`<button data-d="${v}" class="${IM_DEST.has(v)?'on':''}">${l}</button>`).join('');
   $$('#imDest button').forEach(b=>b.onclick=()=>{ const v=b.dataset.d; if(IM_DEST.has(v))IM_DEST.delete(v); else IM_DEST.add(v); b.classList.toggle('on',IM_DEST.has(v)); });
-  const cu = it.qtd ? it.vtotal/it.qtd : (it.vunit||0);
+  const cu = it ? (it.qtd ? it.vtotal/it.qtd : (it.vunit||0)) : 0;
   $('#imCusto').value = cu ? (Math.round(cu*100)/100) : ''; $('#imPeso').value=''; $('#imFC').value='';
   $('#imCat').onchange=toggleHort; toggleHort();
   $('#imSave').removeAttribute('disabled'); $('#imSave').innerHTML='<i class="ph-duotone ph-check"></i> Criar e usar';
@@ -3665,6 +3667,7 @@ async function salvarInsumo(){
   const nn=norm(nome);
   const existente=ST.insumos.find(x=>x.ativo!==false && norm(x.nome)===nn);
   if(existente){
+    if(IM_ONCREATE){ const cb=IM_ONCREATE; IM_ONCREATE=null; closeIns(); toast(`"${existente.nome}" já existe — usei o cadastro que já tinha.`); cb(existente); return; }
     const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
     if(el){ const sel=el.querySelector('.selins');
       if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions();
@@ -3689,6 +3692,7 @@ async function salvarInsumo(){
       ST.fc[norm(nome)]={peso_medio_g:peso, fc:fc};
     }
     buildInsumoOptions();
+    if(IM_ONCREATE){ const cb=IM_ONCREATE; IM_ONCREATE=null; $('#imSave').removeAttribute('disabled'); closeIns(); toast('Insumo criado ✓'); cb(row); return; }
     const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
     if(el){ const sel=el.querySelector('.selins');
       sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`;
@@ -3778,11 +3782,20 @@ function abrirManual(){
 }
 function addManualLine(){
   const d=document.createElement('div'); d.className='mline';
-  d.innerHTML=`<select class="mi"><option value="">— escolher insumo —</option>${OPTS_ALL}</select>
+  d.innerHTML=`<select class="mi"><option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option>${OPTS_ALL}</select>
     <div class="mrow"><input type="number" class="mq" step="0.001" placeholder="qtd">
       <input type="number" class="mc" step="0.01" placeholder="R$ total">
       <button class="mdel" title="remover"><i class="ph-duotone ph-trash"></i></button></div>`;
   $('#mLines').appendChild(d);
+  const sel=d.querySelector('.mi');
+  /* 23/09: dá pra criar um insumo novo aqui mesmo, sem precisar de nota fiscal. */
+  sel.onchange=()=>{ if(sel.value!=='__novo') return; sel.value='';
+    openCriarInsumo(null, {seedNome:'', onCreate:(row)=>{
+      sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option>${OPTS_ALL}`;
+      if(![...sel.options].some(o=>o.value===row.id)){ const o=document.createElement('option'); o.value=row.id; o.textContent=row.nome+(row.unidade_custo?' ('+row.unidade_custo+')':''); sel.appendChild(o); }
+      sel.value=row.id;
+    }});
+  };
   d.querySelector('.mdel').onclick=()=>{ d.remove(); if(!$$('#mLines .mline').length) addManualLine(); };
 }
 async function salvarManual(){
