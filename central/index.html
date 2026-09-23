@@ -499,8 +499,9 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .nx-inswrap{position:relative}
 .nx-insinp{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:9px;font:inherit;font-size:12px;background:#fff;color:var(--ink);box-sizing:border-box}
 .nx-insinp:focus{outline:0;border-color:var(--vinho);box-shadow:0 0 0 2px #2c5aa022}
-.nx-dd{position:absolute;left:0;right:0;top:calc(100% + 3px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);z-index:30;max-height:240px;overflow:auto;display:none}
+.nx-dd{position:absolute;left:0;right:0;top:calc(100% + 3px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);z-index:30;max-height:230px;overflow:auto;display:none}
 .nx-dd.on{display:block}
+.nx-dd.up{top:auto;bottom:calc(100% + 3px)}
 .nx-opt{display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-bottom:1px solid var(--fio);background:#fff;cursor:pointer;font:inherit;font-size:12.5px;color:var(--ink)}
 .nx-opt:hover{background:var(--cremeDark)}
 .nx-opt .cat{color:var(--pendFg);font-size:10.5px}
@@ -3705,6 +3706,7 @@ function wireItem(el){
       if(!ms.length) h=`<div class="nx-vazio">Nenhum insumo com “${esc(inp.value)}”.</div>`;
       h+=`<button type="button" class="nx-opt novo" data-id="__novo">+ criar novo insumo${inp.value.trim()?` “${esc(inp.value.trim())}”`:''}…</button>`;
       dd.innerHTML=h; dd.classList.add('on');
+      const rct=inp.getBoundingClientRect(); dd.classList.toggle('up',(window.innerHeight-rct.bottom)<250);
       dd.querySelectorAll('.nx-opt').forEach(b=>b.onclick=()=>{ const id=b.dataset.id;
         if(id==='__novo'){ dd.classList.remove('on'); openCriarInsumo(it, {seedNome:inp.value.trim()}); return; }
         escolher(id); });
