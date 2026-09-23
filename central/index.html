@@ -477,6 +477,62 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
 .item.mini.ign .mic{color:var(--mut)}
 .item.mini .mnm{flex:1;min-width:0;font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item.mini .mrs{flex-shrink:0;font-size:11.5px;color:var(--mut);font-weight:600;text-align:right;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 23/09 (Bianca): importar nota em formato PLANILHA (uma linha por item) */
+.pl-nota{border:1px solid var(--border);border-radius:12px;overflow:visible;background:var(--card);margin-bottom:4px}
+.pl-nota-hd{display:grid;grid-template-columns:minmax(0,1fr) 188px 126px 40px;background:var(--cremeDark);border-bottom:1px solid var(--border);border-radius:12px 12px 0 0;position:sticky;top:0;z-index:4}
+.pl-nota-hd div{padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);font-weight:800}
+.pl-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:10.5px;color:var(--mut);margin:0 2px 8px}
+.pl-leg .d{display:inline-block;width:9px;height:9px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.item.nx-row{display:grid;grid-template-columns:minmax(0,1fr) 188px 126px 40px;padding:0;margin:0;border-left:4px solid transparent;border-bottom:1px solid var(--fio);background:#fff}
+.item.nx-row:last-child{border-bottom:0}
+.item.nx-row.nx-ok{border-left-color:var(--okFg);background:#F5FBF7}
+.item.nx-row.nx-pend{border-left-color:var(--pendFg)}
+.item.nx-row.nx-us{border-left-color:#E0A93B;background:#FDF7EC;opacity:1}
+.item.nx-row.nx-ign{border-left-color:#c9bcae;background:#faf7f2;opacity:.7}
+.item.nx-row.falta{border-left-color:var(--urgFg);background:var(--urgBg)}
+.nx-cell{padding:8px 10px;min-width:0;border-right:1px solid var(--fio);display:flex;flex-direction:column;justify-content:center}
+.nx-cell:last-child{border-right:0}
+.nx-itnome{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.nx-row.nx-ign .nx-itnome{text-decoration:line-through}
+.nx-itsub{font-size:11px;color:var(--mut);margin-top:2px}
+.nx-muted{font-size:11px;color:var(--mut)}
+.nx-inswrap{position:relative}
+.nx-insinp{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:9px;font:inherit;font-size:12px;background:#fff;color:var(--ink);box-sizing:border-box}
+.nx-insinp:focus{outline:0;border-color:var(--vinho);box-shadow:0 0 0 2px #2c5aa022}
+.nx-dd{position:absolute;left:0;right:0;top:calc(100% + 3px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);z-index:30;max-height:240px;overflow:auto;display:none}
+.nx-dd.on{display:block}
+.nx-opt{display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-bottom:1px solid var(--fio);background:#fff;cursor:pointer;font:inherit;font-size:12.5px;color:var(--ink)}
+.nx-opt:hover{background:var(--cremeDark)}
+.nx-opt .cat{color:var(--pendFg);font-size:10.5px}
+.nx-opt .un{color:var(--mut)}
+.nx-opt.novo{color:var(--vinho);font-weight:700;background:#F2F6FB}
+.nx-vazio{padding:8px 10px;color:var(--mut);font-size:12px}
+.nx-chosen{display:flex;align-items:center;gap:5px;font-size:12px;line-height:1.3}
+.nx-chosen i{color:var(--okFg)}
+.nx-chosen b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-chosen .nx-un{color:var(--mut);flex-shrink:0}
+.nx-chosen .nx-chg{margin-left:auto;font-size:10.5px;color:var(--vinho);background:none;border:0;cursor:pointer;text-decoration:underline;padding:2px;flex-shrink:0}
+.nx-auto{font-size:10px;color:var(--okFg);font-weight:700;margin-top:3px}
+.nx-sug{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.nx-sugc{background:#F2F6FB;border:1px solid #cfe0f2;border-radius:50px;padding:3px 9px;font:inherit;font-size:10.5px;font-weight:700;color:var(--vinho);cursor:pointer}
+.nx-convrow{display:flex;align-items:center;gap:5px}
+.nx-convrow .fat{width:58px;background:var(--creme);border:1px solid var(--border);border-radius:8px;padding:5px;font:inherit;font-size:12px;text-align:center;min-height:32px}
+.nx-convrow .unit{font-size:11px;color:var(--mut);font-weight:700}
+.item.nx-row .fchint{margin-top:4px}
+.item.nx-row .entra{margin-top:4px;font-size:11px;padding:5px 8px}
+.nx-acts{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center}
+.nx-iconb{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--sec);padding:0}
+.nx-iconb.on{background:var(--pendBg);color:var(--pendFg);border-color:#EFD9AE}
+.ignbtn.nx-iconb.on{background:var(--urgBg);color:var(--urgFg);border-color:var(--urgBg)}
+@media(max-width:600px){
+ .pl-nota-hd{display:none}
+ .item.nx-row{grid-template-columns:1fr;border-left-width:5px}
+ .nx-cell{border-right:0;border-bottom:1px dashed var(--fio)}
+ .nx-cell:last-child{border-bottom:0}
+ .nx-cell[data-l]:not(.nx-c-act)::before{content:attr(data-l);font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);font-weight:800;margin-bottom:3px}
+ .nx-c-act{flex-direction:row}
+ .nx-acts{flex-direction:row}
+}
 /* "pegar bruto" (FC aplicado na receita) */
 .fcb{display:block;font-size:10.5px;color:var(--pendFg);font-weight:700}
 
@@ -3508,7 +3564,10 @@ async function abrirNota(chave){
   let h=`<div class="note">${fmtData(n.data_emissao)} · ${ST.itens.length} itens · ${brl(tot)}${jaImp?' · <b style="color:var(--okFg)">já lançada</b> (relançar substitui)':''}</div>`;
   h+=centralNotaResumo(n);
   h+=`<div id="movBox"><button class="btn sec movbtn" id="btnMover"><i class="ph-duotone ph-arrows-left-right"></i> Esta nota é de outra unidade? Mover</button></div>`;
+  h+=`<div class="pl-leg"><span><span class="d" style="background:var(--okFg)"></span>pronto</span><span><span class="d" style="background:var(--pendFg)"></span>falta escolher</span><span><span class="d" style="background:#c9bcae"></span>não é insumo / não usamos</span></div>`;
+  h+=`<div class="pl-nota"><div class="pl-nota-hd"><div>Item da nota</div><div>Insumo</div><div>Conversão → entra</div><div></div></div>`;
   ST.itens.forEach(it=>{ h+=itemHTML(it); });
+  h+=`</div>`;
   $('#shBody').innerHTML=h;
   { const _ta=$('#difMotivoTA'); if(_ta){ _ta.onchange=async()=>{ try{ await lolaEnsure(); const _r=await fetch(SB_URL+'/rest/v1/rpc/nota_set_dif_motivo',{method:'POST',headers:lolaHeaders({'Content-Type':'application/json'}),body:JSON.stringify({p_chave:n.chave,p_motivo:(_ta.value||null)})}); if(!_r.ok) throw new Error(await _r.text()); n.dif_motivo=_ta.value||null; }catch(e){ toast('Erro ao salvar motivo: '+e.message); } }; } }
   $('#shSave').innerHTML = jaImp?'<i class="ph-duotone ph-arrows-clockwise"></i> Relançar entrada':'<i class="ph-duotone ph-check"></i> Dar entrada no estoque';
@@ -3573,36 +3632,36 @@ function itemStatus(it){
   return 'pend';
 }
 function itemHTML(it){
-  const st=itemStatus(it);
-  if(!it.aberto && st!=='pend'){
-    const ins=ST.byId[it.insumo_id]||{};
-    const _r=(it.qtd||0)*(it.fator||0);
-    const _cu=(_r>0 && (+it.vtotal||0)>0)?(' · '+brl((+it.vtotal||0)/_r)+'/'+esc(ins.unidade_custo||'')):'';
-    const res = st==='ign' ? 'não é insumo'
-              : st==='us'  ? 'não usamos ⚠'
-              : `${num(_r)} ${esc(ins.unidade_custo||'')}${_cu} — ${esc(ins.nome||'')}`;
-    const ic  = st==='ign' ? 'ph-prohibit' : st==='us' ? 'ph-warning-circle' : 'ph-check-circle';
-    return `<div class="item mini ${st==='ign'?'ign':''} ${st==='us'?'alerta':''}" data-ix="${it.ix}" title="toque para editar">
-      <i class="ph-duotone ${ic} mic"></i><div class="mnm">${esc(it.desc)}</div><div class="mrs">${res}</div></div>`;
+  const st=itemStatus(it); // ign | us | pend | ok
+  const rowcls = st==='ign'?'nx-ign': st==='us'?'nx-us': st==='ok'?'nx-ok':'nx-pend';
+  const ins = it.insumo_id?(ST.byId[it.insumo_id]||null):null;
+  // ── coluna INSUMO ──
+  let insCell;
+  if(it.ignorar){ insCell='<span class="nx-muted">— não é insumo —</span>'; }
+  else if(it.naousamos){ insCell='<span class="nx-muted">— não usamos —</span>'; }
+  else if(ins){
+    insCell=`<div class="nx-chosen"><i class="ph-duotone ph-check-circle"></i> <b title="${esc(ins.nome||'')}">${esc(ins.nome||'')}</b> <span class="nx-un">(${esc(ins.unidade_custo||'')})</span><button class="nx-chg" type="button">trocar</button></div>`
+      + (it.auto?'<div class="nx-auto"><i class="ph-duotone ph-magic-wand"></i> memorizado desta descrição</div>':'');
+  } else {
+    const sug=(it._sug||[]).slice(0,3);
+    const chips = sug.length?`<div class="nx-sug">${sug.map(s=>`<button type="button" class="nx-sugc" data-id="${s.id}">${esc(s.nome)}${s.unidade_custo?' ('+esc(s.unidade_custo)+')':''}</button>`).join('')}</div>`:'';
+    insCell=`<div class="nx-inswrap"><input class="nx-insinp" type="search" autocomplete="off" placeholder="buscar insumo…"><div class="nx-dd"></div></div>${chips}`;
   }
-  const bloq=it.ignorar||it.naousamos;
-  return `<div class="item ${it.ignorar?'ign':''} ${it.naousamos?'alerta':''}" data-ix="${it.ix}">
-    <div class="top"><b>${esc(it.desc)}</b><div class="q">${num(it.qtd)} ${esc(it.un)}<br>${brl(it.vtotal)}</div></div>
-    <select class="selins" ${bloq?'disabled':''}>
-      <option value=""${it.insumo_id?'':' selected'}>— escolher insumo —</option>
-      <option value="__novo">+ criar novo insumo…</option>
-      <optgroup label="Sugestões" class="sugg"></optgroup>
-      ${OPTS_ALL}
-    </select>
-    <div class="auto ${it.auto?'on':''}"><i class="ph-duotone ph-magic-wand"></i> insumo memorizado desta descrição</div>
-    <div class="fchint"></div>
-    <div class="l2"><label>Conversão</label><input type="number" class="fat" step="0.00001" value="${it.fator}" title="multiplica a qtd da nota p/ chegar na unidade do insumo (ex.: 1 fardo = 6 latas → 6)"><span class="unit"></span></div>
-    <div class="entra"></div>
-    <div class="l3">
-      <button class="usbtn ${it.naousamos?'on':''}"><i class="ph-duotone ph-warning-circle"></i> não usamos</button>
-      <button class="ignbtn ${it.ignorar?'on':''}"><i class="ph-duotone ph-prohibit"></i> não é insumo</button>
-      <button class="okbtn"><i class="ph-duotone ph-check"></i> pronto</button>
-    </div>
+  // ── coluna CONVERSÃO → entra ──
+  let convCell;
+  if(ins && !it.ignorar && !it.naousamos){
+    convCell=`<div class="nx-convrow"><input type="number" class="fat" step="0.00001" value="${it.fator}" title="multiplica a qtd da nota p/ chegar na unidade do insumo (ex.: 1 fardo = 6 latas → 6)"><span class="unit"></span></div><div class="fchint"></div><div class="entra"></div>`;
+  } else {
+    convCell=`<span class="nx-muted">—</span><span class="fat" style="display:none"></span><span class="unit" style="display:none"></span><span class="fchint" style="display:none"></span><span class="entra" style="display:none"></span>`;
+  }
+  return `<div class="item nx-row ${rowcls}" data-ix="${it.ix}">
+    <div class="nx-cell nx-c-item" data-l="Item da nota"><div class="nx-itnome" title="${esc(it.desc)}">${esc(it.desc)}</div><div class="nx-itsub">${num(it.qtd)} ${esc(it.un||'')} · ${brl(it.vtotal)}</div></div>
+    <div class="nx-cell nx-c-ins" data-l="Insumo">${insCell}</div>
+    <div class="nx-cell nx-c-conv" data-l="Conversão → entra">${convCell}</div>
+    <div class="nx-cell nx-c-act" data-l=""><div class="nx-acts">
+      <button class="usbtn nx-iconb ${it.naousamos?'on':''}" type="button" title="não usamos">🚫</button>
+      <button class="ignbtn nx-iconb ${it.ignorar?'on':''}" type="button" title="não é insumo"><i class="ph-duotone ph-prohibit"></i></button>
+    </div></div>
   </div>`;
 }
 function renderItem(ix){
@@ -3615,8 +3674,8 @@ function refreshFator(el, it){
   it.fator=fator;
   const fin=el.querySelector('.fat'); if(fin) fin.value=fator;
   const ins=ST.byId[it.insumo_id];
-  el.querySelector('.unit').textContent = ins?('→ '+(ins.unidade_custo||'')):'';
-  const hd=el.querySelector('.fchint'); hd.textContent=hint||''; hd.classList.toggle('on',!!hint); hd.classList.toggle('warn',!!warn);
+  const un=el.querySelector('.unit'); if(un) un.textContent = ins?('→ '+(ins.unidade_custo||'')):'';
+  const hd=el.querySelector('.fchint'); if(hd){ hd.textContent=hint||''; hd.classList.toggle('on',!!hint); hd.classList.toggle('warn',!!warn); }
   updateEntra(el, it);
 }
 function updateEntra(el, it){
@@ -3632,18 +3691,35 @@ function updateEntra(el, it){
 }
 function wireItem(el){
   const ix=+el.dataset.ix, it=ST.itens[ix]; if(!it) return;
-  if(el.classList.contains('mini')){ el.onclick=()=>{ it.aberto=true; renderItem(ix); }; return; }
-  const s=el.querySelector('.selins'); if(it.insumo_id) s.value=it.insumo_id;
-  tornarBuscavel(s);
   refreshFator(el, it);
-  s.onchange=()=>{ if(s.value==='__novo'){ s.value=it.insumo_id||''; openCriarInsumo(it); return; }
-    it.insumo_id=s.value; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
-    if(it.insumo_id && !computeFator(it).warn){ it.aberto=false; renderItem(ix); } };
-  el.querySelector('.fat').oninput=e=>{ it.fator=+e.target.value||0; updateEntra(el,it); };
-  el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; if(it.ignorar){ it.naousamos=false; it.aberto=false; } renderItem(ix); };
-  el.querySelector('.usbtn').onclick=()=>{ it.naousamos=!it.naousamos; if(it.naousamos){ it.ignorar=false; it.aberto=false; } renderItem(ix); };
-  const ok=el.querySelector('.okbtn'); if(ok) ok.onclick=()=>{ if(itemStatus(it)==='pend'){ toast('Escolha o insumo primeiro (ou marque um dos chips).'); return; } it.aberto=false; renderItem(ix); };
+  // busca de insumo com lista VISÍVEL (varre todos os insumos ativos, sem acento)
+  const inp=el.querySelector('.nx-insinp');
+  if(inp){ const dd=el.querySelector('.nx-dd');
+    const escolher=(id)=>{ it.insumo_id=id; it.auto=false; it._sug=null; refreshFator(el,it); renderItem(ix); };
+    const run=()=>{ const q=norm(inp.value);
+      if(!q){ dd.classList.remove('on'); dd.innerHTML=''; return; }
+      let ms=(ST.insumos||[]).filter(i=>i&&i.ativo!==false && norm(i.nome).includes(q));
+      ms.sort((a,b)=>{const na=norm(a.nome),nb=norm(b.nome);return (na.startsWith(q)?0:1)-(nb.startsWith(q)?0:1)||na.localeCompare(nb);});
+      ms=ms.slice(0,10);
+      let h=ms.map(i=>`<button type="button" class="nx-opt" data-id="${i.id}"><b>${esc(i.nome)}</b> <span class="un">(${esc(i.unidade_custo||'')})</span>${(i.categoria&&!isFood(i))?` <span class="cat">· ${esc(i.categoria)}</span>`:''}</button>`).join('');
+      if(!ms.length) h=`<div class="nx-vazio">Nenhum insumo com “${esc(inp.value)}”.</div>`;
+      h+=`<button type="button" class="nx-opt novo" data-id="__novo">+ criar novo insumo${inp.value.trim()?` “${esc(inp.value.trim())}”`:''}…</button>`;
+      dd.innerHTML=h; dd.classList.add('on');
+      dd.querySelectorAll('.nx-opt').forEach(b=>b.onclick=()=>{ const id=b.dataset.id;
+        if(id==='__novo'){ dd.classList.remove('on'); openCriarInsumo(it, {seedNome:inp.value.trim()}); return; }
+        escolher(id); });
+    };
+    inp.oninput=run; inp.onfocus=run;
+    inp.onkeydown=e=>{ if(e.key==='Escape'){ dd.classList.remove('on'); } };
+  }
+  const chg=el.querySelector('.nx-chg'); if(chg) chg.onclick=()=>{ it.insumo_id=''; renderItem(ix); setTimeout(()=>{ const i=$(`#shBody .item[data-ix="${ix}"] .nx-insinp`); if(i) i.focus(); },30); };
+  el.querySelectorAll('.nx-sugc').forEach(b=>b.onclick=()=>{ it.insumo_id=b.dataset.id; it.auto=false; it._sug=null; refreshFator(el,it); renderItem(ix); });
+  const fat=el.querySelector('.fat'); if(fat && fat.tagName==='INPUT') fat.oninput=e=>{ it.fator=+e.target.value||0; updateEntra(el,it); };
+  el.querySelector('.ignbtn').onclick=()=>{ it.ignorar=!it.ignorar; if(it.ignorar){ it.naousamos=false; } renderItem(ix); };
+  el.querySelector('.usbtn').onclick=()=>{ it.naousamos=!it.naousamos; if(it.naousamos){ it.ignorar=false; } renderItem(ix); };
 }
+/* fecha os dropdowns de busca ao clicar fora */
+document.addEventListener('click',e=>{ if(!e.target.closest('.nx-inswrap')) document.querySelectorAll('.nx-dd.on').forEach(d=>d.classList.remove('on')); });
 function wireItens(){ $$('#shBody .item').forEach(wireItem); }
 /* ===== criar insumo na hora ===== */
 let CRIAR_IT=null, IM_UN='kg', IM_DEST=new Set(), IM_CONFIRM=false, IM_ONCREATE=null;
@@ -3668,11 +3744,8 @@ function renderImWarn(){
 }
 function usarInsumoExistente(id){
   const existente=ST.byId[id]; if(!existente) return;
-  const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
-  if(el){ const sel=el.querySelector('.selins');
-    if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions(); sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`; }
-    it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
-    if(!computeFator(it).warn){ it.aberto=false; renderItem(it.ix); } }
+  if(IM_ONCREATE){ const cb=IM_ONCREATE; IM_ONCREATE=null; closeIns(); toast(`Usando "${existente.nome}".`); cb(existente); return; }
+  const it=CRIAR_IT; if(it){ it.insumo_id=existente.id; it.auto=false; it._sug=null; renderItem(it.ix); }
   closeIns(); toast(`Usando "${existente.nome}".`);
 }
 function toggleHort(){ $('#imHort').style.display = ($('#imCat').value==='Hortifruti')?'block':'none'; }
@@ -3706,12 +3779,7 @@ async function salvarInsumo(){
   const existente=ST.insumos.find(x=>x.ativo!==false && norm(x.nome)===nn);
   if(existente){
     if(IM_ONCREATE){ const cb=IM_ONCREATE; IM_ONCREATE=null; closeIns(); toast(`"${existente.nome}" já existe — usei o cadastro que já tinha.`); cb(existente); return; }
-    const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
-    if(el){ const sel=el.querySelector('.selins');
-      if(![...sel.options].some(o=>o.value===existente.id)){ buildInsumoOptions();
-        sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`; }
-      it.insumo_id=existente.id; sel.value=existente.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
-      if(!computeFator(it).warn){ it.aberto=false; renderItem(it.ix); } }
+    { const it=CRIAR_IT; if(it){ it.insumo_id=existente.id; it.auto=false; it._sug=null; renderItem(it.ix); } }
     closeIns(); toast(`"${existente.nome}" já existe — usei o cadastro que já tinha.`);
     return;
   }
@@ -3731,25 +3799,19 @@ async function salvarInsumo(){
     }
     buildInsumoOptions();
     if(IM_ONCREATE){ const cb=IM_ONCREATE; IM_ONCREATE=null; $('#imSave').removeAttribute('disabled'); closeIns(); toast('Insumo criado ✓'); cb(row); return; }
-    const it=CRIAR_IT, el=it&&$(`#shBody .item[data-ix="${it.ix}"]`);
-    if(el){ const sel=el.querySelector('.selins');
-      sel.innerHTML=`<option value="">— escolher insumo —</option><option value="__novo">+ criar novo insumo…</option><optgroup label="Sugestões" class="sugg"></optgroup>${OPTS_ALL}`;
-      it.insumo_id=row.id; sel.value=row.id; it.auto=false; el.querySelector('.auto').classList.remove('on'); refreshFator(el,it);
-      if(!computeFator(it).warn){ it.aberto=false; renderItem(it.ix); }
-    }
+    { const it=CRIAR_IT; if(it){ it.insumo_id=row.id; it.auto=false; it._sug=null; renderItem(it.ix); } }
     $('#imSave').removeAttribute('disabled'); closeIns(); toast('Insumo criado ✓');
   }catch(e){ toast('Erro ao criar: '+e.message); $('#imSave').removeAttribute('disabled'); }
 }
 
 async function sugerir(it){
   try{ let r=await post('rpc/central_sugere_insumo',{txt:it.desc});
-    if(!Array.isArray(r))return;
-    r=r.filter(x=>FOOD_CATS.has(x.categoria)); if(!r.length)return;
-    const el=$(`#shBody .item[data-ix="${it.ix}"]`); if(!el)return;
-    const og=el.querySelector('optgroup.sugg'); if(!og)return;
-    og.innerHTML=r.map(x=>`<option value="${x.id}">${esc(x.nome)}${x.unidade_custo?' ('+esc(x.unidade_custo)+')':''}</option>`).join('');
+    if(!Array.isArray(r)||!r.length)return;
+    if(it.insumo_id||it.ignorar||it.naousamos) return;
     const best=r[0];
-    if(best && (best.sim||0)>=0.6 && !it.insumo_id){ it.insumo_id=best.id; el.querySelector('.selins').value=best.id; refreshFator(el,it); }
+    if(best && (best.sim||0)>=0.75){ it.insumo_id=best.id; it.auto=false; it._sug=null; renderItem(it.ix); return; }
+    it._sug=r.slice(0,3).map(x=>({id:x.id,nome:x.nome,unidade_custo:x.unidade_custo}));
+    renderItem(it.ix);
   }catch(e){}
 }
 
