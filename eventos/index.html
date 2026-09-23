@@ -336,6 +336,7 @@
     <span class="conn" id="conn">conectando…</span>
     <a class="home" href="https://equipelola.net/">← Portal</a>
     <button onclick="reloadAll()">↻ Atualizar</button>
+    <button onclick="openCatalogo()">🍽️ Itens do menu</button>
     <button onclick="openLayoutLibrary()">🪑 Layouts salvos</button>
     <button onclick="exportData()">⬇ Exportar</button>
   </div>
@@ -459,6 +460,9 @@ const SECTIONS = [
 
 let DB={events:[]};
 let FICHAS=[];
+let CATALOGO=[]; // 23/09: catálogo próprio de itens do Eventos (lola_eventos_itens)
+function catToFichas(list){return (list||[]).map(c=>({_src:'cat',n:c.nome,p:Math.round((Number(c.preco)||0)*100)/100,cat:c.categoria||'catálogo',card:null,un:c.unidade||'',secao:c.secao||'',desc:c.descricao||'',louca:c.louca||'',perPax:c.per_pax!==false}));}
+function refreshFichasCatalogo(){FICHAS=FICHAS.filter(f=>f._src!=='cat').concat(catToFichas(CATALOGO)).sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));}
 let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", mesFilter:"", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
 
 /* ===== Mapeamento banco <-> app ===== */
@@ -507,14 +511,17 @@ function toRow(ev){
 /* ===== Carregamento ===== */
 async function init(){
   try{
-    const [ev,fic,pp]=await Promise.all([
+    const [ev,fic,pp,cat]=await Promise.all([
       sb.from('lola_eventos').select('*').eq('arquivado',false).order('data',{ascending:true,nullsFirst:false}),
       sb.from('lola_fichas_tecnicas').select('nome,preco_venda,categoria,cardapio,rendimento_un').eq('ativo',true).gt('preco_venda',0).order('nome'),
-      sb.from('lola_preproducoes').select('nome,valor_venda_central,categoria,rendimento_un').eq('ativo',true).order('nome')
+      sb.from('lola_preproducoes').select('nome,valor_venda_central,categoria,rendimento_un').eq('ativo',true).order('nome'),
+      sb.from('lola_eventos_itens').select('*').eq('ativo',true).order('nome')
     ]);
     if(ev.error)throw ev.error;
     DB.events=(ev.data||[]).map(fromRow);
-    FICHAS=(fic.data||[]).map(f=>({n:f.nome,p:Math.round(Number(f.preco_venda)*100)/100,cat:f.categoria,card:f.cardapio,un:f.rendimento_un||''}))
+    CATALOGO=(cat&&!cat.error&&Array.isArray(cat.data))?cat.data:[];
+    FICHAS=catToFichas(CATALOGO)
+      .concat((fic.data||[]).map(f=>({n:f.nome,p:Math.round(Number(f.preco_venda)*100)/100,cat:f.categoria,card:f.cardapio,un:f.rendimento_un||''})))
       .concat((pp.data||[]).map(f=>({n:f.nome,p:Math.round((Number(f.valor_venda_central)||0)*100)/100,cat:'pré-produção',card:null,un:(f.rendimento_un==='g'?'kg':f.rendimento_un==='ml'?'L':(f.rendimento_un||''))})))
       .sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));
     setConn(true);
@@ -995,6 +1002,92 @@ function openLayoutLibrary(){
   m.style.display='flex';
 }
 function closeLayoutLibrary(){ const m=document.getElementById('libOverlay'); if(m) m.style.display='none'; }
+/* ===== 23/09 (Bianca): catálogo de itens do Eventos ===== */
+let CAT_UI={q:'',editId:null,per:true};
+function openCatalogo(){
+  let m=document.getElementById('catOverlay');
+  if(!m){ m=document.createElement('div'); m.id='catOverlay'; m.style.cssText='position:fixed;inset:0;background:rgba(30,10,10,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+    m.innerHTML='<div style="background:var(--cream);border-radius:16px;max-width:820px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);margin:auto">'
+     +'<div style="display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border)"><b style="flex:1;font-family:var(--serif);font-size:19px;color:var(--vinho)">🍽️ Itens do menu — catálogo</b><button class="btn-ghost btn-sm" onclick="closeCatalogo()">Fechar ✕</button></div>'
+     +'<div style="padding:14px 18px">'
+     +'<div class="intro">Cadastre os itens uma vez e reaproveite em qualquer orçamento — eles aparecem junto com as fichas técnicas ao montar o menu.</div>'
+     +'<div id="catFormWrap"></div>'
+     +'<div style="display:flex;gap:10px;margin:10px 0 12px"><input id="catSearch" class="search" style="flex:1" placeholder="🔍 Buscar item…" oninput="CAT_UI.q=this.value;renderCatList()"><button class="btn-primary" onclick="catNovo()">+ Novo item</button></div>'
+     +'<div id="catList"></div></div></div>';
+    document.body.appendChild(m);
+  }
+  m.style.display='flex'; CAT_UI={q:'',editId:null,per:true};
+  var fw=document.getElementById('catFormWrap'); if(fw) fw.innerHTML='';
+  var s=document.getElementById('catSearch'); if(s) s.value='';
+  renderCatList();
+}
+function closeCatalogo(){const m=document.getElementById('catOverlay');if(m)m.style.display='none';}
+function _catNorm(s){return (s==null?'':s.toString()).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function renderCatList(){
+  const el=document.getElementById('catList'); if(!el) return;
+  const q=_catNorm(CAT_UI.q);
+  const list=CATALOGO.filter(c=>!q||_catNorm(c.nome+' '+(c.categoria||'')+' '+(c.descricao||'')).includes(q));
+  if(!list.length){ el.innerHTML='<div style="text-align:center;color:var(--muted);padding:26px">'+(CATALOGO.length?('Nenhum item pra "'+esc(CAT_UI.q)+'".'):'Nenhum item ainda. Toque em <b>+ Novo item</b> pra cadastrar o primeiro.')+'</div>'; return; }
+  const cats={}; list.forEach(c=>{(cats[c.categoria||'Sem categoria']=cats[c.categoria||'Sem categoria']||[]).push(c);});
+  let h='';
+  Object.keys(cats).sort().forEach(cat=>{
+    h+='<div style="font-family:var(--serif);color:var(--vinho-deep);font-weight:600;margin:14px 2px 6px">'+esc(cat)+' <span style="font-family:var(--sans);background:var(--vinho-pale);color:var(--vinho-deep);border-radius:20px;font-size:11px;padding:1px 8px">'+cats[cat].length+'</span></div><div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff">';
+    h+=cats[cat].slice().sort((a,b)=>String(a.nome).localeCompare(String(b.nome))).map(c=>'<div style="display:flex;gap:10px;align-items:center;padding:9px 11px;border-bottom:1px solid var(--warm)">'
+      +'<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">'+esc(c.nome)+' <span style="font-weight:600;color:var(--muted);font-size:11px">· '+esc(c.secao||'')+'</span></div>'
+      +(c.descricao?('<div style="font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.descricao)+'</div>'):'')
+      +(c.louca?('<div style="font-size:10.5px;color:var(--amber)">🍽️ '+esc(c.louca)+'</div>'):'')
+      +'</div><div style="text-align:right;white-space:nowrap"><div style="font-weight:800">'+fmt(c.preco)+'</div><div style="font-size:10px;color:var(--muted)">'+((c.per_pax!==false)?'por pax':'por '+esc(c.unidade||'un'))+'</div></div>'
+      +'<button class="btn-ghost btn-sm" onclick="catEditar(\''+c.id+'\')">editar</button>'
+      +'<button class="btn-ghost btn-sm" style="color:var(--vinho)" onclick="catExcluir(\''+c.id+'\')">✕</button></div>').join('');
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+function _catCatsOptions(){const set={};CATALOGO.forEach(c=>{if(c.categoria)set[c.categoria]=1;});['Salgados quentes','Salgados frios','Doces','Bebidas','Pratos quentes'].forEach(x=>set[x]=1);return Object.keys(set).sort().map(x=>'<option value="'+esc(x)+'">').join('');}
+function catFormHTML(c){
+  c=c||{};
+  const secOpts=SECOES.map(s=>'<option '+((c.secao||SECOES[0])===s?'selected':'')+'>'+s+'</option>').join('');
+  return '<div style="border:1.5px solid var(--vinho-muted);border-radius:14px;background:#fff;padding:14px;margin-bottom:6px">'
+   +'<div style="font-weight:700;color:var(--vinho-deep);font-family:var(--serif);font-size:16px;margin-bottom:10px">'+(CAT_UI.editId?'Editar item':'Novo item')+'</div>'
+   +'<div class="field"><label>Item (nome)</label><input id="cf_nome" value="'+esc(c.nome||'')+'" placeholder="ex.: Mini quiche de alho-poró"></div>'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label>Categoria</label><input id="cf_cat" list="cf_cats" value="'+esc(c.categoria||'')+'" placeholder="ex.: Salgados quentes"><datalist id="cf_cats">'+_catCatsOptions()+'</datalist></div>'
+   +'<div class="field"><label>Seção no PDF</label><select id="cf_sec">'+secOpts+'</select></div></div>'
+   +'<div class="field"><label>Preço é…</label><div style="display:flex;gap:6px"><button type="button" id="cf_pp1" class="btn-ghost btn-sm" onclick="catSetPer(true)">por pessoa (pax)</button><button type="button" id="cf_pp0" class="btn-ghost btn-sm" onclick="catSetPer(false)">por unidade</button></div><div class="intro" id="cf_pph" style="margin:6px 0 0"></div></div>'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label>Preço de venda (R$)</label><input id="cf_preco" type="number" step="0.01" value="'+(c.preco!=null?esc(c.preco):'')+'" placeholder="0,00"></div>'
+   +'<div class="field"><label>Unidade (un, porção, ml…)</label><input id="cf_un" value="'+esc(c.unidade||'un')+'"></div></div>'
+   +'<div class="field"><label>Descrição p/ cliente</label><textarea id="cf_desc" rows="2" placeholder="Como aparece no orçamento do cliente…">'+esc(c.descricao||'')+'</textarea></div>'
+   +'<div class="field"><label>Louça / talher padrão</label><input id="cf_louca" value="'+esc(c.louca||'')+'" placeholder="ex.: prato de sobremesa + garfinho"></div>'
+   +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="btn-ghost" onclick="catCancelar()">Cancelar</button><button class="btn-primary" onclick="catSalvar()">Salvar item</button></div>'
+   +'</div>';
+}
+function catSetPer(v){CAT_UI.per=v;var a=document.getElementById('cf_pp1'),b=document.getElementById('cf_pp0'),h=document.getElementById('cf_pph');
+  if(a)a.className='btn-'+(v?'primary':'ghost')+' btn-sm';if(b)b.className='btn-'+(v?'ghost':'primary')+' btn-sm';
+  if(h)h.textContent=v?'O preço é multiplicado pelo nº de convidados (pax) no orçamento.':'O preço é por unidade/porção — você define a quantidade no orçamento.';}
+function catNovo(){CAT_UI.editId=null;const fw=document.getElementById('catFormWrap');if(!fw)return;fw.innerHTML=catFormHTML({});catSetPer(true);fw.scrollIntoView({behavior:'smooth',block:'nearest'});setTimeout(()=>{var n=document.getElementById('cf_nome');if(n)n.focus();},40);}
+function catEditar(id){const c=CATALOGO.find(x=>String(x.id)===String(id));if(!c)return;CAT_UI.editId=c.id;const fw=document.getElementById('catFormWrap');if(!fw)return;fw.innerHTML=catFormHTML(c);catSetPer(c.per_pax!==false);fw.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function catCancelar(){CAT_UI.editId=null;const fw=document.getElementById('catFormWrap');if(fw)fw.innerHTML='';}
+async function catExcluir(id){const c=CATALOGO.find(x=>String(x.id)===String(id));if(!c)return;if(!confirm('Tirar "'+(c.nome||'item')+'" do catálogo?'))return;
+  const r=await sb.from('lola_eventos_itens').update({ativo:false,updated_at:new Date().toISOString()}).eq('id',id);
+  if(r.error){showFlash('Erro ao excluir: '+r.error.message,true);return;}
+  CATALOGO=CATALOGO.filter(x=>String(x.id)!==String(id));refreshFichasCatalogo();renderCatList();showFlash('Item removido do catálogo');}
+async function catSalvar(){
+  const nome=(document.getElementById('cf_nome').value||'').trim();if(!nome){showFlash('Dê um nome ao item.',true);return;}
+  const row={nome:nome,categoria:(document.getElementById('cf_cat').value||'').trim()||null,secao:document.getElementById('cf_sec').value||null,
+    per_pax:CAT_UI.per!==false,preco:Math.round((Number(document.getElementById('cf_preco').value)||0)*100)/100,
+    unidade:(document.getElementById('cf_un').value||'').trim()||null,descricao:(document.getElementById('cf_desc').value||'').trim()||null,
+    louca:(document.getElementById('cf_louca').value||'').trim()||null,ativo:true,updated_at:new Date().toISOString()};
+  try{
+    if(CAT_UI.editId){
+      const r=await sb.from('lola_eventos_itens').update(row).eq('id',CAT_UI.editId);if(r.error)throw r.error;
+      const i=CATALOGO.findIndex(x=>String(x.id)===String(CAT_UI.editId));if(i>=0)CATALOGO[i]=Object.assign({},CATALOGO[i],row);
+    }else{
+      row.criado_por=currentUserName();
+      const r=await sb.from('lola_eventos_itens').insert(row).select();if(r.error)throw r.error;
+      if(r.data&&r.data[0])CATALOGO.push(r.data[0]);
+    }
+    refreshFichasCatalogo();CAT_UI.editId=null;const fw=document.getElementById('catFormWrap');if(fw)fw.innerHTML='';renderCatList();showFlash('Item salvo ✓');
+  }catch(e){showFlash('Erro ao salvar: '+((e&&e.message)||e),true);}
+}
 function convidadosHTML(ev){
   const g=ev.convidados||[]; const conf=g.filter(function(x){return x.confirmado;}).length;
   return `<div class="section-title">Lista de Convidados</div>
@@ -1663,7 +1756,7 @@ function gerarProposta(){
   renderDetail();
   showFlash('Proposta '+nome+' gerada');
 }
-function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);if(f){document.getElementById('addPreco').value=f.p;var u=document.getElementById('addUn');if(u)u.value=f.un||'';}}
+function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);window._catMatch=(f&&f._src==='cat')?f:null;if(f){document.getElementById('addPreco').value=f.p;var u=document.getElementById('addUn');if(u)u.value=f.un||'';var s=document.getElementById('addSecao');if(s&&f.secao){s.value=f.secao;}}}
 function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();renderDetail();}
 function addExtra(){const ev=getEvent(view.id);ev.orcExtras=ev.orcExtras||[];ev.orcExtras.push({desc:'',valor:0,pago:false,pagoEm:''});save(false);renderDetail();}
 function pagamentosEquipeFornecedoresHTML(ev){
@@ -1737,7 +1830,9 @@ function addMenuItem(){
   ev.menu=ev.menu||[];
   const cat=(document.getElementById('addCat')&&document.getElementById('addCat').value)||'C';
   const secao=(document.getElementById('addSecao')&&document.getElementById('addSecao').value)||'';
-  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:true,ficha,cat,secao,desc:'',louca:'',unCompra:'',tamCompra:''});
+  const cm=(window._catMatch&&window._catMatch.n&&window._catMatch.n.toLowerCase()===nome.toLowerCase())?window._catMatch:null;
+  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:cm?(cm.perPax!==false):true,ficha,cat,secao,desc:cm?(cm.desc||''):'',louca:cm?(cm.louca||''):'',unCompra:'',tamCompra:''});
+  window._catMatch=null;
   save(false);renderTab();renderDetail();
 }
 function setMenu(i,k,v){const ev=getEvent(view.id);ev.menu[i][k]=v;save(false);renderTab();renderDetail();}
