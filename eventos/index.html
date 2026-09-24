@@ -461,7 +461,7 @@ const SECTIONS = [
 let DB={events:[]};
 let FICHAS=[];
 let CATALOGO=[]; // 23/09: catálogo próprio de itens do Eventos (lola_eventos_itens)
-function catToFichas(list){return (list||[]).map(c=>({_src:'cat',n:c.nome,p:Math.round((Number(c.preco)||0)*100)/100,cat:c.categoria||'catálogo',card:null,un:c.unidade||'',secao:c.secao||'',desc:c.descricao||'',louca:c.louca||'',perPax:c.per_pax!==false}));}
+function catToFichas(list){return (list||[]).map(c=>({_src:'cat',n:c.nome,p:Math.round((Number(c.preco)||0)*100)/100,cat:c.secao||'catálogo',card:null,un:c.unidade||'',secao:c.secao||'',desc:c.descricao||'',louca:c.louca||'',perPax:c.per_pax!==false}));}
 function refreshFichasCatalogo(){FICHAS=FICHAS.filter(f=>f._src!=='cat').concat(catToFichas(CATALOGO)).sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));}
 let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", mesFilter:"", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
 
@@ -1016,7 +1016,7 @@ function openCatalogo(){
      +'<div id="catList"></div></div></div>';
     document.body.appendChild(m);
   }
-  m.style.display='flex'; CAT_UI={q:'',editId:null,per:true,sel:new Set(),bulkCat:'',bulkSec:''};
+  m.style.display='flex'; CAT_UI={q:'',editId:null,per:true,sel:new Set(),bulkSec:''};
   var fw=document.getElementById('catFormWrap'); if(fw) fw.innerHTML='';
   var s=document.getElementById('catSearch'); if(s) s.value='';
   renderCatList();
@@ -1025,10 +1025,10 @@ function closeCatalogo(){const m=document.getElementById('catOverlay');if(m)m.st
 function _catNorm(s){return (s==null?'':s.toString()).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
 function _catFilteredList(){
   const q=_catNorm(CAT_UI.q);
-  return CATALOGO.filter(c=>!q||_catNorm(c.nome+' '+(c.categoria||'')+' '+(c.descricao||'')+' '+(c.secao||'')).includes(q))
-    .slice().sort((a,b)=>(String(a.categoria||'~~~').localeCompare(String(b.categoria||'~~~')))||String(a.nome).localeCompare(String(b.nome)));
+  return CATALOGO.filter(c=>!q||_catNorm(c.nome+' '+(c.descricao||'')+' '+(c.secao||'')).includes(q))
+    .slice().sort((a,b)=>(String(a.secao||'~~~').localeCompare(String(b.secao||'~~~')))||String(a.nome).localeCompare(String(b.nome)));
 }
-function _catCaptureBulk(){var a=document.getElementById('catBulkCat'),b=document.getElementById('catBulkSec');if(a)CAT_UI.bulkCat=a.value;if(b)CAT_UI.bulkSec=b.value;}
+function _catCaptureBulk(){var b=document.getElementById('catBulkSec');if(b)CAT_UI.bulkSec=b.value;}
 function renderCatList(){
   const el=document.getElementById('catList'); if(!el) return;
   if(!CAT_UI.sel) CAT_UI.sel=new Set();
@@ -1037,10 +1037,9 @@ function renderCatList(){
   const selN=CAT_UI.sel.size;
   const allChecked=list.length && list.every(c=>CAT_UI.sel.has(String(c.id)));
   let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:'+(selN?'var(--vinho-pale)':'var(--warm)')+';border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px">'
-    +'<b style="font-size:12.5px;color:var(--vinho-deep)">'+(selN?(selN+' selecionado(s) — categorizar:'):'Marque itens pra categorizar em lote')+'</b>'
+    +'<b style="font-size:12.5px;color:var(--vinho-deep)">'+(selN?(selN+' selecionado(s) — pôr na seção:'):'Marque itens pra classificar por seção em lote')+'</b>'
     +'<span style="flex:1;min-width:6px"></span>'
-    +'<input id="catBulkCat" list="catBulkCats" placeholder="categoria…" value="'+esc(CAT_UI.bulkCat||'')+'" style="max-width:170px" '+(selN?'':'disabled')+'><datalist id="catBulkCats">'+_catCatsOptions()+'</datalist>'
-    +'<select id="catBulkSec" '+(selN?'':'disabled')+'><option value="">seção: manter</option>'+SECOES.map(s=>'<option value="'+esc(s)+'"'+((CAT_UI.bulkSec===s)?' selected':'')+'>'+esc(s)+'</option>').join('')+'</select>'
+    +'<select id="catBulkSec" '+(selN?'':'disabled')+'><option value="">escolha a seção…</option>'+SECOES.map(s=>'<option value="'+esc(s)+'"'+((CAT_UI.bulkSec===s)?' selected':'')+'>'+esc(s)+'</option>').join('')+'</select>'
     +'<button class="btn-primary btn-sm" '+(selN?'':'disabled')+' onclick="catBulkApply()">Aplicar</button>'
     +(selN?'<button class="btn-ghost btn-sm" onclick="catClearSel()">limpar</button>':'')
     +'</div>';
@@ -1048,12 +1047,11 @@ function renderCatList(){
   h+='<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff"><table style="width:100%;border-collapse:collapse;font-size:12.5px">'
     +'<thead><tr style="background:var(--warm);text-align:left;color:var(--muted)">'
     +'<th style="padding:7px 8px;width:34px"><input type="checkbox" '+(allChecked?'checked':'')+' onchange="catToggleAll(this.checked)" title="selecionar todos"></th>'
-    +'<th style="padding:7px 8px">Item</th><th>Categoria</th><th style="width:118px">Seção</th><th style="width:78px;text-align:right">Preço</th><th style="width:52px">por</th><th style="width:96px"></th></tr></thead><tbody>'
+    +'<th style="padding:7px 8px">Item</th><th style="width:150px">Seção</th><th style="width:78px;text-align:right">Preço</th><th style="width:52px">por</th><th style="width:96px"></th></tr></thead><tbody>'
     +list.map(function(c){var id=String(c.id);var on=CAT_UI.sel.has(id);return '<tr style="border-top:1px solid var(--warm)'+(on?';background:var(--vinho-pale)':'')+'">'
       +'<td style="padding:6px 8px"><input type="checkbox" '+(on?'checked':'')+' onchange="catToggleSel(\''+id+'\',this.checked)"></td>'
-      +'<td style="padding:6px 8px"><div style="font-weight:700">'+esc(c.nome)+'</div>'+(c.descricao?('<div style="font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+esc(c.descricao)+'</div>'):'')+(c.louca?('<div style="font-size:10px;color:var(--amber)">🍽️ '+esc(c.louca)+'</div>'):'')+'</td>'
-      +'<td>'+(c.categoria?esc(c.categoria):'<span style="color:var(--vinho);font-size:11px">— sem —</span>')+'</td>'
-      +'<td>'+esc(c.secao||'')+'</td>'
+      +'<td style="padding:6px 8px"><div style="font-weight:700">'+esc(c.nome)+'</div>'+(c.descricao?('<div style="font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">'+esc(c.descricao)+'</div>'):'')+(c.louca?('<div style="font-size:10px;color:var(--amber)">🍽️ '+esc(c.louca)+'</div>'):'')+'</td>'
+      +'<td>'+(c.secao?esc(c.secao):'<span style="color:var(--vinho);font-size:11px">— sem seção —</span>')+'</td>'
       +'<td style="text-align:right;font-weight:700">'+fmt(c.preco)+'</td>'
       +'<td style="font-size:10.5px;color:var(--muted)">'+((c.per_pax!==false)?'pax':'un')+'</td>'
       +'<td style="white-space:nowrap"><button class="btn-ghost btn-sm" onclick="catEditar(\''+id+'\')">editar</button><button class="btn-ghost btn-sm" style="color:var(--vinho)" onclick="catExcluir(\''+id+'\')">✕</button></td>'
@@ -1068,17 +1066,14 @@ async function catBulkApply(){
   _catCaptureBulk();
   const ids=Array.from(CAT_UI.sel||[]);
   if(!ids.length){showFlash('Marque itens primeiro.',true);return;}
-  const cat=(CAT_UI.bulkCat||'').trim();
   const sec=CAT_UI.bulkSec||'';
-  if(!cat && !sec){showFlash('Escolha uma categoria ou seção pra aplicar.',true);return;}
-  const patch={updated_at:new Date().toISOString()};
-  if(cat)patch.categoria=cat;
-  if(sec)patch.secao=sec;
+  if(!sec){showFlash('Escolha uma seção pra aplicar.',true);return;}
+  const patch={secao:sec,updated_at:new Date().toISOString()};
   const r=await sb.from('lola_eventos_itens').update(patch).in('id',ids);
-  if(r.error){showFlash('Erro ao categorizar: '+r.error.message,true);return;}
-  CATALOGO.forEach(function(c){ if(CAT_UI.sel.has(String(c.id))){ if(cat)c.categoria=cat; if(sec)c.secao=sec; } });
-  const n=ids.length; CAT_UI.sel=new Set(); CAT_UI.bulkCat=''; CAT_UI.bulkSec='';
-  refreshFichasCatalogo(); renderCatList(); showFlash(n+' item(ns) categorizado(s) ✓');
+  if(r.error){showFlash('Erro ao classificar: '+r.error.message,true);return;}
+  CATALOGO.forEach(function(c){ if(CAT_UI.sel.has(String(c.id))){ c.secao=sec; } });
+  const n=ids.length; CAT_UI.sel=new Set(); CAT_UI.bulkSec='';
+  refreshFichasCatalogo(); renderCatList(); showFlash(n+' item(ns) na seção "'+sec+'" ✓');
 }
 function _catCatsOptions(){const set={};CATALOGO.forEach(c=>{if(c.categoria)set[c.categoria]=1;});['Salgados quentes','Salgados frios','Doces','Bebidas','Pratos quentes'].forEach(x=>set[x]=1);return Object.keys(set).sort().map(x=>'<option value="'+esc(x)+'">').join('');}
 function catFormHTML(c){
@@ -1088,8 +1083,7 @@ function catFormHTML(c){
    +'<div style="font-weight:700;color:var(--vinho-deep);font-family:var(--serif);font-size:16px;margin-bottom:10px">'+(CAT_UI.editId?'Editar item':'Novo item')+'</div>'
    +'<div class="field" style="position:relative"><label>Partir de uma ficha/receita do Lola <span class="hint">(opcional)</span></label><input id="cf_base" autocomplete="off" placeholder="🔎 prato, receita ou pré-produção…" oninput="catBaseSearch(this.value)" onfocus="catBaseSearch(this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'cf_baseDD\');if(d)d.style.display=\'none\';},150)"><div id="cf_baseDD" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:5;background:#fff;border:1px solid var(--border);border-radius:10px;max-height:230px;overflow:auto;box-shadow:0 12px 30px rgba(0,0,0,.18)"></div><div class="intro" id="cf_baseHint" style="margin:6px 0 0">Escolha um prato/receita que já existe pra criar uma variação (ex.: mini porção). Deixe em branco pra criar do zero.</div></div>'
    +'<div class="field"><label>Item (nome)</label><input id="cf_nome" value="'+esc(c.nome||'')+'" placeholder="ex.: Mini quiche de alho-poró"></div>'
-   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label>Categoria</label><input id="cf_cat" list="cf_cats" value="'+esc(c.categoria||'')+'" placeholder="ex.: Salgados quentes"><datalist id="cf_cats">'+_catCatsOptions()+'</datalist></div>'
-   +'<div class="field"><label>Seção no PDF</label><select id="cf_sec">'+secOpts+'</select></div></div>'
+   +'<div class="field"><label>Seção</label><select id="cf_sec">'+secOpts+'</select></div>'
    +'<div class="field"><label>Preço é…</label><div style="display:flex;gap:6px"><button type="button" id="cf_pp1" class="btn-ghost btn-sm" onclick="catSetPer(true)">por pessoa (pax)</button><button type="button" id="cf_pp0" class="btn-ghost btn-sm" onclick="catSetPer(false)">por unidade</button></div><div class="intro" id="cf_pph" style="margin:6px 0 0"></div></div>'
    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label>Preço de venda (R$)</label><input id="cf_preco" type="number" step="0.01" value="'+(c.preco!=null?esc(c.preco):'')+'" placeholder="0,00"></div>'
    +'<div class="field"><label>Unidade (un, porção, ml…)</label><input id="cf_un" value="'+esc(c.unidade||'un')+'"></div></div>'
@@ -1112,7 +1106,7 @@ function catBaseSearch(q){
 function catPickBase(i){
   const f=_catBasePool[i]; if(!f) return; _catBase=f;
   const setv=function(id,v){var el=document.getElementById(id);if(el)el.value=v;};
-  setv('cf_base',f.n); setv('cf_nome',f.n); setv('cf_cat',f.cat||''); if(f.un)setv('cf_un',f.un); setv('cf_preco',f.p!=null?f.p:'');
+  setv('cf_base',f.n); setv('cf_nome',f.n); if(f.un)setv('cf_un',f.un); setv('cf_preco',f.p!=null?f.p:'');
   catSetPer(false);
   var hint=document.getElementById('cf_baseHint'); if(hint)hint.innerHTML='Baseado em <b>'+esc(f.n)+'</b> · preço cheio '+fmt(f.p)+'. Ajuste o nome (ex.: “Mini porção de '+esc(f.n)+'”) e o preço abaixo.';
   var fw=document.getElementById('cf_fracWrap'); if(fw)fw.style.display='';
@@ -1131,7 +1125,7 @@ async function catExcluir(id){const c=CATALOGO.find(x=>String(x.id)===String(id)
   CATALOGO=CATALOGO.filter(x=>String(x.id)!==String(id));refreshFichasCatalogo();renderCatList();showFlash('Item removido do catálogo');}
 async function catSalvar(){
   const nome=(document.getElementById('cf_nome').value||'').trim();if(!nome){showFlash('Dê um nome ao item.',true);return;}
-  const row={nome:nome,categoria:(document.getElementById('cf_cat').value||'').trim()||null,secao:document.getElementById('cf_sec').value||null,
+  const row={nome:nome,secao:document.getElementById('cf_sec').value||null,
     per_pax:CAT_UI.per!==false,preco:Math.round((Number(document.getElementById('cf_preco').value)||0)*100)/100,
     unidade:(document.getElementById('cf_un').value||'').trim()||null,descricao:(document.getElementById('cf_desc').value||'').trim()||null,
     louca:(document.getElementById('cf_louca').value||'').trim()||null,ativo:true,updated_at:new Date().toISOString()};
