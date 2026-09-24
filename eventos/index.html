@@ -1275,11 +1275,16 @@ function openPrintDialog(){
   const ev=getEvent(view.id);if(!ev)return;
   let m=document.getElementById('printModal');
   if(!m){m=document.createElement('div');m.id='printModal';m.className='pm-overlay';document.body.appendChild(m);}
-  m.innerHTML='<div class="pm-box"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:6px">Imprimir / Salvar PDF</h3>'
-   +'<p style="color:var(--muted);margin:0 0 16px;font-size:14px">Como você quer gerar o PDF deste evento?</p>'
-   +'<div style="display:flex;flex-direction:column;gap:10px">'
-   +'<button class="btn-primary" style="padding:12px" onclick="choosePrintSections(true)">💰 Com valores do orçamento</button>'
-   +'<button class="btn-ghost" style="padding:12px" onclick="choosePrintSections(false)">📄 Sem valores</button>'
+  m.innerHTML='<div class="pm-box" style="max-width:430px"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:6px">Imprimir / Salvar PDF</h3>'
+   +'<p style="color:var(--muted);margin:0 0 14px;font-size:14px">Escolha o que imprimir. Cada folha sai separada, prontinha pra salvar em PDF.</p>'
+   +'<div style="display:flex;flex-direction:column;gap:8px;text-align:left">'
+   +'<button class="btn-primary" style="padding:11px" onclick="printCardapioCliente()">🍽️ Cardápio pro cliente</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printProducoes()">👨‍🍳 Produções (comida + bebida)</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printSeparacao()">📦 Separação: materiais + louças</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printConvidados()">👥 Lista de convidados</button>'
+   +'<div style="border-top:1px solid var(--border);margin:6px 0 2px"></div>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="choosePrintSections(true)">💰 Evento completo — com valores</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="choosePrintSections(false)">📄 Evento completo — sem valores</button>'
    +'</div><button style="background:none;color:var(--muted);margin-top:12px;width:100%;padding:8px" onclick="closePrintDialog()">Cancelar</button></div>';
   m.style.display='flex';
 }
@@ -1410,6 +1415,99 @@ function buildPrintHTML(ev,withValues,sel){
   h+='</div>';
   return h;
 }
+/* ===== Impressões específicas (a/b/c/d) — 24/09/2026 ===== */
+function _phead(ev,sub){
+  const color=unitColor(ev.local);
+  const tp=(TIPOS.find(t=>t.v===ev.tipo)||{}).l||'';
+  const loc=ev.local?((LOCAIS.find(l=>l.v===ev.local)||{}).l||''):'';
+  let dt='';
+  if(ev.data){const d=new Date(ev.data+'T00:00');dt=d.toLocaleDateString('pt-BR')+' · '+d.toLocaleDateString('pt-BR',{weekday:'long'}).toUpperCase();}
+  const pax=[ev.paxIn,ev.paxOut].filter(function(x){return x!=='';}).join(' + ');
+  let h='<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:var(--sans);color:#1E0A0A;max-width:760px;margin:0 auto;padding:24px">';
+  h+='<div style="height:8px;background:'+color+';border-radius:4px;margin-bottom:16px"></div>';
+  h+='<div style="display:flex;align-items:center;gap:18px;margin-bottom:10px"><img src="'+unitLogo(ev.local)+'" alt="Lola" style="height:56px;width:auto" onerror="this.style.display=\'none\'">'
+   +'<div><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:'+color+';font-weight:800">'+esc(sub)+'</div>'
+   +'<div style="font-family:var(--serif);font-size:24px;font-weight:800">'+(esc(ev.nome)||'(evento sem nome)')+'</div>'
+   +'<div style="font-size:12px;color:#8a7d7d;font-weight:700">'+[esc(tp),esc(loc),dt,pax?(esc(pax)+' pax'):''].filter(Boolean).join(' · ')+'</div>'
+   +'</div></div>';
+  return {h:h,color:color};
+}
+function _pfoot(){return '<div style="margin-top:24px;border-top:1px solid #eee;padding-top:8px;font-size:10px;color:#8a7d7d">Gerado em '+new Date().toLocaleString('pt-BR')+' · equipelola.net</div></div>';}
+/* (a) Cardápio pro cliente — nomes + descrições, agrupado por seção, sem valores nem colunas internas */
+function buildCardapioCliente(ev){
+  const r=_phead(ev,'Cardápio'),color=r.color;let body=r.h;
+  const menu=(ev.menu||[]).filter(function(m){return m.nome;});
+  if(!menu.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhum item no cardápio ainda.</div>'+_pfoot();
+  const groups={};menu.forEach(function(m){var s=(m.secao||'Outros');(groups[s]=groups[s]||[]).push(m);});
+  const keys=Object.keys(groups).sort(function(a,b){var ia=SECOES.indexOf(a),ib=SECOES.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
+  keys.forEach(function(s){
+    body+=_pt(s,color);
+    groups[s].forEach(function(m){
+      body+='<div style="margin:5px 0 9px"><div style="font-weight:700;font-size:14px">'+esc(m.nome)+'</div>'
+        +(m.desc?('<div style="font-size:12.5px;color:#5a4a45;line-height:1.45">'+esc(m.desc)+'</div>'):'')+'</div>';
+    });
+  });
+  return body+_pfoot();
+}
+/* (b) Separação para a equipe — materiais + louças/talheres do cardápio */
+function buildSeparacao(ev){
+  const r=_phead(ev,'Separação · Materiais e Louças'),color=r.color;let body=r.h;
+  const pax=Number(ev.pax)||0;
+  const mat=(ev.materiais||[]).filter(function(x){return x.item;});
+  body+=_pt('Materiais',color);
+  if(mat.length){
+    body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Material</th><th>Origem/Saída</th><th>Qtd</th><th style="width:40px">Saiu</th><th style="width:46px">Voltou</th><th>Destino</th><th>Obs</th></tr></thead><tbody>'
+      +mat.map(function(x){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px;font-weight:600">'+esc(x.item)+'</td><td>'+esc(x.origem||'')+'</td><td>'+esc(x.qtdSaida||'')+'</td><td style="text-align:center">'+(x.saiu?'✓':'☐')+'</td><td style="text-align:center">'+(x.voltou?'✓':'☐')+'</td><td>'+esc(x.destino||'')+'</td><td>'+esc(x.obs||'')+'</td></tr>';}).join('')
+      +'</tbody></table>';
+  } else body+='<div style="color:#8a7d7d;font-size:13px">Nenhum material cadastrado.</div>';
+  const loucas=(ev.menu||[]).filter(function(m){return m.nome&&(m.louca||'').trim();});
+  body+=_pt('Louças e talheres (do cardápio)',color);
+  if(loucas.length){
+    body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Item do cardápio</th><th>Louça / talher</th><th style="width:130px">Qtd referência</th><th style="width:70px">Separado</th></tr></thead><tbody>'
+      +loucas.map(function(m){var q=baseQtd(m,pax);var qt=q?(fmtQty(q)+(m.un?' '+esc(m.un):'')):'—';return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px;font-weight:600">'+esc(m.nome)+'</td><td>'+esc(m.louca)+'</td><td>'+qt+'</td><td style="text-align:center">☐</td></tr>';}).join('')
+      +'</tbody></table>';
+  } else body+='<div style="color:#8a7d7d;font-size:13px">Nenhuma louça/talher informada nos itens do cardápio.</div>';
+  return body+_pfoot();
+}
+/* (c) Lista de convidados */
+function buildConvidados(ev){
+  const r=_phead(ev,'Lista de Convidados'),color=r.color;let body=r.h;
+  const gg=(ev.convidados||[]).filter(function(x){return x.nome;});
+  if(!gg.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhum convidado cadastrado ainda.</div>'+_pfoot();
+  const confN=gg.filter(function(x){return x.confirmado;}).length;
+  body+=_pt('Convidados ('+gg.length+' · '+confN+' confirmados)',color);
+  body+='<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Nome</th><th style="width:70px">Mesa</th><th style="width:96px">Confirmado</th><th>Obs</th></tr></thead><tbody>'
+    +gg.map(function(x){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px">'+esc(x.nome)+'</td><td>'+esc(x.mesa||'')+'</td><td style="text-align:center">'+(x.confirmado?'✓':'☐')+'</td><td>'+esc(x.obs||'')+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  return body+_pfoot();
+}
+/* (d) Produções destrinchadas — comida e bebida, com qtd total e pedido/compra */
+function buildProducoes(ev){
+  const r=_phead(ev,'Produções · Cozinha e Bar'),color=r.color;let body=r.h;
+  const pax=Number(ev.pax)||0;let any=false;
+  ['C','B'].forEach(function(c){
+    var its=(ev.menu||[]).filter(function(m){return m.nome&&mcat(m)===c;});
+    if(!its.length) return;any=true;
+    body+=_pt(CAT_NOME[c]+' ('+its.length+' itens)',color);
+    body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Item</th><th style="width:120px">Seção</th><th style="width:150px">Qtd a produzir</th><th style="width:160px">Pedido / compra</th></tr></thead><tbody>';
+    its.forEach(function(m){
+      var q=baseQtd(m,pax);
+      var qtxt=q?(fmtQty(q)+(m.un?' '+esc(m.un):'')):(esc(m.qtd)+(m.un?' '+esc(m.un):''));
+      var detail=(m.perPax&&pax)?(' <span style="color:#8a7d7d">('+esc(m.qtd)+(m.un?' '+esc(m.un):'')+'/pax × '+pax+')</span>'):'';
+      var p=pedidoInfo(m,pax);
+      var pedtxt=p?('<b>'+p.arred+' '+esc(p.unCompra)+(p.arred===1?'':'s')+'</b> <span style="color:#8a7d7d">('+p.bruto.toFixed(2).replace('.',',')+')</span>'):'—';
+      body+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px;font-weight:600">'+esc(m.nome)+'</td><td>'+esc(m.secao||'')+'</td><td>'+qtxt+detail+'</td><td>'+pedtxt+'</td></tr>';
+    });
+    body+='</tbody></table>';
+  });
+  if(!any) body+='<div style="color:#8a7d7d;font-size:13px">Nenhum item no cardápio ainda.</div>';
+  return body+_pfoot();
+}
+function _doPrintHTML(html){document.getElementById('printArea').innerHTML=html;setTimeout(function(){window.print();},300);}
+function printCardapioCliente(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildCardapioCliente(ev));}
+function printSeparacao(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildSeparacao(ev));}
+function printConvidados(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildConvidados(ev));}
+function printProducoes(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildProducoes(ev));}
 /* ===== Equipe (escala de freelas) ===== */
 const CARGOS=["Cozinha","Bar","Atendimento","Recepção","Outro"];
 function horasEq(r){if(!r.entrada||!r.saida)return 0;const a=String(r.entrada).split(':'),b=String(r.saida).split(':');let h=((+b[0]||0)+((+b[1]||0)/60))-((+a[0]||0)+((+a[1]||0)/60));if(h<0)h+=24;return Math.round(h*100)/100;}
