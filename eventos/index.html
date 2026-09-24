@@ -460,6 +460,7 @@ const SECTIONS = [
 
 let DB={events:[]};
 let FICHAS=[];
+let INSUMOS=[];
 let CATALOGO=[]; // 23/09: catálogo próprio de itens do Eventos (lola_eventos_itens)
 function catToFichas(list){return (list||[]).map(c=>({_src:'cat',n:c.nome,p:Math.round((Number(c.preco)||0)*100)/100,cat:c.secao||'catálogo',card:null,un:c.unidade||'',secao:c.secao||'',desc:c.descricao||'',louca:c.louca||'',perPax:c.per_pax!==false}));}
 function refreshFichasCatalogo(){FICHAS=FICHAS.filter(f=>f._src!=='cat').concat(catToFichas(CATALOGO)).sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));}
@@ -511,15 +512,17 @@ function toRow(ev){
 /* ===== Carregamento ===== */
 async function init(){
   try{
-    const [ev,fic,pp,cat]=await Promise.all([
+    const [ev,fic,pp,cat,ins]=await Promise.all([
       sb.from('lola_eventos').select('*').eq('arquivado',false).order('data',{ascending:true,nullsFirst:false}),
       sb.from('lola_fichas_tecnicas').select('nome,preco_venda,categoria,cardapio,rendimento_un').eq('ativo',true).gt('preco_venda',0).order('nome'),
       sb.from('lola_preproducoes').select('nome,valor_venda_central,categoria,rendimento_un').eq('ativo',true).order('nome'),
-      sb.from('lola_eventos_itens').select('*').eq('ativo',true).order('nome')
+      sb.from('lola_eventos_itens').select('*').eq('ativo',true).order('nome'),
+      sb.from('lola_insumos').select('nome,categoria,unidade_custo,custo_por_unidade').neq('ativo',false).order('nome')
     ]);
     if(ev.error)throw ev.error;
     DB.events=(ev.data||[]).map(fromRow);
     CATALOGO=(cat&&!cat.error&&Array.isArray(cat.data))?cat.data:[];
+    INSUMOS=(ins&&!ins.error&&Array.isArray(ins.data))?ins.data.map(i=>({n:i.nome,p:Math.round((Number(i.custo_por_unidade)||0)*100)/100,cat:i.categoria||'insumo',un:i.unidade_custo||'',_src:'insumo'})):[];
     FICHAS=catToFichas(CATALOGO)
       .concat((fic.data||[]).map(f=>({n:f.nome,p:Math.round(Number(f.preco_venda)*100)/100,cat:f.categoria,card:f.cardapio,un:f.rendimento_un||''})))
       .concat((pp.data||[]).map(f=>({n:f.nome,p:Math.round((Number(f.valor_venda_central)||0)*100)/100,cat:'pré-produção',card:null,un:(f.rendimento_un==='g'?'kg':f.rendimento_un==='ml'?'L':(f.rendimento_un||''))})))
@@ -1047,13 +1050,13 @@ function renderCatList(){
   h+='<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff"><table style="width:100%;border-collapse:collapse;font-size:12.5px">'
     +'<thead><tr style="background:var(--warm);text-align:left;color:var(--muted)">'
     +'<th style="padding:7px 8px;width:34px"><input type="checkbox" '+(allChecked?'checked':'')+' onchange="catToggleAll(this.checked)" title="selecionar todos"></th>'
-    +'<th style="padding:7px 8px">Item</th><th style="width:150px">Seção</th><th style="width:78px;text-align:right">Preço</th><th style="width:52px">por</th><th style="width:96px"></th></tr></thead><tbody>'
+    +'<th style="padding:7px 8px">Item</th><th style="width:140px">Seção</th><th style="width:104px;text-align:right;white-space:nowrap">Preço</th><th style="width:46px">por</th><th style="width:92px"></th></tr></thead><tbody>'
     +list.map(function(c){var id=String(c.id);var on=CAT_UI.sel.has(id);return '<tr style="border-top:1px solid var(--warm)'+(on?';background:var(--vinho-pale)':'')+'">'
       +'<td style="padding:6px 8px"><input type="checkbox" '+(on?'checked':'')+' onchange="catToggleSel(\''+id+'\',this.checked)"></td>'
       +'<td style="padding:6px 8px"><div style="font-weight:700">'+esc(c.nome)+'</div>'+(c.descricao?('<div style="font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">'+esc(c.descricao)+'</div>'):'')+(c.louca?('<div style="font-size:10px;color:var(--amber)">🍽️ '+esc(c.louca)+'</div>'):'')+'</td>'
       +'<td>'+(c.secao?esc(c.secao):'<span style="color:var(--vinho);font-size:11px">— sem seção —</span>')+'</td>'
-      +'<td style="text-align:right;font-weight:700">'+fmt(c.preco)+'</td>'
-      +'<td style="font-size:10.5px;color:var(--muted)">'+((c.per_pax!==false)?'pax':'un')+'</td>'
+      +'<td style="text-align:right;font-weight:700;white-space:nowrap">'+fmt(c.preco)+'</td>'
+      +'<td style="font-size:10.5px;color:var(--muted);white-space:nowrap">'+((c.per_pax!==false)?'pax':'un')+'</td>'
       +'<td style="white-space:nowrap"><button class="btn-ghost btn-sm" onclick="catEditar(\''+id+'\')">editar</button><button class="btn-ghost btn-sm" style="color:var(--vinho)" onclick="catExcluir(\''+id+'\')">✕</button></td>'
       +'</tr>';}).join('')
     +'</tbody></table></div>';
@@ -1097,10 +1100,10 @@ let _catBase=null, _catBasePool=[];
 function catBaseSearch(q){
   const dd=document.getElementById('cf_baseDD'); if(!dd) return;
   const n=_catNorm(q||'');
-  const pool=FICHAS.filter(function(f){return f._src!=='cat';});
-  _catBasePool=(n?pool.filter(function(f){return _catNorm((f.n||'')+' '+(f.cat||'')).includes(n);}):pool).slice(0,50);
-  if(!_catBasePool.length){dd.innerHTML='<div style="padding:10px;color:var(--muted);font-size:12px">nada encontrado nas fichas</div>';dd.style.display='block';return;}
-  dd.innerHTML=_catBasePool.map(function(f,i){return '<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--warm);font-size:13px" onmousedown="catPickBase('+i+')"><b>'+esc(f.n)+'</b> <span style="color:var(--muted)">· '+esc(f.cat||'')+' · '+fmt(f.p)+(f.un?(' /'+esc(f.un)):'')+'</span></div>';}).join('');
+  const pool=FICHAS.filter(function(f){return f._src!=='cat';}).concat(INSUMOS);
+  _catBasePool=(n?pool.filter(function(f){return _catNorm((f.n||'')+' '+(f.cat||'')).includes(n);}):pool).slice(0,60);
+  if(!_catBasePool.length){dd.innerHTML='<div style="padding:10px;color:var(--muted);font-size:12px">nada encontrado</div>';dd.style.display='block';return;}
+  dd.innerHTML=_catBasePool.map(function(f,i){var tag=(f._src==='insumo'?'🥕 insumo · ':'')+esc(f.cat||'');return '<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--warm);font-size:13px" onmousedown="catPickBase('+i+')"><b>'+esc(f.n)+'</b> <span style="color:var(--muted)">· '+tag+' · '+fmt(f.p)+(f.un?(' /'+esc(f.un)):'')+'</span></div>';}).join('');
   dd.style.display='block';
 }
 function catPickBase(i){
@@ -1108,7 +1111,9 @@ function catPickBase(i){
   const setv=function(id,v){var el=document.getElementById(id);if(el)el.value=v;};
   setv('cf_base',f.n); setv('cf_nome',f.n); if(f.un)setv('cf_un',f.un); setv('cf_preco',f.p!=null?f.p:'');
   catSetPer(false);
-  var hint=document.getElementById('cf_baseHint'); if(hint)hint.innerHTML='Baseado em <b>'+esc(f.n)+'</b> · preço cheio '+fmt(f.p)+'. Ajuste o nome (ex.: “Mini porção de '+esc(f.n)+'”) e o preço abaixo.';
+  var secSel=document.getElementById('cf_sec'); if(secSel && f.cat==='bebida'){secSel.value='Bebidas';}
+  var hint=document.getElementById('cf_baseHint');
+  if(hint){ if(f._src==='insumo'){ hint.innerHTML='Insumo <b>'+esc(f.n)+'</b> (custo '+fmt(f.p)+(f.un?(' /'+esc(f.un)):'')+'). Defina o <b>preço de venda</b> e a seção abaixo.'; } else { hint.innerHTML='Baseado em <b>'+esc(f.n)+'</b> · preço cheio '+fmt(f.p)+'. Ajuste o nome (ex.: “Mini porção de '+esc(f.n)+'”) e o preço abaixo.'; } }
   var fw=document.getElementById('cf_fracWrap'); if(fw)fw.style.display='';
   var dd=document.getElementById('cf_baseDD'); if(dd)dd.style.display='none';
 }
