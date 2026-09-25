@@ -1086,14 +1086,15 @@ function catFormHTML(c){
    +'<div style="font-weight:700;color:var(--vinho-deep);font-family:var(--serif);font-size:16px;margin-bottom:10px">'+(CAT_UI.editId?'Editar item':'Novo item')+'</div>'
    +'<div class="field" style="position:relative"><label>Partir de uma ficha/receita do Lola <span class="hint">(opcional)</span></label><input id="cf_base" autocomplete="off" placeholder="🔎 prato, receita ou pré-produção…" oninput="catBaseSearch(this.value)" onfocus="catBaseSearch(this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'cf_baseDD\');if(d)d.style.display=\'none\';},150)"><div id="cf_baseDD" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:5;background:#fff;border:1px solid var(--border);border-radius:10px;max-height:230px;overflow:auto;box-shadow:0 12px 30px rgba(0,0,0,.18)"></div><div class="intro" id="cf_baseHint" style="margin:6px 0 0">Escolha um prato/receita que já existe pra criar uma variação (ex.: mini porção). Deixe em branco pra criar do zero.</div></div>'
    +'<div class="field"><label>Item (nome)</label><input id="cf_nome" value="'+esc(c.nome||'')+'" placeholder="ex.: Mini quiche de alho-poró"></div>'
-   +'<div class="field"><label>Seção</label><select id="cf_sec">'+secOpts+'</select></div>'
+   +'<div style="display:grid;grid-template-columns:1.1fr 1fr 0.85fr;gap:10px">'
+     +'<div class="field"><label>Seção</label><select id="cf_sec">'+secOpts+'</select></div>'
+     +'<div class="field"><label>Preço de venda (R$)</label><input id="cf_preco" type="number" step="0.01" value="'+(c.preco!=null?esc(c.preco):'')+'" placeholder="0,00"></div>'
+     +'<div class="field"><label>Unidade</label><input id="cf_un" value="'+esc(c.unidade||'un')+'" placeholder="un, porção…"></div>'
+   +'</div>'
    +'<div class="field"><label>Preço é…</label><div style="display:flex;gap:6px"><button type="button" id="cf_pp1" class="btn-ghost btn-sm" onclick="catSetPer(true)">por pessoa (pax)</button><button type="button" id="cf_pp0" class="btn-ghost btn-sm" onclick="catSetPer(false)">por unidade</button></div><div class="intro" id="cf_pph" style="margin:6px 0 0"></div></div>'
-   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label>Preço de venda (R$)</label><input id="cf_preco" type="number" step="0.01" value="'+(c.preco!=null?esc(c.preco):'')+'" placeholder="0,00"></div>'
-   +'<div class="field"><label>Unidade (un, porção, ml…)</label><input id="cf_un" value="'+esc(c.unidade||'un')+'"></div></div>'
+   +'<div class="field" style="margin-top:-2px"><button type="button" class="btn-ghost btn-sm" onclick="catMargem70()">💰 Preço com margem 70%</button> <span class="hint" id="cf_margemHint">usa o valor do campo Preço como custo e multiplica por 1,70.</span></div>'
    +'<div class="field" id="cf_fracWrap" style="display:none"><label>Porção menor? calcula o preço a partir do prato cheio</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+[['Cheio',1],['3/4',0.75],['Metade',0.5],['1/3',0.34],['1/4',0.25]].map(function(o){return '<button type="button" class="btn-ghost btn-sm" onclick="catFrac('+o[1]+')">'+o[0]+'</button>';}).join('')+'</div></div>'
-   +'<div class="field"><label>Descrição p/ cliente</label><textarea id="cf_desc" rows="2" placeholder="Como aparece no orçamento do cliente…">'+esc(c.descricao||'')+'</textarea></div>'
-   +'<div class="field"><label>Louça / talher padrão</label><input id="cf_louca" value="'+esc(c.louca||'')+'" placeholder="ex.: prato de sobremesa + garfinho"></div>'
-   +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="btn-ghost" onclick="catCancelar()">Cancelar</button><button class="btn-primary" onclick="catSalvar()">Salvar item</button></div>'
+   +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="btn-ghost" onclick="catCancelar()">Cancelar</button><button class="btn-primary" onclick="catSalvar()">Salvar item</button></div>'
    +'</div>';
 }
 let _catBase=null, _catBasePool=[];
@@ -1118,6 +1119,14 @@ function catPickBase(i){
   var dd=document.getElementById('cf_baseDD'); if(dd)dd.style.display='none';
 }
 function catFrac(fr){ if(!_catBase)return; var el=document.getElementById('cf_preco'); if(el)el.value=(Math.round((Number(_catBase.p)||0)*fr*100)/100); }
+function catMargem70(){
+  var el=document.getElementById('cf_preco'); if(!el)return;
+  var custo=Number(String(el.value).replace(',','.'))||0;
+  if(custo<=0){showFlash('Coloque o custo no campo Preço primeiro.',true);return;}
+  var preco=Math.round(custo*1.70*100)/100;
+  el.value=preco;
+  var h=document.getElementById('cf_margemHint'); if(h)h.innerHTML='custo '+fmt(custo)+' × 1,70 = <b>'+fmt(preco)+'</b>';
+}
 function catSetPer(v){CAT_UI.per=v;var a=document.getElementById('cf_pp1'),b=document.getElementById('cf_pp0'),h=document.getElementById('cf_pph');
   if(a)a.className='btn-'+(v?'primary':'ghost')+' btn-sm';if(b)b.className='btn-'+(v?'ghost':'primary')+' btn-sm';
   if(h)h.textContent=v?'O preço é multiplicado pelo nº de convidados (pax) no orçamento.':'O preço é por unidade/porção — você define a quantidade no orçamento.';}
@@ -1130,10 +1139,12 @@ async function catExcluir(id){const c=CATALOGO.find(x=>String(x.id)===String(id)
   CATALOGO=CATALOGO.filter(x=>String(x.id)!==String(id));refreshFichasCatalogo();renderCatList();showFlash('Item removido do catálogo');}
 async function catSalvar(){
   const nome=(document.getElementById('cf_nome').value||'').trim();if(!nome){showFlash('Dê um nome ao item.',true);return;}
+  const _gv=function(id){var e=document.getElementById(id);return e?(e.value||''):'';};
   const row={nome:nome,secao:document.getElementById('cf_sec').value||null,
     per_pax:CAT_UI.per!==false,preco:Math.round((Number(document.getElementById('cf_preco').value)||0)*100)/100,
-    unidade:(document.getElementById('cf_un').value||'').trim()||null,descricao:(document.getElementById('cf_desc').value||'').trim()||null,
-    louca:(document.getElementById('cf_louca').value||'').trim()||null,ativo:true,updated_at:new Date().toISOString()};
+    unidade:(document.getElementById('cf_un').value||'').trim()||null,ativo:true,updated_at:new Date().toISOString()};
+  var _d=_gv('cf_desc').trim(); if(_d)row.descricao=_d;
+  var _l=_gv('cf_louca').trim(); if(_l)row.louca=_l;
   try{
     if(CAT_UI.editId){
       const r=await sb.from('lola_eventos_itens').update(row).eq('id',CAT_UI.editId);if(r.error)throw r.error;
