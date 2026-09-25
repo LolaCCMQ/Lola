@@ -1092,8 +1092,8 @@ function catFormHTML(c){
      +'<div class="field"><label>Unidade</label><input id="cf_un" value="'+esc(c.unidade||'un')+'" placeholder="un, porção…"></div>'
    +'</div>'
    +'<div class="field"><label>Preço é…</label><div style="display:flex;gap:6px"><button type="button" id="cf_pp1" class="btn-ghost btn-sm" onclick="catSetPer(true)">por pessoa (pax)</button><button type="button" id="cf_pp0" class="btn-ghost btn-sm" onclick="catSetPer(false)">por unidade</button></div><div class="intro" id="cf_pph" style="margin:6px 0 0"></div></div>'
-   +'<div class="field" style="margin-top:-2px"><button type="button" class="btn-ghost btn-sm" onclick="catMargem70()">💰 Preço com margem 70%</button> <span class="hint" id="cf_margemHint">usa o valor do campo Preço como custo e multiplica por 1,70.</span></div>'
-   +'<div class="field" id="cf_fracWrap" style="display:none"><label>Porção menor? calcula o preço a partir do prato cheio</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+[['Cheio',1],['3/4',0.75],['Metade',0.5],['1/3',0.34],['1/4',0.25]].map(function(o){return '<button type="button" class="btn-ghost btn-sm" onclick="catFrac('+o[1]+')">'+o[0]+'</button>';}).join('')+'</div></div>'
+   +'<div class="field" style="margin-top:6px"><button type="button" class="btn-ghost btn-sm" onclick="catMargem70()">💰 Preço com margem 70%</button><div class="hint" id="cf_margemHint" style="margin-top:5px">usa o valor do campo Preço como custo × 1,70.</div></div>'
+   +'<div class="field" id="cf_fracWrap" style="display:none;margin-top:6px"><label>Porção menor? calcula o preço a partir do prato cheio</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">'+[['Cheio',1],['Metade',0.5],['1/3',0.34]].map(function(o){return '<button type="button" class="btn-ghost btn-sm" onclick="catFrac('+o[1]+')">'+o[0]+'</button>';}).join('')+'</div></div>'
    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="btn-ghost" onclick="catCancelar()">Cancelar</button><button class="btn-primary" onclick="catSalvar()">Salvar item</button></div>'
    +'</div>';
 }
