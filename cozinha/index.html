@@ -5708,7 +5708,7 @@ async function mostrarListaPedidosFornecedor(contagemId, data){
   let itens=[],forns=[];
   try{
     const r=await Promise.all([
-      db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=id,pedido,insumo_id,lola_insumos!insumo_id(nome,categoria,subcategoria,ordem,unidade_contagem,unidade_compra,unidade_custo,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,fornecedor)'),
+      db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=id,pedido,insumo_id,lola_insumos!insumo_id(nome,categoria,subcategoria,ordem,unidade_contagem,unidade_compra,unidade_custo,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,fornecedor,categoria)'),
       db('lola_fornecedores','GET',null,'?ativo=eq.true&select=id,nome,whatsapp,telefone')
     ]);
     itens=r[0]||[];forns=r[1]||[];
@@ -5720,6 +5720,9 @@ async function mostrarListaPedidosFornecedor(contagemId, data){
   itens.sort((a,b)=>{const x=ordDe(a),y=ordDe(b);return x[0].localeCompare(y[0])||(x[1]-y[1])||x[2].localeCompare(y[2]);});
   const waDe=n=>{const f=forns.find(f=>f.nome===n);return f?String(f.whatsapp||f.telefone||'').replace(/\D/g,''):'';};
   const waNum=d=>!d?'':(d.length<=11&&!d.startsWith('55')?'55'+d:d);
+  const catDe=it=>(it.lola_insumos&&it.lola_insumos.categoria)||(it.lola_estoque_itens&&it.lola_estoque_itens.categoria)||'';
+  const cats=[...new Set(itens.map(catDe).filter(Boolean))];
+  const catTxt=cats.join(' · ');
 
   function render(){
     body.innerHTML='';
@@ -5728,7 +5731,7 @@ async function mostrarListaPedidosFornecedor(contagemId, data){
     itens.forEach(it=>{const f=fornDe(it)||'';(grupos[f]=grupos[f]||[]).push(it);});
     const nomes=Object.keys(grupos).sort((a,b)=>(a===''?1:b===''?-1:a.localeCompare(b)));
     const nF=nomes.filter(n=>n).length;
-    sub.textContent='Contagem de '+dataBR+' · '+itens.length+' ite'+(itens.length===1?'m':'ns')+' · '+nF+' fornecedor'+(nF===1?'':'es');
+    sub.textContent=(catTxt?catTxt+' · ':'')+'Contagem de '+dataBR+' · '+itens.length+' ite'+(itens.length===1?'m':'ns')+' · '+nF+' fornecedor'+(nF===1?'':'es');
     if(grupos['']) body.appendChild(div('pf-av',grupos[''].length+(grupos[''].length>1?' itens estão':' item está')+' sem fornecedor. Escolha o fornecedor de cada um na contagem (fica salvo) que ele passa a cair no pedido certo.'));
     nomes.forEach(fn=>{
       const lst=grupos[fn];const wa=fn?waDe(fn):'';
@@ -5766,9 +5769,11 @@ async function mostrarListaPedidosFornecedor(contagemId, data){
   const bP=el('button','nc-b',null,{type:'button',html:'<i class="ph-duotone ph-printer"></i> Imprimir'});
   bP.onclick=()=>{
     const w=window.open('','_blank');if(!w)return;
-    const g={};itens.forEach(it=>{const f=fornDe(it)||'Sem fornecedor';(g[f]=g[f]||[]).push(it);});
-    let h='<html><head><meta charset="utf-8"><title>Pedidos '+dataBR+'</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#2A1A17}h1{color:#A82A2A;font-size:20px}h2{font-size:15px;border-bottom:1px solid #ECE3D9;padding-bottom:4px;margin-top:22px}td{padding:5px 8px;border-bottom:1px solid #EFE6DC}td.q{text-align:right;font-weight:bold}table{width:100%;border-collapse:collapse}</style></head><body><h1>Pedidos — contagem de '+dataBR+'</h1>';
-    Object.keys(g).sort().forEach(f=>{h+='<h2>'+_ncEsc(f)+'</h2><table>';g[f].forEach(it=>{h+='<tr><td>'+_ncEsc(nomeDe(it))+'</td><td class="q">'+_ncFmt(it.pedido)+' '+_ncEsc(unDe(it))+'</td></tr>';});h+='</table>';});
+    const g={};itens.forEach(it=>{const f=fornDe(it)||'';(g[f]=g[f]||[]).push(it);});
+    const multi=cats.length>1;
+    let h='<html><head><meta charset="utf-8"><title>Pedidos '+_ncEsc(catTxt)+' '+dataBR+'</title><style>@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;color:#2A1A17;margin:0}h1{color:#A82A2A;font-size:22px;margin:0 0 2px}.sub{color:#8A7A72;font-size:13px;margin:0 0 14px}h2{font-size:15px;border-bottom:1.5px solid #ECE3D9;padding-bottom:4px;margin:18px 0 4px}table{width:100%;border-collapse:collapse;table-layout:fixed}td{padding:6px 4px;border-bottom:1px solid #EFE6DC;font-size:13px;vertical-align:top}td.q{width:32mm;text-align:right;font-weight:bold;white-space:nowrap}td.c{width:38mm;color:#8A7A72;font-size:11px}</style></head><body>';
+    h+='<h1>Pedidos'+(catTxt?' — '+_ncEsc(catTxt):'')+'</h1><p class="sub">Contagem de '+dataBR+' · '+itens.length+' ite'+(itens.length===1?'m':'ns')+'</p>';
+    Object.keys(g).sort((a,b)=>(a===''?1:b===''?-1:a.localeCompare(b))).forEach(f=>{h+='<h2>'+_ncEsc(f||'Sem fornecedor')+'</h2><table>';g[f].forEach(it=>{h+='<tr><td>'+_ncEsc(nomeDe(it))+'</td>'+(multi?'<td class="c">'+_ncEsc(catDe(it))+'</td>':'')+'<td class="q">'+_ncFmt(it.pedido)+' '+_ncEsc(unDe(it))+'</td></tr>';});h+='</table>';});
     w.document.write(h+'</body></html>');w.document.close();w.print();
   };
   const bF=el('button','nc-b pri','Fechar',{type:'button'});bF.onclick=()=>ov.remove();bF.style.flex='1';bP.style.flex='1';
