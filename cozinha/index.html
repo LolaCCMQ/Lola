@@ -3728,12 +3728,12 @@ async function modalEditarItemEstoque(item, onSave){
 async function gerarPedidoDeContagem(contagemId){
   // Buscar itens da contagem que têm pedido > 0
   const itens=await db('lola_contagem_itens','GET',null,
-    '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor),lola_insumos!insumo_id(nome,unidade_custo,unidade_compra,categoria,fornecedor_padrao)');
+    '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor),lola_insumos!insumo_id(nome,unidade_contagem,unidade_custo,unidade_compra,categoria,fornecedor_padrao)');
   if(!itens.length){alert('Nenhum item com pedido nesta contagem.');return;}
   // Prefere o cadastro único de Insumos; cai pro item de estoque legado
   const _pi=it=>{const ins=it.lola_insumos,es=it.lola_estoque_itens;return{
     nome: ins?.nome||es?.nome||'—',
-    unidade: (ins?(ins.unidade_custo||ins.unidade_compra):es?.unidade)||'—',
+    unidade: (ins?(ins.unidade_contagem||ins.unidade_compra||ins.unidade_custo):es?.unidade)||'—',
     fornecedor: (ins?ins.fornecedor_padrao:es?.fornecedor)||'—',
     categoria: ins?.categoria||es?.categoria||'outros'
   };};
@@ -5260,7 +5260,7 @@ async function renderContArea(){
   area.appendChild(ld());
   try{
     const _insRows=await db('lola_insumos','GET',null,'?categoria=eq.'+encodeURIComponent(_contCat)+'&ativo=eq.true&order=ordem.asc.nullslast,nome.asc');
-    const itens=(_insRows||[]).map(i=>({...i, unidade:(i.unidade_custo||i.unidade_compra||''), fornecedor:(i.fornecedor_padrao||'')}));
+    const itens=(_insRows||[]).map(i=>({...i, unidade:(i.unidade_contagem||i.unidade_compra||i.unidade_custo||''), fornecedor:(i.fornecedor_padrao||'')}));
     const contagens=await db('lola_contagens','GET',null,'?order=data_contagem.desc&limit=5');
     area.innerHTML='';
     if(!itens.length){area.appendChild(em('📦','Nenhum item cadastrado para esta categoria'));return;}
@@ -5374,11 +5374,11 @@ async function verContagem(ct){
   ov.addEventListener('click',e=>{if(e.target===ov&&!mo.contains(e.target))ov.remove();});
   document.body.appendChild(ov);
   try{
-    const itens=await db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+ct.id+'&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,qtd_minima,categoria,fornecedor),lola_insumos!insumo_id(nome,unidade_custo,unidade_compra,qtd_minima,categoria)');
+    const itens=await db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+ct.id+'&select=*,lola_estoque_itens!estoque_item_id(nome,unidade,qtd_minima,categoria,fornecedor),lola_insumos!insumo_id(nome,unidade_contagem,unidade_custo,unidade_compra,qtd_minima,categoria)');
     // Prefere o cadastro único de Insumos; cai pro item de estoque legado quando não houver
     const _pi=it=>{const ins=it.lola_insumos,es=it.lola_estoque_itens;return{
       nome: ins?.nome||es?.nome||'—',
-      unidade: (ins?(ins.unidade_custo||ins.unidade_compra):es?.unidade)||'—',
+      unidade: (ins?(ins.unidade_contagem||ins.unidade_compra||ins.unidade_custo):es?.unidade)||'—',
       qtd_minima: parseFloat(ins?.qtd_minima??es?.qtd_minima??0)||0,
       categoria: ins?.categoria||es?.categoria||'outros'
     };};
@@ -5405,262 +5405,374 @@ async function verContagem(ct){
   }catch(e){mb2.innerHTML='<p style="color:red">'+e.message+'</p>';}
   mo.appendChild(div('mf',[
     btn('btn bg','Fechar',()=>ov.remove()),
-    btn('btn bp','📦 Gerar pedido',()=>{ov.remove();gerarPedidoDeContagem(ct.id);}),
+    btn('btn bp','📦 Pedido por fornecedor',()=>{ov.remove();mostrarListaPedidosFornecedor(ct.id,ct.data_contagem);}),
   ]));
+}
+
+/* ══ NOVA CONTAGEM (28/09/2026) ══════════════════════════════════════════
+   Pedido da Mahara: contagem na ORDEM DA PLANILHA "Lola_ Contagens de estoque"
+   (lola_insumos.ordem + subcategoria), com as colunas:
+   Item · unidade · Estoque atual (= última contagem) · Ideal · Contagem · Pedido.
+   Pedido = ideal − contagem (arredonda pra cima), calculado ao digitar a contagem,
+   mas EDITÁVEL (se a pessoa mexer, vira "ajustado" e não é mais sobrescrito).
+   Unidade mostrada = unidade_contagem (und/pct/cx/rolo) — NÃO mexe em custo.
+   Fornecedor escolhido no próprio item grava em lola_insumos.fornecedor_padrao.
+   Depois de salvar → mostrarListaPedidosFornecedor (pedido separado por fornecedor,
+   com envio pelo WhatsApp).                                                    */
+(function(){
+  if(document.getElementById('nc-css'))return;
+  const s=document.createElement('style');s.id='nc-css';
+  s.textContent=''
+  +'.nc-ov{position:fixed;inset:0;background:rgba(42,26,23,.5);z-index:300;display:flex;align-items:center;justify-content:center}'
+  +'.nc-mo{background:var(--rf);width:100%;max-width:720px;height:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden}'
+  +'@media(min-width:760px){.nc-mo{height:92vh;border-radius:18px;border:1px solid var(--rb);box-shadow:0 20px 50px rgba(42,26,23,.25)}}'
+  +'.nc-hd{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #EFE6DC;flex-shrink:0}'
+  +'.nc-hd h3{flex:1;min-width:0;margin:0;font-family:Fraunces,serif;font-weight:600;font-size:20px;color:var(--v);line-height:1.1}'
+  +'.nc-hd small{display:block;font-family:Manrope,sans-serif;font-size:12px;font-weight:600;color:#8A7A72;margin-top:2px}'
+  +'.nc-x{width:40px;height:40px;border-radius:13px;border:1px solid var(--rb);background:#fff;color:var(--v);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}'
+  +'.nc-top{padding:12px 16px 0;flex-shrink:0}'
+  +'.nc-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}'
+  +'.nc-lbl{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#B79A8E;margin-bottom:4px}'
+  +'.nc-in{width:100%;box-sizing:border-box;height:44px;padding:0 12px;border:1px solid var(--rb);border-radius:13px;background:#fff;font:600 14px Manrope,sans-serif;color:var(--tx)}'
+  +'.nc-in:focus,.nc-q:focus,.nc-p:focus{outline:none;border-color:var(--v)}'
+  +'.nc-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 16px 16px;-webkit-overflow-scrolling:touch}'
+  +'.nc-sub{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A7A72;margin:14px 2px 8px}'
+  +'.nc-sub:after{content:"";flex:1;height:1px;background:#EFE6DC}'
+  +'.nc-card{background:#fff;border:1px solid var(--rb);border-radius:16px;padding:11px 12px 10px;margin-bottom:8px}'
+  +'.nc-card.tem{border-color:#E7CFC9}'
+  +'.nc-nm{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}'
+  +'.nc-nm b{font-size:14px;font-weight:700;color:var(--tx);min-width:0;overflow-wrap:anywhere}'
+  +'.nc-un{flex-shrink:0;font-size:11px;font-weight:700;color:#5A463E;background:#F4EEE7;border-radius:8px;padding:2px 8px}'
+  +'.nc-grid{display:grid;grid-template-columns:1fr 1fr 1.15fr 1.15fr;gap:6px;align-items:end}'
+  +'.nc-c{min-width:0;text-align:center}'
+  +'.nc-cl{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#B79A8E;margin-bottom:3px;white-space:nowrap}'
+  +'.nc-cv{height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Fraunces,serif;font-weight:600;font-size:17px;color:#5A463E;line-height:1}'
+  +'.nc-cv small{font-family:Manrope,sans-serif;font-size:10px;font-weight:600;color:#8A7A72;margin-top:3px}'
+  +'.nc-q,.nc-p{width:100%;box-sizing:border-box;height:44px;border:1.5px solid var(--rb);border-radius:13px;background:#fff;text-align:center;font:700 17px Manrope,sans-serif;color:var(--tx);-webkit-appearance:none;-moz-appearance:textfield;padding:0 4px}'
+  +'.nc-q::-webkit-inner-spin-button,.nc-p::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}'
+  +'.nc-p{color:var(--v);background:#FBF7F1}'
+  +'.nc-p.pos{background:#FBE4E0;border-color:#E7B8AF}'
+  +'.nc-p.adj{border-style:dashed;border-color:var(--v)}'
+  +'.nc-cl .aj{color:var(--v);cursor:pointer;text-decoration:underline;text-transform:none;letter-spacing:0;font-weight:700}'
+  +'.nc-fo{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:6px;border-top:1px solid #EFE6DC}'
+  +'.nc-fo i{color:var(--v);font-size:16px;flex-shrink:0}'
+  +'.nc-fo select{flex:1;min-width:0;height:36px;border:none;background:transparent;font:600 12.5px Manrope,sans-serif;color:#5A463E;padding:0 2px;cursor:pointer}'
+  +'.nc-fo select.vazio{color:#B79A8E}'
+  +'.nc-ft{display:flex;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #EFE6DC;background:#fff;flex-shrink:0;align-items:center}'
+  +'.nc-ft .nc-res{flex:1;min-width:0;font-size:12px;font-weight:600;color:#8A7A72;line-height:1.3}'
+  +'.nc-ft .nc-res b{color:var(--tx)}'
+  +'.nc-b{height:44px;padding:0 18px;border-radius:13px;border:1px solid var(--rb);background:#fff;font:700 14px Manrope,sans-serif;color:var(--tx);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}'
+  +'.nc-b.pri{background:var(--v);border-color:var(--v);color:#fff}'
+  +'.nc-b.pri:active{background:#7E1E1F}'
+  +'.nc-b:disabled{opacity:.55;cursor:default}'
+  +'.nc-cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}'
+  +'.nc-cats::-webkit-scrollbar{display:none}'
+  +'.nc-chip{flex-shrink:0;height:36px;padding:0 13px;border-radius:10px;border:1px solid var(--rb);background:#fff;font:700 12.5px Manrope,sans-serif;color:#5A463E;cursor:pointer;white-space:nowrap}'
+  +'.nc-chip.on{background:var(--v);border-color:var(--v);color:#fff}'
+  +'.nc-vz{text-align:center;padding:40px 16px;color:#8A7A72;font-size:13px;font-weight:600}'
+  /* folha de baixo (novo fornecedor / whatsapp) */
+  +'.nc-sh-ov{position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:400;display:flex;align-items:flex-end;justify-content:center}'
+  +'.nc-sh{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));box-sizing:border-box}'
+  +'.nc-sh h4{margin:0 0 12px;font-family:Fraunces,serif;font-weight:600;font-size:18px;color:var(--v)}'
+  +'.nc-sh .nc-in{margin-bottom:10px}'
+  /* lista de pedidos por fornecedor */
+  +'.pf-card{background:#fff;border:1px solid var(--rb);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(42,26,23,.05),0 12px 26px -16px rgba(42,26,23,.22)}'
+  +'.pf-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px}'
+  +'.pf-hd b{font-family:Fraunces,serif;font-weight:600;font-size:17px;color:var(--tx);overflow-wrap:anywhere}'
+  +'.pf-hd small{display:block;font-size:12px;font-weight:600;color:#8A7A72;margin-top:2px}'
+  +'.pf-n{flex-shrink:0;font-size:11px;font-weight:700;color:#5A463E;background:#F4EEE7;border-radius:8px;padding:3px 8px}'
+  +'.pf-li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid #EFE6DC;font-size:13.5px}'
+  +'.pf-li span{min-width:0;overflow-wrap:anywhere;color:var(--tx)}'
+  +'.pf-li b{flex-shrink:0;color:var(--v);font-weight:800}'
+  +'.pf-bt{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}'
+  +'.pf-bt .nc-b{flex:1 1 130px}'
+  +'.pf-bt .nc-b.ok{background:#E6F3EA;border-color:#CFE6D6;color:#2C7A4B}'
+  +'.pf-av{background:#FBF0DD;border:1px solid #F0DDB8;color:#9A6B1E;border-radius:13px;padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px;line-height:1.4}';
+  document.head.appendChild(s);
+})();
+
+const _ncUn=i=>(i.unidade_contagem||i.unidade_compra||i.unidade_custo||'');
+const _ncFmt=v=>{v=parseFloat(v);if(isNaN(v))return '—';return (Math.round(v*100)/100).toLocaleString('pt-BR');};
+const _ncEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+/* folha de baixo simples: campos [{k,label,ph,type,val}] → resolve com objeto ou null */
+function _ncSheet(titulo,campos,txtOk){
+  return new Promise(res=>{
+    const ov=div('nc-sh-ov');const sh=div('nc-sh');
+    sh.appendChild(el('h4',null,titulo));
+    const ins={};
+    campos.forEach(f=>{
+      sh.appendChild(el('label','nc-lbl',f.label));
+      const i=el('input','nc-in',null,{type:f.type||'text',placeholder:f.ph||''});
+      if(f.val)i.value=f.val; if(f.type==='tel')i.setAttribute('inputmode','tel');
+      ins[f.k]=i; sh.appendChild(i);
+    });
+    const fim=v=>{ov.remove();res(v);};
+    const ok=el('button','nc-b pri',txtOk||'Salvar',{type:'button'});
+    ok.onclick=()=>{const o={};Object.keys(ins).forEach(k=>o[k]=ins[k].value.trim());fim(o);};
+    const cc=el('button','nc-b','Cancelar',{type:'button'});cc.onclick=()=>fim(null);
+    const r=div(null,[cc,ok]);r.style.cssText='display:flex;gap:10px;margin-top:4px';cc.style.flex='1';ok.style.flex='1';
+    sh.appendChild(r);
+    ov.addEventListener('click',e=>{if(e.target===ov)fim(null);});
+    ov.appendChild(sh);document.body.appendChild(ov);
+    setTimeout(()=>{const f=sh.querySelector('input');f&&f.focus();},60);
+  });
 }
 
 async function modalNovaContagem(c){
-  // Estoque Lola: a contagem agora usa o cadastro único de Insumos (grava por insumo_id)
-  const baseIns=(window._ins&&window._ins.length)?window._ins
-    :await db('lola_insumos','GET',null,'?ativo=eq.true&select=id,nome,categoria,unidade_custo,qtd_minima&order=categoria.asc,nome.asc');
-  const todosItens=baseIns.map(i=>({id:i.id,nome:i.nome,categoria:i.categoria||'Outros',unidade:i.unidade_custo||'kg',qtd_minima:i.qtd_minima}));
-  const grupos={};
-  todosItens.forEach(it=>{if(!grupos[it.categoria])grupos[it.categoria]=[];grupos[it.categoria].push(it);});
-  const qtds={};todosItens.forEach(it=>{qtds[it.id]={qtd:'',pedido:''};});
-  const _autorCont={v:''};
-  const _dataCont={v:new Date().toISOString().split('T')[0]};
-  const catsDisponiveis=Object.keys(grupos).sort((a,b)=>a.localeCompare(b)).map(cat=>[cat,cat]);
-  const catsSelecionadas=new Set();
-  const ov=div('ov');const mo=div('mo mol');
-  mo.style.cssText+='display:flex;flex-direction:column;overflow:hidden';
-  mo.addEventListener('click',e=>e.stopPropagation());
-  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
-  mo.appendChild(div('mh',[el('h3',null,'\u{1F4E6} Nova Contagem de Estoque'),btn('xb','\u{2715}',()=>ov.remove())]));
-  const fixedTop=document.createElement('div');
-  fixedTop.style.cssText='padding:14px 22px 0;flex-shrink:0;background:#fff';
-  const inpResp=finp('',_autorCont.v,v=>_autorCont.v=v);inpResp.placeholder='Seu nome...';
-  const inpData=el('input','fi',null,{type:'date',value:_dataCont.v});
-  inpData.addEventListener('change',e=>_dataCont.v=e.target.value);
-  fixedTop.appendChild(div('fg2 mb3',[fgrp('Respons\u{00E1}vel',inpResp),fgrp('Data',inpData)]));
-  const dropWrap2=document.createElement('div');
-  dropWrap2.style.cssText='border:2px solid var(--v);border-radius:12px;overflow:hidden;margin-bottom:14px';
-  const dropBtn2=document.createElement('button');dropBtn2.type='button';
-  dropBtn2.style.cssText='width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fff;border:none;font-family:Manrope,sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--v)';
-  const dropLbl2=document.createElement('span');
-  const dropArr2=document.createElement('span');dropArr2.textContent='\u{25BC}';dropArr2.style.cssText='font-size:10px;transition:transform .2s;flex-shrink:0';
-  dropBtn2.appendChild(dropLbl2);dropBtn2.appendChild(dropArr2);
-  function setLbl2(){const n=catsSelecionadas.size,tot=catsDisponiveis.length;if(n===0)dropLbl2.textContent='Selecionar o que vai contar...';else if(n===tot)dropLbl2.textContent='\u{2713} Todas as categorias';else if(n===1){const[cat]=[...catsSelecionadas];dropLbl2.textContent=cat;}else dropLbl2.textContent=n+' categorias selecionadas';}setLbl2();
-  const dropPanel2=document.createElement('div');
-  dropPanel2.style.cssText='display:none;border-top:2px solid var(--v);max-height:220px;overflow-y:auto;background:#fff;-webkit-overflow-scrolling:touch';
-  let dp2Open=false;
-  function closeDp2(){dp2Open=false;dropPanel2.style.display='none';dropArr2.style.transform='';}
-  function openDp2(){dp2Open=true;dropPanel2.style.display='block';dropArr2.style.transform='rotate(180deg)';}
-  function toggleDp2(){dp2Open?closeDp2():openDp2();}
-  dropBtn2.addEventListener('click',e=>{e.stopPropagation();toggleDp2();});
-  document.addEventListener('click',function _dph(e){if(dp2Open&&!dropWrap2.contains(e.target))closeDp2();if(!document.body.contains(dropWrap2))document.removeEventListener('click',_dph);});
-  function mkCkItem(label,checked,onClick){
-    const item=document.createElement('div');
-    item.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--rf)';
-    item.addEventListener('mouseover',()=>item.style.background='var(--rf)');
-    item.addEventListener('mouseout',()=>item.style.background='');
-    const box=document.createElement('div');
-    box.style.cssText='width:22px;height:22px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid '+(checked?'var(--v)':'var(--rb)')+';background:'+(checked?'var(--v)':'#fff');
-    const tick=document.createElement('span');tick.textContent='\u{2713}';tick.style.cssText='color:#fff;font-size:13px;font-weight:700';box.appendChild(tick);
-    const lbl=document.createElement('span');lbl.style.cssText='font-family:Manrope,sans-serif;font-size:13px;font-weight:600';lbl.textContent=label;
-    item.appendChild(box);item.appendChild(lbl);
-    item.addEventListener('click',e=>{e.stopPropagation();onClick();});
-    return item;
+  const ov=div('nc-ov');const mo=div('nc-mo');ov.appendChild(mo);document.body.appendChild(ov);
+  mo.appendChild(div(null,[ld()],{style:'padding:30px'}));
+  let ins=[],ult={},forns=[];
+  try{
+    const r=await Promise.all([
+      db('lola_insumos','GET',null,'?ativo=eq.true&select=id,nome,categoria,subcategoria,ordem,unidade_contagem,unidade_compra,unidade_custo,qtd_minima,fornecedor_padrao&order=categoria.asc,ordem.asc.nullslast,nome.asc'),
+      db('lola_contagem_itens','GET',null,'?insumo_id=not.is.null&qtd_contada=not.is.null&select=insumo_id,qtd_contada,lola_contagens!contagem_id(data_contagem,created_at)&order=lola_contagens(data_contagem).desc,lola_contagens(created_at).desc&limit=4000'),
+      db('lola_fornecedores','GET',null,'?ativo=eq.true&select=id,nome,whatsapp,telefone&order=nome.asc')
+    ]);
+    ins=r[0]||[];forns=r[2]||[];
+    (r[1]||[]).forEach(x=>{if(!ult[x.insumo_id])ult[x.insumo_id]={q:x.qtd_contada,d:x.lola_contagens&&x.lola_contagens.data_contagem};});
+  }catch(e){
+    mo.innerHTML='';
+    mo.appendChild(div('nc-hd',[el('h3',null,'Nova contagem'),el('button','nc-x',null,{html:'<i class="ph-duotone ph-x"></i>',type:'button',onclick:()=>ov.remove()})]));
+    mo.appendChild(div('nc-vz','Erro ao carregar: '+e.message));
+    return;
   }
-  function renderPanel(){
-    dropPanel2.innerHTML='';
-    const todas=catsSelecionadas.size===catsDisponiveis.length;
-    dropPanel2.appendChild(mkCkItem('\u{2713} Todas as categorias',todas,()=>{if(catsSelecionadas.size===catsDisponiveis.length)catsSelecionadas.clear();else catsDisponiveis.forEach(([cat])=>catsSelecionadas.add(cat));setLbl2();renderPanel();renderItens();}));
-    catsDisponiveis.forEach(([cat,label])=>{
-      const sel=catsSelecionadas.has(cat);
-      dropPanel2.appendChild(mkCkItem(label,sel,()=>{sel?catsSelecionadas.delete(cat):catsSelecionadas.add(cat);setLbl2();renderPanel();renderItens();}));
+  mo.innerHTML='';
+
+  const st={}; // id -> {q:'',p:'',adj:false}
+  ins.forEach(i=>st[i.id]={q:'',p:'',adj:false});
+  const cats=[...new Set(ins.map(i=>i.categoria||'Outros'))].sort((a,b)=>a.localeCompare(b));
+  const _cc=(typeof _contCat!=='undefined'&&_contCat)?String(_contCat).toLowerCase():'limpeza';
+  let catSel=cats.find(k=>k.toLowerCase()===_cc)||cats.find(k=>k.toLowerCase()==='limpeza')||cats[0];
+  const sujo=()=>Object.values(st).some(s=>s.q!==''||s.p!=='');
+  const fechar=()=>{if(sujo()&&!confirm('Sair sem salvar? O que foi contado será perdido.'))return;ov.remove();};
+
+  // cabeçalho
+  const hd=div('nc-hd');
+  const h3=el('h3',null,'Nova contagem');const sub=el('small',null,'');h3.appendChild(sub);
+  hd.appendChild(h3);
+  hd.appendChild(el('button','nc-x',null,{html:'<i class="ph-duotone ph-x"></i>',title:'Fechar',type:'button',onclick:fechar}));
+  mo.appendChild(hd);
+
+  // topo: responsável, data, categorias
+  const top=div('nc-top');
+  const iResp=el('input','nc-in',null,{type:'text',placeholder:'Seu nome'});
+  try{const s=JSON.parse(localStorage.getItem('lola_session')||'null');if(s&&s.name)iResp.value=s.name;}catch(e){}
+  const iData=el('input','nc-in',null,{type:'date'});
+  iData.value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  top.appendChild(div('nc-row2',[div(null,[el('label','nc-lbl','Responsável'),iResp]),div(null,[el('label','nc-lbl','Data'),iData])]));
+  const chips=div('nc-cats');top.appendChild(chips);
+  mo.appendChild(top);
+  const body=div('nc-body');mo.appendChild(body);
+
+  // rodapé
+  const ft=div('nc-ft');const res=div('nc-res');
+  const bSalvar=el('button','nc-b pri',null,{type:'button',html:'<i class="ph-duotone ph-check-circle"></i> Salvar'});
+  ft.appendChild(res);ft.appendChild(bSalvar);mo.appendChild(ft);
+  function resumo(){
+    const cont=Object.values(st).filter(s=>s.q!=='').length;
+    const ped=Object.values(st).filter(s=>parseFloat(s.p)>0).length;
+    res.innerHTML='<b>'+cont+'</b> contado'+(cont===1?'':'s')+' · <b>'+ped+'</b> a pedir';
+    const n=ins.filter(i=>(i.categoria||'Outros')===catSel).length;
+    sub.textContent=catSel+' · '+n+' itens';
+  }
+
+  function renderChips(){
+    chips.innerHTML='';
+    cats.forEach(k=>{
+      const feitos=ins.filter(i=>(i.categoria||'Outros')===k&&st[i.id].q!=='').length;
+      const b=el('button','nc-chip'+(k===catSel?' on':''),k+(feitos?' · '+feitos:''),{type:'button'});
+      b.onclick=()=>{catSel=k;renderChips();renderBody();body.scrollTop=0;};
+      chips.appendChild(b);
     });
+    const on=chips.querySelector('.on');
+    if(on)requestAnimationFrame(()=>{const a=on.getBoundingClientRect(),b=chips.getBoundingClientRect();chips.scrollLeft+=(a.left+a.width/2)-(b.left+b.width/2);});
   }
-  renderPanel();
-  dropWrap2.appendChild(dropBtn2);dropWrap2.appendChild(dropPanel2);
-  fixedTop.appendChild(dropWrap2);mo.appendChild(fixedTop);
-  const scrollArea=document.createElement('div');
-  scrollArea.style.cssText='flex:1;overflow-y:auto;overflow-x:hidden;padding:0 22px 8px;-webkit-overflow-scrolling:touch';
-  const itensArea=document.createElement('div');scrollArea.appendChild(itensArea);mo.appendChild(scrollArea);
-  mo.appendChild(div('mf',[
-    btn('btn bg','Cancelar',()=>ov.remove()),
-    btn('btn bp','Salvar contagem',async()=>{
-      const[ct]=await db('lola_contagens','POST',{data_contagem:_dataCont.v,responsavel:_autorCont.v||'N\u{00E3}o informado',unidade:'ccmq',status:'rascunho'});
-      const promises=[];
-      todosItens.forEach(it=>{const q=qtds[it.id];if(q.qtd!=='')promises.push(db('lola_contagem_itens','POST',{contagem_id:ct.id,insumo_id:it.id,qtd_contada:parseFloat(q.qtd)||0,pedido:q.pedido?parseFloat(q.pedido):null}));});
-      await Promise.all(promises);
-      ov.remove();mostrarListaPedidosFornecedor(ct.id,_dataCont.v);renderPage();
-    })
-  ]));
-  ov.appendChild(mo);document.body.appendChild(ov);
-  function mkCard(it,i){
-    const card=document.createElement('div');
-    card.style.cssText='display:flex;align-items:center;gap:8px;padding:10px;'+(i%2===0?'background:var(--rf)':'background:#fff')+';border-radius:10px;margin-bottom:4px;border:1px solid var(--rb)';
-    const info=document.createElement('div');info.style.cssText='flex:1;min-width:0';
-    const nm=document.createElement('div');nm.style.cssText='font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';nm.textContent=it.nome;
-    const mt=document.createElement('div');mt.style.cssText='font-size:10px;color:var(--ts);margin-top:2px';
-    mt.textContent=(it.unidade||'')+(it.qtd_minima?' \u{00B7} m\u{00ED}n: '+N(it.qtd_minima,0):'');
-    info.appendChild(nm);info.appendChild(mt);card.appendChild(info);
-    function mkWrap(lbl,cor){const w=document.createElement('div');w.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px';const l=document.createElement('div');l.style.cssText='font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+(cor||'var(--ts)');l.textContent=lbl;w.appendChild(l);return w;}
-    const wQ=mkWrap('Contado');
-    const inpQ=document.createElement('input');inpQ.type='number';inpQ.step='0.5';inpQ.min='0';
-    inpQ.value=qtds[it.id]?qtds[it.id].qtd||'':'';inpQ.placeholder='0';
-    inpQ.style.cssText='width:68px;padding:8px 4px;border:2px solid var(--rb);border-radius:10px;font-size:15px;text-align:center;font-family:Manrope,sans-serif;font-weight:700;background:#fff;-webkit-appearance:none';
-    inpQ.setAttribute('inputmode','decimal');wQ.appendChild(inpQ);card.appendChild(wQ);
-    const wP=mkWrap('Pedido','var(--v)');
-    const inpP=document.createElement('input');inpP.type='number';inpP.step='0.5';inpP.min='0';
-    inpP.value=qtds[it.id]?qtds[it.id].pedido||'':'';inpP.placeholder='0';
-    inpP.style.cssText='width:62px;padding:8px 4px;border:2px solid var(--rb);border-radius:10px;font-size:14px;text-align:center;font-family:Manrope,sans-serif;color:var(--v);font-weight:700;background:#fff;-webkit-appearance:none';
-    inpP.setAttribute('inputmode','decimal');
-    inpQ.addEventListener('input',e=>{qtds[it.id].qtd=e.target.value;const cont=parseFloat(e.target.value)||0;const min=parseFloat(it.qtd_minima)||0;
-      if(cont>0&&cont<=min){inpP.value=N(min-cont,1);qtds[it.id].pedido=min-cont;inpQ.style.borderColor='#dc2626';}
-      else if(cont===0&&min>0){inpP.value=N(min,1);qtds[it.id].pedido=min;inpQ.style.borderColor='#dc2626';}
-      else{inpP.value='';qtds[it.id].pedido='';inpQ.style.borderColor='var(--vd)';}
+
+  function fornSelect(it){
+    const w=div('nc-fo');w.innerHTML='<i class="ph-duotone ph-storefront"></i>';
+    const s=el('select',null,null,{'aria-label':'Fornecedor de '+it.nome});
+    const pint=()=>s.classList.toggle('vazio',!s.value);
+    s.appendChild(el('option',null,'Sem fornecedor — escolher',{value:''}));
+    const nomes=forns.map(f=>f.nome);
+    if(it.fornecedor_padrao&&!nomes.includes(it.fornecedor_padrao))nomes.push(it.fornecedor_padrao);
+    nomes.forEach(n=>{const o=el('option',null,n,{value:n});if(n===it.fornecedor_padrao)o.selected=true;s.appendChild(o);});
+    s.appendChild(el('option',null,'+ Cadastrar fornecedor novo…',{value:'__novo'}));
+    pint();
+    s.onchange=async()=>{
+      let v=s.value;
+      if(v==='__novo'){
+        const r=await _ncSheet('Novo fornecedor',[{k:'nome',label:'Nome',ph:'Ex.: Atacadão'},{k:'whatsapp',label:'WhatsApp (com DDD)',ph:'51 99999-9999',type:'tel'}],'Cadastrar');
+        if(!r||!r.nome){s.value=it.fornecedor_padrao||'';pint();return;}
+        try{
+          const wa=r.whatsapp.replace(/\D/g,'');
+          const [nf]=await db('lola_fornecedores','POST',{nome:r.nome,whatsapp:wa||null,telefone:wa||null,categorias:[it.categoria],ativo:true});
+          forns.push(nf||{nome:r.nome,whatsapp:wa});forns.sort((a,b)=>a.nome.localeCompare(b.nome));
+          v=r.nome;
+        }catch(e){alert('Não consegui cadastrar: '+e.message);s.value=it.fornecedor_padrao||'';pint();return;}
+      }
+      try{
+        await db('lola_insumos','PATCH',{fornecedor_padrao:v||null},'?id=eq.'+it.id);
+        it.fornecedor_padrao=v||null;
+      }catch(e){alert('Não consegui salvar o fornecedor: '+e.message);}
+      renderBody(true);
+    };
+    w.appendChild(s);return w;
+  }
+
+  function card(it){
+    const s=st[it.id];const u=ult[it.id];
+    const ideal=it.qtd_minima!=null&&it.qtd_minima!==''?parseFloat(it.qtd_minima):null;
+    const cd=div('nc-card');
+    cd.appendChild(div('nc-nm',[el('b',null,it.nome),_ncUn(it)?el('span','nc-un',_ncUn(it)):null]));
+    const g=div('nc-grid');
+    const atual=div('nc-cv',null,{html:u?(_ncFmt(u.q)+'<small>'+(u.d?DBR(u.d).slice(0,5):'')+'</small>'):'—'});
+    g.appendChild(div('nc-c',[el('div','nc-cl','Atual'),atual]));
+    g.appendChild(div('nc-c',[el('div','nc-cl','Ideal'),div('nc-cv',ideal==null?'—':_ncFmt(ideal))]));
+    const q=el('input','nc-q',null,{type:'number',min:'0',step:'any',inputmode:'decimal',placeholder:'—','aria-label':'Contagem de '+it.nome});
+    q.value=s.q;
+    g.appendChild(div('nc-c',[el('div','nc-cl','Contagem'),q]));
+    const pl=el('div','nc-cl','Pedido');
+    const p=el('input','nc-p',null,{type:'number',min:'0',step:'any',inputmode:'decimal',placeholder:'','aria-label':'Pedido de '+it.nome});
+    p.value=s.p;
+    g.appendChild(div('nc-c',[pl,p]));
+    cd.appendChild(g);
+    cd.appendChild(fornSelect(it));
+    const sug=()=>{if(s.q===''||ideal==null)return '';const v=Math.ceil(Math.max(0,ideal-(parseFloat(s.q)||0))-1e-9);return v>0?String(v):'0';};
+    const pintar=()=>{
+      p.classList.toggle('pos',parseFloat(s.p)>0);p.classList.toggle('adj',s.adj);
+      pl.innerHTML=s.adj?'<span class="aj" title="Voltar pra sugestão">ajustado ↺</span>':'Pedido';
+      const a=pl.querySelector('.aj');if(a)a.onclick=()=>{s.adj=false;s.p=sug();p.value=s.p;pintar();resumo();};
+      cd.classList.toggle('tem',s.q!==''||s.p!=='');
+    };
+    q.addEventListener('input',()=>{s.q=q.value.trim();if(!s.adj){s.p=sug();p.value=s.p;}pintar();resumo();renderChipsLeve();});
+    p.addEventListener('input',()=>{s.p=p.value.trim();s.adj=(s.p!==sug());pintar();resumo();});
+    q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const all=[...body.querySelectorAll('.nc-q')];const n=all[all.indexOf(q)+1];n?n.focus():q.blur();}});
+    pintar();
+    return cd;
+  }
+  // atualiza só o contador do chip ativo, sem redesenhar (não tira o foco do campo)
+  function renderChipsLeve(){
+    const on=chips.querySelector('.on');if(!on)return;
+    const feitos=ins.filter(i=>(i.categoria||'Outros')===catSel&&st[i.id].q!=='').length;
+    on.textContent=catSel+(feitos?' · '+feitos:'');
+  }
+
+  function renderBody(keepScroll){
+    const sc=body.scrollTop;body.innerHTML='';
+    const lista=ins.filter(i=>(i.categoria||'Outros')===catSel);
+    if(!lista.length){body.appendChild(div('nc-vz','Nenhum item nesta categoria'));resumo();return;}
+    let subAtual=null;
+    const temSub=lista.some(i=>i.subcategoria);
+    lista.forEach(it=>{
+      const sb=it.subcategoria||(temSub?'Outros':null);
+      if(sb&&sb!==subAtual){subAtual=sb;body.appendChild(div('nc-sub',sb));}
+      body.appendChild(card(it));
     });
-    inpP.addEventListener('input',e=>qtds[it.id].pedido=e.target.value);
-    wP.appendChild(inpP);card.appendChild(wP);return card;
+    body.appendChild(div(null,null,{style:'height:12px'}));
+    if(keepScroll)body.scrollTop=sc;
+    resumo();
   }
-  function renderItens(){
-    itensArea.innerHTML='';
-    if(!catsSelecionadas.size){
-      const av=document.createElement('div');av.style.cssText='text-align:center;padding:32px 16px;color:var(--ts);font-size:13px;font-weight:600';
-      av.textContent='\u{2B06}\u{FE0F} Selecione as categorias acima para come\u{00E7}ar';itensArea.appendChild(av);return;
-    }
-    catsDisponiveis.filter(([cat])=>catsSelecionadas.has(cat)).forEach(([cat,label])=>{
-      const catItens=grupos[cat]||[];if(!catItens.length)return;
-      const sec=document.createElement('div');sec.style.cssText='font-size:12px;font-weight:800;color:var(--v);margin:14px 0 6px;padding:5px 10px;background:var(--rt);border-radius:8px;border-left:3px solid var(--v)';sec.textContent=label;itensArea.appendChild(sec);
-      catItens.forEach((it,i)=>itensArea.appendChild(mkCard(it,i)));
-    });
-    const pad=document.createElement('div');pad.style.height='8px';itensArea.appendChild(pad);
-  }
-  renderItens();
+
+  bSalvar.onclick=async()=>{
+    const semCont=ins.filter(i=>st[i.id].q===''&&parseFloat(st[i.id].p)>0);
+    if(semCont.length){alert('Falta a contagem de: '+semCont.map(i=>i.nome).join(', ')+'.\nPreencha a contagem (pode ser 0) pra salvar o pedido.');return;}
+    const linhas=ins.filter(i=>st[i.id].q!=='').map(i=>({insumo_id:i.id,qtd_contada:parseFloat(st[i.id].q)||0,pedido:parseFloat(st[i.id].p)>0?parseFloat(st[i.id].p):null}));
+    if(!linhas.length){alert('Nenhum item contado ainda.');return;}
+    if(!iResp.value.trim()){alert('Coloque seu nome em Responsável.');iResp.focus();return;}
+    bSalvar.disabled=true;bSalvar.textContent='Salvando…';
+    try{
+      const [ct]=await db('lola_contagens','POST',{data_contagem:iData.value,responsavel:iResp.value.trim(),unidade:'ccmq',status:'rascunho'});
+      await db('lola_contagem_itens','POST',linhas.map(l=>Object.assign({contagem_id:ct.id},l)));
+      ov.remove();
+      mostrarListaPedidosFornecedor(ct.id,iData.value);
+      try{renderPage();}catch(e){}
+    }catch(e){alert('Não consegui salvar: '+e.message);bSalvar.disabled=false;bSalvar.innerHTML='<i class="ph-duotone ph-check-circle"></i> Salvar';}
+  };
+
+  renderChips();renderBody();
 }
 
-async function mostrarListaPedidosFornecedor(contagemId, data, tipo){
-  const ov=div('ov');const mo=div('mo mol');
-  const dataFmt=new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-  mo.appendChild(div('mh',[
-    el('h3',null,'📋 Lista de pedidos — '+dataFmt),
-    btn('xb','✕',()=>ov.remove())
-  ]));
-  const mb2=div('mb');mb2.appendChild(ld());
-  mo.appendChild(mb2);
-  ov.appendChild(mo);
-  ov.addEventListener('click',e=>{if(e.target===ov&&!mo.contains(e.target))ov.remove();});
-  document.body.appendChild(ov);
-
+/* ══ PEDIDO SEPARADO POR FORNECEDOR (28/09/2026) ═══════════════════════════
+   Abre depois de salvar a contagem (e pelo "Ver contagem" → Pedido por fornecedor).
+   Fornecedor = lola_insumos.fornecedor_padrao. Um cartão por fornecedor, com
+   o texto pronto e botão pro WhatsApp dele (lola_fornecedores.whatsapp).
+   Sem número cadastrado: abre o WhatsApp pra escolher o contato + opção de salvar. */
+async function mostrarListaPedidosFornecedor(contagemId, data){
+  const ov=div('nc-ov');const mo=div('nc-mo');ov.appendChild(mo);document.body.appendChild(ov);
+  const dataBR=data?new Date(data+'T12:00:00').toLocaleDateString('pt-BR'):'';
+  const hd=div('nc-hd');const h3=el('h3',null,'Pedidos por fornecedor');const sub=el('small',null,'Contagem de '+dataBR);h3.appendChild(sub);
+  hd.appendChild(h3);hd.appendChild(el('button','nc-x',null,{html:'<i class="ph-duotone ph-x"></i>',title:'Fechar',type:'button',onclick:()=>ov.remove()}));
+  mo.appendChild(hd);
+  const body=div('nc-body');body.style.paddingTop='14px';body.appendChild(ld());mo.appendChild(body);
+  let itens=[],forns=[];
   try{
-    const itens=await db('lola_contagem_itens','GET',null,
-      '?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)');
-    const _cnome=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'—';
-    const _cun=it=>(it.lola_insumos&&it.lola_insumos.unidade_custo)||(it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'';
-    const _ccat=it=>(it.lola_insumos&&it.lola_insumos.categoria)||CONT_CATS[it.lola_estoque_itens&&it.lola_estoque_itens.categoria]||(it.lola_estoque_itens&&it.lola_estoque_itens.categoria)||'—';
-    const _cforn=it=>(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||(it.lola_insumos&&it.lola_insumos.fornecedor_padrao)||'Sem fornecedor';
-    mb2.innerHTML='';
+    const r=await Promise.all([
+      db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=id,pedido,insumo_id,lola_insumos!insumo_id(nome,categoria,subcategoria,ordem,unidade_contagem,unidade_compra,unidade_custo,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,fornecedor)'),
+      db('lola_fornecedores','GET',null,'?ativo=eq.true&select=id,nome,whatsapp,telefone')
+    ]);
+    itens=r[0]||[];forns=r[1]||[];
+  }catch(e){body.innerHTML='';body.appendChild(div('nc-vz','Erro: '+e.message));return;}
+  const nomeDe=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'—';
+  const unDe=it=>it.lola_insumos?_ncUn(it.lola_insumos):((it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'');
+  const fornDe=it=>(it.lola_insumos&&it.lola_insumos.fornecedor_padrao)||(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||'';
+  const ordDe=it=>[(it.lola_insumos&&it.lola_insumos.categoria)||'',(it.lola_insumos&&it.lola_insumos.ordem)||9999,nomeDe(it)];
+  itens.sort((a,b)=>{const x=ordDe(a),y=ordDe(b);return x[0].localeCompare(y[0])||(x[1]-y[1])||x[2].localeCompare(y[2]);});
+  const waDe=n=>{const f=forns.find(f=>f.nome===n);return f?String(f.whatsapp||f.telefone||'').replace(/\D/g,''):'';};
+  const waNum=d=>!d?'':(d.length<=11&&!d.startsWith('55')?'55'+d:d);
 
-    if(!itens.length){
-      mb2.appendChild(div('tss mt3','✅ Nenhum item precisa ser pedido!'));
-      mo.appendChild(div('mf',[btn('btn bg','Fechar',()=>ov.remove())]));
-      return;
-    }
-
-    // Agrupar por FORNECEDOR
-    const porFornecedor={};
-    itens.forEach(it=>{
-      const forn=_cforn(it);
-      if(!porFornecedor[forn])porFornecedor[forn]=[];
-      porFornecedor[forn].push(it);
-    });
-
-    // Card de resumo
-    const totalItens=itens.length;
-    const totalForn=Object.keys(porFornecedor).length;
-    mb2.appendChild(div('g3 mb3',[
-      div('custo-box',[span('scl','Itens a pedir'),div('bold tv mt2',String(totalItens))]),
-      div('custo-box',[span('scl','Fornecedores'),div('bold mt2',String(totalForn))]),
-      div('custo-box',[span('scl','Data'),div('bold mt2',new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}))]),
-    ]));
-
-    // Lista por fornecedor — com botão WhatsApp
-    // Buscar números de WhatsApp dos fornecedores cadastrados
-    let _fornMap={};
-    try{
-      const forns=await db('lola_fornecedores','GET',null,'?ativo=eq.true&select=nome,whatsapp,telefone');
-      forns.forEach(f=>{_fornMap[f.nome]=(f.whatsapp||f.telefone||'').replace(/\D/g,'');});
-    }catch(e){}
-
-    Object.entries(porFornecedor).sort(([a],[b])=>a.localeCompare(b)).forEach(([forn,fItens])=>{
-      // Header do fornecedor
-      const secH=document.createElement('div');
-      secH.style.cssText='display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;padding:8px 12px;background:var(--rf);border-radius:10px;border-left:3px solid var(--v)';
-      const secTxt=document.createElement('div');
-      secTxt.style.cssText='font-size:13px;font-weight:700;color:var(--v)';
-      secTxt.textContent='🏪 '+forn+' ('+fItens.length+' item'+(fItens.length>1?'s':'')+')';
-      secH.appendChild(secTxt);
-
-      // Botão WhatsApp se tiver número cadastrado
-      const wp=_fornMap[forn];
-      if(wp){
-        const btnWp=document.createElement('button');
-        btnWp.type='button';
-        btnWp.style.cssText='display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:50px;border:none;background:#25D366;color:#fff;font-family:Manrope,sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0';
-        btnWp.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Enviar';
-        btnWp.addEventListener('click',()=>{
-          const dataStr=new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
-          let msg='🛒 *Pedido Lola Bar — '+dataStr+'*\n\n';fItens.forEach(it=>{msg+='\u2022 '+_cnome(it)+': *'+N(it.pedido,1)+' '+_cun(it)+'*\n';});msg+='\n_Enviado pelo app de estoque Lola_ 🍷';
-          window.open('https://wa.me/'+wp+'?text='+encodeURIComponent(msg),'_blank');
-        });
-        secH.appendChild(btnWp);
+  function render(){
+    body.innerHTML='';
+    if(!itens.length){body.appendChild(div('nc-vz','Nenhum item com pedido nesta contagem.'));return;}
+    const grupos={};
+    itens.forEach(it=>{const f=fornDe(it)||'';(grupos[f]=grupos[f]||[]).push(it);});
+    const nomes=Object.keys(grupos).sort((a,b)=>(a===''?1:b===''?-1:a.localeCompare(b)));
+    const nF=nomes.filter(n=>n).length;
+    sub.textContent='Contagem de '+dataBR+' · '+itens.length+' ite'+(itens.length===1?'m':'ns')+' · '+nF+' fornecedor'+(nF===1?'':'es');
+    if(grupos['']) body.appendChild(div('pf-av',grupos[''].length+(grupos[''].length>1?' itens estão':' item está')+' sem fornecedor. Escolha o fornecedor de cada um na contagem (fica salvo) que ele passa a cair no pedido certo.'));
+    nomes.forEach(fn=>{
+      const lst=grupos[fn];const wa=fn?waDe(fn):'';
+      const cd=div('pf-card');
+      cd.appendChild(div('pf-hd',[div(null,[el('b',null,fn||'Sem fornecedor'),el('small',null,fn?(wa?('WhatsApp '+wa):'sem WhatsApp cadastrado'):'defina o fornecedor na contagem')]),el('span','pf-n',lst.length+' ite'+(lst.length>1?'ns':'m'))]));
+      lst.forEach(it=>cd.appendChild(div('pf-li',[el('span',null,nomeDe(it)),el('b',null,_ncFmt(it.pedido)+' '+unDe(it))])));
+      const msg='Olá! Aqui é do Lola Bar (CCMQ).\nPedido de '+dataBR+':\n\n'+lst.map(it=>'• '+nomeDe(it)+' — '+_ncFmt(it.pedido)+' '+unDe(it)).join('\n')+'\n\nObrigada!';
+      const bt=div('pf-bt');
+      const bW=el('button','nc-b pri',null,{type:'button',html:'<i class="ph-duotone ph-whatsapp-logo"></i> '+(wa?'Enviar no WhatsApp':'Abrir WhatsApp')});
+      bW.onclick=()=>{window.open('https://wa.me/'+waNum(wa)+'?text='+encodeURIComponent(msg),'_blank');bW.classList.remove('pri');bW.classList.add('ok');bW.innerHTML='<i class="ph-duotone ph-check"></i> Aberto · enviar de novo';};
+      bt.appendChild(bW);
+      const bC=el('button','nc-b',null,{type:'button',html:'<i class="ph-duotone ph-copy"></i> Copiar'});
+      bC.onclick=async()=>{try{await navigator.clipboard.writeText(msg);bC.innerHTML='<i class="ph-duotone ph-check"></i> Copiado';}catch(e){prompt('Copie o pedido:',msg);}};
+      bt.appendChild(bC);
+      if(fn&&!wa){
+        const bN=el('button','nc-b',null,{type:'button',html:'<i class="ph-duotone ph-phone-plus"></i> Salvar WhatsApp'});
+        bN.onclick=async()=>{
+          const r=await _ncSheet('WhatsApp de '+fn,[{k:'wa',label:'Número com DDD',ph:'51 99999-9999',type:'tel'}]);
+          const d=r&&r.wa.replace(/\D/g,'');if(!d)return;
+          try{
+            const f=forns.find(f=>f.nome===fn);
+            if(f&&f.id){await db('lola_fornecedores','PATCH',{whatsapp:d},'?id=eq.'+f.id);f.whatsapp=d;}
+            else{const[nf]=await db('lola_fornecedores','POST',{nome:fn,whatsapp:d,telefone:d,ativo:true});forns.push(nf||{nome:fn,whatsapp:d});}
+            render();
+          }catch(e){alert('Não consegui salvar: '+e.message);}
+        };
+        bt.appendChild(bN);
       }
-      mb2.appendChild(secH);
-
-      mb2.appendChild(div('tw mb2',mkTable(
-        ['Produto','Categoria','Qtd a pedir','Un'],
-        fItens.map(it=>[
-          el('strong',null,_cnome(it)),
-          el('span','tss',_ccat(it)),
-          el('span','bold tv',N(it.pedido,1)),
-          _cun(it)||'—',
-        ]),
-        [null,null,'tr','tr']
-      )));
+      cd.appendChild(bt);
+      body.appendChild(cd);
     });
-
-  }catch(e){mb2.innerHTML='<p style="color:red">'+e.message+'</p>';}
-
-  // ── Rodapé ────────────────────────────────────────────────────
-  const mfBtns=[btn('btn bg','Fechar',()=>ov.remove())];
-
-  // Imprimir
-  const btnImp=btn('btn bo bsm','🖨️ Imprimir',()=>{
-    const w=window.open('','_blank');
-    db('lola_contagem_itens','GET',null,'?contagem_id=eq.'+contagemId+'&pedido=gt.0&select=*,lola_insumos!insumo_id(nome,unidade_custo,categoria,fornecedor_padrao),lola_estoque_itens!estoque_item_id(nome,unidade,categoria,fornecedor)').then(allItens=>{
-      const _pn=it=>(it.lola_insumos&&it.lola_insumos.nome)||(it.lola_estoque_itens&&it.lola_estoque_itens.nome)||'';
-      const _pu=it=>(it.lola_insumos&&it.lola_insumos.unidade_custo)||(it.lola_estoque_itens&&it.lola_estoque_itens.unidade)||'';
-      const grps={};allItens.forEach(it=>{const fn2=(it.lola_estoque_itens&&it.lola_estoque_itens.fornecedor)||(it.lola_insumos&&it.lola_insumos.fornecedor_padrao)||'Sem fornecedor';if(!grps[fn2])grps[fn2]=[];grps[fn2].push(it);});
-      let h2='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#AA2B2B}h2{background:#fdf3f3;padding:8px;border-left:4px solid #AA2B2B}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#AA2B2B;color:#fff;padding:6px 10px;text-align:left}td{padding:6px 10px;border-bottom:1px solid #eee}</style></head><body>';
-      h2+='<h1>📋 Lista de Pedidos — '+dataFmt+'</h1>';
-      Object.entries(grps).sort(([a],[b])=>a.localeCompare(b,'pt')).forEach(([fn3,fi])=>{
-        h2+='<h2>🏪 '+fn3+'</h2><table><tr><th>Produto</th><th>Qtd</th><th>Un</th></tr>';
-        fi.forEach(it=>{ h2+='<tr><td><strong>'+_pn(it)+'</strong></td><td><strong>'+N(it.pedido,1)+'</strong></td><td>'+_pu(it)+'</td></tr>'; });
-        h2+='</table>';
-      });
-      h2+='</body></html>';w.document.write(h2);w.print();
-    });
-  });
-  mfBtns.push(btnImp);
-
-  // Botões WhatsApp por fornecedor (apenas quem tem número)
-  const fornsComWp=Object.entries(porFornecedor).filter(([fn4])=>_fornMap[fn4]);
-  fornsComWp.forEach(([fn4,fItens])=>{
-    const wp=_fornMap[fn4];
-    const lbl=fornsComWp.length===1?'Enviar p/ WhatsApp':'WZ: '+fn4;
-    const bWp=document.createElement('button');bWp.type='button';
-    bWp.style.cssText='display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:50px;border:none;background:#25D366;color:#fff;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0';
-    bWp.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> '+lbl;
-    bWp.addEventListener('click',()=>{
-      const linhas=fItens.map(it=>_cnome(it)+': '+N(it.pedido,1)+' '+_cun(it)).join('\n');
-      const msg='Ola! Lola Bar CCMQ.\nPedido de '+dataFmt+':\n\n'+linhas+'\n\nObrigada!';
-      window.open('https://wa.me/'+wp+'?text='+encodeURIComponent(msg),'_blank');
-    });
-    mfBtns.push(bWp);
-  });
-
-  const mfEl=div('mf',mfBtns);mfEl.style.flexWrap='wrap';mo.appendChild(mfEl);
+  }
+  render();
+  const ft=div('nc-ft');
+  const bP=el('button','nc-b',null,{type:'button',html:'<i class="ph-duotone ph-printer"></i> Imprimir'});
+  bP.onclick=()=>{
+    const w=window.open('','_blank');if(!w)return;
+    const g={};itens.forEach(it=>{const f=fornDe(it)||'Sem fornecedor';(g[f]=g[f]||[]).push(it);});
+    let h='<html><head><meta charset="utf-8"><title>Pedidos '+dataBR+'</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#2A1A17}h1{color:#A82A2A;font-size:20px}h2{font-size:15px;border-bottom:1px solid #ECE3D9;padding-bottom:4px;margin-top:22px}td{padding:5px 8px;border-bottom:1px solid #EFE6DC}td.q{text-align:right;font-weight:bold}table{width:100%;border-collapse:collapse}</style></head><body><h1>Pedidos — contagem de '+dataBR+'</h1>';
+    Object.keys(g).sort().forEach(f=>{h+='<h2>'+_ncEsc(f)+'</h2><table>';g[f].forEach(it=>{h+='<tr><td>'+_ncEsc(nomeDe(it))+'</td><td class="q">'+_ncFmt(it.pedido)+' '+_ncEsc(unDe(it))+'</td></tr>';});h+='</table>';});
+    w.document.write(h+'</body></html>');w.document.close();w.print();
+  };
+  const bF=el('button','nc-b pri','Fechar',{type:'button'});bF.onclick=()=>ov.remove();bF.style.flex='1';bP.style.flex='1';
+  ft.appendChild(bP);ft.appendChild(bF);mo.appendChild(ft);
 }
 
 
