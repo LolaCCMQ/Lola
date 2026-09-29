@@ -292,6 +292,12 @@
   /* Cabeçalho fixo da tabela de montagem do menu, ao rolar a página */
   table.sticky-th thead th{position:sticky;top:131px;background:var(--cream);z-index:6;box-shadow:0 1px 0 var(--border)}
   @media(max-width:640px){table.sticky-th thead{display:none}}
+  /* 29/09: tabela do menu com colunas largas o bastante pra ler/editar (rola horizontal em telas menores) */
+  .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:4px}
+  table.sticky-th{table-layout:fixed;min-width:1360px}
+  table.sticky-th td input,table.sticky-th td select{font-size:14.5px}
+  table.sticky-th td input[type=number]{padding:6px 6px;font-weight:700}
+  .addpp-toggle{display:flex;gap:6px}
   .ck-item.na{opacity:.5}
   .ck-item.na .txt{text-decoration:line-through;font-style:italic}
   .na-btn{flex-shrink:0;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-size:10.5px;font-weight:800;padding:3px 8px;height:fit-content;margin-top:1px}
@@ -336,6 +342,7 @@
     <span class="conn" id="conn">conectando…</span>
     <a class="home" href="https://equipelola.net/">← Portal</a>
     <button onclick="reloadAll()">↻ Atualizar</button>
+    <button onclick="openCatalogo()">🍽️ Itens do menu</button>
     <button onclick="openLayoutLibrary()">🪑 Layouts salvos</button>
     <button onclick="exportData()">⬇ Exportar</button>
   </div>
@@ -450,6 +457,7 @@ const SECTIONS = [
   {id:"show", kind:"fase", tipos:["show"]},
   {id:"equipe", kind:"equipe", icon:"👥", label:"Equipe", tipos:["reserva_perso","personalizado","show"]},
   {id:"orc", kind:"orc", icon:"💰", label:"Orçamento e Pagamentos", tipos:ALL},
+  {id:"compras", kind:"compras", icon:"🧾", label:"Compras e Notas", tipos:ALL},
   {id:"negociacao", kind:"fase", icon:"🤝", label:"Negociação", tipos:ALL},
   {id:"layout", kind:"layout", icon:"🪑", label:"Layout de Mesas", tipos:["reserva_perso","personalizado","show"]},
   {id:"convidados", kind:"convidados", icon:"👥", label:"Convidados", tipos:ALL},
@@ -459,7 +467,11 @@ const SECTIONS = [
 
 let DB={events:[]};
 let FICHAS=[];
-let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", mesFilter:"", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
+let INSUMOS=[];
+let CATALOGO=[]; // 23/09: catálogo próprio de itens do Eventos (lola_eventos_itens)
+function catToFichas(list){return (list||[]).map(c=>({_src:'cat',n:c.nome,p:Math.round((Number(c.preco)||0)*100)/100,cat:c.secao||'catálogo',card:null,un:c.unidade||'',secao:c.secao||'',desc:c.descricao||'',louca:c.louca||'',perPax:c.per_pax!==false}));}
+function refreshFichasCatalogo(){FICHAS=FICHAS.filter(f=>f._src!=='cat').concat(catToFichas(CATALOGO)).sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));}
+let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", mesFilter:"", addPerPax:true, modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
 
 /* ===== Mapeamento banco <-> app ===== */
 function intOrNull(v){const n=parseInt(v);return isNaN(n)?null:n;}
@@ -507,14 +519,19 @@ function toRow(ev){
 /* ===== Carregamento ===== */
 async function init(){
   try{
-    const [ev,fic,pp]=await Promise.all([
+    const [ev,fic,pp,cat,ins]=await Promise.all([
       sb.from('lola_eventos').select('*').eq('arquivado',false).order('data',{ascending:true,nullsFirst:false}),
       sb.from('lola_fichas_tecnicas').select('nome,preco_venda,categoria,cardapio,rendimento_un').eq('ativo',true).gt('preco_venda',0).order('nome'),
-      sb.from('lola_preproducoes').select('nome,valor_venda_central,categoria,rendimento_un').eq('ativo',true).order('nome')
+      sb.from('lola_preproducoes').select('nome,valor_venda_central,categoria,rendimento_un').eq('ativo',true).order('nome'),
+      sb.from('lola_eventos_itens').select('*').eq('ativo',true).order('nome'),
+      sb.from('lola_insumos').select('nome,categoria,unidade_custo,custo_por_unidade').neq('ativo',false).order('nome')
     ]);
     if(ev.error)throw ev.error;
     DB.events=(ev.data||[]).map(fromRow);
-    FICHAS=(fic.data||[]).map(f=>({n:f.nome,p:Math.round(Number(f.preco_venda)*100)/100,cat:f.categoria,card:f.cardapio,un:f.rendimento_un||''}))
+    CATALOGO=(cat&&!cat.error&&Array.isArray(cat.data))?cat.data:[];
+    INSUMOS=(ins&&!ins.error&&Array.isArray(ins.data))?ins.data.map(i=>({n:i.nome,p:Math.round((Number(i.custo_por_unidade)||0)*100)/100,cat:i.categoria||'insumo',un:i.unidade_custo||'',_src:'insumo'})):[];
+    FICHAS=catToFichas(CATALOGO)
+      .concat((fic.data||[]).map(f=>({n:f.nome,p:Math.round(Number(f.preco_venda)*100)/100,cat:f.categoria,card:f.cardapio,un:f.rendimento_un||''})))
       .concat((pp.data||[]).map(f=>({n:f.nome,p:Math.round((Number(f.valor_venda_central)||0)*100)/100,cat:'pré-produção',card:null,un:(f.rendimento_un==='g'?'kg':f.rendimento_un==='ml'?'L':(f.rendimento_un||''))})))
       .sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));
     setConn(true);
@@ -691,7 +708,7 @@ function secLabel(ev,id){const s=SECTIONS.find(x=>x.id===id);if(!s)return id;if(
 const BLOCOS=[
   {id:'plan', icon:'📋', label:'Planejamento', secs:['triagem','info']},
   {id:'oper', icon:'🍳', label:'Operação', secs:['menu','os','show','equipe']},
-  {id:'fin', icon:'💰', label:'Financeiro', secs:['orc','negociacao']},
+  {id:'fin', icon:'💰', label:'Financeiro', secs:['orc','negociacao','compras']},
   {id:'diad', icon:'🥂', label:'Dia D', secs:['layout','convidados','dia','despro']}
 ];
 function blocoOf(secId){const b=BLOCOS.find(x=>x.secs.includes(secId));return b?b.id:'plan';}
@@ -703,6 +720,7 @@ function secInfo(ev,s){
   if(s.kind==='menu'){const m=ev.menu||[];const pg=ev.pag||{};return {c:m.length?(pg.menuAprovado?(pg.menuEnviado?'enviado ✓':'aprovado'):(m.length+' iten'+(m.length>1?'s':''))):'montar',done:m.length>0&&!!pg.menuAprovado,warn:false};}
   if(s.kind==='orc'){const pg=ev.pag||{};return {c:pg.pedidoNum?('pedido #'+pg.pedidoNum+' ✓'):(pg.orcAutorizado?'autorizado':fmt(orcTotal(ev))),done:!!pg.orcAutorizado,warn:false};}
   if(s.kind==='convidados'){const n=(ev.convidados||[]).length;return {c:n?(n+' convidado'+(n>1?'s':'')):'—',done:n>0,warn:false};}
+  if(s.kind==='compras'){const list=(ev.pag&&ev.pag.comprasNotas)||[];const pend=list.filter(function(x){return x.reembolsar&&!x.reembolsado;}).length;return {c:list.length?(pend?(pend+' reembolso'+(pend>1?'s':'')+' pendente'+(pend>1?'s':'')):(list.length+' nota'+(list.length>1?'s':''))):'—',done:list.length>0&&pend===0,warn:pend>0};}
   if(s.kind==='form'){const ok=!!(ev.nome&&ev.data&&ev.local);return {c:ok?'ok':'completar',done:ok,warn:false};}
   return {c:'',done:false,warn:false};
 }
@@ -815,6 +833,7 @@ function renderTab(){
   else if(s.kind==='materiais')html=materiaisHTML(ev);
   else if(s.kind==='layout')html=layoutHTML(ev);
   else if(s.kind==='convidados')html=convidadosHTML(ev);
+  else if(s.kind==='compras')html=comprasHTML(ev);
   else {const f=FASES.find(x=>x.id===view.tab);if(f)html=faseHTML(ev,f);}
   c.innerHTML=html+stepNav(ev);
 }
@@ -995,6 +1014,158 @@ function openLayoutLibrary(){
   m.style.display='flex';
 }
 function closeLayoutLibrary(){ const m=document.getElementById('libOverlay'); if(m) m.style.display='none'; }
+/* ===== 23/09 (Bianca): catálogo de itens do Eventos ===== */
+let CAT_UI={q:'',editId:null,per:true};
+function openCatalogo(){
+  let m=document.getElementById('catOverlay');
+  if(!m){ m=document.createElement('div'); m.id='catOverlay'; m.style.cssText='position:fixed;inset:0;background:rgba(30,10,10,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+    m.innerHTML='<div style="background:var(--cream);border-radius:16px;max-width:820px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);margin:auto">'
+     +'<div style="display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border)"><b style="flex:1;font-family:var(--serif);font-size:19px;color:var(--vinho)">🍽️ Itens do menu — catálogo</b><button class="btn-ghost btn-sm" onclick="closeCatalogo()">Fechar ✕</button></div>'
+     +'<div style="padding:14px 18px">'
+     +'<div class="intro">Cadastre os itens uma vez e reaproveite em qualquer orçamento — eles aparecem junto com as fichas técnicas ao montar o menu.</div>'
+     +'<div id="catFormWrap"></div>'
+     +'<div style="display:flex;gap:10px;margin:10px 0 12px"><input id="catSearch" class="search" style="flex:1" placeholder="🔍 Buscar item…" oninput="CAT_UI.q=this.value;renderCatList()"><button class="btn-primary" onclick="catNovo()">+ Novo item</button></div>'
+     +'<div id="catList"></div></div></div>';
+    document.body.appendChild(m);
+  }
+  m.style.display='flex'; CAT_UI={q:'',editId:null,per:true,sel:new Set(),bulkSec:''};
+  var fw=document.getElementById('catFormWrap'); if(fw) fw.innerHTML='';
+  var s=document.getElementById('catSearch'); if(s) s.value='';
+  renderCatList();
+}
+function closeCatalogo(){const m=document.getElementById('catOverlay');if(m)m.style.display='none';}
+function _catNorm(s){return (s==null?'':s.toString()).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function _catFilteredList(){
+  const q=_catNorm(CAT_UI.q);
+  return CATALOGO.filter(c=>!q||_catNorm(c.nome+' '+(c.descricao||'')+' '+(c.secao||'')).includes(q))
+    .slice().sort((a,b)=>(String(a.secao||'~~~').localeCompare(String(b.secao||'~~~')))||String(a.nome).localeCompare(String(b.nome)));
+}
+function _catCaptureBulk(){var b=document.getElementById('catBulkSec');if(b)CAT_UI.bulkSec=b.value;}
+function renderCatList(){
+  const el=document.getElementById('catList'); if(!el) return;
+  if(!CAT_UI.sel) CAT_UI.sel=new Set();
+  if(!CATALOGO.length){ el.innerHTML='<div style="text-align:center;color:var(--muted);padding:26px">Nenhum item ainda. Toque em <b>+ Novo item</b> pra cadastrar o primeiro.</div>'; return; }
+  const list=_catFilteredList();
+  const selN=CAT_UI.sel.size;
+  const allChecked=list.length && list.every(c=>CAT_UI.sel.has(String(c.id)));
+  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:'+(selN?'var(--vinho-pale)':'var(--warm)')+';border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px">'
+    +'<b style="font-size:12.5px;color:var(--vinho-deep)">'+(selN?(selN+' selecionado(s) — pôr na seção:'):'Marque itens pra classificar por seção em lote')+'</b>'
+    +'<span style="flex:1;min-width:6px"></span>'
+    +'<select id="catBulkSec" '+(selN?'':'disabled')+'><option value="">escolha a seção…</option>'+SECOES.map(s=>'<option value="'+esc(s)+'"'+((CAT_UI.bulkSec===s)?' selected':'')+'>'+esc(s)+'</option>').join('')+'</select>'
+    +'<button class="btn-primary btn-sm" '+(selN?'':'disabled')+' onclick="catBulkApply()">Aplicar</button>'
+    +(selN?'<button class="btn-ghost btn-sm" onclick="catClearSel()">limpar</button>':'')
+    +'</div>';
+  if(!list.length){ h+='<div style="text-align:center;color:var(--muted);padding:20px">Nenhum item pra "'+esc(CAT_UI.q)+'".</div>'; el.innerHTML=h; return; }
+  h+='<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff"><table style="width:100%;border-collapse:collapse;font-size:12.5px">'
+    +'<thead><tr style="background:var(--warm);text-align:left;color:var(--muted)">'
+    +'<th style="padding:7px 8px;width:34px"><input type="checkbox" '+(allChecked?'checked':'')+' onchange="catToggleAll(this.checked)" title="selecionar todos"></th>'
+    +'<th style="padding:7px 8px">Item</th><th style="width:140px">Seção</th><th style="width:104px;text-align:right;white-space:nowrap">Preço</th><th style="width:46px">por</th><th style="width:92px"></th></tr></thead><tbody>'
+    +list.map(function(c){var id=String(c.id);var on=CAT_UI.sel.has(id);return '<tr style="border-top:1px solid var(--warm)'+(on?';background:var(--vinho-pale)':'')+'">'
+      +'<td style="padding:6px 8px"><input type="checkbox" '+(on?'checked':'')+' onchange="catToggleSel(\''+id+'\',this.checked)"></td>'
+      +'<td style="padding:6px 8px"><div style="font-weight:700">'+esc(c.nome)+'</div>'+(c.descricao?('<div style="font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">'+esc(c.descricao)+'</div>'):'')+(c.louca?('<div style="font-size:10px;color:var(--amber)">🍽️ '+esc(c.louca)+'</div>'):'')+'</td>'
+      +'<td>'+(c.secao?esc(c.secao):'<span style="color:var(--vinho);font-size:11px">— sem seção —</span>')+'</td>'
+      +'<td style="text-align:right;font-weight:700;white-space:nowrap">'+fmt(c.preco)+'</td>'
+      +'<td style="font-size:10.5px;color:var(--muted);white-space:nowrap">'+((c.per_pax!==false)?'pax':'un')+'</td>'
+      +'<td style="white-space:nowrap"><button class="btn-ghost btn-sm" onclick="catEditar(\''+id+'\')">editar</button><button class="btn-ghost btn-sm" style="color:var(--vinho)" onclick="catExcluir(\''+id+'\')">✕</button></td>'
+      +'</tr>';}).join('')
+    +'</tbody></table></div>';
+  el.innerHTML=h;
+}
+function catToggleSel(id,on){_catCaptureBulk();if(!CAT_UI.sel)CAT_UI.sel=new Set();if(on)CAT_UI.sel.add(String(id));else CAT_UI.sel.delete(String(id));renderCatList();}
+function catToggleAll(on){_catCaptureBulk();if(!CAT_UI.sel)CAT_UI.sel=new Set();_catFilteredList().forEach(function(c){if(on)CAT_UI.sel.add(String(c.id));else CAT_UI.sel.delete(String(c.id));});renderCatList();}
+function catClearSel(){_catCaptureBulk();CAT_UI.sel=new Set();renderCatList();}
+async function catBulkApply(){
+  _catCaptureBulk();
+  const ids=Array.from(CAT_UI.sel||[]);
+  if(!ids.length){showFlash('Marque itens primeiro.',true);return;}
+  const sec=CAT_UI.bulkSec||'';
+  if(!sec){showFlash('Escolha uma seção pra aplicar.',true);return;}
+  const patch={secao:sec,updated_at:new Date().toISOString()};
+  const r=await sb.from('lola_eventos_itens').update(patch).in('id',ids);
+  if(r.error){showFlash('Erro ao classificar: '+r.error.message,true);return;}
+  CATALOGO.forEach(function(c){ if(CAT_UI.sel.has(String(c.id))){ c.secao=sec; } });
+  const n=ids.length; CAT_UI.sel=new Set(); CAT_UI.bulkSec='';
+  refreshFichasCatalogo(); renderCatList(); showFlash(n+' item(ns) na seção "'+sec+'" ✓');
+}
+function _catCatsOptions(){const set={};CATALOGO.forEach(c=>{if(c.categoria)set[c.categoria]=1;});['Salgados quentes','Salgados frios','Doces','Bebidas','Pratos quentes'].forEach(x=>set[x]=1);return Object.keys(set).sort().map(x=>'<option value="'+esc(x)+'">').join('');}
+function catFormHTML(c){
+  c=c||{};
+  const secOpts=SECOES.map(s=>'<option '+((c.secao||SECOES[0])===s?'selected':'')+'>'+s+'</option>').join('');
+  return '<div style="border:1.5px solid var(--vinho-muted);border-radius:14px;background:#fff;padding:14px;margin-bottom:6px">'
+   +'<div style="font-weight:700;color:var(--vinho-deep);font-family:var(--serif);font-size:16px;margin-bottom:10px">'+(CAT_UI.editId?'Editar item':'Novo item')+'</div>'
+   +'<div class="field" style="position:relative"><label>Partir de uma ficha/receita do Lola <span class="hint">(opcional)</span></label><input id="cf_base" autocomplete="off" placeholder="🔎 prato, receita ou pré-produção…" oninput="catBaseSearch(this.value)" onfocus="catBaseSearch(this.value)" onblur="setTimeout(function(){var d=document.getElementById(\'cf_baseDD\');if(d)d.style.display=\'none\';},150)"><div id="cf_baseDD" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:5;background:#fff;border:1px solid var(--border);border-radius:10px;max-height:230px;overflow:auto;box-shadow:0 12px 30px rgba(0,0,0,.18)"></div><div class="intro" id="cf_baseHint" style="margin:6px 0 0">Escolha um prato/receita que já existe pra criar uma variação (ex.: mini porção). Deixe em branco pra criar do zero.</div></div>'
+   +'<div class="field"><label>Item (nome)</label><input id="cf_nome" value="'+esc(c.nome||'')+'" placeholder="ex.: Mini quiche de alho-poró"></div>'
+   +'<div style="display:grid;grid-template-columns:1.1fr 1fr 0.85fr;gap:10px">'
+     +'<div class="field"><label>Seção</label><select id="cf_sec">'+secOpts+'</select></div>'
+     +'<div class="field"><label>Preço de venda (R$)</label><input id="cf_preco" type="number" step="0.01" value="'+(c.preco!=null?esc(c.preco):'')+'" placeholder="0,00"></div>'
+     +'<div class="field"><label>Unidade</label><input id="cf_un" value="'+esc(c.unidade||'un')+'" placeholder="un, porção…"></div>'
+   +'</div>'
+   +'<div class="field"><label>Preço é…</label><div style="display:flex;gap:6px"><button type="button" id="cf_pp1" class="btn-ghost btn-sm" onclick="catSetPer(true)">por pessoa (pax)</button><button type="button" id="cf_pp0" class="btn-ghost btn-sm" onclick="catSetPer(false)">por unidade</button></div><div class="intro" id="cf_pph" style="margin:6px 0 0"></div></div>'
+   +'<div class="field" style="margin-top:6px"><button type="button" class="btn-ghost btn-sm" onclick="catMargem70()">💰 Preço com margem 70%</button><div class="hint" id="cf_margemHint" style="margin-top:5px">usa o valor do campo Preço como custo × 1,70.</div></div>'
+   +'<div class="field" id="cf_fracWrap" style="display:none;margin-top:6px"><label>Porção menor? calcula o preço a partir do prato cheio</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">'+[['Cheio',1],['Metade',0.5],['1/3',0.34]].map(function(o){return '<button type="button" class="btn-ghost btn-sm" onclick="catFrac('+o[1]+')">'+o[0]+'</button>';}).join('')+'</div></div>'
+   +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="btn-ghost" onclick="catCancelar()">Cancelar</button><button class="btn-primary" onclick="catSalvar()">Salvar item</button></div>'
+   +'</div>';
+}
+let _catBase=null, _catBasePool=[];
+function catBaseSearch(q){
+  const dd=document.getElementById('cf_baseDD'); if(!dd) return;
+  const n=_catNorm(q||'');
+  const pool=FICHAS.filter(function(f){return f._src!=='cat';}).concat(INSUMOS);
+  _catBasePool=(n?pool.filter(function(f){return _catNorm((f.n||'')+' '+(f.cat||'')).includes(n);}):pool).slice(0,60);
+  if(!_catBasePool.length){dd.innerHTML='<div style="padding:10px;color:var(--muted);font-size:12px">nada encontrado</div>';dd.style.display='block';return;}
+  dd.innerHTML=_catBasePool.map(function(f,i){var tag=(f._src==='insumo'?'🥕 insumo · ':'')+esc(f.cat||'');return '<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--warm);font-size:13px" onmousedown="catPickBase('+i+')"><b>'+esc(f.n)+'</b> <span style="color:var(--muted)">· '+tag+' · '+fmt(f.p)+(f.un?(' /'+esc(f.un)):'')+'</span></div>';}).join('');
+  dd.style.display='block';
+}
+function catPickBase(i){
+  const f=_catBasePool[i]; if(!f) return; _catBase=f;
+  const setv=function(id,v){var el=document.getElementById(id);if(el)el.value=v;};
+  setv('cf_base',f.n); setv('cf_nome',f.n); if(f.un)setv('cf_un',f.un); setv('cf_preco',f.p!=null?f.p:'');
+  catSetPer(false);
+  var secSel=document.getElementById('cf_sec'); if(secSel && f.cat==='bebida'){secSel.value='Bebidas';}
+  var hint=document.getElementById('cf_baseHint');
+  if(hint){ if(f._src==='insumo'){ hint.innerHTML='Insumo <b>'+esc(f.n)+'</b> (custo '+fmt(f.p)+(f.un?(' /'+esc(f.un)):'')+'). Defina o <b>preço de venda</b> e a seção abaixo.'; } else { hint.innerHTML='Baseado em <b>'+esc(f.n)+'</b> · preço cheio '+fmt(f.p)+'. Ajuste o nome (ex.: “Mini porção de '+esc(f.n)+'”) e o preço abaixo.'; } }
+  var fw=document.getElementById('cf_fracWrap'); if(fw)fw.style.display='';
+  var dd=document.getElementById('cf_baseDD'); if(dd)dd.style.display='none';
+}
+function catFrac(fr){ if(!_catBase)return; var el=document.getElementById('cf_preco'); if(el)el.value=(Math.round((Number(_catBase.p)||0)*fr*100)/100); }
+function catMargem70(){
+  var el=document.getElementById('cf_preco'); if(!el)return;
+  var custo=Number(String(el.value).replace(',','.'))||0;
+  if(custo<=0){showFlash('Coloque o custo no campo Preço primeiro.',true);return;}
+  var preco=Math.round(custo*1.70*100)/100;
+  el.value=preco;
+  var h=document.getElementById('cf_margemHint'); if(h)h.innerHTML='custo '+fmt(custo)+' × 1,70 = <b>'+fmt(preco)+'</b>';
+}
+function catSetPer(v){CAT_UI.per=v;var a=document.getElementById('cf_pp1'),b=document.getElementById('cf_pp0'),h=document.getElementById('cf_pph');
+  if(a)a.className='btn-'+(v?'primary':'ghost')+' btn-sm';if(b)b.className='btn-'+(v?'ghost':'primary')+' btn-sm';
+  if(h)h.textContent=v?'O preço é multiplicado pelo nº de convidados (pax) no orçamento.':'O preço é por unidade/porção — você define a quantidade no orçamento.';}
+function catNovo(){CAT_UI.editId=null;_catBase=null;const fw=document.getElementById('catFormWrap');if(!fw)return;fw.innerHTML=catFormHTML({});catSetPer(true);fw.scrollIntoView({behavior:'smooth',block:'nearest'});setTimeout(()=>{var n=document.getElementById('cf_nome');if(n)n.focus();},40);}
+function catEditar(id){const c=CATALOGO.find(x=>String(x.id)===String(id));if(!c)return;CAT_UI.editId=c.id;_catBase=null;const fw=document.getElementById('catFormWrap');if(!fw)return;fw.innerHTML=catFormHTML(c);catSetPer(c.per_pax!==false);fw.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function catCancelar(){CAT_UI.editId=null;const fw=document.getElementById('catFormWrap');if(fw)fw.innerHTML='';}
+async function catExcluir(id){const c=CATALOGO.find(x=>String(x.id)===String(id));if(!c)return;if(!confirm('Tirar "'+(c.nome||'item')+'" do catálogo?'))return;
+  const r=await sb.from('lola_eventos_itens').update({ativo:false,updated_at:new Date().toISOString()}).eq('id',id);
+  if(r.error){showFlash('Erro ao excluir: '+r.error.message,true);return;}
+  CATALOGO=CATALOGO.filter(x=>String(x.id)!==String(id));refreshFichasCatalogo();renderCatList();showFlash('Item removido do catálogo');}
+async function catSalvar(){
+  const nome=(document.getElementById('cf_nome').value||'').trim();if(!nome){showFlash('Dê um nome ao item.',true);return;}
+  const _gv=function(id){var e=document.getElementById(id);return e?(e.value||''):'';};
+  const row={nome:nome,secao:document.getElementById('cf_sec').value||null,
+    per_pax:CAT_UI.per!==false,preco:Math.round((Number(document.getElementById('cf_preco').value)||0)*100)/100,
+    unidade:(document.getElementById('cf_un').value||'').trim()||null,ativo:true,updated_at:new Date().toISOString()};
+  var _d=_gv('cf_desc').trim(); if(_d)row.descricao=_d;
+  var _l=_gv('cf_louca').trim(); if(_l)row.louca=_l;
+  try{
+    if(CAT_UI.editId){
+      const r=await sb.from('lola_eventos_itens').update(row).eq('id',CAT_UI.editId);if(r.error)throw r.error;
+      const i=CATALOGO.findIndex(x=>String(x.id)===String(CAT_UI.editId));if(i>=0)CATALOGO[i]=Object.assign({},CATALOGO[i],row);
+    }else{
+      row.criado_por=currentUserName();
+      const r=await sb.from('lola_eventos_itens').insert(row).select();if(r.error)throw r.error;
+      if(r.data&&r.data[0])CATALOGO.push(r.data[0]);
+    }
+    refreshFichasCatalogo();CAT_UI.editId=null;const fw=document.getElementById('catFormWrap');if(fw)fw.innerHTML='';renderCatList();showFlash('Item salvo ✓');
+  }catch(e){showFlash('Erro ao salvar: '+((e&&e.message)||e),true);}
+}
 function convidadosHTML(ev){
   const g=ev.convidados||[]; const conf=g.filter(function(x){return x.confirmado;}).length;
   return `<div class="section-title">Lista de Convidados</div>
@@ -1182,11 +1353,17 @@ function openPrintDialog(){
   const ev=getEvent(view.id);if(!ev)return;
   let m=document.getElementById('printModal');
   if(!m){m=document.createElement('div');m.id='printModal';m.className='pm-overlay';document.body.appendChild(m);}
-  m.innerHTML='<div class="pm-box"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:6px">Imprimir / Salvar PDF</h3>'
-   +'<p style="color:var(--muted);margin:0 0 16px;font-size:14px">Como você quer gerar o PDF deste evento?</p>'
-   +'<div style="display:flex;flex-direction:column;gap:10px">'
-   +'<button class="btn-primary" style="padding:12px" onclick="choosePrintSections(true)">💰 Com valores do orçamento</button>'
-   +'<button class="btn-ghost" style="padding:12px" onclick="choosePrintSections(false)">📄 Sem valores</button>'
+  m.innerHTML='<div class="pm-box" style="max-width:430px"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:6px">Imprimir / Salvar PDF</h3>'
+   +'<p style="color:var(--muted);margin:0 0 14px;font-size:14px">Escolha o que imprimir. Cada folha sai separada, prontinha pra salvar em PDF.</p>'
+   +'<div style="display:flex;flex-direction:column;gap:8px;text-align:left">'
+   +'<button class="btn-primary" style="padding:11px" onclick="printCardapioCliente()">🍽️ Cardápio pro cliente</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printProducoes()">👨‍🍳 Produções (comida + bebida)</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printSeparacao()">📦 Separação: materiais + louças</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printConvidados()">👥 Lista de convidados</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printCompras()">🧾 Compras e notas</button>'
+   +'<div style="border-top:1px solid var(--border);margin:6px 0 2px"></div>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="choosePrintSections(true)">💰 Evento completo — com valores</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="choosePrintSections(false)">📄 Evento completo — sem valores</button>'
    +'</div><button style="background:none;color:var(--muted);margin-top:12px;width:100%;padding:8px" onclick="closePrintDialog()">Cancelar</button></div>';
   m.style.display='flex';
 }
@@ -1317,6 +1494,113 @@ function buildPrintHTML(ev,withValues,sel){
   h+='</div>';
   return h;
 }
+/* ===== Impressões específicas (a/b/c/d) — 24/09/2026 ===== */
+function _phead(ev,sub){
+  const color=unitColor(ev.local);
+  const tp=(TIPOS.find(t=>t.v===ev.tipo)||{}).l||'';
+  const loc=ev.local?((LOCAIS.find(l=>l.v===ev.local)||{}).l||''):'';
+  let dt='';
+  if(ev.data){const d=new Date(ev.data+'T00:00');dt=d.toLocaleDateString('pt-BR')+' · '+d.toLocaleDateString('pt-BR',{weekday:'long'}).toUpperCase();}
+  const pax=[ev.paxIn,ev.paxOut].filter(function(x){return x!=='';}).join(' + ');
+  let h='<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:var(--sans);color:#1E0A0A;max-width:760px;margin:0 auto;padding:24px">';
+  h+='<div style="height:8px;background:'+color+';border-radius:4px;margin-bottom:16px"></div>';
+  h+='<div style="display:flex;align-items:center;gap:18px;margin-bottom:10px"><img src="'+unitLogo(ev.local)+'" alt="Lola" style="height:56px;width:auto" onerror="this.style.display=\'none\'">'
+   +'<div><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:'+color+';font-weight:800">'+esc(sub)+'</div>'
+   +'<div style="font-family:var(--serif);font-size:24px;font-weight:800">'+(esc(ev.nome)||'(evento sem nome)')+'</div>'
+   +'<div style="font-size:12px;color:#8a7d7d;font-weight:700">'+[esc(tp),esc(loc),dt,pax?(esc(pax)+' pax'):''].filter(Boolean).join(' · ')+'</div>'
+   +'</div></div>';
+  return {h:h,color:color};
+}
+function _pfoot(){return '<div style="margin-top:24px;border-top:1px solid #eee;padding-top:8px;font-size:10px;color:#8a7d7d">Gerado em '+new Date().toLocaleString('pt-BR')+' · equipelola.net</div></div>';}
+/* (a) Cardápio pro cliente — nomes + descrições, agrupado por seção, sem valores nem colunas internas */
+function buildCardapioCliente(ev){
+  const r=_phead(ev,'Cardápio'),color=r.color;let body=r.h;
+  const menu=(ev.menu||[]).filter(function(m){return m.nome;});
+  if(!menu.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhum item no cardápio ainda.</div>'+_pfoot();
+  const groups={};menu.forEach(function(m){var s=(m.secao||'Outros');(groups[s]=groups[s]||[]).push(m);});
+  const keys=Object.keys(groups).sort(function(a,b){var ia=SECOES.indexOf(a),ib=SECOES.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
+  keys.forEach(function(s){
+    body+=_pt(s,color);
+    groups[s].forEach(function(m){
+      body+='<div style="margin:5px 0 9px"><div style="font-weight:700;font-size:14px">'+esc(m.nome)+'</div>'
+        +(m.desc?('<div style="font-size:12.5px;color:#5a4a45;line-height:1.45">'+esc(m.desc)+'</div>'):'')+'</div>';
+    });
+  });
+  return body+_pfoot();
+}
+/* (b) Separação para a equipe — materiais + louças/talheres do cardápio */
+function buildSeparacao(ev){
+  const r=_phead(ev,'Separação · Materiais e Louças'),color=r.color;let body=r.h;
+  const pax=Number(ev.pax)||0;
+  const mat=(ev.materiais||[]).filter(function(x){return x.item;});
+  body+=_pt('Materiais',color);
+  if(mat.length){
+    body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Material</th><th>Origem/Saída</th><th>Qtd</th><th style="width:40px">Saiu</th><th style="width:46px">Voltou</th><th>Destino</th><th>Obs</th></tr></thead><tbody>'
+      +mat.map(function(x){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px;font-weight:600">'+esc(x.item)+'</td><td>'+esc(x.origem||'')+'</td><td>'+esc(x.qtdSaida||'')+'</td><td style="text-align:center">'+(x.saiu?'✓':'☐')+'</td><td style="text-align:center">'+(x.voltou?'✓':'☐')+'</td><td>'+esc(x.destino||'')+'</td><td>'+esc(x.obs||'')+'</td></tr>';}).join('')
+      +'</tbody></table>';
+  } else body+='<div style="color:#8a7d7d;font-size:13px">Nenhum material cadastrado.</div>';
+  const loucas=(ev.menu||[]).filter(function(m){return m.nome&&(m.louca||'').trim();});
+  body+=_pt('Louças e talheres (do cardápio)',color);
+  if(loucas.length){
+    body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Item do cardápio</th><th>Louça / talher</th><th style="width:130px">Qtd referência</th><th style="width:70px">Separado</th></tr></thead><tbody>'
+      +loucas.map(function(m){var q=baseQtd(m,pax);var qt=q?(fmtQty(q)+(m.un?' '+esc(m.un):'')):'—';return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px;font-weight:600">'+esc(m.nome)+'</td><td>'+esc(m.louca)+'</td><td>'+qt+'</td><td style="text-align:center">☐</td></tr>';}).join('')
+      +'</tbody></table>';
+  } else body+='<div style="color:#8a7d7d;font-size:13px">Nenhuma louça/talher informada nos itens do cardápio.</div>';
+  return body+_pfoot();
+}
+/* (c) Lista de convidados */
+function buildConvidados(ev){
+  const r=_phead(ev,'Lista de Convidados'),color=r.color;let body=r.h;
+  const gg=(ev.convidados||[]).filter(function(x){return x.nome;});
+  if(!gg.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhum convidado cadastrado ainda.</div>'+_pfoot();
+  const confN=gg.filter(function(x){return x.confirmado;}).length;
+  body+=_pt('Convidados ('+gg.length+' · '+confN+' confirmados)',color);
+  body+='<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Nome</th><th style="width:70px">Mesa</th><th style="width:96px">Confirmado</th><th>Obs</th></tr></thead><tbody>'
+    +gg.map(function(x){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px">'+esc(x.nome)+'</td><td>'+esc(x.mesa||'')+'</td><td style="text-align:center">'+(x.confirmado?'✓':'☐')+'</td><td>'+esc(x.obs||'')+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  return body+_pfoot();
+}
+/* (d) Produções destrinchadas — comida e bebida, com qtd total e pedido/compra */
+function buildProducoes(ev){
+  const r=_phead(ev,'Produções · Cozinha e Bar'),color=r.color;let body=r.h;
+  const pax=Number(ev.pax)||0;let any=false;
+  ['C','B'].forEach(function(c){
+    var its=(ev.menu||[]).filter(function(m){return m.nome&&mcat(m)===c;});
+    if(!its.length) return;any=true;
+    body+=_pt(CAT_NOME[c]+' ('+its.length+' itens)',color);
+    body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Item</th><th style="width:120px">Seção</th><th style="width:150px">Qtd a produzir</th><th style="width:160px">Pedido / compra</th></tr></thead><tbody>';
+    its.forEach(function(m){
+      var q=baseQtd(m,pax);
+      var qtxt=q?(fmtQty(q)+(m.un?' '+esc(m.un):'')):(esc(m.qtd)+(m.un?' '+esc(m.un):''));
+      var detail=(m.perPax&&pax)?(' <span style="color:#8a7d7d">('+esc(m.qtd)+(m.un?' '+esc(m.un):'')+'/pax × '+pax+')</span>'):'';
+      var p=pedidoInfo(m,pax);
+      var pedtxt=p?('<b>'+p.arred+' '+esc(p.unCompra)+(p.arred===1?'':'s')+'</b> <span style="color:#8a7d7d">('+p.bruto.toFixed(2).replace('.',',')+')</span>'):'—';
+      body+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px;font-weight:600">'+esc(m.nome)+'</td><td>'+esc(m.secao||'')+'</td><td>'+qtxt+detail+'</td><td>'+pedtxt+'</td></tr>';
+    });
+    body+='</tbody></table>';
+  });
+  if(!any) body+='<div style="color:#8a7d7d;font-size:13px">Nenhum item no cardápio ainda.</div>';
+  return body+_pfoot();
+}
+/* (e) Compras de terceiros / notas — pra quem vai conferir valores e reembolsos */
+function buildCompras(ev){
+  const r=_phead(ev,'Compras e Notas'),color=r.color;let body=r.h;
+  const list=(ev.pag&&ev.pag.comprasNotas)||[];
+  if(!list.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhuma compra/nota registrada.</div>'+_pfoot();
+  body+=_pt('Compras, notas e reembolsos ('+list.length+')',color);
+  body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Data</th><th>Descrição</th><th>Fornecedor</th><th style="text-align:right">Valor</th><th>Quem comprou</th><th style="width:70px">Reemb.?</th><th style="width:70px">Feito</th><th>Obs</th></tr></thead><tbody>'
+    +list.map(function(c){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px">'+(c.data?new Date(c.data+'T00:00').toLocaleDateString('pt-BR'):'—')+'</td><td style="font-weight:600">'+esc(c.desc||'')+'</td><td>'+esc(c.fornecedor||'')+'</td><td style="text-align:right">'+fmt(c.valor)+'</td><td>'+esc(c.quem||'')+'</td><td style="text-align:center">'+(c.reembolsar?'✓':'—')+'</td><td style="text-align:center">'+(c.reembolsar?(c.reembolsado?'✓':'☐'):'—')+'</td><td>'+esc(c.obs||'')+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  const tot=list.reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  body+='<div style="margin-top:10px;text-align:right;font-weight:700">Total: '+fmt(tot)+'</div>';
+  return body+_pfoot();
+}
+function _doPrintHTML(html){document.getElementById('printArea').innerHTML=html;setTimeout(function(){window.print();},300);}
+function printCardapioCliente(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildCardapioCliente(ev));}
+function printSeparacao(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildSeparacao(ev));}
+function printConvidados(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildConvidados(ev));}
+function printProducoes(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildProducoes(ev));}
+function printCompras(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildCompras(ev));}
 /* ===== Equipe (escala de freelas) ===== */
 const CARGOS=["Cozinha","Bar","Atendimento","Recepção","Outro"];
 function horasEq(r){if(!r.entrada||!r.saida)return 0;const a=String(r.entrada).split(':'),b=String(r.saida).split(':');let h=((+b[0]||0)+((+b[1]||0)/60))-((+a[0]||0)+((+a[1]||0)/60));if(h<0)h+=24;return Math.round(h*100)/100;}
@@ -1384,20 +1668,20 @@ function menuHTML(ev){
     +'<div class="field" style="max-width:80px"><label>Cat</label><select id="addCat"><option value="C">C</option><option value="B">B</option></select></div>'
     +'<div class="field"><label>Item (ficha, pré-produção ou avulso)</label><input id="addItem" list="precoslist" placeholder="Digite ou escolha..." onchange="autoPreco()"><datalist id="precoslist">'+datalist+'</datalist></div>'
     +'<div class="field" style="max-width:150px"><label>Seção no PDF</label><select id="addSecao">'+SECOES.map(x=>'<option>'+x+'</option>').join('')+'</select></div>'
-    +'<div class="field" style="max-width:110px"><label>Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"></div>'
+    +'<div class="field" style="max-width:150px"><label id="addQtdLabel">Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"><div class="addpp-toggle" style="margin-top:5px"><button type="button" id="addpp1" class="btn-primary btn-sm" onclick="setAddPerPax(true)">por pax</button><button type="button" id="addpp0" class="btn-ghost btn-sm" onclick="setAddPerPax(false)">previsão total</button></div></div>'
     +'<div class="field" style="max-width:110px"><label>Preço un. (R$)</label><input id="addPreco" type="number" step="0.01" placeholder="auto"></div>'
     +'<div class="field" style="max-width:95px"><label>Unidade</label><input id="addUn" type="text" placeholder="un/porção/g"></div>'
     +'<button class="btn-primary" style="height:38px" onclick="addMenuItem()">+ Adicionar</button>'
   +'</div>'
-  +'<div class="intro" style="margin:0 0 8px">Use as setinhas ↑↓ pra reordenar os itens e enxergar melhor a sequência de montagem do menu.</div>'
-  +'<table class="sticky-th"><thead><tr><th style="width:105px">Cat</th><th>Item</th><th style="width:130px">Seção</th><th style="width:78px">Qtd</th><th style="width:60px">Un</th><th style="width:52px">/pax</th><th style="width:90px">Preço</th><th>Descrição p/ cliente</th><th style="width:150px">Louça / talher</th><th class="num" style="width:105px">Total</th><th style="width:150px" class="no-print">Fator de correção (pedido)</th><th style="width:52px" class="no-print"></th></tr></thead><tbody>'
+  +'<div class="intro" style="margin:0 0 8px">Use as setinhas ↑↓ pra reordenar os itens e enxergar melhor a sequência de montagem do menu. "Previsão total" é pra itens que não são por pessoa — ex.: um lote pra vender no dia, com a quantidade que você prevê produzir/vender.</div>'
+  +'<div class="tbl-scroll"><table class="sticky-th"><thead><tr><th style="width:100px">Cat</th><th style="width:190px">Item</th><th style="width:125px">Seção</th><th style="width:110px">Qtd</th><th style="width:64px">Un</th><th style="width:60px">/pax</th><th style="width:90px">Preço</th><th style="width:190px">Descrição p/ cliente</th><th style="width:140px">Louça / talher</th><th class="num" style="width:100px">Total</th><th style="width:150px" class="no-print">Fator de correção (pedido)</th><th style="width:52px" class="no-print"></th></tr></thead><tbody>'
   +((ev.menu||[]).length?ev.menu.map((m,i)=>'<tr>'
       +'<td data-l="Categoria"><span class="menu-cat">'+['C','B'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
       +'<td data-l="Item" class="name">'+esc(m.nome)+'</td>'
       +'<td data-l="Seção"><select onchange="setMenu('+i+',\'secao\',this.value)">'+['']. concat(SECOES).map(x=>'<option '+((m.secao||'')===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
-      +'<td data-l="Qtd"><input type="number" step="0.01" value="'+esc(m.qtd)+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
-      +'<td data-l="Un"><input type="text" value="'+esc(m.un||'')+'" onchange="setMenu('+i+',\'un\',this.value)" style="width:54px"></td>'
-      +'<td data-l="Por pax" style="text-align:center"><input type="checkbox" style="width:auto" '+(m.perPax?'checked':'')+' onchange="setMenu('+i+',\'perPax\',this.checked)"></td>'
+      +'<td data-l="Qtd"><input type="number" step="0.01" value="'+esc(m.qtd)+'" title="'+(m.perPax?'quantidade por pessoa (pax)':'previsão total (não é por pax)')+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
+      +'<td data-l="Un"><input type="text" value="'+esc(m.un||'')+'" onchange="setMenu('+i+',\'un\',this.value)"></td>'
+      +'<td data-l="Por pax" style="text-align:center"><input type="checkbox" style="width:auto" '+(m.perPax?'checked':'')+' title="marcado = qtd é por pessoa; desmarcado = qtd é a previsão total do item" onchange="setMenu('+i+',\'perPax\',this.checked)"></td>'
       +'<td data-l="Preço"><input type="number" step="0.01" value="'+esc(m.preco)+'" onchange="setMenu('+i+',\'preco\',this.value)"></td>'
       +'<td data-l="Descrição"><input type="text" placeholder="texto que sai no PDF" value="'+esc(m.desc||'')+'" onchange="setMenu('+i+',\'desc\',this.value)"></td>'
       +'<td data-l="Louça"><input type="text" placeholder="ex.: prato P + garfo" value="'+esc(m.louca||'')+'" onchange="setMenu('+i+',\'louca\',this.value)"></td>'
@@ -1405,7 +1689,7 @@ function menuHTML(ev){
       +'<td data-l="Pedido" class="no-print"><div style="display:flex;gap:4px;margin-bottom:4px"><input type="text" placeholder="ex: garrafa" value="'+esc(m.unCompra||'')+'" onchange="setMenu('+i+',\'unCompra\',this.value)" style="min-width:0"><input type="number" step="0.01" placeholder="tam. (ex: 750)" value="'+esc(m.tamCompra||'')+'" onchange="setMenu('+i+',\'tamCompra\',this.value)" style="min-width:0"></div><div style="font-size:12px">'+pedidoHTML(m,pax)+'</div></td>'
       +'<td class="no-print"><div class="row-actions" style="gap:3px;flex-wrap:nowrap"><button class="del-row" style="font-size:13px" onclick="moveMenu('+i+',-1)" title="Mover pra cima">▲</button><button class="del-row" style="font-size:13px" onclick="moveMenu('+i+',1)" title="Mover pra baixo">▼</button><button class="del-row" onclick="delMenu('+i+')" title="Remover">×</button></div></td></tr>').join('')
     :'<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione acima.</td></tr>')
-  +'</tbody></table>'
+  +'</tbody></table></div>'
   +'<div class="section-title" style="margin-top:22px">Listas separadas</div>'
   +listaCatHTML(ev,'C')+listaCatHTML(ev,'B')
   +'<div class="totals"><div class="line grand"><span>Total do menu (comida + bebida)</span><span>'+fmt(totMenu)+'</span></div></div>'
@@ -1663,7 +1947,14 @@ function gerarProposta(){
   renderDetail();
   showFlash('Proposta '+nome+' gerada');
 }
-function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);if(f){document.getElementById('addPreco').value=f.p;var u=document.getElementById('addUn');if(u)u.value=f.un||'';}}
+function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);window._catMatch=(f&&f._src==='cat')?f:null;if(f){document.getElementById('addPreco').value=f.p;var u=document.getElementById('addUn');if(u)u.value=f.un||'';var s=document.getElementById('addSecao');if(s&&f.secao){s.value=f.secao;}if(window._catMatch)setAddPerPax(window._catMatch.perPax!==false);}}
+function setAddPerPax(v){
+  view.addPerPax=(v!==false);
+  var a=document.getElementById('addpp1'),b=document.getElementById('addpp0'),lab=document.getElementById('addQtdLabel');
+  if(a)a.className='btn-'+(view.addPerPax?'primary':'ghost')+' btn-sm';
+  if(b)b.className='btn-'+(view.addPerPax?'ghost':'primary')+' btn-sm';
+  if(lab)lab.textContent=view.addPerPax?'Qtd por pax':'Qtd — previsão total';
+}
 function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();renderDetail();}
 function addExtra(){const ev=getEvent(view.id);ev.orcExtras=ev.orcExtras||[];ev.orcExtras.push({desc:'',valor:0,pago:false,pagoEm:''});save(false);renderDetail();}
 function pagamentosEquipeFornecedoresHTML(ev){
@@ -1685,6 +1976,56 @@ function pagamentosEquipeFornecedoresHTML(ev){
 }
 function setExtra(i,k,v){const ev=getEvent(view.id);ev.orcExtras[i][k]=v;save(false);renderDetail();}
 function delExtra(i){const ev=getEvent(view.id);ev.orcExtras.splice(i,1);save(false);renderDetail();}
+/* ===== Compras e Notas (29/09) — notas fiscais, compras extras e reembolsos a conciliar ===== */
+function comprasList(ev){ev.pag=ev.pag||{};ev.pag.comprasNotas=ev.pag.comprasNotas||[];return ev.pag.comprasNotas;}
+function comprasHTML(ev){
+  const list=comprasList(ev);
+  const totVal=list.reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  const totReemb=list.filter(function(c){return c.reembolsar;}).reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  const totReembFeito=list.filter(function(c){return c.reembolsar&&c.reembolsado;}).reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  return '<div class="section-title">Compras e Notas '+skipBtn(ev)+'</div>'
+  +'<div class="intro">Registre aqui compras extras de última hora, notas fiscais e itens cujo valor/reembolso precisa ser conferido depois — separado do orçamento fechado. Anexe a nota/comprovante se tiver.</div>'
+  +'<div class="no-print" style="margin-bottom:10px"><button class="btn-primary btn-sm" onclick="addCompra()">+ Adicionar nota / compra</button></div>'
+  +(list.length?('<div class="tbl-scroll"><table style="min-width:960px"><thead><tr><th style="width:110px">Data</th><th>Descrição</th><th style="width:150px">Fornecedor/loja</th><th style="width:120px">Valor</th><th style="width:130px">Quem comprou</th><th style="width:80px">A reembolsar?</th><th style="width:80px">Reembolsado</th><th style="width:110px">Data reemb.</th><th style="width:150px">Nota/comprovante</th><th>Obs</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>'
+    +list.map(function(c,i){return '<tr>'
+      +'<td data-l="Data"><input type="date" value="'+esc(c.data||'')+'" onchange="setCompra('+i+',\'data\',this.value)"></td>'
+      +'<td data-l="Descrição"><input type="text" placeholder="o que foi comprado" value="'+esc(c.desc||'')+'" onchange="setCompra('+i+',\'desc\',this.value)"></td>'
+      +'<td data-l="Fornecedor"><input type="text" value="'+esc(c.fornecedor||'')+'" onchange="setCompra('+i+',\'fornecedor\',this.value)"></td>'
+      +'<td data-l="Valor"><input type="number" step="0.01" value="'+esc(c.valor||'')+'" onchange="setCompra('+i+',\'valor\',Number(this.value))"></td>'
+      +'<td data-l="Quem comprou"><input type="text" placeholder="nome" value="'+esc(c.quem||'')+'" onchange="setCompra('+i+',\'quem\',this.value)"></td>'
+      +'<td data-l="A reembolsar?" style="text-align:center"><input type="checkbox" style="width:auto" '+(c.reembolsar?'checked':'')+' onchange="setCompra('+i+',\'reembolsar\',this.checked)"></td>'
+      +'<td data-l="Reembolsado" style="text-align:center"><input type="checkbox" style="width:auto" '+(c.reembolsado?'checked':'')+' '+(c.reembolsar?'':'disabled')+' onchange="setCompra('+i+',\'reembolsado\',this.checked)"></td>'
+      +'<td data-l="Data reemb."><input type="date" value="'+esc(c.reembolsadoEm||'')+'" '+(c.reembolsar?'':'disabled')+' onchange="setCompra('+i+',\'reembolsadoEm\',this.value)"></td>'
+      +'<td data-l="Nota" class="no-print"><input type="file" accept="image/*,application/pdf" style="padding:2px" onchange="uploadCompraAnexo(this,'+i+')">'+(c.anexo?('<div style="font-size:12px;margin-top:3px">📎 <a href="'+esc(c.anexo.url)+'" target="_blank" rel="noopener">'+esc(c.anexo.name)+'</a> <button class="del-row" onclick="delCompraAnexo('+i+')">×</button></div>'):'')+'</td>'
+      +'<td data-l="Obs"><input type="text" value="'+esc(c.obs||'')+'" onchange="setCompra('+i+',\'obs\',this.value)"></td>'
+      +'<td class="no-print"><button class="del-row" onclick="delCompra('+i+')">×</button></td></tr>';}).join('')
+    +'</tbody></table></div>')
+   :'<div class="intro" style="margin:0">Nenhuma compra/nota registrada ainda.</div>')
+  +'<div class="totals" style="margin-top:16px">'
+    +'<div class="line"><span>Total registrado</span><b>'+fmt(totVal)+'</b></div>'
+    +(totReemb?'<div class="line"><span>A reembolsar</span><b>'+fmt(totReemb)+'</b></div>':'')
+    +(totReemb?'<div class="line grand"><span>Reembolso pendente</span><span>'+fmt(totReemb-totReembFeito)+'</span></div>':'')
+  +'</div>';
+}
+function addCompra(){const ev=getEvent(view.id);const list=comprasList(ev);list.push({data:new Date().toISOString().slice(0,10),desc:'',fornecedor:'',valor:0,quem:'',reembolsar:false,reembolsado:false,reembolsadoEm:'',obs:'',anexo:null});save(false);renderTab();}
+function setCompra(i,k,v){const ev=getEvent(view.id);const list=comprasList(ev);list[i][k]=v;save(false);renderTab();}
+function delCompra(i){const ev=getEvent(view.id);const list=comprasList(ev);list.splice(i,1);save(false);renderTab();}
+async function uploadCompraAnexo(inputEl,i){
+  const f=inputEl&&inputEl.files&&inputEl.files[0]; if(!f) return;
+  const ev=getEvent(view.id); const list=comprasList(ev);
+  showFlash('Enviando '+f.name+'…');
+  try{
+    const safe=f.name.replace(/[^\w.\-]+/g,'_');
+    const path='eventos/'+ev.id+'/compras/'+Date.now()+'_'+safe;
+    const up=await sb.storage.from('anexos').upload(path,f,{upsert:true,contentType:f.type||'application/octet-stream'});
+    if(up.error) throw up.error;
+    const url=sb.storage.from('anexos').getPublicUrl(path).data.publicUrl;
+    list[i].anexo={url:url,name:f.name};
+    save(); renderTab(); showFlash(f.name+' anexado ✓');
+  }catch(e){ showFlash('Erro ao anexar: '+((e&&e.message)||e),true); }
+  try{inputEl.value='';}catch(e){}
+}
+function delCompraAnexo(i){const ev=getEvent(view.id);const list=comprasList(ev);list[i].anexo=null;save();renderTab();}
 function setPag(k,v){const ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag[k]=v;save(false);renderTab();}
 function toggleAutorizado(){var ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag.orcAutorizado=!ev.pag.orcAutorizado;save(false);renderTab();}
 async function enviarPedidoCentral(){
@@ -1737,7 +2078,9 @@ function addMenuItem(){
   ev.menu=ev.menu||[];
   const cat=(document.getElementById('addCat')&&document.getElementById('addCat').value)||'C';
   const secao=(document.getElementById('addSecao')&&document.getElementById('addSecao').value)||'';
-  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:true,ficha,cat,secao,desc:'',louca:'',unCompra:'',tamCompra:''});
+  const cm=(window._catMatch&&window._catMatch.n&&window._catMatch.n.toLowerCase()===nome.toLowerCase())?window._catMatch:null;
+  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:(view.addPerPax!==false),ficha,cat,secao,desc:cm?(cm.desc||''):'',louca:cm?(cm.louca||''):'',unCompra:'',tamCompra:''});
+  window._catMatch=null;view.addPerPax=true;
   save(false);renderTab();renderDetail();
 }
 function setMenu(i,k,v){const ev=getEvent(view.id);ev.menu[i][k]=v;save(false);renderTab();renderDetail();}
