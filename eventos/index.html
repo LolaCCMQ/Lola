@@ -292,11 +292,12 @@
   /* Cabeçalho fixo da tabela de montagem do menu, ao rolar a página */
   table.sticky-th thead th{position:sticky;top:131px;background:var(--cream);z-index:6;box-shadow:0 1px 0 var(--border)}
   @media(max-width:640px){table.sticky-th thead{display:none}}
-  /* 29/09: tabela do menu com colunas largas o bastante pra ler/editar (rola horizontal em telas menores) */
+  /* 29/09: tabela do menu com colunas largas o bastante pra ler/editar, sem forçar scroll horizontal no desktop */
   .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:4px}
-  table.sticky-th{table-layout:fixed;min-width:1360px}
+  table.sticky-th{table-layout:fixed;width:100%}
   table.sticky-th td input,table.sticky-th td select{font-size:14.5px}
   table.sticky-th td input[type=number]{padding:6px 6px;font-weight:700}
+  @media(max-width:900px){table.sticky-th{min-width:980px}}
   .addpp-toggle{display:flex;gap:6px}
   .ck-item.na{opacity:.5}
   .ck-item.na .txt{text-decoration:line-through;font-style:italic}
@@ -1674,7 +1675,7 @@ function menuHTML(ev){
     +'<button class="btn-primary" style="height:38px" onclick="addMenuItem()">+ Adicionar</button>'
   +'</div>'
   +'<div class="intro" style="margin:0 0 8px">Use as setinhas ↑↓ pra reordenar os itens e enxergar melhor a sequência de montagem do menu. "Previsão total" é pra itens que não são por pessoa — ex.: um lote pra vender no dia, com a quantidade que você prevê produzir/vender.</div>'
-  +'<div class="tbl-scroll"><table class="sticky-th"><thead><tr><th style="width:100px">Cat</th><th style="width:190px">Item</th><th style="width:125px">Seção</th><th style="width:110px">Qtd</th><th style="width:64px">Un</th><th style="width:60px">/pax</th><th style="width:90px">Preço</th><th style="width:190px">Descrição p/ cliente</th><th style="width:140px">Louça / talher</th><th class="num" style="width:100px">Total</th><th style="width:150px" class="no-print">Fator de correção (pedido)</th><th style="width:52px" class="no-print"></th></tr></thead><tbody>'
+  +'<div class="tbl-scroll"><table class="sticky-th"><thead><tr><th style="width:76px">Cat</th><th>Item</th><th style="width:96px">Seção</th><th style="width:92px">Qtd</th><th style="width:48px">Un</th><th style="width:44px">/pax</th><th style="width:74px">Preço</th><th>Descrição p/ cliente</th><th style="width:108px">Louça / talher</th><th class="num" style="width:82px">Total</th><th style="width:124px" class="no-print">Fator de correção (pedido)</th><th style="width:88px" class="no-print"></th></tr></thead><tbody>'
   +((ev.menu||[]).length?ev.menu.map((m,i)=>'<tr>'
       +'<td data-l="Categoria"><span class="menu-cat">'+['C','B'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
       +'<td data-l="Item" class="name">'+esc(m.nome)+'</td>'
