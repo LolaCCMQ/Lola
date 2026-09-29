@@ -292,6 +292,12 @@
   /* Cabeçalho fixo da tabela de montagem do menu, ao rolar a página */
   table.sticky-th thead th{position:sticky;top:131px;background:var(--cream);z-index:6;box-shadow:0 1px 0 var(--border)}
   @media(max-width:640px){table.sticky-th thead{display:none}}
+  /* 29/09: tabela do menu com colunas largas o bastante pra ler/editar (rola horizontal em telas menores) */
+  .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:4px}
+  table.sticky-th{table-layout:fixed;min-width:1360px}
+  table.sticky-th td input,table.sticky-th td select{font-size:14.5px}
+  table.sticky-th td input[type=number]{padding:6px 6px;font-weight:700}
+  .addpp-toggle{display:flex;gap:6px}
   .ck-item.na{opacity:.5}
   .ck-item.na .txt{text-decoration:line-through;font-style:italic}
   .na-btn{flex-shrink:0;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-size:10.5px;font-weight:800;padding:3px 8px;height:fit-content;margin-top:1px}
@@ -451,6 +457,7 @@ const SECTIONS = [
   {id:"show", kind:"fase", tipos:["show"]},
   {id:"equipe", kind:"equipe", icon:"👥", label:"Equipe", tipos:["reserva_perso","personalizado","show"]},
   {id:"orc", kind:"orc", icon:"💰", label:"Orçamento e Pagamentos", tipos:ALL},
+  {id:"compras", kind:"compras", icon:"🧾", label:"Compras e Notas", tipos:ALL},
   {id:"negociacao", kind:"fase", icon:"🤝", label:"Negociação", tipos:ALL},
   {id:"layout", kind:"layout", icon:"🪑", label:"Layout de Mesas", tipos:["reserva_perso","personalizado","show"]},
   {id:"convidados", kind:"convidados", icon:"👥", label:"Convidados", tipos:ALL},
@@ -464,7 +471,7 @@ let INSUMOS=[];
 let CATALOGO=[]; // 23/09: catálogo próprio de itens do Eventos (lola_eventos_itens)
 function catToFichas(list){return (list||[]).map(c=>({_src:'cat',n:c.nome,p:Math.round((Number(c.preco)||0)*100)/100,cat:c.secao||'catálogo',card:null,un:c.unidade||'',secao:c.secao||'',desc:c.descricao||'',louca:c.louca||'',perPax:c.per_pax!==false}));}
 function refreshFichasCatalogo(){FICHAS=FICHAS.filter(f=>f._src!=='cat').concat(catToFichas(CATALOGO)).sort((a,b)=>String(a.n||'').localeCompare(String(b.n||'')));}
-let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", mesFilter:"", modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
+let view = {screen:"dash", id:null, tab:"info", bloco:null, filter:"todos", cozFilter:"todos", locFilter:"", mesFilter:"", addPerPax:true, modo:(function(){try{return localStorage.getItem("evtModo")||"cards";}catch(e){return "cards";}})()};
 
 /* ===== Mapeamento banco <-> app ===== */
 function intOrNull(v){const n=parseInt(v);return isNaN(n)?null:n;}
@@ -701,7 +708,7 @@ function secLabel(ev,id){const s=SECTIONS.find(x=>x.id===id);if(!s)return id;if(
 const BLOCOS=[
   {id:'plan', icon:'📋', label:'Planejamento', secs:['triagem','info']},
   {id:'oper', icon:'🍳', label:'Operação', secs:['menu','os','show','equipe']},
-  {id:'fin', icon:'💰', label:'Financeiro', secs:['orc','negociacao']},
+  {id:'fin', icon:'💰', label:'Financeiro', secs:['orc','negociacao','compras']},
   {id:'diad', icon:'🥂', label:'Dia D', secs:['layout','convidados','dia','despro']}
 ];
 function blocoOf(secId){const b=BLOCOS.find(x=>x.secs.includes(secId));return b?b.id:'plan';}
@@ -713,6 +720,7 @@ function secInfo(ev,s){
   if(s.kind==='menu'){const m=ev.menu||[];const pg=ev.pag||{};return {c:m.length?(pg.menuAprovado?(pg.menuEnviado?'enviado ✓':'aprovado'):(m.length+' iten'+(m.length>1?'s':''))):'montar',done:m.length>0&&!!pg.menuAprovado,warn:false};}
   if(s.kind==='orc'){const pg=ev.pag||{};return {c:pg.pedidoNum?('pedido #'+pg.pedidoNum+' ✓'):(pg.orcAutorizado?'autorizado':fmt(orcTotal(ev))),done:!!pg.orcAutorizado,warn:false};}
   if(s.kind==='convidados'){const n=(ev.convidados||[]).length;return {c:n?(n+' convidado'+(n>1?'s':'')):'—',done:n>0,warn:false};}
+  if(s.kind==='compras'){const list=(ev.pag&&ev.pag.comprasNotas)||[];const pend=list.filter(function(x){return x.reembolsar&&!x.reembolsado;}).length;return {c:list.length?(pend?(pend+' reembolso'+(pend>1?'s':'')+' pendente'+(pend>1?'s':'')):(list.length+' nota'+(list.length>1?'s':''))):'—',done:list.length>0&&pend===0,warn:pend>0};}
   if(s.kind==='form'){const ok=!!(ev.nome&&ev.data&&ev.local);return {c:ok?'ok':'completar',done:ok,warn:false};}
   return {c:'',done:false,warn:false};
 }
@@ -825,6 +833,7 @@ function renderTab(){
   else if(s.kind==='materiais')html=materiaisHTML(ev);
   else if(s.kind==='layout')html=layoutHTML(ev);
   else if(s.kind==='convidados')html=convidadosHTML(ev);
+  else if(s.kind==='compras')html=comprasHTML(ev);
   else {const f=FASES.find(x=>x.id===view.tab);if(f)html=faseHTML(ev,f);}
   c.innerHTML=html+stepNav(ev);
 }
@@ -1351,6 +1360,7 @@ function openPrintDialog(){
    +'<button class="btn-ghost" style="padding:11px" onclick="printProducoes()">👨‍🍳 Produções (comida + bebida)</button>'
    +'<button class="btn-ghost" style="padding:11px" onclick="printSeparacao()">📦 Separação: materiais + louças</button>'
    +'<button class="btn-ghost" style="padding:11px" onclick="printConvidados()">👥 Lista de convidados</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printCompras()">🧾 Compras e notas</button>'
    +'<div style="border-top:1px solid var(--border);margin:6px 0 2px"></div>'
    +'<button class="btn-ghost" style="padding:11px" onclick="choosePrintSections(true)">💰 Evento completo — com valores</button>'
    +'<button class="btn-ghost" style="padding:11px" onclick="choosePrintSections(false)">📄 Evento completo — sem valores</button>'
@@ -1572,11 +1582,25 @@ function buildProducoes(ev){
   if(!any) body+='<div style="color:#8a7d7d;font-size:13px">Nenhum item no cardápio ainda.</div>';
   return body+_pfoot();
 }
+/* (e) Compras de terceiros / notas — pra quem vai conferir valores e reembolsos */
+function buildCompras(ev){
+  const r=_phead(ev,'Compras e Notas'),color=r.color;let body=r.h;
+  const list=(ev.pag&&ev.pag.comprasNotas)||[];
+  if(!list.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhuma compra/nota registrada.</div>'+_pfoot();
+  body+=_pt('Compras, notas e reembolsos ('+list.length+')',color);
+  body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Data</th><th>Descrição</th><th>Fornecedor</th><th style="text-align:right">Valor</th><th>Quem comprou</th><th style="width:70px">Reemb.?</th><th style="width:70px">Feito</th><th>Obs</th></tr></thead><tbody>'
+    +list.map(function(c){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px">'+(c.data?new Date(c.data+'T00:00').toLocaleDateString('pt-BR'):'—')+'</td><td style="font-weight:600">'+esc(c.desc||'')+'</td><td>'+esc(c.fornecedor||'')+'</td><td style="text-align:right">'+fmt(c.valor)+'</td><td>'+esc(c.quem||'')+'</td><td style="text-align:center">'+(c.reembolsar?'✓':'—')+'</td><td style="text-align:center">'+(c.reembolsar?(c.reembolsado?'✓':'☐'):'—')+'</td><td>'+esc(c.obs||'')+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  const tot=list.reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  body+='<div style="margin-top:10px;text-align:right;font-weight:700">Total: '+fmt(tot)+'</div>';
+  return body+_pfoot();
+}
 function _doPrintHTML(html){document.getElementById('printArea').innerHTML=html;setTimeout(function(){window.print();},300);}
 function printCardapioCliente(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildCardapioCliente(ev));}
 function printSeparacao(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildSeparacao(ev));}
 function printConvidados(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildConvidados(ev));}
 function printProducoes(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildProducoes(ev));}
+function printCompras(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildCompras(ev));}
 /* ===== Equipe (escala de freelas) ===== */
 const CARGOS=["Cozinha","Bar","Atendimento","Recepção","Outro"];
 function horasEq(r){if(!r.entrada||!r.saida)return 0;const a=String(r.entrada).split(':'),b=String(r.saida).split(':');let h=((+b[0]||0)+((+b[1]||0)/60))-((+a[0]||0)+((+a[1]||0)/60));if(h<0)h+=24;return Math.round(h*100)/100;}
@@ -1644,20 +1668,20 @@ function menuHTML(ev){
     +'<div class="field" style="max-width:80px"><label>Cat</label><select id="addCat"><option value="C">C</option><option value="B">B</option></select></div>'
     +'<div class="field"><label>Item (ficha, pré-produção ou avulso)</label><input id="addItem" list="precoslist" placeholder="Digite ou escolha..." onchange="autoPreco()"><datalist id="precoslist">'+datalist+'</datalist></div>'
     +'<div class="field" style="max-width:150px"><label>Seção no PDF</label><select id="addSecao">'+SECOES.map(x=>'<option>'+x+'</option>').join('')+'</select></div>'
-    +'<div class="field" style="max-width:110px"><label>Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"></div>'
+    +'<div class="field" style="max-width:150px"><label id="addQtdLabel">Qtd por pax</label><input id="addQtd" type="number" step="0.01" value="1"><div class="addpp-toggle" style="margin-top:5px"><button type="button" id="addpp1" class="btn-primary btn-sm" onclick="setAddPerPax(true)">por pax</button><button type="button" id="addpp0" class="btn-ghost btn-sm" onclick="setAddPerPax(false)">previsão total</button></div></div>'
     +'<div class="field" style="max-width:110px"><label>Preço un. (R$)</label><input id="addPreco" type="number" step="0.01" placeholder="auto"></div>'
     +'<div class="field" style="max-width:95px"><label>Unidade</label><input id="addUn" type="text" placeholder="un/porção/g"></div>'
     +'<button class="btn-primary" style="height:38px" onclick="addMenuItem()">+ Adicionar</button>'
   +'</div>'
-  +'<div class="intro" style="margin:0 0 8px">Use as setinhas ↑↓ pra reordenar os itens e enxergar melhor a sequência de montagem do menu.</div>'
-  +'<table class="sticky-th"><thead><tr><th style="width:105px">Cat</th><th>Item</th><th style="width:130px">Seção</th><th style="width:78px">Qtd</th><th style="width:60px">Un</th><th style="width:52px">/pax</th><th style="width:90px">Preço</th><th>Descrição p/ cliente</th><th style="width:150px">Louça / talher</th><th class="num" style="width:105px">Total</th><th style="width:150px" class="no-print">Fator de correção (pedido)</th><th style="width:52px" class="no-print"></th></tr></thead><tbody>'
+  +'<div class="intro" style="margin:0 0 8px">Use as setinhas ↑↓ pra reordenar os itens e enxergar melhor a sequência de montagem do menu. "Previsão total" é pra itens que não são por pessoa — ex.: um lote pra vender no dia, com a quantidade que você prevê produzir/vender.</div>'
+  +'<div class="tbl-scroll"><table class="sticky-th"><thead><tr><th style="width:100px">Cat</th><th style="width:190px">Item</th><th style="width:125px">Seção</th><th style="width:110px">Qtd</th><th style="width:64px">Un</th><th style="width:60px">/pax</th><th style="width:90px">Preço</th><th style="width:190px">Descrição p/ cliente</th><th style="width:140px">Louça / talher</th><th class="num" style="width:100px">Total</th><th style="width:150px" class="no-print">Fator de correção (pedido)</th><th style="width:52px" class="no-print"></th></tr></thead><tbody>'
   +((ev.menu||[]).length?ev.menu.map((m,i)=>'<tr>'
       +'<td data-l="Categoria"><span class="menu-cat">'+['C','B'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
       +'<td data-l="Item" class="name">'+esc(m.nome)+'</td>'
       +'<td data-l="Seção"><select onchange="setMenu('+i+',\'secao\',this.value)">'+['']. concat(SECOES).map(x=>'<option '+((m.secao||'')===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
-      +'<td data-l="Qtd"><input type="number" step="0.01" value="'+esc(m.qtd)+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
-      +'<td data-l="Un"><input type="text" value="'+esc(m.un||'')+'" onchange="setMenu('+i+',\'un\',this.value)" style="width:54px"></td>'
-      +'<td data-l="Por pax" style="text-align:center"><input type="checkbox" style="width:auto" '+(m.perPax?'checked':'')+' onchange="setMenu('+i+',\'perPax\',this.checked)"></td>'
+      +'<td data-l="Qtd"><input type="number" step="0.01" value="'+esc(m.qtd)+'" title="'+(m.perPax?'quantidade por pessoa (pax)':'previsão total (não é por pax)')+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
+      +'<td data-l="Un"><input type="text" value="'+esc(m.un||'')+'" onchange="setMenu('+i+',\'un\',this.value)"></td>'
+      +'<td data-l="Por pax" style="text-align:center"><input type="checkbox" style="width:auto" '+(m.perPax?'checked':'')+' title="marcado = qtd é por pessoa; desmarcado = qtd é a previsão total do item" onchange="setMenu('+i+',\'perPax\',this.checked)"></td>'
       +'<td data-l="Preço"><input type="number" step="0.01" value="'+esc(m.preco)+'" onchange="setMenu('+i+',\'preco\',this.value)"></td>'
       +'<td data-l="Descrição"><input type="text" placeholder="texto que sai no PDF" value="'+esc(m.desc||'')+'" onchange="setMenu('+i+',\'desc\',this.value)"></td>'
       +'<td data-l="Louça"><input type="text" placeholder="ex.: prato P + garfo" value="'+esc(m.louca||'')+'" onchange="setMenu('+i+',\'louca\',this.value)"></td>'
@@ -1665,7 +1689,7 @@ function menuHTML(ev){
       +'<td data-l="Pedido" class="no-print"><div style="display:flex;gap:4px;margin-bottom:4px"><input type="text" placeholder="ex: garrafa" value="'+esc(m.unCompra||'')+'" onchange="setMenu('+i+',\'unCompra\',this.value)" style="min-width:0"><input type="number" step="0.01" placeholder="tam. (ex: 750)" value="'+esc(m.tamCompra||'')+'" onchange="setMenu('+i+',\'tamCompra\',this.value)" style="min-width:0"></div><div style="font-size:12px">'+pedidoHTML(m,pax)+'</div></td>'
       +'<td class="no-print"><div class="row-actions" style="gap:3px;flex-wrap:nowrap"><button class="del-row" style="font-size:13px" onclick="moveMenu('+i+',-1)" title="Mover pra cima">▲</button><button class="del-row" style="font-size:13px" onclick="moveMenu('+i+',1)" title="Mover pra baixo">▼</button><button class="del-row" onclick="delMenu('+i+')" title="Remover">×</button></div></td></tr>').join('')
     :'<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione acima.</td></tr>')
-  +'</tbody></table>'
+  +'</tbody></table></div>'
   +'<div class="section-title" style="margin-top:22px">Listas separadas</div>'
   +listaCatHTML(ev,'C')+listaCatHTML(ev,'B')
   +'<div class="totals"><div class="line grand"><span>Total do menu (comida + bebida)</span><span>'+fmt(totMenu)+'</span></div></div>'
@@ -1923,7 +1947,14 @@ function gerarProposta(){
   renderDetail();
   showFlash('Proposta '+nome+' gerada');
 }
-function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);window._catMatch=(f&&f._src==='cat')?f:null;if(f){document.getElementById('addPreco').value=f.p;var u=document.getElementById('addUn');if(u)u.value=f.un||'';var s=document.getElementById('addSecao');if(s&&f.secao){s.value=f.secao;}}}
+function autoPreco(){const nome=document.getElementById('addItem').value.trim().toLowerCase();const f=FICHAS.find(p=>p.n.toLowerCase()===nome);window._catMatch=(f&&f._src==='cat')?f:null;if(f){document.getElementById('addPreco').value=f.p;var u=document.getElementById('addUn');if(u)u.value=f.un||'';var s=document.getElementById('addSecao');if(s&&f.secao){s.value=f.secao;}if(window._catMatch)setAddPerPax(window._catMatch.perPax!==false);}}
+function setAddPerPax(v){
+  view.addPerPax=(v!==false);
+  var a=document.getElementById('addpp1'),b=document.getElementById('addpp0'),lab=document.getElementById('addQtdLabel');
+  if(a)a.className='btn-'+(view.addPerPax?'primary':'ghost')+' btn-sm';
+  if(b)b.className='btn-'+(view.addPerPax?'ghost':'primary')+' btn-sm';
+  if(lab)lab.textContent=view.addPerPax?'Qtd por pax':'Qtd — previsão total';
+}
 function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();renderDetail();}
 function addExtra(){const ev=getEvent(view.id);ev.orcExtras=ev.orcExtras||[];ev.orcExtras.push({desc:'',valor:0,pago:false,pagoEm:''});save(false);renderDetail();}
 function pagamentosEquipeFornecedoresHTML(ev){
@@ -1945,6 +1976,56 @@ function pagamentosEquipeFornecedoresHTML(ev){
 }
 function setExtra(i,k,v){const ev=getEvent(view.id);ev.orcExtras[i][k]=v;save(false);renderDetail();}
 function delExtra(i){const ev=getEvent(view.id);ev.orcExtras.splice(i,1);save(false);renderDetail();}
+/* ===== Compras e Notas (29/09) — notas fiscais, compras extras e reembolsos a conciliar ===== */
+function comprasList(ev){ev.pag=ev.pag||{};ev.pag.comprasNotas=ev.pag.comprasNotas||[];return ev.pag.comprasNotas;}
+function comprasHTML(ev){
+  const list=comprasList(ev);
+  const totVal=list.reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  const totReemb=list.filter(function(c){return c.reembolsar;}).reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  const totReembFeito=list.filter(function(c){return c.reembolsar&&c.reembolsado;}).reduce(function(s,c){return s+(Number(c.valor)||0);},0);
+  return '<div class="section-title">Compras e Notas '+skipBtn(ev)+'</div>'
+  +'<div class="intro">Registre aqui compras extras de última hora, notas fiscais e itens cujo valor/reembolso precisa ser conferido depois — separado do orçamento fechado. Anexe a nota/comprovante se tiver.</div>'
+  +'<div class="no-print" style="margin-bottom:10px"><button class="btn-primary btn-sm" onclick="addCompra()">+ Adicionar nota / compra</button></div>'
+  +(list.length?('<div class="tbl-scroll"><table style="min-width:960px"><thead><tr><th style="width:110px">Data</th><th>Descrição</th><th style="width:150px">Fornecedor/loja</th><th style="width:120px">Valor</th><th style="width:130px">Quem comprou</th><th style="width:80px">A reembolsar?</th><th style="width:80px">Reembolsado</th><th style="width:110px">Data reemb.</th><th style="width:150px">Nota/comprovante</th><th>Obs</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>'
+    +list.map(function(c,i){return '<tr>'
+      +'<td data-l="Data"><input type="date" value="'+esc(c.data||'')+'" onchange="setCompra('+i+',\'data\',this.value)"></td>'
+      +'<td data-l="Descrição"><input type="text" placeholder="o que foi comprado" value="'+esc(c.desc||'')+'" onchange="setCompra('+i+',\'desc\',this.value)"></td>'
+      +'<td data-l="Fornecedor"><input type="text" value="'+esc(c.fornecedor||'')+'" onchange="setCompra('+i+',\'fornecedor\',this.value)"></td>'
+      +'<td data-l="Valor"><input type="number" step="0.01" value="'+esc(c.valor||'')+'" onchange="setCompra('+i+',\'valor\',Number(this.value))"></td>'
+      +'<td data-l="Quem comprou"><input type="text" placeholder="nome" value="'+esc(c.quem||'')+'" onchange="setCompra('+i+',\'quem\',this.value)"></td>'
+      +'<td data-l="A reembolsar?" style="text-align:center"><input type="checkbox" style="width:auto" '+(c.reembolsar?'checked':'')+' onchange="setCompra('+i+',\'reembolsar\',this.checked)"></td>'
+      +'<td data-l="Reembolsado" style="text-align:center"><input type="checkbox" style="width:auto" '+(c.reembolsado?'checked':'')+' '+(c.reembolsar?'':'disabled')+' onchange="setCompra('+i+',\'reembolsado\',this.checked)"></td>'
+      +'<td data-l="Data reemb."><input type="date" value="'+esc(c.reembolsadoEm||'')+'" '+(c.reembolsar?'':'disabled')+' onchange="setCompra('+i+',\'reembolsadoEm\',this.value)"></td>'
+      +'<td data-l="Nota" class="no-print"><input type="file" accept="image/*,application/pdf" style="padding:2px" onchange="uploadCompraAnexo(this,'+i+')">'+(c.anexo?('<div style="font-size:12px;margin-top:3px">📎 <a href="'+esc(c.anexo.url)+'" target="_blank" rel="noopener">'+esc(c.anexo.name)+'</a> <button class="del-row" onclick="delCompraAnexo('+i+')">×</button></div>'):'')+'</td>'
+      +'<td data-l="Obs"><input type="text" value="'+esc(c.obs||'')+'" onchange="setCompra('+i+',\'obs\',this.value)"></td>'
+      +'<td class="no-print"><button class="del-row" onclick="delCompra('+i+')">×</button></td></tr>';}).join('')
+    +'</tbody></table></div>')
+   :'<div class="intro" style="margin:0">Nenhuma compra/nota registrada ainda.</div>')
+  +'<div class="totals" style="margin-top:16px">'
+    +'<div class="line"><span>Total registrado</span><b>'+fmt(totVal)+'</b></div>'
+    +(totReemb?'<div class="line"><span>A reembolsar</span><b>'+fmt(totReemb)+'</b></div>':'')
+    +(totReemb?'<div class="line grand"><span>Reembolso pendente</span><span>'+fmt(totReemb-totReembFeito)+'</span></div>':'')
+  +'</div>';
+}
+function addCompra(){const ev=getEvent(view.id);const list=comprasList(ev);list.push({data:new Date().toISOString().slice(0,10),desc:'',fornecedor:'',valor:0,quem:'',reembolsar:false,reembolsado:false,reembolsadoEm:'',obs:'',anexo:null});save(false);renderTab();}
+function setCompra(i,k,v){const ev=getEvent(view.id);const list=comprasList(ev);list[i][k]=v;save(false);renderTab();}
+function delCompra(i){const ev=getEvent(view.id);const list=comprasList(ev);list.splice(i,1);save(false);renderTab();}
+async function uploadCompraAnexo(inputEl,i){
+  const f=inputEl&&inputEl.files&&inputEl.files[0]; if(!f) return;
+  const ev=getEvent(view.id); const list=comprasList(ev);
+  showFlash('Enviando '+f.name+'…');
+  try{
+    const safe=f.name.replace(/[^\w.\-]+/g,'_');
+    const path='eventos/'+ev.id+'/compras/'+Date.now()+'_'+safe;
+    const up=await sb.storage.from('anexos').upload(path,f,{upsert:true,contentType:f.type||'application/octet-stream'});
+    if(up.error) throw up.error;
+    const url=sb.storage.from('anexos').getPublicUrl(path).data.publicUrl;
+    list[i].anexo={url:url,name:f.name};
+    save(); renderTab(); showFlash(f.name+' anexado ✓');
+  }catch(e){ showFlash('Erro ao anexar: '+((e&&e.message)||e),true); }
+  try{inputEl.value='';}catch(e){}
+}
+function delCompraAnexo(i){const ev=getEvent(view.id);const list=comprasList(ev);list[i].anexo=null;save();renderTab();}
 function setPag(k,v){const ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag[k]=v;save(false);renderTab();}
 function toggleAutorizado(){var ev=getEvent(view.id);ev.pag=ev.pag||{};ev.pag.orcAutorizado=!ev.pag.orcAutorizado;save(false);renderTab();}
 async function enviarPedidoCentral(){
@@ -1998,8 +2079,8 @@ function addMenuItem(){
   const cat=(document.getElementById('addCat')&&document.getElementById('addCat').value)||'C';
   const secao=(document.getElementById('addSecao')&&document.getElementById('addSecao').value)||'';
   const cm=(window._catMatch&&window._catMatch.n&&window._catMatch.n.toLowerCase()===nome.toLowerCase())?window._catMatch:null;
-  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:cm?(cm.perPax!==false):true,ficha,cat,secao,desc:cm?(cm.desc||''):'',louca:cm?(cm.louca||''):'',unCompra:'',tamCompra:''});
-  window._catMatch=null;
+  ev.menu.push({nome,qtd:Number(qtd),preco:Math.round(Number(preco)*100)/100,un,perPax:(view.addPerPax!==false),ficha,cat,secao,desc:cm?(cm.desc||''):'',louca:cm?(cm.louca||''):'',unCompra:'',tamCompra:''});
+  window._catMatch=null;view.addPerPax=true;
   save(false);renderTab();renderDetail();
 }
 function setMenu(i,k,v){const ev=getEvent(view.id);ev.menu[i][k]=v;save(false);renderTab();renderDetail();}
