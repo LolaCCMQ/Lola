@@ -1678,12 +1678,12 @@ function menuHTML(ev){
   +'<table class="sticky-th"><thead><tr><th style="width:76px">Cat</th><th>Item</th><th style="width:96px">Seção</th><th style="width:92px">Qtd</th><th style="width:48px">Un</th><th style="width:44px">/pax</th><th style="width:74px">Preço</th><th>Descrição p/ cliente</th><th style="width:108px">Louça / talher</th><th class="num" style="width:82px">Total</th><th style="width:124px" class="no-print">Fator de correção (pedido)</th><th style="width:88px" class="no-print"></th></tr></thead><tbody>'
   +((ev.menu||[]).length?ev.menu.map((m,i)=>'<tr>'
       +'<td data-l="Categoria"><span class="menu-cat">'+['C','B'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
-      +'<td data-l="Item" class="name">'+esc(m.nome)+'</td>'
+      +'<td data-l="Item" class="name">'+esc(m.nome)+'<div style="margin-top:3px"><button class="btn-ghost btn-sm" style="font-size:10.5px;padding:2px 6px'+((m.receita&&m.receita.length)?'':';opacity:.65')+'" onclick="openReceita('+i+')" title="Destrinchar em ingredientes (ex.: prato de frios = presunto, queijo, azeitona…) e calcular o custo automaticamente pela quantidade">'+((m.receita&&m.receita.length)?('🧾 receita ('+m.receita.length+')'):'+ receita')+'</button></div></td>'
       +'<td data-l="Seção"><select onchange="setMenu('+i+',\'secao\',this.value)">'+['']. concat(SECOES).map(x=>'<option '+((m.secao||'')===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
       +'<td data-l="Qtd"><input type="number" step="0.01" value="'+esc(m.qtd)+'" title="'+(m.perPax?'quantidade por pessoa (pax)':'previsão total (não é por pax)')+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
       +'<td data-l="Un"><input type="text" value="'+esc(m.un||'')+'" onchange="setMenu('+i+',\'un\',this.value)"></td>'
       +'<td data-l="Por pax" style="text-align:center"><input type="checkbox" style="width:auto" '+(m.perPax?'checked':'')+' title="marcado = qtd é por pessoa; desmarcado = qtd é a previsão total do item" onchange="setMenu('+i+',\'perPax\',this.checked)"></td>'
-      +'<td data-l="Preço"><input type="number" step="0.01" value="'+esc(m.preco)+'" onchange="setMenu('+i+',\'preco\',this.value)"></td>'
+      +'<td data-l="Preço"><input type="number" step="0.01" value="'+esc(m.preco)+'" title="'+((m.receita&&m.receita.length)?'calculado pela receita — edite em 🧾 receita':'')+'" onchange="setMenu('+i+',\'preco\',this.value)"></td>'
       +'<td data-l="Descrição"><input type="text" placeholder="texto que sai no PDF" value="'+esc(m.desc||'')+'" onchange="setMenu('+i+',\'desc\',this.value)"></td>'
       +'<td data-l="Louça"><input type="text" placeholder="ex.: prato P + garfo" value="'+esc(m.louca||'')+'" onchange="setMenu('+i+',\'louca\',this.value)"></td>'
       +'<td data-l="Total" class="num">'+fmt(lineTotal(m,pax))+'</td>'
@@ -2108,6 +2108,59 @@ function pedidoHTML(m,pax){
   if(!p)return '<span class="hint">—</span>';
   const plural=p.arred===1?'':'s';
   return '<b>'+p.arred+' '+esc(p.unCompra)+plural+'</b><br><span class="hint">'+fmtQty(p.total)+(m.un?' '+esc(m.un):'')+' ÷ '+fmtQty(p.tam)+(m.un?' '+esc(m.un):'')+' = '+p.bruto.toFixed(2).replace('.',',')+'</span>';
+}
+/* ===== Receita/composição do item (3ª forma de calcular: "personalizado" — destrinchado em ingredientes) — 29/09 ===== */
+function receitaCustoUnit(m){return (m.receita||[]).reduce(function(s,ing){return s+((Number(ing.qtd)||0)*(Number(ing.preco)||0));},0);}
+function recalcReceitaPreco(i){
+  const ev=getEvent(view.id);const m=ev.menu[i];if(!m)return;
+  m.preco=Math.round(receitaCustoUnit(m)*100)/100;
+  save(false);
+}
+function receitaModalHTML(m,i,pax){
+  const list=m.receita||[];
+  const custoUnit=receitaCustoUnit(m);
+  const totalUn=baseQtd(m,pax);
+  const un=m.un||'un';
+  const datalist=FICHAS.concat(INSUMOS).map(function(p){return '<option value="'+esc(p.n)+'">'+esc(p.cat||'')+' · '+fmt(p.p)+'</option>';}).join('');
+  return '<div class="pm-box" style="max-width:680px;text-align:left">'
+   +'<h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:4px">🧾 Receita — '+esc(m.nome||'item')+'</h3>'
+   +'<p style="color:var(--muted);margin:0 0 12px;font-size:13px">Liste os ingredientes por <b>1 '+esc(un)+'</b>. O total pro evento ('+fmtQty(totalUn)+' '+esc(un)+') é calculado automaticamente por ingrediente, e o <b>Preço</b> do item no menu é preenchido sozinho com o custo por '+esc(un)+'.</p>'
+   +'<datalist id="receitaList">'+datalist+'</datalist>'
+   +(list.length?('<div class="tbl-scroll"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px"><thead><tr style="text-align:left;color:var(--muted)"><th style="padding:4px">Ingrediente</th><th style="width:85px">Qtd/'+esc(un)+'</th><th style="width:65px">Un</th><th style="width:85px">Preço/un.</th><th style="width:110px" class="num">Total evento</th><th style="width:26px"></th></tr></thead><tbody>'
+     +list.map(function(ing,idx){return '<tr>'
+       +'<td><input list="receitaList" value="'+esc(ing.nome||'')+'" placeholder="ex.: presunto" onchange="setReceitaIng('+i+','+idx+',\'nome\',this.value);autoPrecoIngrediente('+i+','+idx+')"></td>'
+       +'<td><input type="number" step="0.01" value="'+esc(ing.qtd)+'" onchange="setReceitaIng('+i+','+idx+',\'qtd\',this.value)"></td>'
+       +'<td><input type="text" value="'+esc(ing.un||'')+'" onchange="setReceitaIng('+i+','+idx+',\'un\',this.value)"></td>'
+       +'<td><input type="number" step="0.01" value="'+esc(ing.preco)+'" onchange="setReceitaIng('+i+','+idx+',\'preco\',this.value)"></td>'
+       +'<td class="num">'+fmtQty((Number(ing.qtd)||0)*totalUn)+(ing.un?' '+esc(ing.un):'')+'</td>'
+       +'<td><button class="del-row" onclick="delReceitaIng('+i+','+idx+')">×</button></td>'
+     +'</tr>';}).join('')
+     +'</tbody></table></div>')
+   :'<div class="intro" style="margin:6px 0">Nenhum ingrediente ainda.</div>')
+   +'<div style="margin-top:10px"><button class="btn-ghost btn-sm" onclick="addReceitaIng('+i+')">+ Ingrediente</button></div>'
+   +'<div class="totals" style="margin-top:14px"><div class="line"><span>Custo por '+esc(un)+'</span><b>'+fmt(custoUnit)+'</b></div><div class="line grand"><span>Custo total ('+fmtQty(totalUn)+' '+esc(un)+')</span><span>'+fmt(custoUnit*totalUn)+'</span></div></div>'
+   +'<div style="display:flex;gap:8px;margin-top:14px"><button class="btn-primary" style="flex:1;padding:10px" onclick="closeReceita()">Fechar</button></div>'
+   +'</div>';
+}
+function openReceita(i){
+  const ev=getEvent(view.id);const m=ev.menu[i];if(!m)return;
+  m.receita=m.receita||[];
+  const pax=Number(ev.pax)||0;
+  let mo=document.getElementById('receitaModal');
+  if(!mo){mo=document.createElement('div');mo.id='receitaModal';mo.className='pm-overlay';document.body.appendChild(mo);}
+  mo.innerHTML=receitaModalHTML(m,i,pax);
+  mo.style.display='flex';
+}
+function closeReceita(){const mo=document.getElementById('receitaModal');if(mo)mo.style.display='none';renderTab();renderDetail();}
+function addReceitaIng(i){const ev=getEvent(view.id);const m=ev.menu[i];m.receita=m.receita||[];m.receita.push({nome:'',qtd:0,un:m.un||'',preco:0});openReceita(i);}
+function delReceitaIng(i,idx){const ev=getEvent(view.id);const m=ev.menu[i];m.receita.splice(idx,1);recalcReceitaPreco(i);openReceita(i);}
+function setReceitaIng(i,idx,k,v){const ev=getEvent(view.id);const m=ev.menu[i];m.receita[idx][k]=v;recalcReceitaPreco(i);openReceita(i);}
+function autoPrecoIngrediente(i,idx){
+  const ev=getEvent(view.id);const m=ev.menu[i];const ing=m.receita[idx];if(!ing)return;
+  const nome=(ing.nome||'').trim().toLowerCase();
+  const f=FICHAS.concat(INSUMOS).find(function(p){return (p.n||'').toLowerCase()===nome;});
+  if(f){ing.preco=f.p;if(!ing.un)ing.un=f.un||'';recalcReceitaPreco(i);}
+  openReceita(i);
 }
 async function delEvent(id){
   if(!confirm("Excluir este evento? Esta ação não pode ser desfeita."))return;
