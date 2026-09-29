@@ -290,7 +290,8 @@
   .orc-line input{max-width:140px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   /* Cabeçalho fixo da tabela de montagem do menu, ao rolar a página */
-  table.sticky-th thead th{position:sticky;top:131px;background:var(--cream);z-index:6;box-shadow:0 1px 0 var(--border)}
+  /* 29/09: cabeçalho fixo desativado — com poucos itens no menu, ele ficava sobreposto à própria linha e bloqueava o clique nos campos */
+  table.sticky-th thead th{background:var(--cream);box-shadow:0 1px 0 var(--border)}
   @media(max-width:640px){table.sticky-th thead{display:none}}
   /* 29/09: tabela do menu com colunas largas o bastante pra ler/editar, sem forçar scroll horizontal no desktop */
   .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:4px}
