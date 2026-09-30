@@ -608,7 +608,8 @@ function payStatus(ev){
 function setModo(m){view.modo=m;try{localStorage.setItem('evtModo',m);}catch(e){}renderViewToggle();renderListFilters();renderList();}
 function setLocFilter(v){view.locFilter=v;renderListFilters();renderList();}
 function setMes(v){view.mesFilter=v;renderListFilters();renderList();}
-function clearListFilters(){view.locFilter="";view.mesFilter="";renderListFilters();renderList();}
+function setPayFilter(v){view.payFilter=v;renderListFilters();renderList();}
+function clearListFilters(){view.locFilter="";view.mesFilter="";view.payFilter="";renderListFilters();renderList();}
 function renderListFilters(){
   const w=document.getElementById('listFilters');if(!w)return;
   if(view.modo!=='lista'){w.className='list-filters';w.innerHTML='';return;}
@@ -617,10 +618,12 @@ function renderListFilters(){
   const MESNOME=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const meses=Array.from(new Set(DB.events.filter(function(e){return e.data;}).map(function(e){return e.data.slice(0,7);}))).sort();
   const mesOpts=[{v:'',l:'Todos os meses'}].concat(meses.map(function(ym){var p=ym.split('-');return {v:ym,l:MESNOME[Number(p[1])-1]+'/'+p[0]};}));
+  const payOpts=[{v:'',l:'Todos pagamentos'},{v:'pend',l:'○ Pendente'},{v:'parcial',l:'◐ Parcial'},{v:'pago',l:'✓ Pago'}];
   w.innerHTML=''
     +'<div class="lf"><label>Local</label><select onchange="setLocFilter(this.value)">'+locOpts.map(function(o){return '<option value="'+o.v+'"'+(view.locFilter===o.v?' selected':'')+'>'+o.l+'</option>';}).join('')+'</select></div>'
     +'<div class="lf"><label>Mês de competência</label><select onchange="setMes(this.value)">'+mesOpts.map(function(o){return '<option value="'+o.v+'"'+(view.mesFilter===o.v?' selected':'')+'>'+o.l+'</option>';}).join('')+'</select></div>'
-    +((view.locFilter||view.mesFilter)?'<button class="lf-clear" onclick="clearListFilters()">✕ Limpar</button>':'');
+    +'<div class="lf"><label>Pagamento</label><select onchange="setPayFilter(this.value)">'+payOpts.map(function(o){return '<option value="'+o.v+'"'+((view.payFilter||'')===o.v?' selected':'')+'>'+o.l+'</option>';}).join('')+'</select></div>'
+    +((view.locFilter||view.mesFilter||view.payFilter)?'<button class="lf-clear" onclick="clearListFilters()">✕ Limpar</button>':'');
 }
 function renderViewToggle(){
   const w=document.getElementById('viewToggle');if(!w)return;
@@ -637,12 +640,17 @@ function renderFilters(){
 function setFilter(v){view.filter=v;renderFilters();renderList();}
 function renderList(){
   const q=(document.getElementById('search').value||"").toLowerCase();
-  let evs=DB.events.slice().sort((a,b)=>{var ca=(a.status==='realizado'||a.status==='cancelado')?1:0,cb=(b.status==='realizado'||b.status==='cancelado')?1:0;if(ca!==cb)return ca-cb;return (a.data||"9999").localeCompare(b.data||"9999");});
+  const _hoje=new Date().toISOString().slice(0,10);
+  const _grp=function(e){ if(e.status==='realizado'||e.status==='cancelado')return 2; if(e.data && e.data<_hoje)return 1; return 0; };
+  let evs=DB.events.slice().sort((a,b)=>{var ga=_grp(a),gb=_grp(b);if(ga!==gb)return ga-gb;
+    if(ga===0)return (a.data||"9999").localeCompare(b.data||"9999");
+    return (b.data||"0000").localeCompare(a.data||"0000");});
   if(view.filter!=="todos")evs=evs.filter(e=>e.status===view.filter);
   if(q)evs=evs.filter(e=>[e.nome,e.responsavel,e.ocasiao,e.contato].join(' ').toLowerCase().includes(q));
   if(view.modo==='lista'){
     if(view.locFilter)evs=evs.filter(e=>(e.local||'')===view.locFilter);
     if(view.mesFilter)evs=evs.filter(e=>e.data&&e.data.slice(0,7)===view.mesFilter);
+    if(view.payFilter)evs=evs.filter(e=>payStatus(e).cls==='pay-'+view.payFilter);
   }
   const list=document.getElementById('list');
   if(!evs.length){
@@ -1711,10 +1719,11 @@ function orcCalc(ev){
   const pax=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(m=>{sub+=lineTotal(m,pax);});
   const gpct=Number(ev.gorjeta)||0;const serv=sub*gpct/100;
   const moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0;const mo=(moV*moQ)||(Number(ev.maoObra)||0);
+  const equipe=(ev.equipe||[]).reduce(function(s,r){return s+eqTotal(r);},0);
   const oper=operOrcTotal(ev);const extras=extrasTotal(ev);const mat=matComprarTotal(ev);
-  const base=sub+serv+mo+oper+mat+extras;
+  const base=sub+serv+mo+equipe+oper+mat+extras;
   const ipct=Number(ev.imposto)||0;const imp=base*ipct/100;
-  return {pax,sub,gpct,serv,mo,oper,mat,extras,base,ipct,imp,total:base+imp};
+  return {pax,sub,gpct,serv,mo,equipe,oper,mat,extras,base,ipct,imp,total:base+imp};
 }
 function orcTotal(ev){return orcCalc(ev).total;}
 function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
@@ -1759,6 +1768,7 @@ function orcHTML(ev){
     <div class="line"><span>Subtotal do pacote (comida + bebida)</span><b>${fmt(sub)}</b></div>
     <div class="line no-print"><span>Serviço (<input class="mini-input num" style="max-width:55px" type="number" value="${gpct}" onchange="setOrc('gorjeta',this.value)">% sobre o pacote)</span><b>${fmt(gorj)}</b></div>
     <div class="line no-print" style="display:block"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>Mão de obra</span><b>${fmt(mo)}</b></div><div style="margin-top:5px;font-size:.86em;color:var(--muted)">R$ <input class="mini-input num" style="max-width:90px" type="number" step="0.01" value="${esc(ev.moValor||'')}" onchange="setOrc('moValor',this.value)"> por pessoa × <input class="mini-input num" style="max-width:60px" type="number" value="${esc(ev.moQtd||'')}" onchange="setOrc('moQtd',this.value)"> funcionários</div></div>
+    ${K.equipe?`<div class="line"><span>Equipe escalada (aba Equipe)</span><b>${fmt(K.equipe)}</b></div>`:''}
     ${K.mat?`<div class="line"><span>Materiais a comprar (Menu)</span><b>${fmt(K.mat)}</b></div>`:''}
     ${K.oper?`<div class="line"><span>Itens do Operacional (gelo, caixa de gelar…)</span><b>${fmt(K.oper)}</b></div>`:''}
     ${K.extras?`<div class="line"><span>Custos extras</span><b>${fmt(K.extras)}</b></div>`:''}
