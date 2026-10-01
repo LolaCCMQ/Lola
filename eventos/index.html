@@ -451,6 +451,7 @@ const FASES = [
   ]},
 ];
 const SECTIONS = [
+  {id:"resumo", kind:"resumo", icon:"📊", label:"Resumo", tipos:ALL},
   {id:"triagem", kind:"fase", icon:"✅", label:"Triagem", tipos:ALL},
   {id:"info", kind:"form", icon:"📋", label:"Dados", tipos:ALL},
   {id:"menu", kind:"menu", icon:"🍽️", label:"Menu", tipos:ALL},
@@ -715,6 +716,7 @@ function tabOrder(ev){const rel=relevantSections(ev).map(s=>s.id);const seq=[];B
 function secLabel(ev,id){const s=SECTIONS.find(x=>x.id===id);if(!s)return id;if(s.label)return s.label;if(s.kind==='fase'){const f=FASES.find(x=>x.id===id);return f?f.nome.replace(/^\d+ · /,''):id;}return s.label;}
 /* ===== Blocos híbridos (Padrão V3): resumo + sanfona ===== */
 const BLOCOS=[
+  {id:'resumo', icon:'📊', label:'Resumo', secs:['resumo']},
   {id:'plan', icon:'📋', label:'Planejamento', secs:['triagem','info']},
   {id:'oper', icon:'🍳', label:'Operação', secs:['menu','os','show','equipe']},
   {id:'fin', icon:'💰', label:'Financeiro', secs:['orc','negociacao','compras']},
@@ -723,6 +725,7 @@ const BLOCOS=[
 function blocoOf(secId){const b=BLOCOS.find(x=>x.secs.includes(secId));return b?b.id:'plan';}
 function secInfo(ev,s){
   if(!s)return {c:'',done:false,warn:false};
+  if(s.kind==='resumo')return {c:'visão geral',done:true,warn:false};
   if(s.kind==='fase'){const f=FASES.find(x=>x.id===s.id);const fp=faseProgress(ev,f);return {c:fp.done+'/'+fp.tot,done:fp.tot>0&&fp.done===fp.tot,warn:false};}
   if(s.kind==='triagemfull'){const a=faseProgress(ev,FASES.find(x=>x.id==='triagem'));const b=faseProgress(ev,FASES.find(x=>x.id==='negociacao'));const d=a.done+b.done,t=a.tot+b.tot;return {c:d+'/'+t,done:t>0&&d===t,warn:false};}
   if(s.kind==='equipe'){const g=ev.equipe||[];const v=g.filter(r=>!String(r.nome||'').trim()).length;return {c:g.length?(v?(v+' vaga'+(v>1?'s':'')+' em aberto'):(g.length+' escalado'+(g.length>1?'s':''))):'montar',done:g.length>0&&v===0,warn:v>0};}
@@ -833,7 +836,8 @@ function renderTab(){
   const ev=getEvent(view.id);const c=document.getElementById('tabContent');
   const s=SECTIONS.find(x=>x.id===view.tab)||SECTIONS[0];
   let html='';
-  if(s.kind==='form')html=formHTML(ev);
+  if(s.kind==='resumo')html=resumoHTML(ev);
+  else if(s.kind==='form')html=formHTML(ev);
   else if(s.kind==='menu')html=menuHTML(ev);
   else if(s.kind==='triagemfull'){const f1=FASES.find(x=>x.id==='triagem');const f2=FASES.find(x=>x.id==='negociacao');html=(f1?faseHTML(ev,f1):'')+'<div style="height:16px"></div>'+(f2?faseHTML(ev,f2):'');}
   else if(s.kind==='orc')html=orcHTML(ev);
@@ -1432,7 +1436,7 @@ function choosePrintSections(withValues){
   const ev=getEvent(view.id);if(!ev)return;
   let m=document.getElementById('printModal');
   if(!m){m=document.createElement('div');m.id='printModal';m.className='pm-overlay';document.body.appendChild(m);}
-  const secs=relevantSections(ev).filter(function(s){return s.id!=='info'&&!(s.id==='orc'&&!withValues);});
+  const secs=relevantSections(ev).filter(function(s){return s.id!=='info'&&s.id!=='resumo'&&!(s.id==='orc'&&!withValues);});
   const rows=secs.map(function(s){return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:14px;cursor:pointer"><input type="checkbox" class="pm-sec" value="'+s.id+'" checked style="width:auto"> '+secLabel(ev,s.id)+'</label>';}).join('');
   m.innerHTML='<div class="pm-box" style="max-width:380px"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:4px">O que incluir no PDF?</h3>'
    +'<p style="color:var(--muted);margin:0 0 10px;font-size:13px">Os dados principais do evento entram sempre. Marque as partes extras:</p>'
@@ -1612,22 +1616,35 @@ function printCardapioCliente(){const ev=getEvent(view.id);if(!ev)return;closePr
 function printSeparacao(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildSeparacao(ev));}
 function printConvidados(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildConvidados(ev));}
 function printProducoes(){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildProducoes(ev));}
+function _osLinha(rotulo,valor){return '<div style="display:flex;gap:8px;padding:2px 0;font-size:12px"><span style="min-width:120px;color:#8a7d7d;font-weight:700">'+rotulo+'</span><span style="flex:1">'+valor+'</span></div>';}
 function buildOSArea(ev,k){
   const r=_phead(ev,'OS · '+osAreaLbl(k)),color=r.color;let body=r.h;
   const pax=Number(ev.pax)||0;
-  const its=(ev.menu||[]).filter(function(m){return m.nome && Array.isArray(m.destinos)&&m.destinos.indexOf(k)>=0;});
-  if(!its.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhum item marcado para '+osAreaLbl(k)+'. Marque na aba Menu (selecione itens → enviar p/ '+osAreaLbl(k)+').</div>'+_pfoot();
-  body+=_pt(osAreaLbl(k)+' ('+its.length+' itens)',color);
-  var isC=(k==='compras');
-  body+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Item</th><th style="width:78px">Seção</th><th style="width:140px">Qtd a '+(isC?'comprar':'preparar')+'</th><th>'+(isC?'Pedido / compra':'Louça / obs')+'</th><th style="width:38px">✓</th></tr></thead><tbody>';
+  const isC=(k==='compras');
+  const its=(ev.menu||[]).filter(function(m){return m.nome && osItemAreas(m).indexOf(k)>=0;});
+  if(!its.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhum item com informação enviada para '+osAreaLbl(k)+'. Marque na aba Menu: no item, botão 🧩 OS → escolha as informações e a área.</div>'+_pfoot();
+  body+=_pt(osAreaLbl(k)+' ('+its.length+' '+(its.length>1?'itens':'item')+')',color);
   its.forEach(function(m){
-    var q=baseQtd(m,pax);var qt=q?(fmtQty(q)+(m.un?' '+esc(m.un):'')):(esc(m.qtd)+(m.un?' '+esc(m.un):''));
-    var extra='—';
-    if(isC){var p=pedidoInfo(m,pax);if(p)extra='<b>'+p.arred+' '+esc(p.unCompra)+(p.arred===1?'':'s')+'</b> <span style="color:#8a7d7d">('+p.bruto.toFixed(2).replace('.',',')+')</span>';}
-    else if(m.louca)extra=esc(m.louca);
-    body+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:4px;font-weight:600">'+esc(m.nome)+'</td><td>'+esc(m.secao||'')+'</td><td>'+qt+'</td><td>'+extra+'</td><td style="text-align:center">☐</td></tr>';
+    const infs=osInfosForArea(m,k).map(function(x){return x.k;});
+    const totalUn=baseQtd(m,pax);
+    let linhas='';
+    if(infs.indexOf('qtd')>=0){
+      var qt=totalUn?(fmtQty(totalUn)+(m.un?' '+esc(m.un):'')):(esc(m.qtd)+(m.un?' '+esc(m.un):''));
+      if(isC){var p=pedidoInfo(m,pax);if(p)qt='<b>'+p.arred+' '+esc(p.unCompra)+(p.arred===1?'':'s')+'</b> <span style="color:#8a7d7d">(bruto '+p.bruto.toFixed(2).replace('.',',')+(m.un?' '+esc(m.un):'')+')</span>';}
+      linhas+=_osLinha(isC?'Qtd a comprar':'Quantidade',qt);
+    }
+    if(infs.indexOf('receita')>=0){
+      var rec=(m.receita&&m.receita.length)?m.receita.map(function(ing){return esc(ing.nome||'?')+' <span style="color:#8a7d7d">'+fmtQty((Number(ing.qtd)||0)*totalUn)+(ing.un?' '+esc(ing.un):'')+'</span>';}).join(' · '):'<span style="color:#8a7d7d">receita não cadastrada</span>';
+      linhas+=_osLinha('Receita',rec);
+    }
+    if(infs.indexOf('modo')>=0) linhas+=_osLinha('Modo de preparo',m.modo?esc(m.modo).replace(/\n/g,'<br>'):'<span style="color:#8a7d7d">—</span>');
+    if(infs.indexOf('louca')>=0) linhas+=_osLinha('Louça / talher',m.louca?esc(m.louca):'<span style="color:#8a7d7d">—</span>');
+    if(infs.indexOf('obs')>=0) linhas+=_osLinha('Observação',m.obsOS?esc(m.obsOS).replace(/\n/g,'<br>'):'<span style="color:#8a7d7d">—</span>');
+    body+='<div style="border:1px solid #e5ddd5;border-radius:8px;padding:8px 11px;margin:8px 0;break-inside:avoid;page-break-inside:avoid">'
+      +'<div style="font-weight:700;font-size:13.5px;margin-bottom:4px">☐ '+esc(m.nome)+(m.secao?(' <span style="color:#8a7d7d;font-weight:400;font-size:11px">· '+esc(m.secao)+'</span>'):'')+'</div>'
+      +linhas
+      +'</div>';
   });
-  body+='</tbody></table>';
   return body+_pfoot();
 }
 function printOSArea(k){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildOSArea(ev,k));}
@@ -1670,12 +1687,76 @@ const CAT_NOME={C:'Produções de comida',B:'Produções de bebidas'};
 /* ===== Ordens de serviço por área (30/09) ===== */
 const OS_AREAS=[{k:'compras',l:'Compras',ic:'🛒'},{k:'central',l:'Produção Central',ic:'🏭'},{k:'cozinha',l:'Cozinha',ic:'👨‍🍳'},{k:'bar',l:'Bar',ic:'🍸'},{k:'montagem',l:'Montagem',ic:'🪑'},{k:'estoque',l:'Estoque',ic:'📦'}];
 function osAreaLbl(k){var a=OS_AREAS.find(function(x){return x.k===k;});return a?(a.ic+' '+a.l):k;}
+/* ===== Informações da OS por item (01/10/2026 · #54b) ===== */
+/* Cada item do menu guarda m.osInfo = { qtd:[áreas], receita:[áreas], louca:[áreas], modo:[áreas], obs:[áreas] }.
+   A mesma informação pode ir pra mais de uma área. Itens antigos (só com m.destinos) migram na hora: destinos = tudo pra aquelas áreas. */
+const OS_INFOS=[{k:'qtd',l:'Quantidade',ic:'🔢'},{k:'receita',l:'Receita / ingredientes',ic:'🧾'},{k:'louca',l:'Louça / talher',ic:'🍽️'},{k:'modo',l:'Modo de preparo',ic:'👩‍🍳'},{k:'obs',l:'Observação',ic:'📝'}];
+function osMap(m){
+  if(m&&m.osInfo&&typeof m.osInfo==='object'){var o={};OS_INFOS.forEach(function(inf){o[inf.k]=Array.isArray(m.osInfo[inf.k])?m.osInfo[inf.k]:[];});return o;}
+  var d=(m&&Array.isArray(m.destinos))?m.destinos:[];var o2={};OS_INFOS.forEach(function(inf){o2[inf.k]=d.slice();});return o2;
+}
+function osItemAreas(m){var mp=osMap(m);var s={};OS_INFOS.forEach(function(inf){(mp[inf.k]||[]).forEach(function(a){s[a]=1;});});return OS_AREAS.map(function(a){return a.k;}).filter(function(k){return s[k];});}
+function osInfosForArea(m,areaK){var mp=osMap(m);return OS_INFOS.filter(function(inf){return (mp[inf.k]||[]).indexOf(areaK)>=0;});}
+function osEnsure(m){if(!m.osInfo||typeof m.osInfo!=='object'){m.osInfo=osMap(m);}return m.osInfo;}
+function osSyncDestinos(m){m.destinos=osItemAreas(m);}
+function osToggle(i,infoK,areaK,on){
+  const ev=getEvent(view.id);const m=ev.menu[i];if(!m)return;
+  const map=osEnsure(m);map[infoK]=Array.isArray(map[infoK])?map[infoK]:[];
+  const arr=map[infoK];const idx=arr.indexOf(areaK);
+  if(on&&idx<0)arr.push(areaK);if(!on&&idx>=0)arr.splice(idx,1);
+  osSyncDestinos(m);save(false);openOSModal(i);
+}
+function osToggleRow(i,infoK,on){const ev=getEvent(view.id);const m=ev.menu[i];if(!m)return;const map=osEnsure(m);map[infoK]=on?OS_AREAS.map(function(a){return a.k;}):[];osSyncDestinos(m);save(false);openOSModal(i);}
+function osToggleCol(i,areaK,on){const ev=getEvent(view.id);const m=ev.menu[i];if(!m)return;const map=osEnsure(m);OS_INFOS.forEach(function(inf){map[inf.k]=Array.isArray(map[inf.k])?map[inf.k]:[];var arr=map[inf.k];var idx=arr.indexOf(areaK);if(on&&idx<0)arr.push(areaK);if(!on&&idx>=0)arr.splice(idx,1);});osSyncDestinos(m);save(false);openOSModal(i);}
+function setOSText(i,k,v){const ev=getEvent(view.id);const m=ev.menu[i];if(!m)return;m[k]=v;save(false);}
+function osInfoPreview(ev,m,infoK){
+  const pax=Number(ev.pax)||0;
+  if(infoK==='qtd'){var q=baseQtd(m,pax);return q?(fmtQty(q)+(m.un?' '+esc(m.un):'')):(esc(m.qtd)+(m.un?' '+esc(m.un):''));}
+  if(infoK==='receita')return (m.receita&&m.receita.length)?(m.receita.length+' ingrediente'+(m.receita.length>1?'s':'')):'<span style="color:var(--muted)">sem receita</span>';
+  if(infoK==='louca')return m.louca?esc(m.louca):'<span style="color:var(--muted)">—</span>';
+  if(infoK==='modo')return m.modo?esc(m.modo).slice(0,40)+(m.modo.length>40?'…':''):'<span style="color:var(--muted)">—</span>';
+  if(infoK==='obs')return m.obsOS?esc(m.obsOS).slice(0,40)+(m.obsOS.length>40?'…':''):'<span style="color:var(--muted)">—</span>';
+  return '';
+}
+function osModalHTML(ev,m,i){
+  const map=osMap(m);
+  let h='<div class="pm-box" style="max-width:760px;text-align:left">';
+  h+='<h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:4px">🧩 Enviar informações pra OS — '+esc(m.nome||'item')+'</h3>';
+  h+='<p style="color:var(--muted);margin:0 0 12px;font-size:13px">Marque <b>qual informação</b> deste item vai pra <b>qual área</b>. A mesma informação pode ir pra mais de uma área. Cada OS imprime só o que você marcou pra ela.</p>';
+  h+='<div class="tbl-scroll"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:620px"><thead><tr style="color:var(--muted)">'
+    +'<th style="text-align:left;padding:5px 6px">Informação</th>'
+    +OS_AREAS.map(function(a){return '<th style="padding:5px 4px;text-align:center;white-space:nowrap"><div style="font-size:16px">'+a.ic+'</div><div style="font-size:10px;font-weight:700">'+esc(a.l)+'</div><div class="no-print"><input type="checkbox" style="width:auto;margin-top:3px" title="marcar tudo p/ '+esc(a.l)+'" onchange="osToggleCol('+i+',\''+a.k+'\',this.checked)"></div></th>';}).join('')
+    +'</tr></thead><tbody>';
+  h+=OS_INFOS.map(function(inf){
+    return '<tr style="border-top:1px solid var(--border)">'
+      +'<td style="padding:6px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" style="width:auto" title="marcar '+esc(inf.l)+' em todas as áreas" onchange="osToggleRow('+i+',\''+inf.k+'\',this.checked)"><span>'+inf.ic+' <b>'+esc(inf.l)+'</b></span></label><div style="font-size:11px;color:var(--muted);margin-left:24px">'+osInfoPreview(ev,m,inf.k)+'</div></td>'
+      +OS_AREAS.map(function(a){var on=(map[inf.k]||[]).indexOf(a.k)>=0;return '<td style="text-align:center;padding:6px 4px"><input type="checkbox" style="width:auto;transform:scale(1.25)" '+(on?'checked':'')+' onchange="osToggle('+i+',\''+inf.k+'\',\''+a.k+'\',this.checked)"></td>';}).join('')
+      +'</tr>';
+  }).join('');
+  h+='</tbody></table></div>';
+  h+='<div class="form-grid" style="margin-top:14px">'
+    +'<div class="field"><label>👩‍🍳 Modo de preparo <span class="hint">sai na OS das áreas marcadas</span></label><textarea rows="3" onchange="setOSText('+i+',\'modo\',this.value)" style="width:100%;font:inherit;padding:8px;border:1px solid var(--border);border-radius:10px">'+esc(m.modo||'')+'</textarea></div>'
+    +'<div class="field"><label>📝 Observação <span class="hint">sai na OS das áreas marcadas</span></label><textarea rows="3" onchange="setOSText('+i+',\'obsOS\',this.value)" style="width:100%;font:inherit;padding:8px;border:1px solid var(--border);border-radius:10px">'+esc(m.obsOS||'')+'</textarea></div>'
+  +'</div>';
+  h+='<p style="color:var(--muted);font-size:11.5px;margin:8px 0 0">A <b>quantidade</b>, a <b>louça</b> e a <b>receita</b> são as que você já preenche na linha do item e no botão 🧾. Aqui você só escolhe pra onde elas vão.</p>';
+  h+='<div style="display:flex;gap:8px;margin-top:14px"><button class="btn-primary" style="flex:1;padding:10px" onclick="closeOSModal()">Fechar</button></div>';
+  h+='</div>';
+  return h;
+}
+function openOSModal(i){
+  const ev=getEvent(view.id);const m=ev.menu[i];if(!m)return;
+  let mo=document.getElementById('osModal');
+  if(!mo){mo=document.createElement('div');mo.id='osModal';mo.className='pm-overlay';document.body.appendChild(mo);}
+  mo.innerHTML=osModalHTML(ev,m,i);
+  mo.style.display='flex';
+}
+function closeOSModal(){const mo=document.getElementById('osModal');if(mo)mo.style.display='none';renderTab();renderDetail();}
 let _menuSel=new Set();
 function menuToggleSel(i,on){if(on)_menuSel.add(i);else _menuSel.delete(i);renderTab();}
 function menuSelAll(on){const ev=getEvent(view.id);_menuSel=new Set();if(on)(ev.menu||[]).forEach(function(m,i){_menuSel.add(i);});renderTab();}
 function menuClearSel(){_menuSel=new Set();renderTab();}
-function menuAssignArea(k){const ev=getEvent(view.id);if(!_menuSel.size){showFlash('Marque itens primeiro.',true);return;}_menuSel.forEach(function(i){var m=ev.menu[i];if(!m)return;m.destinos=Array.isArray(m.destinos)?m.destinos:[];if(m.destinos.indexOf(k)<0)m.destinos.push(k);});var n=_menuSel.size;_menuSel=new Set();save(false);renderTab();renderDetail();showFlash(n+' item(ns) → '+osAreaLbl(k));}
-function menuDelDestino(i,k){const ev=getEvent(view.id);var m=ev.menu[i];if(!m||!Array.isArray(m.destinos))return;m.destinos=m.destinos.filter(function(x){return x!==k;});save(false);renderTab();renderDetail();}
+function menuAssignArea(k){const ev=getEvent(view.id);if(!_menuSel.size){showFlash('Marque itens primeiro.',true);return;}_menuSel.forEach(function(i){var m=ev.menu[i];if(!m)return;var map=osEnsure(m);OS_INFOS.forEach(function(inf){map[inf.k]=Array.isArray(map[inf.k])?map[inf.k]:[];if(map[inf.k].indexOf(k)<0)map[inf.k].push(k);});osSyncDestinos(m);});var n=_menuSel.size;_menuSel=new Set();save(false);renderTab();renderDetail();showFlash(n+' item(ns) → '+osAreaLbl(k)+' (todas as infos — ajuste no 🧩)');}
+function menuDelDestino(i,k){const ev=getEvent(view.id);var m=ev.menu[i];if(!m)return;var map=osEnsure(m);OS_INFOS.forEach(function(inf){map[inf.k]=(map[inf.k]||[]).filter(function(x){return x!==k;});});osSyncDestinos(m);save(false);renderTab();renderDetail();}
 function mcat(m){return m.cat==='B'?'B':'C';}
 function subCat(ev,c){const pax=Number(ev.pax)||0;let t=0;(ev.menu||[]).forEach(m=>{if(mcat(m)===c)t+=lineTotal(m,pax);});return t;}
 function setMenuCat(i,c){const ev=getEvent(view.id);ev.menu[i].cat=c;save(false);renderDetail();}
@@ -1726,8 +1807,8 @@ function menuHTML(ev){
       +'<td class="no-print" style="text-align:center"><input type="checkbox" '+(_menuSel.has(i)?'checked':'')+' onchange="menuToggleSel('+i+',this.checked)"></td>'
       +'<td data-l="Categoria"><span class="menu-cat">'+['C','B'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
       +'<td data-l="Item" class="name">'+esc(m.nome)
-        +((Array.isArray(m.destinos)&&m.destinos.length)?('<div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">'+m.destinos.map(function(k){return '<span style="font-size:10px;background:var(--warm);border:1px solid var(--vinho-muted);color:var(--vinho-deep);border-radius:20px;padding:1px 6px;white-space:nowrap">'+osAreaLbl(k)+' <span style="cursor:pointer;color:var(--vinho);font-weight:700" onclick="menuDelDestino('+i+',\''+k+'\')" title="tirar">✕</span></span>';}).join('')+'</div>'):'')
-        +'<div style="margin-top:3px"><button class="btn-ghost btn-sm" style="font-size:10.5px;padding:2px 6px'+((m.receita&&m.receita.length)?'':';opacity:.65')+'" onclick="openReceita('+i+')" title="Destrinchar em ingredientes (ex.: prato de frios = presunto, queijo, azeitona…) e calcular o custo automaticamente pela quantidade">'+((m.receita&&m.receita.length)?('🧾 receita ('+m.receita.length+')'):'+ receita')+'</button></div></td>'
+        +((osItemAreas(m).length)?('<div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">'+osItemAreas(m).map(function(k){var infs=osInfosForArea(m,k);return '<span style="font-size:10px;background:var(--warm);border:1px solid var(--vinho-muted);color:var(--vinho-deep);border-radius:20px;padding:1px 6px;white-space:nowrap" title="'+esc(infs.map(function(x){return x.l;}).join(', '))+'">'+osAreaLbl(k)+' <span style="opacity:.75">('+infs.length+')</span> <span style="cursor:pointer;color:var(--vinho);font-weight:700" onclick="menuDelDestino('+i+',\''+k+'\')" title="tirar">✕</span></span>';}).join('')+'</div>'):'')
+        +'<div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap"><button class="btn-ghost btn-sm" style="font-size:10.5px;padding:2px 6px'+((m.receita&&m.receita.length)?'':';opacity:.65')+'" onclick="openReceita('+i+')" title="Destrinchar em ingredientes (ex.: prato de frios = presunto, queijo, azeitona…) e calcular o custo automaticamente pela quantidade">'+((m.receita&&m.receita.length)?('🧾 receita ('+m.receita.length+')'):'+ receita')+'</button>'+'<button class="btn-ghost btn-sm" style="font-size:10.5px;padding:2px 6px'+(osItemAreas(m).length?'':';opacity:.65')+'" onclick="openOSModal('+i+')" title="Escolher quais informações deste item vão pra cada área (OS)">🧩 OS'+(osItemAreas(m).length?(' ('+osItemAreas(m).length+')'):'')+'</button></div></td>'
       +'<td data-l="Seção"><select onchange="setMenu('+i+',\'secao\',this.value)">'+['']. concat(SECOES).map(x=>'<option '+((m.secao||'')===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
       +'<td data-l="Qtd"><input type="number" step="0.01" value="'+esc(m.qtd)+'" title="'+(m.perPax?'quantidade por pessoa (pax)':'previsão total (não é por pax)')+'" onchange="setMenu('+i+',\'qtd\',this.value)"></td>'
       +'<td data-l="Un"><input type="text" value="'+esc(m.un||'')+'" onchange="setMenu('+i+',\'un\',this.value)"></td>'
@@ -1768,6 +1849,122 @@ function orcCalc(ev){
 }
 function orcTotal(ev){return orcCalc(ev).total;}
 function lineTotal(m,pax){const preco=Number(m.preco)||0;return m.perPax?(Number(m.qtd)||0)*pax*preco:(Number(m.qtd)||0)*preco;}
+/* ===== ABA RESUMO DO EVENTO (01/10/2026 · #57) ===== */
+function resumoHTML(ev){
+  const K=orcCalc(ev);
+  const pg=ev.pag||{};
+  const pay=payStatus(ev);
+  const st=(STATUS.find(s=>s.v===ev.status)||STATUS[0]);
+  const tp=(TIPOS.find(t=>t.v===ev.tipo)||{}).l||'';
+  const loc=ev.local?(((LOCAIS.find(l=>l.v===ev.local)||{}).l)||'').replace('Lola ',''):'';
+  const paxTxt=[ev.paxIn,ev.paxOut].filter(x=>x!=='').join(' + ');
+  const paxN=Number(ev.pax)||0;
+  const dt=ev.data?(function(){var d=new Date(ev.data+'T00:00');return d.toLocaleDateString('pt-BR')+' · '+d.toLocaleDateString('pt-BR',{weekday:'long'});})():'A definir';
+  const col=unitColor(ev.local);
+  // menu
+  const nC=(ev.menu||[]).filter(m=>mcat(m)==='C').length, nB=(ev.menu||[]).filter(m=>mcat(m)==='B').length;
+  const subC=subCat(ev,'C'), subB=subCat(ev,'B');
+  const menuEstado=pg.menuAprovado?(pg.menuEnviado?'✅ aprovado e enviado à central':'✅ aprovado'):((nC+nB)?'em montagem':'vazio');
+  // equipe
+  const g=ev.equipe||[]; const eqSoma=g.reduce((s,r)=>s+eqTotal(r),0); const eqPago=g.reduce((s,r)=>s+(r.pago?eqTotal(r):0),0); const vagas=g.filter(r=>!String(r.nome||'').trim()).length;
+  // pagamento
+  const sinal=Number(pg.sinalValor)||0; const saldo=K.total-sinal;
+  // alertas
+  const alerts=resolverAgora(ev);
+  // OS por área
+  const areaCounts=OS_AREAS.map(function(a){return {a:a,n:(ev.menu||[]).filter(function(m){return m.nome&&osItemAreas(m).indexOf(a.k)>=0;}).length};});
+  const totalDestinados=areaCounts.reduce(function(s,x){return s+x.n;},0);
+
+  const card=function(title,body,extra){return '<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:14px;padding:14px 16px'+(extra||'')+'"><div style="font-family:var(--serif);color:var(--vinho);font-weight:700;font-size:15px;margin-bottom:10px">'+title+'</div>'+body+'</div>';};
+  const kv=function(k,v,strong){return '<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:13.5px"><span style="color:var(--muted)">'+k+'</span><span style="text-align:right;font-weight:'+(strong?'800':'600')+';color:var(--ink,#2A1A17)">'+v+'</span></div>';};
+
+  // ---- bloco 1: visão geral ----
+  const visaoBody=''
+    +kv('Status','<span class="badge '+st.c+'">'+st.l+'</span>')
+    +kv('Data',esc(dt)+(ev.horario?(' · '+esc(ev.horario)):''))
+    +kv('Local',loc?esc(loc):'—')
+    +kv('Pax',paxTxt?(esc(paxTxt)+' pessoas'):'—')
+    +kv('Responsável',esc(ev.responsavel)||'—')
+    +(ev.ocasiao?kv('Ocasião',esc(ev.ocasiao)):'')
+    +(ev.cliente?kv('Cliente',esc(ev.cliente)):'');
+
+  // ---- bloco 1b: financeiro ----
+  const finBody='<div class="totals" style="margin-top:0">'
+    +'<div class="line"><span>Pacote (comida + bebida)</span><b>'+fmt(K.sub)+'</b></div>'
+    +(K.serv?'<div class="line"><span>Serviço ('+K.gpct+'%)</span><b>'+fmt(K.serv)+'</b></div>':'')
+    +(K.mo?'<div class="line"><span>Mão de obra</span><b>'+fmt(K.mo)+'</b></div>':'')
+    +(K.equipe?'<div class="line"><span>Equipe escalada</span><b>'+fmt(K.equipe)+'</b></div>':'')
+    +(K.mat?'<div class="line"><span>Materiais a comprar</span><b>'+fmt(K.mat)+'</b></div>':'')
+    +(K.oper?'<div class="line"><span>Operacional</span><b>'+fmt(K.oper)+'</b></div>':'')
+    +(K.extras?'<div class="line"><span>Custos extras</span><b>'+fmt(K.extras)+'</b></div>':'')
+    +(K.imp?'<div class="line"><span>Imposto ('+K.ipct+'%)</span><b>'+fmt(K.imp)+'</b></div>':'')
+    +'<div class="line grand"><span>Total</span><span>'+fmt(K.total)+'</span></div>'
+    +(paxN?'<div class="line"><span>Por pessoa</span><b>'+fmt(K.total/paxN)+'</b></div>':'')
+    +'</div>'
+    +'<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">'
+      +kv('Pagamento','<span class="pay '+pay.cls+'">'+(pay.ico?pay.ico+' ':'')+pay.txt+'</span>')
+      +(sinal>0?kv('Sinal / entrada',fmt(sinal)+(pg.sinalPago?' · pago ✓':' · pendente')):'')
+      +(sinal>0?kv('Saldo a receber',fmt(saldo)+(pg.saldoPago?' · pago ✓':'')):'')
+      +(pg.forma?kv('Forma',esc(pg.forma)):'')
+    +'</div>';
+
+  // ---- bloco 2: menu + equipe ----
+  const menuBody=''
+    +kv('Itens de comida','<span class="mtag C">C</span> '+nC+' · '+fmt(subC))
+    +kv('Itens de bebida','<span class="mtag B">B</span> '+nB+' · '+fmt(subB))
+    +kv('Total do menu',fmt(subC+subB),true)
+    +kv('Situação',menuEstado)
+    +'<div style="margin-top:8px"><button class="btn-ghost btn-sm" onclick="gotoTab(\'menu\')">Abrir o Menu →</button></div>';
+  const eqBody=''
+    +kv('Escalados',g.length?(g.length+' pessoa'+(g.length>1?'s':'')):'ninguém ainda')
+    +(vagas?kv('Vagas em aberto','<b style="color:var(--vinho)">'+vagas+' vaga'+(vagas>1?'s':'')+'</b>'):'')
+    +kv('Custo da equipe',fmt(eqSoma),true)
+    +(eqSoma?kv('Já pago',fmt(eqPago)+(eqPago<eqSoma?(' · falta '+fmt(eqSoma-eqPago)):' ✓')):'')
+    +'<div style="margin-top:8px"><button class="btn-ghost btn-sm" onclick="gotoTab(\'equipe\')">Abrir a Equipe →</button></div>';
+
+  // ---- bloco 3: OS por área ----
+  let osBody='<div class="intro" style="margin:0 0 10px">Itens marcados na aba Menu pra cada área. Imprima a ordem de serviço de cada setor aqui mesmo.'+(totalDestinados?'':' <b>Nenhum item foi enviado pra uma área ainda</b> — faça isso na aba Menu (selecione itens → enviar p/ a área).')+'</div>';
+  osBody+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
+  osBody+=areaCounts.map(function(x){
+    const has=x.n>0;
+    return '<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;'+(has?'':'opacity:.6')+'">'
+      +'<div style="font-weight:700;font-size:14px">'+x.a.ic+' '+x.a.l+'</div>'
+      +'<div style="font-size:13px;color:var(--muted)">'+(has?(x.n+' item'+(x.n>1?'ns':'')):'nenhum item')+'</div>'
+      +'<button class="btn-ghost btn-sm" '+(has?'':'disabled')+' onclick="printOSArea(\''+x.a.k+'\')" style="align-self:flex-start">🖨 Imprimir OS</button>'
+      +'</div>';
+  }).join('');
+  osBody+='</div>';
+
+  // ---- bloco 4: resolver agora + impressões ----
+  let resolverBody;
+  if(alerts.length){
+    resolverBody=alerts.map(function(a){return '<div style="display:flex;gap:8px;padding:6px 0;font-size:13.5px;border-bottom:1px solid var(--border)"><span style="color:var(--vinho);font-weight:800">!</span><span>'+esc(a)+'</span></div>';}).join('');
+  }else{
+    resolverBody='<div style="font-size:13.5px;color:var(--muted)">✓ Nada pendente por aqui. Tudo em dia!</div>';
+  }
+  const printBody='<div style="display:flex;flex-wrap:wrap;gap:8px">'
+    +'<button class="btn-ghost btn-sm" onclick="printCardapioCliente()">🍽️ Cardápio pro cliente</button>'
+    +'<button class="btn-ghost btn-sm" onclick="choosePrintSections(true)">💰 Evento completo (com valores)</button>'
+    +'<button class="btn-ghost btn-sm" onclick="choosePrintSections(false)">📄 Evento completo (sem valores)</button>'
+    +'<button class="btn-ghost btn-sm" onclick="openPrintDialog()">🖨 Todas as impressões…</button>'
+    +'</div>';
+
+  return '<div class="section-title">Resumo do Evento</div>'
+    +'<div class="intro">Uma visão geral de tudo num lugar só — financeiro, menu, equipe e as ordens de serviço por área. É só leitura: pra editar, use os botões que levam a cada aba.</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">'
+      +card('Visão geral',visaoBody)
+      +card('Financeiro',finBody)
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">'
+      +card('Menu',menuBody)
+      +card('Equipe',eqBody)
+    +'</div>'
+    +card('Ordens de serviço por área',osBody,';margin-bottom:14px')
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">'
+      +card('Resolver agora'+(alerts.length?(' · '+alerts.length):''),resolverBody)
+      +card('Impressões',printBody)
+    +'</div>';
+}
 function orcHTML(ev){
   const K=orcCalc(ev);
   const pax=K.pax,sub=K.sub,mo=K.mo,gpct=K.gpct,gorj=K.serv,ipct=K.ipct,imp=K.imp,total=K.total;
