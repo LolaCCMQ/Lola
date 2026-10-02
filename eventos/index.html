@@ -117,7 +117,7 @@
   .ck-body{flex:1}
   .ck-body .txt{font-weight:700;font-size:14px}
   .ck-item.done .txt{text-decoration:line-through;color:var(--muted)}
-  .ck-body .desc{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:600}
+  .ck-body .desc{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:600;white-space:pre-wrap}
   .ck-note{margin-top:8px;font-size:13px;min-height:34px;background:var(--cream)}
   .ck-link{display:flex;gap:7px;align-items:center;margin-top:7px}
   .ck-link input{font-size:12.5px;background:var(--cream)}
@@ -1077,33 +1077,54 @@ function diaOSTemDado(ev,fragTitulo){
   if(!ck)return false;
   return !!(ck.na||ck.done||(ck.note&&ck.note.trim())||(ck.link&&ck.link.trim())||Number(ck.orc)>0);
 }
+function diaOSDetalhe(ev,fragTitulo){
+  const f=FASES.find(x=>x.id==='os');if(!f)return '';
+  const idx=f.itens.findIndex(it=>it.t.toLowerCase().indexOf(fragTitulo)>=0);
+  if(idx<0)return '';
+  const ck=(ev.checks||{})['os_'+idx];if(!ck)return '';
+  const parts=[];
+  if(ck.note&&ck.note.trim())parts.push(ck.note.trim());
+  if(Number(ck.orc)>0)parts.push('Orçado: '+fmt(ck.orc));
+  if(ck.link&&ck.link.trim())parts.push('🔗 '+ck.link.trim());
+  return parts.join('\n');
+}
+function diaItemLista(ms,pax){return ms.map(function(m){const q=baseQtd(m,pax);return m.nome+(q?(' ('+fmtQty(q)+(m.un?(' '+m.un):'')+')'):'');}).join('\n');}
 function diaCustomList(ev){return (ev.checks&&ev.checks['_diaCustom'])||[];}
 function diaItens(ev){
   const out=[];
+  const pax=Number(ev.pax)||0;
+  const menu=ev.menu||[];
   out.push({key:'0',t:'Montagem de equipes — quem faz e que horas',d:'',group:'base'});
   out.push({key:'1',t:'Separar material de serviço',d:'Pratos, talheres, copos e utensílios do serviço',group:'base'});
   out.push({key:'2',t:'Liberar espaço no bar ou cúpula',d:'É necessário?',group:'base'});
   out.push({key:'3',t:'Definir onde guardar mobiliário não utilizado',d:'',group:'base'});
   out.push({key:'staffFood',t:'Alimentação da equipe/staff no dia',d:'O que e quando a equipe vai comer',group:'base'});
-  const menu=ev.menu||[];
-  if(menu.some(m=>osItemAreas(m).indexOf('cozinha')>=0))
-    out.push({key:'coz',t:'Cozinha — conferir produções do dia',d:'Itens do menu marcados pra área Cozinha na OS',group:'auto',link:'menu'});
-  if(menu.some(m=>osItemAreas(m).indexOf('bar')>=0)||menu.some(m=>mcat(m)==='B'))
-    out.push({key:'bar',t:'Bar — conferir preparo e estoque de bebidas',d:'',group:'auto',link:'menu'});
-  if(menu.some(m=>osItemAreas(m).indexOf('montagem')>=0))
-    out.push({key:'montagemItens',t:'Montagem dos itens do menu',d:'Itens marcados pra área Montagem na OS',group:'auto',link:'menu'});
-  if((ev.materiais||[]).length>0)
-    out.push({key:'materiais',t:'Materiais e louças — conferir separação e devolução',d:ev.materiais.length+' item(ns) na aba Menu',group:'auto',link:'menu'});
-  if((ev.equipe||[]).length>0)
-    out.push({key:'equipe',t:'Equipe — conferir escala e horários do dia',d:ev.equipe.length+' pessoa(s) escalada(s)',group:'auto',link:'equipe'});
-  {const pg=ev.pag||{};if(orcTotal(ev)>0||Number(pg.sinalValor)>0)
-    out.push({key:'pagamentos',t:'Pagamentos — conferir sinal e saldo recebidos',d:'',group:'auto',link:'orc'});}
+  {const its=menu.filter(m=>m.nome&&osItemAreas(m).indexOf('cozinha')>=0);
+    if(its.length)out.push({key:'coz',t:'Cozinha — conferir produções do dia',d:diaItemLista(its,pax),group:'auto',link:'menu'});}
+  {const its=menu.filter(m=>m.nome&&(osItemAreas(m).indexOf('bar')>=0||mcat(m)==='B'));
+    if(its.length)out.push({key:'bar',t:'Bar — conferir preparo e estoque de bebidas',d:diaItemLista(its,pax),group:'auto',link:'menu'});}
+  {const its=menu.filter(m=>m.nome&&osItemAreas(m).indexOf('montagem')>=0);
+    if(its.length)out.push({key:'montagemItens',t:'Montagem dos itens do menu',d:diaItemLista(its,pax),group:'auto',link:'menu'});}
+  {const mats=(ev.materiais||[]).filter(r=>r.item);
+    if(mats.length)out.push({key:'materiais',t:'Materiais e louças — conferir separação e devolução',
+      d:mats.map(function(r){return r.item+(r.qtdSaida?(' ('+r.qtdSaida+')'):'')+(r.destino?(' → '+r.destino):'');}).join('\n'),group:'auto',link:'menu'});}
+  {const eq=(ev.equipe||[]);
+    if(eq.length)out.push({key:'equipe',t:'Equipe — conferir escala e horários do dia',
+      d:eq.map(function(r){return r.cargo+': '+(r.nome&&r.nome.trim()?r.nome:'(vaga aberta)')+(r.entrada||r.saida?(' · '+(r.entrada||'?')+'–'+(r.saida||'?')):'');}).join('\n'),group:'auto',link:'equipe'});}
+  {const pg=ev.pag||{};const total=orcTotal(ev);const sinal=Number(pg.sinalValor)||0;const saldo=total-sinal;
+    if(total>0||sinal>0){
+      const parts=[];
+      if(pg.forma)parts.push('Forma: '+pg.forma);
+      if(sinal>0)parts.push('Sinal '+fmt(sinal)+(pg.sinalPago?' (pago ✓)':' (pendente)'));
+      if(total>0)parts.push('Saldo a receber '+fmt(saldo)+(pg.saldoPago?' (pago ✓)':''));
+      out.push({key:'pagamentos',t:'Pagamentos — conferir sinal e saldo recebidos',d:parts.join('\n'),group:'auto',link:'orc'});
+    }}
   if(diaOSTemDado(ev,'som e iluminação'))
-    out.push({key:'som',t:'Som e iluminação — conferir montagem e teste',d:'',group:'auto',link:'os'});
+    out.push({key:'som',t:'Som e iluminação — conferir montagem e teste',d:diaOSDetalhe(ev,'som e iluminação'),group:'auto',link:'os'});
   if(diaOSTemDado(ev,'gelo'))
-    out.push({key:'gelo',t:'Gelo — conferir pedido e entrega',d:'',group:'auto',link:'os'});
+    out.push({key:'gelo',t:'Gelo — conferir pedido e entrega',d:diaOSDetalhe(ev,'gelo'),group:'auto',link:'os'});
   if(diaOSTemDado(ev,'caixa de gelar'))
-    out.push({key:'caixagelar',t:'Caixa de gelar — conferir quantidade e retirada',d:'',group:'auto',link:'os'});
+    out.push({key:'caixagelar',t:'Caixa de gelar — conferir quantidade e retirada',d:diaOSDetalhe(ev,'caixa de gelar'),group:'auto',link:'os'});
   diaCustomList(ev).forEach(function(c){out.push({key:c.id,t:c.t||'(sem texto)',d:'',group:'custom',custom:true});});
   return out;
 }
