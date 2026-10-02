@@ -37,7 +37,15 @@
   .top-actions button{background:var(--vinho-pale);color:var(--vinho);padding:9px 14px}
   .top-actions button:hover{background:var(--vinho-muted)}
   .top-actions a.home{color:var(--muted);font-weight:700;text-decoration:none;font-size:13px;padding:9px 6px}
-  .wrap{max-width:1180px;margin:0 auto;padding:26px}
+  .wrap{max-width:1400px;margin:0 auto;padding:26px}
+  /* Desktop: aproveitar melhor a largura da tela (01/10/2026 · #55) */
+  @media(min-width:1200px){
+    .wrap{padding:26px 40px}
+    .panel{padding:26px 34px}
+    .detail-head{padding:24px 30px}
+    .form-grid{grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+    .detail-head .hyb-stats{gap:18px}
+  }
   .toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:20px}
   .toolbar .search{flex:1;min-width:200px}
   .btn-primary{background:var(--vinho);color:#fff;padding:11px 18px}
@@ -1373,6 +1381,7 @@ function openPrintDialog(){
    +'<button class="btn-ghost" style="padding:11px" onclick="printProducoes()">👨‍🍳 Produções (comida + bebida)</button>'
    +'<button class="btn-ghost" style="padding:11px" onclick="printSeparacao()">📦 Separação: materiais + louças</button>'
    +'<button class="btn-ghost" style="padding:11px" onclick="printConvidados()">👥 Lista de convidados</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="openEquipePrint()">🧑‍🍳 Escala da equipe</button>'
    +'<button class="btn-ghost" style="padding:11px" onclick="printCompras()">🧾 Compras e notas</button>'
    +'<div style="border-top:1px solid var(--border);margin:6px 0 2px"></div>'
    +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:2px 0 0">Ordens de serviço por área</div>'
@@ -1453,6 +1462,8 @@ function _pt(t,color){return '<div style="font-family:var(--serif);font-weight:7
 function buildPrintHTML(ev,withValues,sel){
   function inc(id){ return !sel || !!sel[id]; }
   const color=unitColor(ev.local);
+  const pax2=Number(ev.pax)||0;
+  const mrow=function(a,b,strong){return '<div style="display:flex;justify-content:space-between;padding:2px 0'+(strong?';border-top:2px solid '+color+';padding-top:6px;margin-top:2px;font-weight:800;font-size:15px;color:'+color:'')+'"><span>'+a+'</span><span'+(strong?'':' style="font-weight:700"')+'>'+b+'</span></div>';};
   const tp=(TIPOS.find(t=>t.v===ev.tipo)||{}).l||'';
   const loc=ev.local?((LOCAIS.find(l=>l.v===ev.local)||{}).l||''):'';
   const st=(STATUS.find(s=>s.v===ev.status)||{}).l||'';
@@ -1466,16 +1477,52 @@ function buildPrintHTML(ev,withValues,sel){
    +'<div style="font-family:var(--serif);font-size:26px;font-weight:800">'+(esc(ev.nome)||'(evento sem nome)')+'</div>'
    +(st?'<div style="font-size:12px;color:#8a7d7d;font-weight:700">'+esc(st)+'</div>':'')+'</div></div>';
   h+=_pt('Informações gerais',color);
-  h+=_pr('Data',dt)+_pr('Horário',esc(ev.horario))+_pr('Duração',esc(ev.duracao))+_pr('Nº de pessoas',pax?(esc(pax)+' pax'):'')+_pr('Ocasião',esc(ev.ocasiao))+_pr('Responsável',esc(ev.responsavel))+_pr('Contato',esc(ev.contato))+_pr('Estilo de serviço',SERVICO_LBL[ev.servico]||'')+_pr('Espaço',EXCL_LBL[ev.exclusividade]||'')+_pr('Local específico',LOCALESP_LBL[ev.cupula]||'')+_pr('Precisa nota/Danfe?',ev.nota==='sim'?'Sim':'');
+  h+=_pr('Data',dt)+_pr('Horário',esc(ev.horario))+_pr('Duração',esc(ev.duracao))+_pr('Nº de pessoas',pax?(esc(pax)+' pax'):'')+_pr('Cliente',esc(ev.cliente))+_pr('Ocasião',esc(ev.ocasiao))+_pr('Responsável',esc(ev.responsavel))+_pr('Contato',esc(ev.contato))+_pr('Estilo de serviço',SERVICO_LBL[ev.servico]||'')+_pr('Espaço',EXCL_LBL[ev.exclusividade]||'')+_pr('Local específico',LOCALESP_LBL[ev.cupula]||'')+_pr('Precisa nota/Danfe?',ev.nota==='sim'?'Sim':'');
   if(ev.obs&&ev.obs.trim()){h+=_pt('Observações',color)+'<div style="font-size:13px;white-space:pre-wrap">'+esc(ev.obs)+'</div>';}
+  /* ---- Cardápio / Menu (sempre, com ou sem valores) ---- */
+  if(inc('menu') && (ev.menu||[]).length){
+    h+=_pt('Cardápio / Menu',color);
+    ['C','B'].forEach(function(c){
+      var its=(ev.menu||[]).filter(function(m){return mcat(m)===c && m.nome;});
+      if(!its.length)return;
+      h+='<div style="font-weight:700;font-size:12.5px;margin:8px 0 3px">'+(c==='C'?'🍴 Comida':'🍸 Bebida')+(withValues?(' <span style="color:#8a7d7d;font-weight:400">· '+fmt(subCat(ev,c))+'</span>'):'')+'</div>';
+      h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:3px">Item</th><th style="width:150px">Quantidade</th>'+(withValues?'<th style="width:88px;text-align:right">Total</th>':'<th>Descrição / louça</th>')+'</tr></thead><tbody>';
+      its.forEach(function(m){
+        var q=baseQtd(m,pax2);
+        var qt=(m.perPax&&pax2)?(fmtQty((Number(m.qtd)||0)*pax2)+(m.un?' '+esc(m.un):'')+' <span style="color:#8a7d7d">('+esc(m.qtd)+'/pax)</span>'):(q?(fmtQty(q)+(m.un?' '+esc(m.un):'')):(esc(m.qtd)+(m.un?' '+esc(m.un):'')));
+        var last=withValues?('<td style="text-align:right">'+fmt(lineTotal(m,pax2))+'</td>'):('<td>'+([esc(m.desc||''),m.louca?('🍽️ '+esc(m.louca)):''].filter(Boolean).join(' · ')||'—')+'</td>');
+        h+='<tr style="border-top:1px solid #f0f0f0"><td style="padding:3px;font-weight:600">'+esc(m.nome)+(m.secao?' <span style="color:#8a7d7d;font-weight:400">· '+esc(m.secao)+'</span>':'')+'</td><td>'+qt+'</td>'+last+'</tr>';
+      });
+      h+='</tbody></table>';
+    });
+  }
+  /* ---- Distribuição por setor (OS) ---- */
+  if(inc('menu')){
+    var _areas=OS_AREAS.map(function(a){return {a:a,its:(ev.menu||[]).filter(function(m){return m.nome&&osItemAreas(m).indexOf(a.k)>=0;})};}).filter(function(x){return x.its.length;});
+    if(_areas.length){
+      h+=_pt('Distribuição por setor (OS)',color);
+      _areas.forEach(function(x){
+        h+='<div style="font-size:12px;padding:3px 0;border-top:1px solid #f0f0f0"><b>'+x.a.ic+' '+esc(x.a.l)+':</b> '+x.its.map(function(m){var q=baseQtd(m,pax2);return esc(m.nome)+(q?(' <span style="color:#8a7d7d">('+fmtQty(q)+(m.un?' '+esc(m.un):'')+')</span>'):'');}).join(' · ')+'</div>';
+      });
+    }
+  }
+  /* ---- Equipe escalada ---- */
+  if(inc('equipe') && (ev.equipe||[]).length){
+    h+=_pt('Equipe escalada',color);
+    eqGrupos(ev).forEach(function(gr){
+      h+='<div style="font-weight:700;font-size:12.5px;margin:8px 0 3px">'+esc(gr.cargo)+' ('+gr.rows.length+')</div>';
+      h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>'
+       +gr.rows.map(function(x){var nome=String(x.nome||'').trim()?esc(x.nome):'<i style="color:#8a7d7d">vaga em aberto</i>';var hor=(x.entrada?esc(x.entrada):'—')+'–'+(x.saida?esc(x.saida):'—');return '<tr style="border-top:1px solid #f0f0f0"><td style="padding:3px">'+nome+'</td><td style="width:150px">'+hor+' <span style="color:#8a7d7d">('+fmtQty(horasEq(x))+'h)</span></td>'+(withValues?('<td style="width:96px;text-align:right">'+fmt(eqTotal(x))+(x.pago?' ✓':'')+'</td>'):'')+'</tr>';}).join('')
+       +'</tbody></table>';
+    });
+    if(withValues){var somaEq=(ev.equipe||[]).reduce(function(s,x){return s+eqTotal(x);},0);var pagoEq=(ev.equipe||[]).reduce(function(s,x){return s+(x.pago?eqTotal(x):0);},0);h+='<div style="text-align:right;font-size:12.5px;margin-top:4px"><b>Custo equipe: '+fmt(somaEq)+'</b>'+(pagoEq?(' <span style="color:#8a7d7d">(pago '+fmt(pagoEq)+')</span>'):'')+'</div>';}
+  }
   let ckHtml='';
   relevantFases(ev).filter(function(f){return inc(f.id);}).forEach(function(f){
-    let items='';
-    f.itens.forEach(function(it,i){const ck=ev.checks[f.id+'_'+i]||{};const note=(ck.note||'').trim();
-      if(ck.done||note){items+='<div style="font-size:12px;padding:2px 0">'+(ck.done?'✓ ':'• ')+esc(it.t)+(note?(' <span style="color:#8a7d7d">— '+esc(note)+'</span>'):'')+'</div>';}});
-    if(items){const fp=faseProgress(ev,f);ckHtml+='<div style="margin:8px 0 4px;font-weight:700;font-size:13px">'+esc(f.nome)+' ('+fp.done+'/'+fp.tot+')</div>'+items;}
+    var items=f.itens.map(function(it,i){var ck=ev.checks[f.id+'_'+i]||{};var note=(ck.note||'').trim();var mark=ck.done?'✓':(ck.na?'–':'○');return '<div style="font-size:12px;padding:2px 0'+(ck.done?'':';color:#5a463e')+'">'+mark+' '+esc(it.t)+(note?(' <span style="color:#8a7d7d">— '+esc(note)+'</span>'):'')+'</div>';}).join('');
+    if(items){var fp=faseProgress(ev,f);ckHtml+='<div style="margin:10px 0 4px;font-weight:700;font-size:13px">'+esc(f.nome)+' ('+fp.done+'/'+fp.tot+')</div>'+items;}
   });
-  if(ckHtml){h+=_pt('Checklist',color)+ckHtml;}
+  if(ckHtml){h+=_pt('Checklist completo',color)+ckHtml;}
   const coz=(ev.cozbar||[]).filter(function(r){return r.hora||r.atividade||r.obs;});
   if(coz.length&&inc('cozbar')){h+=_pt('Operacional Cozinha & Bar',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Setor</th><th>Atividade / informações</th></tr>'
     +coz.sort(function(a,b){return (a.setor||'').localeCompare(b.setor||'');}).map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px;white-space:nowrap;vertical-align:top">'+esc(r.setor||'')+'</td><td style="white-space:pre-wrap">'+esc(r.atividade||'')+'</td></tr>';}).join('')+'</table>';}
@@ -1483,21 +1530,31 @@ function buildPrintHTML(ev,withValues,sel){
   if(mat.length&&inc('materiais')){h+=_pt('Materiais',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="width:42px"></th><th style="padding:3px">Material</th><th>Saída</th><th>Qtd saída</th><th>Saiu</th><th>Qtd volta</th><th>Voltou</th><th>Destino</th><th>Obs</th></tr>'
     +mat.map(function(r){return '<tr style="border-top:1px solid #eee"><td>'+(r.foto?('<img src="'+esc(r.foto)+'" style="width:34px;height:34px;object-fit:cover;border-radius:4px">'):'')+'</td><td style="padding:3px">'+esc(r.item)+'</td><td>'+esc(r.origem||'')+'</td><td>'+esc(r.qtdSaida||'')+'</td><td>'+(r.saiu?'✓':'')+'</td><td>'+esc(r.qtdVolta||'')+'</td><td>'+(r.voltou?'✓':'')+'</td><td>'+esc(r.destino||'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}
   if(withValues&&inc('orc')){
-    const pax2=Number(ev.pax)||0;let sub=0;(ev.menu||[]).forEach(function(m){sub+=lineTotal(m,pax2);});
-    const moV=Number(ev.moValor)||0,moQ=Number(ev.moQtd)||0;const mo=(moV*moQ)||(Number(ev.maoObra)||0);const gpct=Number(ev.gorjeta)||0;const gorj=sub*gpct/100;const ipct=Number(ev.imposto)||0;const imp=(sub+mo+gorj)*ipct/100;const total=sub+mo+gorj+imp;
-    if((ev.menu||[]).length){
-      h+=_pt('Orçamento',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Item</th><th>Qtd/pax</th><th style="text-align:right">Total</th></tr>'
-       +ev.menu.map(function(m){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(m.nome)+'</td><td>'+esc(m.qtd)+(m.un?' '+esc(m.un):'')+(m.perPax?'/pax':'')+((m.perPax&&pax2)?(' = '+fmtQty((Number(m.qtd)||0)*pax2)+(m.un?' '+esc(m.un):'')):'')+'</td><td style="text-align:right">'+fmt(lineTotal(m,pax2))+'</td></tr>';}).join('')
-       +'</table><div style="margin-top:8px;font-size:13px">'
-       +'<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Subtotal cardápio</span><b>'+fmt(sub)+'</b></div>'
-       +(mo?('<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Mão de obra'+(moQ?(' ('+moQ+'\u00d7 R$ '+fmt(moV).replace('R$ ','')+')'):'')+'</span><b>'+fmt(mo)+'</b></div>'):'')
-       +(gorj?('<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Gorjeta ('+gpct+'%)</span><b>'+fmt(gorj)+'</b></div>'):'')+(imp?('<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Imposto ('+ipct+'%)</span><b>'+fmt(imp)+'</b></div>'):'')
-       +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid '+color+';font-weight:800;font-size:15px;color:'+color+'"><span>TOTAL</span><span>'+fmt(total)+'</span></div>'
-       +(pax2?('<div style="display:flex;justify-content:space-between;color:#8a7d7d"><span>Por pessoa</span><span>'+fmt(total/pax2)+'</span></div>'):'')+'</div>';
-    }
+    const K=orcCalc(ev);
+    h+=_pt('Orçamento',color)+'<div style="font-size:13px">'
+     +mrow('Pacote (comida + bebida)',fmt(K.sub))
+     +(K.serv?mrow('Serviço ('+K.gpct+'%)',fmt(K.serv)):'')
+     +(K.mo?mrow('Mão de obra',fmt(K.mo)):'')
+     +(K.equipe?mrow('Equipe escalada',fmt(K.equipe)):'')
+     +(K.mat?mrow('Materiais a comprar',fmt(K.mat)):'')
+     +(K.oper?mrow('Operacional',fmt(K.oper)):'')
+     +(K.extras?mrow('Custos extras / fornecedores',fmt(K.extras)):'')
+     +(K.imp?mrow('Imposto ('+K.ipct+'%)',fmt(K.imp)):'')
+     +mrow('TOTAL',fmt(K.total),true)
+     +(K.pax?('<div style="display:flex;justify-content:space-between;color:#8a7d7d;font-size:12px"><span>Por pessoa</span><span>'+fmt(K.total/K.pax)+'</span></div>'):'')
+     +'</div>';
+  }
+  if(withValues){
     const pg=ev.pag||{};
-    if(pg.forma||pg.sinalValor||pg.obs||(pg.pago&&pg.pago!=='Não')||pg.precisaDanfe==='Sim'){
-      h+=_pt('Pagamento',color)+_pr('Forma',esc(pg.forma))+_pr('Pago?',(pg.pago&&pg.pago!=='Não')?pg.pago:'')+_pr('Danfe/Nota?',pg.precisaDanfe==='Sim'?'Sim':'')+_pr('Antecipado?',pg.antecipado?'Sim':'')+_pr('Sinal/entrada',pg.sinalValor?(fmt(pg.sinalValor)+(pg.sinalPago?' (pago)':'')):'')+_pr('Data do sinal',esc(pg.sinalData))+_pr('Data do saldo',esc(pg.saldoData))+(pg.obs?('<div style="font-size:12px;margin-top:4px;white-space:pre-wrap">'+esc(pg.obs)+'</div>'):'');
+    if(pg.forma||pg.sinalValor||pg.obs||(pg.pago&&pg.pago!=='Não')||pg.precisaDanfe==='Sim'||pg.saldoData){
+      h+=_pt('Pagamento',color)+_pr('Forma',esc(pg.forma))+_pr('Pago?',(pg.pago&&pg.pago!=='Não')?pg.pago:'')+_pr('Danfe/Nota?',pg.precisaDanfe==='Sim'?'Sim':'')+_pr('Antecipado?',pg.antecipado?'Sim':'')+_pr('Sinal/entrada',Number(pg.sinalValor)>0?(fmt(pg.sinalValor)+(pg.sinalPago?' (pago \u2713)':' (pendente)')):'')+_pr('Data do sinal',esc(pg.sinalData))+_pr('Data do saldo',esc(pg.saldoData))+(pg.obs?('<div style="font-size:12px;margin-top:4px;white-space:pre-wrap">'+esc(pg.obs)+'</div>'):'');
+    }
+    var _notas=(ev.pag&&ev.pag.comprasNotas)||[];
+    if(_notas.length&&inc('compras')){
+      var totN=_notas.reduce(function(s,r){return s+(Number(r.valor)||0);},0);
+      h+=_pt('Compras e notas',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Data</th><th>Descrição</th><th>Fornecedor</th><th>Reembolso</th><th style="text-align:right">Valor</th></tr>'
+       +_notas.map(function(r){var reemb=r.reembolsar?(r.reembolsado?'reembolsado \u2713':'a reembolsar'):'—';return '<tr style="border-top:1px solid #eee"><td style="padding:3px;white-space:nowrap">'+esc(r.data||'')+'</td><td>'+esc(r.desc||'')+'</td><td>'+esc(r.fornecedor||'')+'</td><td>'+reemb+'</td><td style="text-align:right">'+fmt(r.valor)+'</td></tr>';}).join('')
+       +'<tr><td colspan="4" style="text-align:right;padding:4px;font-weight:700">Total em notas</td><td style="text-align:right;font-weight:700">'+fmt(totN)+'</td></tr></table>';
     }
   }
   const now=new Date().toLocaleString('pt-BR');
@@ -1697,7 +1754,7 @@ function equipeHTML(ev){
   </div>
   ${equipePainelHTML(ev)}
   <div class="intro">Escale a equipe: cargo, nome, entrada e saída. Valor padrão <b>R$ 15/h</b> — o total calcula sozinho. Linha sem nome conta como <b>vaga em aberto</b>. Marque <b>Pago</b> quando o freela/equipe já recebeu — isso entra no resumo da aba Orçamento e Pagamentos.${vagas?` <b style="color:var(--vinho)">${vagas} vaga(s) em aberto.</b>`:''}</div>
-  <div class="toolrow no-print"><button class="btn-ghost btn-sm" onclick="addEq()">+ Pessoa</button></div>
+  <div class="toolrow no-print"><button class="btn-ghost btn-sm" onclick="addEq()">+ Pessoa</button><button class="btn-ghost btn-sm" onclick="openEquipePrint()">🖨 Imprimir escala</button></div>
   <table>
     <thead><tr><th style="width:130px">Cargo</th><th>Nome (freela)</th><th style="width:90px">Entrada</th><th style="width:90px">Saída</th><th style="width:90px">R$/hora</th><th class="num" style="width:100px">Total</th><th style="width:80px">Pago?</th><th style="width:120px">Data pagto</th><th style="width:30px" class="no-print"></th></tr></thead>
     <tbody>
@@ -1729,6 +1786,65 @@ function addEqBulk(){
 }
 function setEq(i,k,v){const ev=getEvent(view.id);ev.equipe[i][k]=v;save(false);renderDetail();}
 function delEq(i){const ev=getEvent(view.id);ev.equipe.splice(i,1);save(false);renderDetail();}
+/* ===== Impressão da escala da equipe (02/10/2026) ===== */
+function eqGrupos(ev){
+  const g=(ev.equipe||[]);const ord=CARGOS.slice();const groups={};
+  g.forEach(function(r){var c=r.cargo||'Outro';(groups[c]=groups[c]||[]).push(r);});
+  return Object.keys(groups).sort(function(a,b){var ia=ord.indexOf(a),ib=ord.indexOf(b);if(ia<0)ia=99;if(ib<0)ib=99;return (ia-ib)||a.localeCompare(b);}).map(function(c){return {cargo:c,rows:groups[c]};});
+}
+function buildEquipeReport(ev,mode){
+  const r=_phead(ev,'Escala da equipe'),color=r.color;let body=r.h;
+  const g=(ev.equipe||[]);
+  if(!g.length) return body+'<div style="color:#8a7d7d;font-size:13px">Nenhuma pessoa escalada ainda.</div>'+_pfoot();
+  const nomeOuVaga=function(x){return String(x.nome||'').trim()?esc(x.nome):'<i style="color:#8a7d7d">— vaga em aberto —</i>';};
+  const hhmm=function(x){return (x.entrada?esc(x.entrada):'—')+' – '+(x.saida?esc(x.saida):'—');};
+  eqGrupos(ev).forEach(function(gr){
+    body+=_pt(esc(gr.cargo)+' ('+gr.rows.length+')',color);
+    if(mode==='lista'){
+      body+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>'
+        +gr.rows.map(function(x){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:5px 4px;width:28px">☐</td><td style="padding:5px 4px">'+nomeOuVaga(x)+'</td></tr>';}).join('')
+        +'</tbody></table>';
+    }else if(mode==='horas'){
+      body+='<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Nome</th><th style="width:160px">Horário</th><th style="width:70px">Horas</th><th style="width:34px">✓</th></tr></thead><tbody>'
+        +gr.rows.map(function(x){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:5px 4px">'+nomeOuVaga(x)+'</td><td>'+hhmm(x)+'</td><td>'+fmtQty(horasEq(x))+'h</td><td style="text-align:center">☐</td></tr>';}).join('')
+        +'</tbody></table>';
+    }else{
+      var subCusto=gr.rows.reduce(function(s,x){return s+eqTotal(x);},0);
+      body+='<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:#8a7d7d;border-bottom:1px solid #ddd"><th style="padding:4px">Nome</th><th style="width:130px">Horário</th><th style="width:56px">Horas</th><th style="width:66px">R$/h</th><th style="width:88px;text-align:right">Total</th><th style="width:50px;text-align:center">Pago</th></tr></thead><tbody>'
+        +gr.rows.map(function(x){return '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:5px 4px">'+nomeOuVaga(x)+'</td><td>'+hhmm(x)+'</td><td>'+fmtQty(horasEq(x))+'h</td><td>'+fmt(Number(x.valor==null?15:x.valor))+'</td><td style="text-align:right">'+fmt(eqTotal(x))+'</td><td style="text-align:center">'+(x.pago?'✓':'☐')+'</td></tr>';}).join('')
+        +'<tr><td colspan="4" style="text-align:right;padding:5px 4px;font-weight:700;color:#8a7d7d">Subtotal '+esc(gr.cargo)+'</td><td style="text-align:right;font-weight:700">'+fmt(subCusto)+'</td><td></td></tr>'
+        +'</tbody></table>';
+    }
+  });
+  if(mode==='full'){
+    var soma=g.reduce(function(s,x){return s+eqTotal(x);},0);
+    var pago=g.reduce(function(s,x){return s+(x.pago?eqTotal(x):0);},0);
+    var horas=g.reduce(function(s,x){return s+horasEq(x);},0);
+    body+='<div style="margin-top:16px;max-width:340px;margin-left:auto;font-size:13px">'
+      +'<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Horas totais</span><b>'+fmtQty(horas)+'h</b></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:2px 0"><span>Já pago</span><b>'+fmt(pago)+'</b></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid '+color+';font-weight:800;font-size:15px;color:'+color+'"><span>Custo total</span><span>'+fmt(soma)+'</span></div>'
+      +((soma-pago>0)?('<div style="display:flex;justify-content:space-between;color:#8a7d7d"><span>Falta pagar</span><span>'+fmt(soma-pago)+'</span></div>'):'')
+      +'</div>';
+  }
+  var pessoas=g.filter(function(x){return String(x.nome||'').trim();}).length;var vagas=g.length-pessoas;
+  body+='<div style="margin-top:12px;font-size:12px;color:#8a7d7d">'+pessoas+' pessoa'+(pessoas===1?'':'s')+(vagas?(' · '+vagas+' vaga'+(vagas>1?'s':'')+' em aberto'):'')+'</div>';
+  return body+_pfoot();
+}
+function printEquipe(mode){const ev=getEvent(view.id);if(!ev)return;closePrintDialog();_doPrintHTML(buildEquipeReport(ev,mode));}
+function openEquipePrint(){
+  const ev=getEvent(view.id);if(!ev)return;
+  let m=document.getElementById('printModal');
+  if(!m){m=document.createElement('div');m.id='printModal';m.className='pm-overlay';document.body.appendChild(m);}
+  m.innerHTML='<div class="pm-box" style="max-width:430px"><h3 style="font-family:var(--serif);color:var(--vinho);margin-bottom:6px">Imprimir escala da equipe</h3>'
+   +'<p style="color:var(--muted);margin:0 0 14px;font-size:14px">Escolha o formato da folha:</p>'
+   +'<div style="display:flex;flex-direction:column;gap:8px;text-align:left">'
+   +'<button class="btn-primary" style="padding:11px" onclick="printEquipe(\'full\')">💰 Completa — horários e valores (com totais)</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printEquipe(\'horas\')">🕑 Com horários, sem valores</button>'
+   +'<button class="btn-ghost" style="padding:11px" onclick="printEquipe(\'lista\')">📋 Só listagem — nomes e cargos</button>'
+   +'</div><button style="background:none;color:var(--muted);margin-top:12px;width:100%;padding:8px" onclick="closePrintDialog()">Cancelar</button></div>';
+  m.style.display='flex';
+}
 /* ===== ABA MENU (Rodada 1 · 08/07/2026) ===== */
 const SECOES=["Comidinhas","Mini porção","Lanchinho de pista","Bebidas","Sobremesa","Outros"];
 const CAT_NOME={C:'Produções de comida',B:'Produções de bebidas'};
