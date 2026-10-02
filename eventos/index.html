@@ -123,6 +123,14 @@
   .ck-link input{font-size:12.5px;background:var(--cream)}
   .phase-bar{height:7px;background:var(--warm);border-radius:6px;margin:4px 0 18px;overflow:hidden}
   .phase-bar>div{height:100%;background:var(--green);transition:width .3s}
+  .ck-resp{position:relative;margin-top:7px}
+  .ck-resp-input{width:100%;font-size:12.5px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:7px 9px;font:inherit}
+  .ck-resp-menu{display:none;position:absolute;left:0;top:100%;margin-top:3px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:50;min-width:180px;max-height:220px;overflow:auto}
+  .ck-resp-menu.show{display:block}
+  .ck-resp-menu .mitem{padding:7px 12px;font-size:13px;cursor:pointer}
+  .ck-resp-menu .mitem.sel,.ck-resp-menu .mitem:hover{background:var(--cream)}
+  .dia-custom-txt{outline:none}
+  .dia-custom-txt:focus{background:var(--cream);border-radius:6px}
   .orc-add{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;background:var(--cream);padding:14px;border-radius:11px;border:1px solid var(--border)}
   .orc-add .field{flex:1;min-width:140px}
   table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -378,6 +386,24 @@ const SB_URL="https://mvjbsdpfjhywhaonvpfl.supabase.co";
 const SB_KEY="sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy";
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
+/* ===== Equipe (pra @menção na aba "No dia do evento") — 02/10 =====
+   Mesma fonte que o Reuniões e Tarefas usa (view portal_equipe = portal_users ativos).
+   Lista de reserva só vale se a leitura do banco falhar. */
+let TEAM=['Artur','Bianca','Bruna Intelecta','Bruno','Cacy','Charles','Dudinha','Fernanda','Giulia','Intelecta','Juliana','Luana','Lucas','Mahara','Paola','Tatiane Intelecta'];
+async function carregarEquipeTeam(){
+  try{
+    const r=await sb.from('portal_equipe').select('name');
+    if(r.error||!r.data||!r.data.length)return false;
+    const nomes=[];
+    r.data.forEach(function(u){const n=String(u.name||'').trim();if(n&&nomes.indexOf(n)<0)nomes.push(n);});
+    if(!nomes.length)return false;
+    nomes.sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+    TEAM.length=0;nomes.forEach(function(n){TEAM.push(n);});
+    return true;
+  }catch(e){return false;}
+}
+carregarEquipeTeam();
+
 const ALL=["reserva","reserva_perso","personalizado","show"];
 const TIPOS = [
   {v:"reserva", l:"Reserva simples (até 25 pax)"},
@@ -595,8 +621,14 @@ function blankEvent(){
 function getEvent(id){return DB.events.find(e=>e.id===id);}
 function relevantSections(ev){return SECTIONS.filter(s=>s.tipos.includes(ev.tipo));}
 function relevantFases(ev){return FASES.filter(f=>f.tipos.includes(ev.tipo));}
-function progress(ev){let tot=0,done=0;relevantFases(ev).forEach(f=>f.itens.forEach((it,i)=>{const ck=ev.checks[f.id+"_"+i];tot++;if(ck&&(ck.done||ck.na))done++;}));return tot?Math.round(done/tot*100):0;}
+function progress(ev){let tot=0,done=0;relevantFases(ev).forEach(f=>{const fp=faseProgress(ev,f);tot+=fp.tot;done+=fp.done;});return tot?Math.round(done/tot*100):0;}
 function faseProgress(ev,f){
+  if(f.id==='dia'){
+    const itens=diaItens(ev);let done=0;
+    itens.forEach(it=>{const ck=ev.checks['dia_'+it.key];if(ck&&(ck.done||ck.na))done++;});
+    const tot=itens.length;
+    return {done,tot,pct:tot?Math.round(done/tot*100):0};
+  }
   let tot=f.itens.length,done=0;
   f.itens.forEach((it,i)=>{const ck=ev.checks[f.id+"_"+i];if(ck&&(ck.done||ck.na))done++;});
   return {done,tot,pct:tot?Math.round(done/tot*100):0};
@@ -855,6 +887,7 @@ function renderTab(){
   else if(s.kind==='layout')html=layoutHTML(ev);
   else if(s.kind==='convidados')html=convidadosHTML(ev);
   else if(s.kind==='compras')html=comprasHTML(ev);
+  else if(view.tab==='dia')html=diaHTML(ev);
   else {const f=FASES.find(x=>x.id===view.tab);if(f)html=faseHTML(ev,f);}
   c.innerHTML=html+stepNav(ev);
 }
@@ -1022,12 +1055,187 @@ function faseHTML(ev,f){
   ${f.id==='despro'?(desproLoucasHTML(ev)+perdasHTML(ev)):''}
   ${f.itens.map((it,i)=>faseItemHTML(ev,f,it,i)).join('')}
   ${f.id==='os'?fluxoHTML(ev):''}
-  ${f.id==='dia'?estoqueHTML(ev):''}
   ${f.id==='despro'?contagemHTML(ev):''}`;
 }
 function toggleCheck(fid,i){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].done=!ev.checks[k].done;save();renderDetail();}
 function setNote(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].note=v;save(false);}
 function setLink(fid,i,v){const ev=getEvent(view.id);const k=fid+"_"+i;ev.checks[k]=ev.checks[k]||{done:false,note:"",link:""};ev.checks[k].link=v;save(false);renderTab();}
+
+/* ============================================================
+   "No dia do evento" — guia dinâmico (02/10)
+   Itens fixos (perguntas básicas) + itens detectados a partir do que já
+   foi preenchido no evento (menu/OS, materiais, equipe, pagamentos, som/
+   gelo/caixa de gelar da aba Operacional) + itens avulsos criados na hora.
+   Os 4 itens fixos originais mantêm as chaves antigas (dia_0..dia_3) pra
+   não perder o histórico de check já salvo nos eventos reais.
+   ============================================================ */
+function diaOSTemDado(ev,fragTitulo){
+  const f=FASES.find(x=>x.id==='os');if(!f)return false;
+  const idx=f.itens.findIndex(it=>it.t.toLowerCase().indexOf(fragTitulo)>=0);
+  if(idx<0)return false;
+  const ck=(ev.checks||{})['os_'+idx];
+  if(!ck)return false;
+  return !!(ck.na||ck.done||(ck.note&&ck.note.trim())||(ck.link&&ck.link.trim())||Number(ck.orc)>0);
+}
+function diaCustomList(ev){return (ev.checks&&ev.checks['_diaCustom'])||[];}
+function diaItens(ev){
+  const out=[];
+  out.push({key:'0',t:'Montagem de equipes — quem faz e que horas',d:'',group:'base'});
+  out.push({key:'1',t:'Separar material de serviço',d:'Pratos, talheres, copos e utensílios do serviço',group:'base'});
+  out.push({key:'2',t:'Liberar espaço no bar ou cúpula',d:'É necessário?',group:'base'});
+  out.push({key:'3',t:'Definir onde guardar mobiliário não utilizado',d:'',group:'base'});
+  out.push({key:'staffFood',t:'Alimentação da equipe/staff no dia',d:'O que e quando a equipe vai comer',group:'base'});
+  const menu=ev.menu||[];
+  if(menu.some(m=>osItemAreas(m).indexOf('cozinha')>=0))
+    out.push({key:'coz',t:'Cozinha — conferir produções do dia',d:'Itens do menu marcados pra área Cozinha na OS',group:'auto',link:'menu'});
+  if(menu.some(m=>osItemAreas(m).indexOf('bar')>=0)||menu.some(m=>mcat(m)==='B'))
+    out.push({key:'bar',t:'Bar — conferir preparo e estoque de bebidas',d:'',group:'auto',link:'menu'});
+  if(menu.some(m=>osItemAreas(m).indexOf('montagem')>=0))
+    out.push({key:'montagemItens',t:'Montagem dos itens do menu',d:'Itens marcados pra área Montagem na OS',group:'auto',link:'menu'});
+  if((ev.materiais||[]).length>0)
+    out.push({key:'materiais',t:'Materiais e louças — conferir separação e devolução',d:ev.materiais.length+' item(ns) na aba Menu',group:'auto',link:'menu'});
+  if((ev.equipe||[]).length>0)
+    out.push({key:'equipe',t:'Equipe — conferir escala e horários do dia',d:ev.equipe.length+' pessoa(s) escalada(s)',group:'auto',link:'equipe'});
+  {const pg=ev.pag||{};if(orcTotal(ev)>0||Number(pg.sinalValor)>0)
+    out.push({key:'pagamentos',t:'Pagamentos — conferir sinal e saldo recebidos',d:'',group:'auto',link:'orc'});}
+  if(diaOSTemDado(ev,'som e iluminação'))
+    out.push({key:'som',t:'Som e iluminação — conferir montagem e teste',d:'',group:'auto',link:'os'});
+  if(diaOSTemDado(ev,'gelo'))
+    out.push({key:'gelo',t:'Gelo — conferir pedido e entrega',d:'',group:'auto',link:'os'});
+  if(diaOSTemDado(ev,'caixa de gelar'))
+    out.push({key:'caixagelar',t:'Caixa de gelar — conferir quantidade e retirada',d:'',group:'auto',link:'os'});
+  diaCustomList(ev).forEach(function(c){out.push({key:c.id,t:c.t||'(sem texto)',d:'',group:'custom',custom:true});});
+  return out;
+}
+function toggleDiaCheck(key){const ev=getEvent(view.id);ev.checks[key]=ev.checks[key]||{done:false,na:false,note:'',link:'',resp:'',respLinked:[]};ev.checks[key].done=!ev.checks[key].done;save();renderDetail();}
+function toggleDiaNA(key){const ev=getEvent(view.id);ev.checks[key]=ev.checks[key]||{done:false,na:false,note:'',link:'',resp:'',respLinked:[]};ev.checks[key].na=!ev.checks[key].na;if(ev.checks[key].na)ev.checks[key].done=false;save();renderDetail();}
+function setDiaNote(key,v){const ev=getEvent(view.id);ev.checks[key]=ev.checks[key]||{done:false,na:false};ev.checks[key].note=v;save(false);}
+function setDiaLink(key,v){const ev=getEvent(view.id);ev.checks[key]=ev.checks[key]||{done:false,na:false};ev.checks[key].link=v;save(false);renderTab();}
+function addDiaCustom(){
+  const ev=getEvent(view.id);ev.checks=ev.checks||{};ev.checks['_diaCustom']=ev.checks['_diaCustom']||[];
+  const id='c'+Date.now();
+  ev.checks['_diaCustom'].push({id:id,t:''});
+  save(false);renderDetail();
+  setTimeout(function(){const el=document.getElementById('diaCustomTxt_'+id);if(el)el.focus();},60);
+}
+function setDiaCustomText(id,v){const ev=getEvent(view.id);const it=diaCustomList(ev).find(x=>x.id===id);if(it){it.t=v;save(false);}}
+function delDiaCustom(id){
+  const ev=getEvent(view.id);ev.checks['_diaCustom']=diaCustomList(ev).filter(x=>x.id!==id);
+  delete ev.checks['dia_'+id];
+  save(false);renderDetail();
+}
+/* --- @menções no campo Responsável → cria tarefa ligada em Reuniões e Tarefas --- */
+function diaRxEsc(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function diaTeamSorted(){return TEAM.slice().sort(function(a,b){return b.length-a.length;});}
+function diaRxNome(n,flags){return new RegExp('(^|[^A-Za-zÀ-ÿ0-9_@.])@'+diaRxEsc(n).replace(/\s+/g,'\\s+')+'(?![A-Za-zÀ-ÿ0-9_])',flags||'i');}
+function diaParseMentions(text){
+  const found=[];let rest=' '+String(text||'');
+  diaTeamSorted().forEach(function(n){if(diaRxNome(n).test(rest)){if(found.indexOf(n)<0)found.push(n);}});
+  return found;
+}
+let diaAC={el:null,menu:null,items:[],sel:0,start:-1};
+function diaMentionClose(){if(diaAC.menu){diaAC.menu.classList.remove('show');diaAC.menu.innerHTML='';}diaAC.el=null;diaAC.items=[];diaAC.start=-1;}
+function diaMentionRender(){
+  if(!diaAC.menu)return;
+  diaAC.menu.innerHTML=diaAC.items.map(function(n,i){return '<div class="mitem'+(i===diaAC.sel?' sel':'')+'" data-i="'+i+'">👤 '+esc(n)+'</div>';}).join('');
+  diaAC.menu.classList.add('show');
+  Array.prototype.forEach.call(diaAC.menu.querySelectorAll('.mitem'),function(el){
+    el.onmousedown=function(ev){ev.preventDefault();diaMentionPick(parseInt(el.getAttribute('data-i'),10));};
+  });
+}
+function diaMentionPick(i){
+  const n=diaAC.items[i];if(n==null||!diaAC.el)return;
+  const ta=diaAC.el,v=ta.value,cur=ta.selectionStart,st=diaAC.start;
+  ta.value=v.slice(0,st)+'@'+n+' '+v.slice(cur);
+  const pos=st+n.length+2;
+  diaMentionClose();
+  ta.focus();ta.setSelectionRange(pos,pos);
+}
+function diaMentionUpdate(ta){
+  const cur=ta.selectionStart,before=ta.value.slice(0,cur);
+  const m=/(^|[^A-Za-zÀ-ÿ0-9_@.])@([A-Za-zÀ-ÿ]*(?:[ ][A-Za-zÀ-ÿ]*)?)$/.exec(before);
+  const menu=document.getElementById('diaRespMenu_'+ta.dataset.key);
+  if(!m||!menu){diaMentionClose();return;}
+  const tok=_catNorm(m[2]);
+  const cands=TEAM.filter(function(n){return _catNorm(n).indexOf(tok)===0;});
+  if(!cands.length){diaMentionClose();return;}
+  diaAC={el:ta,menu:menu,items:cands.slice(0,8),sel:0,start:m.index+m[0].indexOf('@')};
+  diaMentionRender();
+}
+function diaMentionKeydown(e,ta){
+  if(diaAC.el!==ta||!diaAC.items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();diaAC.sel=(diaAC.sel+1)%diaAC.items.length;diaMentionRender();}
+  else if(e.key==='ArrowUp'){e.preventDefault();diaAC.sel=(diaAC.sel-1+diaAC.items.length)%diaAC.items.length;diaMentionRender();}
+  else if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();diaMentionPick(diaAC.sel);}
+  else if(e.key==='Escape'){diaMentionClose();}
+}
+function diaMentionBlur(ta){const key=ta.dataset.key,titulo=ta.dataset.titulo,val=ta.value;setTimeout(function(){diaMentionClose();linkDiaResp(key,titulo,val);},150);}
+async function linkDiaResp(key,titulo,text){
+  const ev=getEvent(view.id);if(!ev)return;
+  ev.checks[key]=ev.checks[key]||{done:false,na:false,note:'',link:'',resp:'',respLinked:[]};
+  const ck=ev.checks[key];
+  ck.resp=text;
+  const names=diaParseMentions(text);
+  const linked=ck.respLinked||(ck.respLinked=[]);
+  const novos=names.filter(function(n){return linked.indexOf(n)<0;});
+  if(!novos.length){save(false);return;}
+  const link='https://equipelola.net/eventos/?ev='+encodeURIComponent(ev.id);
+  const unidade=(LOCAIS.find(function(l){return l.v===ev.local;})||{}).l;
+  let criadas=0;
+  for(const nome of novos){
+    const linha={titulo:titulo,tipo:'Tarefa',eh_tarefa:true,status:'aberto',
+      categorias:['Eventos'],tags:['eventos'],responsaveis:[nome],
+      unidades:unidade?[unidade]:[],pessoas:[],relacionados:[],
+      etapa:'no dia',prazo:ev.data||null,criado_por:currentUserName(),
+      conteudo:'🔗 Evento: '+(ev.nome||'(sem nome)')+(ev.data?(' · '+new Date(ev.data+'T00:00').toLocaleDateString('pt-BR')):'')+'\n'+link};
+    const {error}=await sb.from('lola_assuntos').insert(linha);
+    if(!error){linked.push(nome);criadas++;}
+  }
+  save(false);renderDetail();
+  if(criadas)showFlash(criadas+' tarefa'+(criadas>1?'s criadas':' criada')+' em Reuniões e Tarefas ✓');
+}
+function diaItemHTML(ev,item){
+  const key='dia_'+item.key;
+  const ck=ev.checks[key]||{done:false,na:false,note:'',link:'',resp:'',respLinked:[]};
+  const hasLink=ck.link&&ck.link.trim();
+  const naBtn='<button class="na-btn no-print'+(ck.na?' on':'')+'" onclick="event.stopPropagation();toggleDiaNA(\''+key+'\')" title="Marcar como não se aplica a este evento">N/A</button>';
+  const verBtn=item.link?('<button class="btn-ghost btn-sm no-print" style="margin-top:6px" onclick="gotoTab(\''+item.link+'\')">Ver na aba '+secLabel(ev,item.link)+' →</button>'):'';
+  const delBtn=item.custom?'<button class="na-btn no-print" style="margin-left:6px" onclick="delDiaCustom(\''+item.key+'\')" title="Remover item">🗑</button>':'';
+  const titleHTML=item.custom
+    ?'<input type="text" class="dia-custom-txt" id="diaCustomTxt_'+item.key+'" value="'+esc(item.t)+'" placeholder="Descreva o item..." onchange="setDiaCustomText(\''+item.key+'\',this.value)" style="font-weight:700;font-size:14px;width:100%;border:none;background:transparent;padding:0">'
+    :'<div class="txt">'+esc(item.t)+'</div>';
+  const respCount=(ck.respLinked&&ck.respLinked.length)?('<span class="pill-ok" style="margin-top:6px;display:inline-block">📌 '+ck.respLinked.length+' tarefa'+(ck.respLinked.length>1?'s':'')+' em Reuniões e Tarefas</span>'):'';
+  return '<div class="ck-item '+((ck.done||ck.na)?'done':'')+' '+(ck.na?'na':'')+'">'
+    +'<div class="ck-cb '+((ck.done||ck.na)?'on':'')+'" onclick="toggleDiaCheck(\''+key+'\')">'+(ck.na?'–':(ck.done?'✓':''))+'</div>'
+    +'<div class="ck-body">'+titleHTML
+      +(item.d?('<div class="desc">'+esc(item.d)+'</div>'):'')
+      +verBtn
+      +'<textarea class="ck-note" placeholder="Anotação..." onchange="setDiaNote(\''+key+'\',this.value)">'+esc(ck.note||'')+'</textarea>'
+      +'<div class="ck-link"><input type="url" placeholder="🔗 Colar link" value="'+esc(ck.link||'')+'" onchange="setDiaLink(\''+key+'\',this.value)">'+(hasLink?('<a class="btn-ghost btn-sm" href="'+esc(ck.link)+'" target="_blank" rel="noopener">Abrir ↗</a>'):'')+'</div>'
+      +'<div class="ck-resp no-print"><input type="text" class="ck-resp-input" placeholder="@ nome do responsável" value="'+esc(ck.resp||'')+'" data-key="'+key+'" data-titulo="'+esc(item.t)+'" oninput="diaMentionUpdate(this)" onkeydown="diaMentionKeydown(event,this)" onclick="diaMentionUpdate(this)" onblur="diaMentionBlur(this)"><div class="ck-resp-menu" id="diaRespMenu_'+key+'"></div></div>'
+      +respCount
+    +'</div>'
+    +naBtn+delBtn
+  +'</div>';
+}
+function diaHTML(ev){
+  const itens=diaItens(ev);
+  let done=0;itens.forEach(function(it){const ck=ev.checks['dia_'+it.key];if(ck&&(ck.done||ck.na))done++;});
+  const tot=itens.length,pct=tot?Math.round(done/tot*100):0;
+  const base=itens.filter(function(it){return it.group==='base';});
+  const auto=itens.filter(function(it){return it.group==='auto';});
+  const custom=itens.filter(function(it){return it.group==='custom';});
+  return '<div class="section-title">No dia do evento — '+done+'/'+tot+' concluídos '+skipBtn(ev)+'</div>'
+    +'<div class="phase-bar"><div style="width:'+pct+'%"></div></div>'
+    +'<div class="intro">Itens detectados a partir do que já foi preenchido no evento, mais as perguntas básicas de sempre. Escreva @nome no campo Responsável pra avisar alguém — já cria a tarefa ligada em Reuniões e Tarefas.</div>'
+    +(auto.length?('<div class="section-title" style="margin-top:18px;font-size:11.5px">Detectado a partir do evento</div>'+auto.map(function(it){return diaItemHTML(ev,it);}).join('')):'')
+    +'<div class="section-title" style="margin-top:18px;font-size:11.5px">Perguntas básicas</div>'
+    +base.map(function(it){return diaItemHTML(ev,it);}).join('')
+    +'<div class="section-title" style="margin-top:18px;font-size:11.5px">Outros itens</div>'
+    +(custom.length?custom.map(function(it){return diaItemHTML(ev,it);}).join(''):'<div class="intro" style="margin:0 0 8px">Nenhum item extra ainda.</div>')
+    +'<div class="no-print" style="margin:4px 0 14px"><button class="btn-ghost btn-sm" onclick="addDiaCustom()">+ Adicionar item</button></div>'
+    +estoqueHTML(ev);
+}
 
 function openLayoutLibrary(){
   let m=document.getElementById('libOverlay');
