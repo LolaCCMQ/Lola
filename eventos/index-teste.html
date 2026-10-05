@@ -2578,29 +2578,34 @@ function orcHTML(ev){
   </table>
   <div class="section-title" style="margin-top:22px">Custos extras e fornecedores externos</div>
   <div class="intro">Gelo, transporte, aluguel, fornecedores contratados pro evento… somam no orçamento, depois da mão de obra. Marque <b>Pago</b> quando o fornecedor já recebeu.</div>
-  <table><thead><tr><th>Descrição / fornecedor</th><th class="num" style="width:130px">Valor</th><th style="width:80px">Pago?</th><th style="width:120px">Data pagto</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>
+  <table><thead><tr><th>Descrição / fornecedor</th><th class="num" style="width:130px">Valor</th><th style="width:80px">Pago?</th><th style="width:120px">Data pagto</th><th style="width:200px">Observação</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>
   ${(ev.orcExtras||[]).length?(ev.orcExtras||[]).map((e,i)=>`<tr>
     <td data-l="Descrição"><input type="text" value="${esc(e.desc||'')}" onchange="setExtra(${i},'desc',this.value)" placeholder="ex.: transporte / frete / fornecedor X"></td>
     <td data-l="Valor"><input type="number" step="0.01" value="${esc(e.valor||'')}" onchange="setExtra(${i},'valor',Number(this.value))"></td>
     <td data-l="Pago?" style="text-align:center"><input type="checkbox" style="width:auto" ${e.pago?'checked':''} onchange="setExtra(${i},'pago',this.checked)"></td>
     <td data-l="Data pagto"><input type="date" value="${esc(e.pagoEm||'')}" onchange="setExtra(${i},'pagoEm',this.value)"></td>
+    <td data-l="Observação"><input type="text" value="${esc(e.obs||'')}" onchange="setExtra(${i},'obs',this.value)" placeholder="observação"></td>
     <td class="no-print"><button class="del-row" onclick="delExtra(${i})">×</button></td></tr>`).join('')
-   :`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px">Nenhum custo extra.</td></tr>`}
+   :`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:18px">Nenhum custo extra.</td></tr>`}
   </tbody></table>
   <div style="margin-top:10px" class="no-print"><button class="btn-ghost btn-sm" onclick="addExtra()">+ Adicionar extra / fornecedor</button></div>
   ${pagamentosEquipeFornecedoresHTML(ev)}
 
   <div class="totals" style="margin-top:18px">
     <div class="line"><span>Subtotal do pacote (comida + bebida)</span><b>${fmt(sub)}</b></div>
+    ${linhaPagHTML(ev,'pacote')}
     <div class="line no-print"><span>Serviço (<input class="mini-input num" style="max-width:55px" type="number" value="${gpct}" onchange="setOrc('gorjeta',this.value)">% sobre o pacote)</span><b>${fmt(gorj)}</b></div>
+    ${linhaPagHTML(ev,'servico')}
     <div class="line no-print" style="display:block"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>Mão de obra</span><b>${fmt(mo)}</b></div><div style="margin-top:5px;font-size:.86em;color:var(--muted)">R$ <input class="mini-input num" style="max-width:90px" type="number" step="0.01" value="${esc(ev.moValor||'')}" onchange="setOrc('moValor',this.value)"> por pessoa × <input class="mini-input num" style="max-width:60px" type="number" value="${esc(ev.moQtd||'')}" onchange="setOrc('moQtd',this.value)"> funcionários</div></div>
+    ${linhaPagHTML(ev,'mo')}
     ${K.equipe?`<div class="line"><span>Equipe escalada (aba Equipe)</span><b>${fmt(K.equipe)}</b></div>`:''}
-    ${K.mat?`<div class="line"><span>Materiais a comprar (Menu)</span><b>${fmt(K.mat)}</b></div>`:''}
+    ${K.mat?`<div class="line"><span>Materiais a comprar (Menu)</span><b>${fmt(K.mat)}</b></div>${linhaPagHTML(ev,'materiais')}`:''}
     ${K.oper?`<div class="line"><span>Itens do Operacional (som, serviços externos, gelo, caixa de gelar, cachê…)</span><b>${fmt(K.oper)}</b></div>
     ${operOrcItens(ev).map(function(x){return `<div class="line" style="font-size:.88em;color:var(--muted);padding-left:14px"><span>↳ ${esc(x.t)}</span><span>${fmt(x.valor)}</span></div>`;}).join('')}`:''}
     ${K.extras?`<div class="line"><span>Custos extras</span><b>${fmt(K.extras)}</b></div>`:''}
     <div class="line" style="color:var(--muted)"><span>Subtotal</span><b>${fmt(K.base)}</b></div>
     <div class="line no-print"><span>Imposto (<input class="mini-input num" style="max-width:55px" type="number" value="${ipct}" onchange="setOrc('imposto',this.value)">%)</span><b>${fmt(imp)}</b></div>
+    ${linhaPagHTML(ev,'imposto')}
     <div class="line grand"><span>TOTAL</span><span>${fmt(total)}</span></div>
     ${pax?`<div class="line" style="color:var(--muted)"><span>Por pessoa</span><span>${fmt(total/pax)}</span></div>`:''}
   </div>
@@ -2795,22 +2800,40 @@ function setAddPerPax(v){
 }
 function setOrc(k,v){const ev=getEvent(view.id);ev[k]=v;save(false);renderTab();renderDetail();}
 function addExtra(){const ev=getEvent(view.id);ev.orcExtras=ev.orcExtras||[];ev.orcExtras.push({desc:'',valor:0,pago:false,pagoEm:''});save(false);renderDetail();}
+function linhaPagList(ev){ev.pag=ev.pag||{};ev.pag.linhas=ev.pag.linhas||{};return ev.pag.linhas;}
+function linhaPagHTML(ev,key){
+  const L=(ev.pag&&ev.pag.linhas&&ev.pag.linhas[key])||{};
+  return '<div class="no-print" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.86em;color:var(--muted);padding:2px 0 8px 14px">'
+    +'<label style="display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" style="width:auto" '+(L.pago?'checked':'')+' onchange="setLinhaPag(\''+key+'\',\'pago\',this.checked)"> Pago</label>'
+    +'<input type="date" style="max-width:140px" value="'+esc(L.pagoEm||'')+'" onchange="setLinhaPag(\''+key+'\',\'pagoEm\',this.value)" title="data do pagamento">'
+    +'<input type="text" style="flex:1;min-width:160px" value="'+esc(L.obs||'')+'" placeholder="observação" onchange="setLinhaPag(\''+key+'\',\'obs\',this.value)">'
+    +'</div>';
+}
+function setLinhaPag(key,k,v){const ev=getEvent(view.id);const l=linhaPagList(ev);l[key]=l[key]||{pago:false,pagoEm:'',obs:''};l[key][k]=v;save(false);renderDetail();}
+function setResPag(kind,a,b,k,v){
+  const ev=getEvent(view.id);
+  if(kind==='eq'){ev.equipe[a][k==='obs'?'obsPag':k]=v;}
+  else if(kind==='ex'){ev.orcExtras[a][k]=v;}
+  else if(kind==='op'){const key=a+'_'+b;ev.checks[key]=ev.checks[key]||{done:false,note:'',link:''};ev.checks[key][k==='obs'?'pagoObs':k]=v;}
+  save(false);renderDetail();
+}
 function pagamentosEquipeFornecedoresHTML(ev){
-  const eq=(ev.equipe||[]).filter(function(r){return String(r.nome||'').trim();});
-  const ex=(ev.orcExtras||[]).filter(function(e){return e.desc||Number(e.valor);});
-  const op=operOrcItens(ev);
-  if(!eq.length&&!ex.length&&!op.length)return '';
-  const rows=eq.map(function(r){return {nome:r.nome+' ('+r.cargo+')',valor:eqTotal(r),pago:!!r.pago,pagoEm:r.pagoEm};})
-    .concat(ex.map(function(e){return {nome:e.desc||'(sem descrição)',valor:Number(e.valor)||0,pago:!!e.pago,pagoEm:e.pagoEm};}))
-    .concat(op.map(function(x){return {nome:x.t+' (Operacional)',valor:x.valor,pago:x.pago,pagoEm:x.pagoEm};}));
+  const rows=[];
+  (ev.equipe||[]).forEach(function(r,i){if(String(r.nome||'').trim())rows.push({kind:'eq',a:i,b:0,nome:r.nome+' ('+r.cargo+')',valor:eqTotal(r),pago:!!r.pago,pagoEm:r.pagoEm||'',obs:r.obsPag||''});});
+  (ev.orcExtras||[]).forEach(function(e,i){if(e.desc||Number(e.valor))rows.push({kind:'ex',a:i,b:0,nome:e.desc||'(sem descrição)',valor:Number(e.valor)||0,pago:!!e.pago,pagoEm:e.pagoEm||'',obs:e.obs||''});});
+  operOrcItens(ev).forEach(function(x){const c=(ev.checks&&ev.checks[x.fid+'_'+x.i])||{};rows.push({kind:'op',a:x.fid,b:x.i,nome:x.t+' (Operacional)',valor:x.valor,pago:x.pago,pagoEm:x.pagoEm||'',obs:c.pagoObs||''});});
+  if(!rows.length)return '';
   const totPago=rows.reduce(function(s,r){return s+(r.pago?r.valor:0);},0);
   const totGeral=rows.reduce(function(s,r){return s+r.valor;},0);
   return '<div class="section-title" style="margin-top:22px">Resumo — pagamentos de equipe e fornecedores</div>'
-   +'<div class="intro">Consolidado da aba Equipe, dos itens do Operacional e dos custos extras acima — não é o pagamento do cliente (isso fica na seção Pagamento, embaixo).</div>'
-   +'<table><thead><tr><th>Quem / o quê</th><th class="num" style="width:110px">Valor</th><th style="width:90px">Status</th><th style="width:110px">Data</th></tr></thead><tbody>'
-   +rows.map(function(r){return '<tr><td data-l="Quem">'+esc(r.nome)+'</td><td data-l="Valor" class="num">'+fmt(r.valor)+'</td>'
-     +'<td data-l="Status"><span class="pay '+(r.pago?'pay-pago':'pay-pend')+'">'+(r.pago?'✓ Pago':'○ Pendente')+'</span></td>'
-     +'<td data-l="Data">'+(r.pagoEm?new Date(r.pagoEm+'T00:00').toLocaleDateString('pt-BR'):'—')+'</td></tr>';}).join('')
+   +'<div class="intro">Consolidado da aba Equipe, dos itens do Operacional e dos custos extras — marque <b>Pago</b>, a data e anote o que precisar aqui mesmo. Não é o pagamento do cliente (isso fica na seção Pagamento, embaixo).</div>'
+   +'<table><thead><tr><th>Quem / o quê</th><th class="num" style="width:110px">Valor</th><th style="width:80px">Pago?</th><th style="width:120px">Data</th><th style="width:220px">Observação</th></tr></thead><tbody>'
+   +rows.map(function(r){
+     const q=function(k){return "setResPag('"+r.kind+"',"+(r.kind==='op'?"'"+r.a+"'":r.a)+","+(r.kind==='op'?r.b:0)+",'"+k+"',";};
+     return '<tr><td data-l="Quem">'+esc(r.nome)+'</td><td data-l="Valor" class="num">'+fmt(r.valor)+'</td>'
+     +'<td data-l="Pago?" style="text-align:center"><input type="checkbox" style="width:auto" '+(r.pago?'checked':'')+' onchange="'+q('pago')+'this.checked)"></td>'
+     +'<td data-l="Data"><input type="date" value="'+esc(r.pagoEm)+'" onchange="'+q('pagoEm')+'this.value)"></td>'
+     +'<td data-l="Observação"><input type="text" value="'+esc(r.obs)+'" placeholder="observação" onchange="'+q('obs')+'this.value)"></td></tr>';}).join('')
    +'</tbody></table>'
    +'<div class="totals" style="margin-top:10px"><div class="line"><span>Já pago</span><b>'+fmt(totPago)+'</b></div><div class="line grand"><span>Falta pagar</span><span>'+fmt(totGeral-totPago)+'</span></div></div>';
 }
