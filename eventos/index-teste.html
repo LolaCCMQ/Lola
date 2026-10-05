@@ -1054,7 +1054,7 @@ function faseHTML(ev,f){
   const fp=faseProgress(ev,f);
   return `<div class="section-title">${f.nome} — ${fp.done}/${fp.tot} concluídos ${skipBtn(ev)}</div>
   <div class="phase-bar"><div style="width:${fp.pct}%"></div></div>
-  ${f.id==='despro'?(desproLoucasHTML(ev)+perdasHTML(ev)):''}
+  ${f.id==='despro'?(desproLoucasHTML(ev)+transfHTML(ev)+perdasHTML(ev)):''}
   ${f.itens.map((it,i)=>faseItemHTML(ev,f,it,i)).join('')}
   ${f.id==='os'?fluxoHTML(ev):''}
   ${f.id==='despro'?contagemHTML(ev):''}`;
@@ -1557,6 +1557,185 @@ function desproLoucasHTML(ev){
   </tbody></table>
   <div class="intro" style="margin-top:6px">Editar quantidades ou adicionar itens? <button class="btn-ghost btn-sm" onclick="gotoTab('menu')">Abrir a aba Menu →</button></div>`;
 }
+/* ===== Desprodução — transferência de itens entre unidades (05/10) =====
+   Mobiliário, louças, bebidas… que voltam pra outra unidade depois do evento.
+   Dado guardado em ev.checks['_transf'] (sem coluna nova). Ao marcar "feito" o app
+   pergunta na hora: só registrar, ou registrar + mover o estoque físico no Inventário
+   (lola_inv_itens + lola_inv_mov, mesmo padrão do app de Estoque). Bebidas NUNCA mexem
+   no estoque sozinhas: entram na lista pra dar entrada manual no estoque/financeiro. */
+const TRANSF_INV=['Lola CCMQ','Lola MAC','Cozinha Central'];
+const TRANSF_ORIG=['Evento','Lola CCMQ','Lola MAC','Cozinha Central','Outro'];
+const TRANSF_DEST=['Lola CCMQ','Lola MAC','Cozinha Central','Outro'];
+const TRANSF_TIPOS=[{v:'mobiliario',l:'🪑 Mobiliário'},{v:'louca',l:'🍽️ Louça/utensílio'},{v:'bebida',l:'🍸 Bebida'},{v:'outro',l:'📦 Outro'}];
+function transfList(ev){return (ev.checks&&ev.checks['_transf'])||[];}
+function transfUnidEvento(ev){const l=(LOCAIS.find(function(x){return x.v===ev.local;})||{}).l;return TRANSF_INV.indexOf(l)>=0?l:'Evento';}
+function transfNovo(ev,tipo,item,qtd,un,orig,dest){return {id:'t'+Date.now()+Math.floor(Math.random()*1000),tipo:tipo||'mobiliario',item:item||'',qtd:(qtd==null?1:qtd),un:un||'un',origem:orig||transfUnidEvento(ev),destino:dest||(tipo==='bebida'?'Lola CCMQ':'Cozinha Central'),status:'pendente',modo:'',feitoEm:'',feitoPor:''};}
+function addTransf(){const ev=getEvent(view.id);ev.checks=ev.checks||{};ev.checks['_transf']=transfList(ev).concat([transfNovo(ev)]);save(false);renderDetail();}
+function setTransf(id,k,v,rerender){const ev=getEvent(view.id);const t=transfList(ev).find(function(x){return x.id===id;});if(!t||t.status==='feito')return;t[k]=v;if(k==='tipo'&&v==='bebida'&&t.destino==='Cozinha Central')t.destino='Lola CCMQ';save(false);if(rerender)renderTab();}
+function delTransf(id){const ev=getEvent(view.id);const t=transfList(ev).find(function(x){return x.id===id;});if(!t||t.status==='feito'){showFlash('Reverta antes de excluir.',true);return;}ev.checks['_transf']=transfList(ev).filter(function(x){return x.id!==id;});save(false);renderDetail();}
+function puxarSobrasTransf(){
+  const ev=getEvent(view.id);const lista=transfList(ev).slice();let n=0;
+  (ev.contagem||[]).forEach(function(c){
+    const q=Number(c.sobrou)||0;if(!c.item||q<=0)return;
+    const m=(ev.menu||[]).find(function(x){return x.nome===c.item;});if(!m||mcat(m)!=='B')return;
+    if(lista.some(function(t){return t.tipo==='bebida'&&t.item===c.item;}))return;
+    lista.push(transfNovo(ev,'bebida',c.item,q,c.un||m.un||'un',null,'Lola CCMQ'));n++;
+  });
+  ev.checks=ev.checks||{};ev.checks['_transf']=lista;save(false);renderDetail();
+  showFlash(n?(n+' sobra(s) de bebida puxada(s) da Contagem ✓'):'Nenhuma sobra de bebida na Contagem (preencha "Sobrou" lá).',!n);
+}
+function puxarMateriaisTransf(){
+  const ev=getEvent(view.id);const lista=transfList(ev).slice();const uni=transfUnidEvento(ev);let n=0;
+  (ev.materiais||[]).forEach(function(r){
+    if(!r.item||TRANSF_INV.indexOf(r.destino)<0||r.destino===uni)return;
+    if(lista.some(function(t){return t.item===r.item&&t.destino===r.destino;}))return;
+    lista.push(transfNovo(ev,'louca',r.item,Number(r.qtdVolta||r.qtdSaida)||1,'un',uni,r.destino));n++;
+  });
+  ev.checks=ev.checks||{};ev.checks['_transf']=lista;save(false);renderDetail();
+  showFlash(n?(n+' item(ns) puxado(s) dos materiais ✓'):'Nenhum material com destino diferente da unidade do evento.',!n);
+}
+/* --- modal de confirmação: "só registrar" ou "registrar + transferir estoque" --- */
+function transfModal(html){
+  let m=document.getElementById('transfOverlay');
+  if(!m){m=document.createElement('div');m.id='transfOverlay';m.style.cssText='position:fixed;inset:0;background:rgba(30,10,10,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';document.body.appendChild(m);}
+  m.innerHTML='<div style="background:var(--cream);border-radius:16px;max-width:520px;width:100%;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'+html+'</div>';
+  m.style.display='flex';
+}
+function transfModalClose(){const m=document.getElementById('transfOverlay');if(m)m.style.display='none';}
+function openTransfConfirm(id){
+  const ev=getEvent(view.id);const t=transfList(ev).find(function(x){return x.id===id;});if(!t)return;
+  const resumo=esc(t.item||'(sem nome)')+' · '+esc(t.qtd)+' '+esc(t.un||'')+' · '+esc(t.origem)+' → '+esc(t.destino);
+  if(!String(t.item||'').trim()){transfModal('<div style="font-weight:700;color:var(--vinho)">Falta o nome do item</div><div class="no-print" style="margin-top:12px"><button class="btn-primary btn-sm" onclick="transfModalClose()">OK</button></div>');return;}
+  const idq=JSON.stringify(id).replace(/"/g,'&quot;');
+  let corpo='<div style="font-family:var(--serif);font-size:18px;color:var(--vinho);font-weight:700;margin-bottom:6px">Marcar transferência como feita</div>'
+    +'<div style="font-weight:700;margin-bottom:10px">'+resumo+'</div>';
+  if(t.tipo==='bebida'){
+    corpo+='<div class="intro" style="margin:0 0 12px">Bebida: o app <b>só registra</b> aqui. A entrada no <b>estoque físico e financeiro do Lola</b> é manual — este item vai pra lista “entrada manual” logo abaixo da tabela.</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-primary btn-sm" onclick="confirmTransf('+idq+',\'registro\')">Só registrar</button><button class="btn-ghost btn-sm" onclick="transfModalClose()">Cancelar</button></div>';
+  }else{
+    corpo+='<div class="intro" style="margin:0 0 12px">É só <b>registro</b> no evento, ou também faz a <b>transferência de estoque</b> no Inventário (tira da unidade de origem e coloca na de destino)? O Inventário controla só quantidade física — não tem valores. Se o item não estiver cadastrado lá (ex.: mesas e cadeiras), nada é alterado e você pode registrar só.</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-ghost btn-sm" onclick="confirmTransf('+idq+',\'registro\')">Só registrar</button><button class="btn-primary btn-sm" onclick="confirmTransf('+idq+',\'estoque\')">Registrar e transferir estoque</button><button class="btn-ghost btn-sm" onclick="transfModalClose()">Cancelar</button></div>';
+  }
+  transfModal(corpo);
+}
+function transfEscLike(s){return String(s).replace(/[\\%_]/g,'\\$&');}
+async function transfEstoqueInv(t,motivo){
+  const nome=String(t.item||'').trim();const q=Number(t.qtd)||0;
+  if(!nome||q<=0)return {ok:false,msg:'Informe o item e uma quantidade maior que zero.'};
+  if(TRANSF_INV.indexOf(t.origem)<0||TRANSF_INV.indexOf(t.destino)<0||t.origem===t.destino)return {ok:false,msg:'Pra mexer no estoque, origem e destino precisam ser duas unidades diferentes do Inventário (Lola CCMQ, Lola MAC ou Cozinha Central).'};
+  const quem=currentUserName();const agora=new Date().toISOString();
+  try{
+    const ro=await sb.from('lola_inv_itens').select('*').eq('unidade',t.origem).neq('ativo',false).ilike('nome',transfEscLike(nome));
+    if(ro.error)return {ok:false,msg:'Não consegui ler o Inventário: '+ro.error.message};
+    const orig=ro.data||[];
+    if(!orig.length)return {ok:false,msg:'“'+nome+'” não está cadastrado no Inventário de '+t.origem+' (mobiliário em geral não está). Nada foi alterado no estoque.'};
+    if(orig.length>1)return {ok:false,msg:'Há '+orig.length+' itens chamados “'+nome+'” no Inventário de '+t.origem+'; não dá pra saber qual mover. Nada foi alterado no estoque.'};
+    const it=orig[0];
+    if(it.rastreio==='individual'){
+      const up=await sb.from('lola_inv_itens').update({unidade:t.destino,updated_at:agora}).eq('id',it.id);
+      if(up.error)return {ok:false,msg:'Erro ao mover no Inventário: '+up.error.message};
+      await sb.from('lola_inv_mov').insert({item_id:it.id,tipo:'transferencia',quantidade:1,origem:t.origem,destino:t.destino,motivo:motivo||'Desprodução de evento',quem:quem});
+      return {ok:true,msg:'Item individual movido de '+t.origem+' para '+t.destino+' no Inventário.'};
+    }
+    const have=Number(it.qtd)||0;
+    if(have<q)return {ok:false,msg:'O Inventário de '+t.origem+' tem só '+have+' de “'+nome+'” (você pediu '+q+'). Nada foi alterado no estoque.'};
+    const rd=await sb.from('lola_inv_itens').select('*').eq('unidade',t.destino).neq('ativo',false).ilike('nome',transfEscLike(nome));
+    if(rd.error)return {ok:false,msg:'Não consegui ler o destino no Inventário: '+rd.error.message};
+    if((rd.data||[]).length>1)return {ok:false,msg:'Há mais de um “'+nome+'” no Inventário de '+t.destino+'. Nada foi alterado no estoque.'};
+    const o1=await sb.from('lola_inv_itens').update({qtd:have-q,updated_at:agora}).eq('id',it.id);
+    if(o1.error)return {ok:false,msg:'Erro ao baixar a origem: '+o1.error.message};
+    let destId=null,erroDest=null;
+    if(rd.data&&rd.data[0]){
+      destId=rd.data[0].id;
+      const o2=await sb.from('lola_inv_itens').update({qtd:(Number(rd.data[0].qtd)||0)+q,updated_at:agora}).eq('id',destId);
+      if(o2.error)erroDest=o2.error.message;
+    }else{
+      const novo={nome:it.nome,categoria:it.categoria,subcategoria:it.subcategoria,marca:it.marca,modelo:it.modelo,referencia:it.referencia,fornecedor:it.fornecedor,cor:it.cor,medida:it.medida,foto_url:it.foto_url,unidade:t.destino,rastreio:'quantidade',qtd:q,estoque_minimo:0,ativo:true,criado_por:quem};
+      const o3=await sb.from('lola_inv_itens').insert(novo).select();
+      if(o3.error||!o3.data||!o3.data[0])erroDest=(o3.error&&o3.error.message)||'sem retorno';else destId=o3.data[0].id;
+    }
+    if(erroDest){
+      await sb.from('lola_inv_itens').update({qtd:have,updated_at:agora}).eq('id',it.id); /* desfaz a baixa */
+      return {ok:false,msg:'Erro ao somar no destino ('+erroDest+'). A baixa na origem foi desfeita; nada mudou no estoque.'};
+    }
+    await sb.from('lola_inv_mov').insert({item_id:destId,tipo:'transferencia',quantidade:q,origem:t.origem,destino:t.destino,motivo:motivo||'Desprodução de evento',quem:quem});
+    return {ok:true,msg:q+' × “'+nome+'”: '+t.origem+' (agora '+(have-q)+') → '+t.destino+' no Inventário.'};
+  }catch(e){return {ok:false,msg:'Erro inesperado: '+((e&&e.message)||e)+'. Confira o Inventário antes de tentar de novo.'};}
+}
+async function confirmTransf(id,modo){
+  const ev=getEvent(view.id);const t=transfList(ev).find(function(x){return x.id===id;});if(!t||t.status==='feito'){transfModalClose();return;}
+  let msg='';
+  if(modo==='estoque'){
+    transfModal('<div style="font-weight:700">Transferindo no Inventário…</div>');
+    const r=await transfEstoqueInv(t,'Desprodução: '+(ev.nome||'evento'));
+    if(!r.ok){transfModal('<div style="font-family:var(--serif);font-size:17px;color:var(--vinho);font-weight:700;margin-bottom:8px">Estoque não alterado</div><div style="margin-bottom:12px">'+esc(r.msg)+'</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-ghost btn-sm" onclick="confirmTransf(\''+id+'\',\'registro\')">Só registrar mesmo assim</button><button class="btn-primary btn-sm" onclick="transfModalClose()">Voltar</button></div>');return;}
+    msg=r.msg;
+  }
+  t.status='feito';t.modo=modo;t.feitoEm=new Date().toISOString().slice(0,10);t.feitoPor=currentUserName();t.msg=msg;
+  save();renderDetail();
+  if(msg){transfModal('<div style="font-family:var(--serif);font-size:17px;color:var(--green);font-weight:700;margin-bottom:8px">Transferência feita ✓</div><div style="margin-bottom:12px">'+esc(msg)+'</div><button class="btn-primary btn-sm" onclick="transfModalClose()">OK</button>');}
+  else{transfModalClose();showFlash('Registrado ✓');}
+}
+function openTransfRevert(id){
+  const ev=getEvent(view.id);const t=transfList(ev).find(function(x){return x.id===id;});if(!t)return;
+  const idq=JSON.stringify(id).replace(/"/g,'&quot;');
+  const est=t.modo==='estoque';
+  transfModal('<div style="font-family:var(--serif);font-size:18px;color:var(--vinho);font-weight:700;margin-bottom:6px">Reverter transferência</div>'
+    +'<div style="font-weight:700;margin-bottom:10px">'+esc(t.item)+' · '+esc(t.qtd)+' '+esc(t.un||'')+' · '+esc(t.origem)+' → '+esc(t.destino)+'</div>'
+    +(est?'<div class="intro" style="margin:0 0 12px">Esta transferência moveu o estoque no Inventário. Reverter faz o caminho inverso ('+esc(t.destino)+' → '+esc(t.origem)+') e volta o item pra pendente.</div>':'<div class="intro" style="margin:0 0 12px">Foi só registro — reverter só volta o item pra pendente (nada muda no estoque).</div>')
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-primary btn-sm" onclick="confirmTransfRevert('+idq+')">Reverter</button><button class="btn-ghost btn-sm" onclick="transfModalClose()">Cancelar</button></div>');
+}
+async function confirmTransfRevert(id){
+  const ev=getEvent(view.id);const t=transfList(ev).find(function(x){return x.id===id;});if(!t){transfModalClose();return;}
+  if(t.modo==='estoque'){
+    transfModal('<div style="font-weight:700">Revertendo no Inventário…</div>');
+    const r=await transfEstoqueInv({item:t.item,qtd:t.qtd,origem:t.destino,destino:t.origem},'Reversão — desprodução: '+(ev.nome||'evento'));
+    if(!r.ok){transfModal('<div style="font-family:var(--serif);font-size:17px;color:var(--vinho);font-weight:700;margin-bottom:8px">Não foi possível reverter o estoque</div><div style="margin-bottom:12px">'+esc(r.msg)+'</div><button class="btn-primary btn-sm" onclick="transfModalClose()">Voltar</button>');return;}
+  }
+  t.status='pendente';t.modo='';t.feitoEm='';t.feitoPor='';t.msg='';
+  save();renderDetail();transfModalClose();showFlash('Revertido ✓');
+}
+function transfListaBebidasTxt(ev){
+  return transfList(ev).filter(function(t){return t.tipo==='bebida'&&String(t.item||'').trim();}).map(function(t){return '• '+t.item+' — '+t.qtd+' '+(t.un||'')+' ('+t.origem+' → '+t.destino+')'+(t.status==='feito'?' [lançado]':'');}).join('\n');
+}
+function copiarListaBebidas(){
+  const ev=getEvent(view.id);const txt='Entrada manual no estoque — '+(ev.nome||'evento')+'\n'+transfListaBebidasTxt(ev);
+  try{navigator.clipboard.writeText(txt).then(function(){showFlash('Lista copiada ✓');},function(){showFlash('Não consegui copiar',true);});}catch(e){showFlash('Não consegui copiar',true);}
+}
+function transfHTML(ev){
+  const L=transfList(ev);
+  const opt=function(arr,val){return arr.map(function(x){return '<option'+(x===val?' selected':'')+'>'+esc(x)+'</option>';}).join('');};
+  const linhas=L.map(function(t){
+    const feito=t.status==='feito';const idq=JSON.stringify(t.id).replace(/"/g,'&quot;');
+    const dis=feito?' disabled':'';
+    return '<tr'+(feito?' style="background:#eef7f1"':'')+'>'
+      +'<td data-l="Tipo"><select'+dis+' onchange="setTransf('+idq+',\'tipo\',this.value,true)">'+TRANSF_TIPOS.map(function(x){return '<option value="'+x.v+'"'+(x.v===t.tipo?' selected':'')+'>'+x.l+'</option>';}).join('')+'</select></td>'
+      +'<td data-l="Item"><input type="text"'+dis+' value="'+esc(t.item||'')+'" placeholder="ex.: mesa alta, cadeira, Aperol…" onchange="setTransf('+idq+',\'item\',this.value)"></td>'
+      +'<td data-l="Qtd"><input type="number" step="0.01"'+dis+' value="'+esc(t.qtd)+'" onchange="setTransf('+idq+',\'qtd\',this.value)" style="width:76px"></td>'
+      +'<td data-l="Un"><input type="text"'+dis+' value="'+esc(t.un||'')+'" onchange="setTransf('+idq+',\'un\',this.value)" style="width:56px"></td>'
+      +'<td data-l="De"><select'+dis+' onchange="setTransf('+idq+',\'origem\',this.value)">'+opt(TRANSF_ORIG,t.origem)+'</select></td>'
+      +'<td data-l="Para"><select'+dis+' onchange="setTransf('+idq+',\'destino\',this.value)">'+opt(TRANSF_DEST,t.destino)+'</select></td>'
+      +'<td data-l="Situação" style="white-space:nowrap">'+(feito
+        ?'<span class="pill-ok" title="'+esc(t.msg||'')+'">✓ '+(t.modo==='estoque'?'estoque movido':'registrado')+(t.feitoEm?(' · '+new Date(t.feitoEm+'T00:00').toLocaleDateString('pt-BR')):'')+'</span> <button class="btn-ghost btn-sm no-print" onclick="openTransfRevert('+idq+')">↩ reverter</button>'
+        :'<button class="btn-primary btn-sm no-print" onclick="openTransfConfirm('+idq+')">Marcar feito</button>')+'</td>'
+      +'<td class="no-print">'+(feito?'':'<button class="del-row" onclick="delTransf('+idq+')">×</button>')+'</td></tr>';
+  }).join('');
+  const bebidas=L.filter(function(t){return t.tipo==='bebida'&&String(t.item||'').trim();});
+  return '<div class="section-title" style="font-size:15px;margin-top:22px">🔁 Transferência de itens entre unidades</div>'
+    +'<div class="intro">Mobiliário, louças e bebidas que voltam pra outra unidade depois do evento (ex.: do MAC pra Central, sobras de bebida pro Lola). Ao marcar como feito, o app <b>pergunta na hora</b> se é só registro ou se também transfere o estoque físico no Inventário. <b>Bebidas</b> nunca mexem no estoque sozinhas — entram na lista de entrada manual abaixo.</div>'
+    +'<table><thead><tr><th style="width:175px">Tipo</th><th>Item</th><th style="width:90px">Qtd</th><th style="width:70px">Un</th><th style="width:165px">De</th><th style="width:165px">Para</th><th style="width:240px">Situação</th><th style="width:28px" class="no-print"></th></tr></thead><tbody>'
+    +(L.length?linhas:'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:18px">Nenhuma transferência registrada.</td></tr>')
+    +'</tbody></table>'
+    +'<div class="no-print" style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap"><button class="btn-ghost btn-sm" onclick="addTransf()">+ Adicionar item</button>'
+    +'<button class="btn-ghost btn-sm" onclick="puxarMateriaisTransf()">⤵ Puxar materiais com destino</button>'
+    +'<button class="btn-ghost btn-sm" onclick="puxarSobrasTransf()">⤵ Puxar sobras de bebida (Contagem)</button></div>'
+    +(bebidas.length?('<div style="border:1.5px solid var(--vinho-muted);border-radius:12px;background:var(--cream);padding:12px 14px;margin:6px 0 14px">'
+      +'<div style="font-weight:700;color:var(--vinho-deep);margin-bottom:6px">📋 Bebidas pra dar entrada manual no estoque (físico e financeiro) do Lola</div>'
+      +'<div style="font-size:13px;white-space:pre-wrap">'+esc(transfListaBebidasTxt(ev))+'</div>'
+      +'<div class="no-print" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn-ghost btn-sm" onclick="copiarListaBebidas()">📋 Copiar lista</button><a class="btn-ghost btn-sm" style="text-decoration:none" href="/cozinha/" target="_blank" rel="noopener">📦 Abrir app de Estoque →</a></div>'
+      +'<div class="hint" style="margin-top:6px">Marque “Marcar feito” na linha depois de lançar a entrada no app de Estoque — só serve de controle aqui.</div></div>'):'');
+}
+
 function materiaisHTML(ev,inline){
   const m=ev.materiais||[];
   const comprar=(ev.materiais||[]).filter(r=>r.comprar);
@@ -1793,6 +1972,7 @@ function buildPrintHTML(ev,withValues,sel){
   if(ev.editadoEm){edinfo=' · última edição '+new Date(ev.editadoEm).toLocaleDateString('pt-BR')+(ev.editadoPor&&ev.editadoPor!=='portal'?(' por '+esc(ev.editadoPor)):'');}
   if(inc('layout') && ev.layoutPng){ h+=_pt('Layout de Mesas',color)+'<img src="'+ev.layoutPng+'" alt="Layout de mesas" style="width:100%;max-width:720px;border:1px solid #eee;border-radius:8px;display:block;margin:6px auto 0">'; }
   if(inc('convidados')){ var gg=(ev.convidados||[]).filter(function(x){return x.nome;}); if(gg.length){ var confN=gg.filter(function(x){return x.confirmado;}).length; h+=_pt('Convidados ('+gg.length+(confN?(' · '+confN+' confirmados'):'')+')',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Nome</th><th>Mesa</th><th>Confirmado</th><th>Obs</th></tr>'+gg.map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.nome)+'</td><td>'+esc(r.mesa||'')+'</td><td>'+(r.confirmado?'✓':'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>'; } }
+  if(inc('despro')){var tq=(ev.checks&&ev.checks['_transf']||[]).filter(function(r){return r.item;}); if(tq.length){h+=_pt('Transferência de itens entre unidades',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Item</th><th>Qtd</th><th>De</th><th>Para</th><th>Situação</th></tr>'+tq.map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.item)+'</td><td>'+esc(r.qtd||'')+' '+esc(r.un||'')+'</td><td>'+esc(r.origem||'')+'</td><td>'+esc(r.destino||'')+'</td><td>'+(r.status==='feito'?('✓ '+(r.modo==='estoque'?'estoque movido':'registrado')):'☐ pendente')+'</td></tr>';}).join('')+'</table>';}}
   if(inc('despro')){var pq=(ev.perdas||[]).filter(function(r){return r.item;}); if(pq.length){h+=_pt('Perdas e quebras',color)+'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="text-align:left;color:#8a7d7d"><th style="padding:3px">Item</th><th>Qtd</th><th>Tipo</th><th>Obs</th></tr>'+pq.map(function(r){return '<tr style="border-top:1px solid #eee"><td style="padding:3px">'+esc(r.item)+'</td><td>'+esc(r.qtd||'')+'</td><td>'+esc(r.tipo||'')+'</td><td>'+esc(r.obs||'')+'</td></tr>';}).join('')+'</table>';}}
   h+='<div style="margin-top:24px;border-top:1px solid #eee;padding-top:8px;font-size:10px;color:#8a7d7d">Gerado em '+now+edinfo+' · equipelola.net</div>';
   h+='</div>';
