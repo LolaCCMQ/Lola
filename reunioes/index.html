@@ -649,7 +649,7 @@ function oksOf(f){return (f.oks&&typeof f.oks==='object'&&!Array.isArray(f.oks))
 
 function voltarMenu(){try{var pp=window.parent;if(pp&&pp!==window){pp.postMessage({lola:'voltar-menu'},'*');return;}}catch(e){} try{history.back();}catch(e2){}}
 
-function meuNome(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.name)return pp.__portalUser.name;}catch(e){}return "";}
+function meuNome(){try{var pp=window.parent;if(pp&&pp!==window&&pp.__portalUser&&pp.__portalUser.name)return pp.__portalUser.name;}catch(e){}try{var ls=JSON.parse(localStorage.getItem('lola_session')||'null');if(ls&&ls.name)return ls.name;}catch(e){}return "";}
 function logAtv(acao,f,detalhe){try{if(f&&f.tags&&Array.isArray(f.tags)&&f.tags.indexOf('socias')>=0)return;sb.from('lola_atividades').insert({quem:quemSou()||null,acao:acao,alvo_tipo:(f&&f.eh_tarefa)?'tarefa':'registro',alvo_id:f?(f.id||null):null,alvo_titulo:f?String(f.titulo||'').slice(0,120):null,detalhe:detalhe||null}).then(function(){},function(){});}catch(e){}}
 async function load(){
 try{ var r=await sb.from('lola_assuntos').select('*').order('data',{ascending:false,nullsFirst:false}).order('id',{ascending:false}); REG=r.data||[]; }
