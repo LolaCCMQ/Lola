@@ -2282,7 +2282,8 @@ async function cartaoEdSalvar(id){
   var total=its.reduce(function(s,it){return s+(it.v||0);},0);
   var desc=its.map(function(it){return it.d;}).filter(Boolean).join(' · ')||its[0].d||'—';
   var _cat=g('ceCat'); var _catInfo=cartCatInfo(_cat);
-  var p={data:g('ceData')||null,descricao:desc,empresa:g('ceEmp'),cartao:g('ceCard'),competencia:g('ceComp')||null,valor:total,categoria:_cat||null,categoria_label:_catInfo?_catInfo.label:null,itens:its};
+  var itsCat=its.map(function(it){return {d:it.d,v:it.v,cat:(_cat||null)};});
+  var p={data:g('ceData')||null,descricao:desc,empresa:g('ceEmp'),cartao:g('ceCard'),competencia:g('ceComp')||null,valor:total,categoria:_cat||null,categoria_label:_catInfo?_catInfo.label:null,itens:itsCat};
   try{
     await api.patch('compras_cartao',p,'id=eq.'+id);
     Object.assign(c,p);
@@ -2300,23 +2301,55 @@ async function cartRpc(fn,id){
 }
 async function cartaoToggleConf(id,ck){
   var c=COMPRAS.find(function(x){return x.id===id;});
-  // ao marcar "Lançado", a compra vira um lançamento real no Financeiro — exige categoria
-  if(ck && (!c || !c.categoria)){
-    if(typeof showToast==='function') showToast('Escolha a categoria antes de lançar 🏷️');
-    var el0=document.getElementById('cartLista'); if(el0) el0.innerHTML=cartaoGrid();
-    return;
-  }
+  // ao MARCAR: abre o seletor de categoria pra confirmar/preencher antes de lançar
+  if(ck){ openLancarCat(id); return; }
   // ao DESMARCAR uma compra já lançada: avisa que vai estornar o lançamento do Financeiro
-  if(!ck && c && c.conferido){
+  if(c && c.conferido){
     var okEst=confirm('⚠️ Esta compra JÁ FOI lançada no Financeiro do local.\n\nDesmarcar vai ESTORNAR (remover) esse lançamento de lá.\n\nTem certeza que quer estornar?');
     if(!okEst){ var elc=document.getElementById('cartLista'); if(elc) elc.innerHTML=cartaoGrid(); return; }
   }
   try{
-    await cartRpc(ck?'compra_lancar':'compra_estornar', id);
-    if(c) c.conferido=ck;
-    if(typeof showToast==='function') showToast(ck?'✓ Lançado no Financeiro':'↩︎ Estornado do Financeiro');
+    await cartRpc('compra_estornar', id);
+    if(c) c.conferido=false;
+    if(typeof showToast==='function') showToast('↩︎ Estornado do Financeiro');
   }catch(e){
-    if(typeof showToast==='function') showToast('Erro ao '+(ck?'lançar':'estornar')+' no Financeiro');
+    if(typeof showToast==='function') showToast('Erro ao estornar no Financeiro');
+  }
+  var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoGrid();
+}
+/* Seletor de categoria na hora de lançar (06/10/2026) — preenche a categoria no item e lança */
+function openLancarCat(id){
+  var c=COMPRAS.find(function(x){return x.id===id;}); if(!c)return;
+  var L='display:block;font-size:.6rem;font-weight:700;color:#B79A8E;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px';
+  var ov=document.getElementById('cartLancOv'); if(!ov){ ov=document.createElement('div'); ov.id='cartLancOv'; ov.style.cssText='position:fixed;inset:0;background:rgba(42,26,23,.45);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:22px 12px;overflow:auto'; ov.onclick=function(e){ if(e.target===ov)cartLancClose(); }; document.body.appendChild(ov); }
+  if(!document.getElementById('cartEdCss')){ var st=document.createElement('style'); st.id='cartEdCss'; st.textContent='#cartLancOv input,#cartLancOv select{font-size:14px !important;padding:8px 10px !important;border-radius:9px !important;border:1px solid #E3D6CA !important}'; document.head.appendChild(st); }
+  var h='<div style="background:#FBF7F1;border:1px solid #ECE3D9;border-radius:16px;max-width:420px;width:100%;padding:16px 18px;box-shadow:0 18px 46px rgba(60,30,20,.22);font-family:Manrope,sans-serif;color:#2A1A17">';
+  h+='<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px"><div style="flex:1;min-width:0"><div style="font-family:Fraunces,serif;font-weight:600;font-size:18px;color:#A82A2A">Lançar no Financeiro</div><div style="font-size:12.5px;color:#8A7A72;margin-top:2px">'+_escC(c.descricao||'')+' · '+cartBRL(c.valor)+(c.empresa?(' · '+_escC(c.empresa)):'')+'</div></div><button onclick="cartLancClose()" style="border:1px solid #ECE3D9;background:#fff;color:#A82A2A;border-radius:10px;width:30px;height:30px;cursor:pointer;font-size:15px;flex-shrink:0">✕</button></div>';
+  h+='<div style="margin-top:10px"><label style="'+L+'">Categoria <span style="text-transform:none;font-weight:600;color:#B79A8E">· onde entra no Financeiro</span></label>'+cartCatSelect('lancCat',c.categoria||'')+'</div>';
+  h+='<button onclick="confirmLancarCat('+id+')" style="width:100%;margin-top:16px;background:var(--vinho);color:#fff;border:0;border-radius:12px;padding:14px;font-family:inherit;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 4px 14px rgba(168,42,42,.28)">✓ Confirmar e lançar</button>';
+  h+='<button onclick="cartLancClose()" style="width:100%;margin-top:8px;border:0;background:none;color:#8A7A72;font-weight:700;font-size:13px;cursor:pointer;padding:6px">Cancelar</button>';
+  h+='</div>';
+  ov.innerHTML=h;
+}
+function cartLancClose(){ var o=document.getElementById('cartLancOv'); if(o)o.remove(); var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoGrid(); }
+async function confirmLancarCat(id){
+  var c=COMPRAS.find(function(x){return x.id===id;}); if(!c)return;
+  var sel=document.getElementById('lancCat'); var cat=sel?sel.value:'';
+  if(!cat){ if(typeof showToast==='function')showToast('Escolha a categoria antes de lançar 🏷️'); return; }
+  var catInfo=cartCatInfo(cat);
+  var base=(Array.isArray(c.itens)&&c.itens.length)?c.itens:[{d:(c.descricao||''),v:(c.valor!=null?c.valor:0)}];
+  var its=base.map(function(it){return {d:(it.d||it.desc||''),v:(it.v!=null?it.v:(it.valor!=null?it.valor:0)),cat:cat};});
+  var p={categoria:cat,categoria_label:catInfo?catInfo.label:null,itens:its};
+  try{
+    await api.patch('compras_cartao',p,'id=eq.'+id);
+    Object.assign(c,p);
+    await cartRpc('compra_lancar',id);
+    c.conferido=true;
+    cartLancClose();
+    if(typeof showToast==='function') showToast('✓ Lançado no Financeiro');
+    return;
+  }catch(e){
+    if(typeof showToast==='function') showToast('Não consegui lançar: '+((e&&e.message)?String(e.message).replace(/[{}"]/g,'').slice(0,120):'erro'));
   }
   var el=document.getElementById('cartLista'); if(el) el.innerHTML=cartaoGrid();
 }
