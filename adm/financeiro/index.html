@@ -1321,7 +1321,7 @@ function openSplitPorNotas(lancId){
   $('#spnGo').onclick=()=>aplicarSplitPorNotas(l, mag);
 }
 async function aplicarSplitPorNotas(l, mag){
-  const sign=(+l.amount<0)?-1:1, baseFit=l.fitid||('spn'+l.id);
+  const sign=(+l.amount<0)?-1:1, baseFit=await (async()=>{const ob=l.fitid||('spn'+l.id);await api('financeiro_lancamentos?fitid=like.'+encodeURIComponent(ob)+'__*',{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})}).catch(()=>{});return ob+'__r'+Date.now().toString(36);})();
   const num=v=>{v=(v||'').trim().replace(/\./g,'').replace(',','.');const n=parseFloat(v);return isNaN(n)?0:Math.abs(n);};
   const partes=[];
   $$('#sheetBody .spnrow').forEach(r=>{
@@ -1524,7 +1524,7 @@ function openSplit(id){
 }
 async function doSplit(id){
   const l=ST.lanc.find(x=>x.id===id); if(!l)return;
-  const sign=(+l.amount<0)?-1:1, mag=Math.abs(+l.amount), baseFit=l.fitid||('split'+id);
+  const sign=(+l.amount<0)?-1:1, mag=Math.abs(+l.amount), baseFit=await (async()=>{const ob=l.fitid||('split'+id);await api('financeiro_lancamentos?fitid=like.'+encodeURIComponent(ob)+'__*',{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({ignorado:true})}).catch(()=>{});return ob+'__r'+Date.now().toString(36);})();
   const parts=[];
   $$('#splitParts .splitpart').forEach(box=>{
     const amt=parseFloat((box.querySelector('.pAmt').value||'').replace(/\./g,'').replace(',','.'));
