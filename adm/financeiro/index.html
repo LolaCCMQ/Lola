@@ -716,9 +716,8 @@ function renderLanc(){
   if(ST.catF==='__none') base=base.filter(l=>!l.category);
   else if(ST.catF) base=base.filter(l=>l.category===ST.catF);
   if(bd){
-    base=base.filter(l=>{ const d=(l.date||'').slice(0,10); if(d.length!==10) return false;
-      const [Y,M,D]=d.split('-');
-      return D===bd.dd && M===bd.mm && (!bd.yyyy || Y===bd.yyyy); });
+    const _matchD=function(x){ x=(x||'').slice(0,10); if(x.length!==10) return false; const p=x.split('-'); return p[2]===bd.dd && p[1]===bd.mm && (!bd.yyyy || p[0]===bd.yyyy); };
+    base=base.filter(l=>{ if(_matchD(l.date)) return true; const chs=(typeof notasDoLanc==='function')?notasDoLanc(l.id):[]; for(const ch of chs){ const n=(typeof notaObj==='function')?notaObj(ch):null; if(n && _matchD(n.data_emissao)) return true; } return false; });
   } else if(busca){ const q=normSearch(busca); const qd=q.replace(/\D/g,'');
     base=base.filter(l=> lancBuscaTxt(l).includes(q) || (qd && Math.abs(+l.amount).toFixed(2).replace(/\D/g,'').includes(qd)) ); }
   // summary reflete o que está sendo visto (útil p/ ver o total de uma categoria em todos os meses)
@@ -2487,10 +2486,12 @@ function verNotaAccrual(chave){
     ${(function(){var its=Array.isArray(n.itens)?n.itens:[]; if(!its.length) return ''; return '<div style="font-weight:700;font-size:12px;margin:12px 0 7px;color:var(--mut);letter-spacing:.02em">PRODUTOS DA NOTA</div>'+its.map(function(i){return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:12.5px;border-top:1px solid var(--fio)"><div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(i.desc||'')+'</div><div class="date" style="font-size:11px">'+(+i.qtd||0).toLocaleString('pt-BR')+' '+esc(i.un||'')+' × '+brl(+i.vunit||0)+'</div></div><div class="amt neg" style="font-size:12.5px;white-space:nowrap">'+brl(-(+i.vtotal||0))+'</div></div>';}).join(''); })()}
     <div class="fld" style="margin-top:12px"><label>Categoria desta nota${n.categoria?' <span class="mut" style="text-transform:none;letter-spacing:0;font-weight:400">(definida manualmente)</span>':''}</label>${catSelectHTML(n.categoria||null)}</div>
     <div class="hint" style="font-size:11.5px">Escolha aqui pra classificar esta nota direto no relatório.${paga?' Como já tem pagamento, o normal é classificar no pagamento — mas você pode forçar aqui.':''}</div>
+    ${paga?`<button class="btn o" id="vnaGoPag" style="width:100%;margin-top:12px"><i class="ph-duotone ph-arrow-right"></i> Ir para o pagamento</button>`:''}
     <button class="btn p" id="vnaSave" style="width:100%;margin-top:12px"><i class="ph-duotone ph-check"></i> Salvar categoria</button>
     ${n.categoria?'<button class="btn" id="vnaClear" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Limpar categoria manual</button>':''}
     <button class="btn" onclick="closeSheet()" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Fechar</button>`);
   const bs=$('#vnaSave'); if(bs)bs.onclick=async()=>{ const el=$('#sheetBody .pCat'); await notaSetCategoria(chave, el?(el.value||null):null); };
+  const bg=$('#vnaGoPag'); if(bg)bg.onclick=()=>{ const ps=(typeof pagsDaNota==='function')?pagsDaNota(chave):[]; if(ps.length && typeof openDetalheLanc==='function'){ closeSheet(); openDetalheLanc(ps[0]); } else if(typeof toast==='function'){ toast('Pagamento nao encontrado'); } };
   const bc=$('#vnaClear'); if(bc)bc.onclick=async()=>{ await notaSetCategoria(chave, null); };
 }
 async function notaSetCategoria(chave,cat){
