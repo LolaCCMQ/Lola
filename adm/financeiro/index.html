@@ -1890,7 +1890,7 @@ function openMoverNota(chave){
       await api(`financeiro_nota_lanc?nota_chave=eq.${encodeURIComponent(chave)}`,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}}).catch(()=>{});
       ST.notaLinks=(ST.notaLinks||[]).filter(x=>x.nota_chave!==chave);
       ST.notas=ST.notas.filter(x=>x.chave!==chave);
-      closeSheet(); toast('Nota movida para '+U(dest).nome); renderNotas(); renderLanc();
+      closeSheet(); toast('Nota movida para '+U(dest).nome); renderNotas(); renderLanc(); if(typeof renderRelatorio==='function') renderRelatorio();
     }catch(e){ toast('Erro: '+e.message); }
   });
 }
@@ -2487,11 +2487,13 @@ function verNotaAccrual(chave){
     <div class="fld" style="margin-top:12px"><label>Categoria desta nota${n.categoria?' <span class="mut" style="text-transform:none;letter-spacing:0;font-weight:400">(definida manualmente)</span>':''}</label>${catSelectHTML(n.categoria||null)}</div>
     <div class="hint" style="font-size:11.5px">Escolha aqui pra classificar esta nota direto no relatório.${paga?' Como já tem pagamento, o normal é classificar no pagamento — mas você pode forçar aqui.':''}</div>
     ${paga?`<button class="btn o" id="vnaGoPag" style="width:100%;margin-top:12px"><i class="ph-duotone ph-arrow-right"></i> Ir para o pagamento</button>`:''}
+    <button class="btn o" id="vnaMover" style="width:100%;margin-top:12px"><i class="ph-duotone ph-arrows-left-right"></i> Mover para outra unidade</button>
     <button class="btn p" id="vnaSave" style="width:100%;margin-top:12px"><i class="ph-duotone ph-check"></i> Salvar categoria</button>
     ${n.categoria?'<button class="btn" id="vnaClear" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Limpar categoria manual</button>':''}
     <button class="btn" onclick="closeSheet()" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Fechar</button>`);
   const bs=$('#vnaSave'); if(bs)bs.onclick=async()=>{ const el=$('#sheetBody .pCat'); await notaSetCategoria(chave, el?(el.value||null):null); };
   const bg=$('#vnaGoPag'); if(bg)bg.onclick=()=>{ const ps=(typeof pagsDaNota==='function')?pagsDaNota(chave):[]; if(ps.length && typeof openDetalheLanc==='function'){ closeSheet(); openDetalheLanc(ps[0]); } else if(typeof toast==='function'){ toast('Pagamento nao encontrado'); } };
+  const bm=$('#vnaMover'); if(bm)bm.onclick=()=>{ closeSheet(); if(typeof openMoverNota==='function') openMoverNota(chave); };
   const bc=$('#vnaClear'); if(bc)bc.onclick=async()=>{ await notaSetCategoria(chave, null); };
 }
 async function notaSetCategoria(chave,cat){
