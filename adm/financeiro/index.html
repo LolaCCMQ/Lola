@@ -543,7 +543,7 @@ async function loadLanc(){
   ST.lanc=await api(`financeiro_lancamentos?unit=eq.${ST.unit}&ignorado=eq.false&select=*&order=date.desc`);
 }
 async function loadNotas(){
-  ST.notas=await api(`financeiro_notas?unit=eq.${ST.unit}&select=*&order=data_emissao.desc`);
+  ST.notas=((await api(`financeiro_notas?unit=eq.${ST.unit}&select=*&order=data_emissao.desc`))||[]).filter(n=>!n.oculta_entrada);
 }
 async function loadLinks(){
   ST.notaLinks=await api(`financeiro_nota_lanc?unit=eq.${ST.unit}&select=*`);
@@ -2456,7 +2456,7 @@ function relDataCompetencia(comp){
   (ST.lanc||[]).forEach(l=>{
     if(isNeutro(l)) return;
     if(comp!=='todas' && l.competencia!==comp) return;
-    if(notasDoLanc(l.id).length>0) return;   // tem nota -> já contou pela nota
+    if(notasDoLanc(l.id).some(function(ch){return notaObj(ch);})) return;   // tem nota VISIVEL -> ja contou pela nota (nota oculta na Entrada nao conta; o lancamento volta a contar)
     (byCat[l.category||'__none']=byCat[l.category||'__none']||[]).push(l);
   });
   return {comp, byCat, pendN:0, pendTot:0, accrualN:0, accrualTot:0, modo:'competencia'};
