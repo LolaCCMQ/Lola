@@ -2542,9 +2542,15 @@ function renderRelatorio(){
     });
   });
   // sem categoria
-  if(byCat['__none'] && (!q)){ const its=byCat['__none']; const tot=its.reduce((a,l)=>a+ +l.amount,0);
-    html+=`<div class="cg" style="color:var(--neg)">SEM CATEGORIA<span style="float:right">${brl(tot)}</span></div>
-      <div class="note" style="font-size:12px">${its.length} lançamento(s) ainda sem classificar não entram no total por conta.</div>`; }
+  if(byCat['__none'] && (!q)){ const its=byCat['__none']; const tot=its.reduce((a,l)=>a+ +l.amount,0); const expN=ST.relExp.has('__none');
+    html+=`<div class="lc" style="margin-bottom:8px">
+      <div class="r1" data-rel="__none" style="cursor:pointer;align-items:center">
+        <div style="flex:1;min-width:0"><div class="memo" style="color:var(--neg)">SEM CATEGORIA</div><div class="date">${its.length} lançamento(s) sem classificar · toque para ${expN?'fechar':'ver e classificar'}</div></div>
+        <div class="amt neg">${brl(tot)}</div>
+        <i class="ph-duotone ph-caret-${expN?'up':'down'}" style="margin-left:8px;color:var(--mut)"></i>
+      </div>
+      ${expN?`<div style="border-top:1px solid var(--fio);margin-top:8px;padding-top:6px">`+its.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(l=>`<div class="relrow" data-relanc="${l.id}" style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;font-size:12.5px;border-bottom:1px solid var(--fio);cursor:pointer"><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.memo||'—')}</div><div class="date" style="font-size:11px">${fmtDate(l.date)} · ${compLabel(l.competencia)}${l._nota?' · <span style="color:#9A6B1E;font-weight:700">📄 nota sem pagamento</span>':''}</div></div><div style="display:flex;align-items:center;gap:8px"><div class="amt ${+l.amount<0?'neg':'pos'}" style="font-size:12.5px">${brl(+l.amount)}</div>${l._nota?`<button data-relnota="${esc(l.chave)}" title="Classificar nota" style="flex:0 0 auto;border:1px solid #E6D6A8;background:#FBF3DD;border-radius:9px;padding:6px 10px;cursor:pointer;color:#9A6B1E;font-size:15px;line-height:1"><i class="ph-duotone ph-tag"></i></button>`:`<button data-reledit="${l.id}" title="Classificar / editar" style="flex:0 0 auto;border:1px solid var(--border);background:#fff;border-radius:9px;padding:6px 10px;cursor:pointer;color:var(--vinho);font-size:15px;line-height:1"><i class="ph-duotone ph-pencil-simple"></i></button>`}</div></div>`).join('')+`<div class="note" style="font-size:11px;margin:8px 0 0">Toque num item para classificar (escolher categoria), editar ou excluir. Enquanto sem categoria, não entram no total por conta.</div></div>`:''}
+    </div>`; }
   const head=`<div class="sum" style="margin-bottom:12px"><div><div class="v" style="color:var(--pos)">${brl(grandR)}</div><div class="k">Receitas</div></div><div><div class="v" style="color:var(--neg)">${brl(grandD)}</div><div class="k">Despesas</div></div><div><div class="v">${brl(grandR+grandD)}</div><div class="k">Resultado</div></div></div>`;
   $('#relBody').innerHTML=head+(html||'<div class="empty"><i class="ph-duotone ph-list-magnifying-glass"></i>Nada nesta competência.</div>');
   $$('#relBody [data-rel]').forEach(b=>b.onclick=()=>{const k=b.dataset.rel;ST.relExp.has(k)?ST.relExp.delete(k):ST.relExp.add(k);renderRelatorio();});
