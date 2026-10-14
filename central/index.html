@@ -826,8 +826,8 @@ function render(){
   const pend=ST.notas.filter(n=>!ST.imp.has(n.chave)).length;
   const c=$('#cntPend'); if(pend){c.style.display='';c.textContent=pend;}else c.style.display='none';
   const na=(ST.alertas||[]).filter(x=>!x.resolvido).length; const ca=$('#cntAl'); if(na){ca.style.display='';ca.textContent=na;}else ca.style.display='none';
-  const V={ini:viewInicio, ent:viewEntrada, ped:viewPedidos, sal:viewPlanilha, cmp:viewCompras, prod:viewEstoque, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, env:viewEnvio, al:viewAlertas};
-  const W={ini:wireInicio, ent:wireEntrada, ped:wirePedidos, sal:wirePlanilha, cmp:wireCompras, prod:wireEstoque, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, env:wireEnvio, al:wireAlertas};
+  const V={ini:viewInicio, ent:viewEntrada, ped:viewPedidos, sal:viewPlanilha, cmp:viewCompras, prod:viewEstoque, pz:viewProduzidos, perd:viewPerdas, rec:viewReceitasNova, ft:viewFt, env:viewEnvio, al:viewAlertas, plan:viewPlanProd};
+  const W={ini:wireInicio, ent:wireEntrada, ped:wirePedidos, sal:wirePlanilha, cmp:wireCompras, prod:wireEstoque, pz:wireProduzidos, perd:wirePerdas, rec:wireReceitasNova, ft:wireFt, env:wireEnvio, al:wireAlertas, plan:wirePlanProd};
   $('#app').innerHTML = (V[ST.tab]||viewEntrada)();
   (W[ST.tab]||wireEntrada)();
 }
@@ -3134,6 +3134,103 @@ async function concluirTarefa(id){
 }
 
 /* ===== INÍCIO (17/07: "a central deveria ter sua propria pagina inicial com informações importantes") ===== */
+/* ===== Produção do dia → lista de compras (pedido da Fê Consultoria, 14/10/2026) =====
+   Lança preparos + quantidade, explode as receitas (mesma lógica de FC/convCusto de Produzir),
+   soma os insumos, DESCONTA o estoque e monta a lista de compras agrupada por categoria. */
+let PLAN=null;
+function planLoad(){ if(PLAN&&PLAN.itens) return PLAN; try{ PLAN=JSON.parse(localStorage.getItem('central_plan_dia')||'null'); }catch(e){ PLAN=null; } if(!PLAN||typeof PLAN!=='object') PLAN={itens:[]}; if(!Array.isArray(PLAN.itens)) PLAN.itens=[]; return PLAN; }
+function planSave(){ try{ localStorage.setItem('central_plan_dia', JSON.stringify({itens:(PLAN&&PLAN.itens)||[]})); }catch(e){} }
+function viewPlanProd(){
+  planLoad();
+  const recs=(ST.receitas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  let h=`<div class="note"><b>Produção do dia.</b> Lance o que vai produzir (preparo + quantidade). O sistema soma os insumos de todas as receitas, <b>desconta o que já tem em estoque</b> e monta a <b>lista de compras</b> por categoria — ideal pra fazer o pedido do hortifrúti na véspera.</div>`;
+  h+=`<div class="mf" style="margin-top:4px"><label>Adicionar preparo</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="planSel" style="flex:2;min-width:160px"><option value="">— escolha o preparo —</option>${recs.map(r=>`<option value="${r.id}">${esc(r.nome)}</option>`).join('')}</select>
+      <input id="planQtd" type="number" step="0.001" inputmode="decimal" placeholder="qtd" style="flex:1;min-width:80px">
+      <span id="planUn" style="color:var(--mut);font-size:13px;font-weight:700;min-width:28px"></span>
+      <button class="btn sec" id="planAdd"><i class="ph-duotone ph-plus"></i> Adicionar</button>
+    </div></div>`;
+  h+=`<div class="lbl" style="margin-top:10px">Produções planejadas (${PLAN.itens.length})</div><div class="ini-list" id="planList">`;
+  if(!PLAN.itens.length) h+=`<div class="ini-vazio">Nada ainda — escolha um preparo acima.</div>`;
+  else h+=PLAN.itens.map((it,i)=>{ const r=recs.find(x=>x.id===it.pid)||{}; const un=r.id?prodUn(r):''; return `<div class="ini-row"><div class="t">${esc(r.nome||'(preparo)')}<small>${num(it.qtd)} ${esc(un)}</small></div><button class="chip planDel" data-i="${i}" title="remover"><i class="ph-duotone ph-trash"></i></button></div>`; }).join('');
+  h+=`</div>`;
+  h+=`<div class="btn2" style="margin-top:12px"><button class="btn" id="planCalc" style="flex:1"><i class="ph-duotone ph-calculator"></i> Montar lista de compras</button></div>`;
+  h+=`<div id="planResult" style="margin-top:14px"></div>`;
+  return h;
+}
+function wirePlanProd(){
+  planLoad();
+  const sel=$('#planSel'), un=$('#planUn');
+  const upUn=()=>{ const r=(ST.receitas||[]).find(x=>x.id===sel.value); if(un) un.textContent=r?prodUn(r):''; };
+  if(sel){ sel.onchange=upUn; upUn(); }
+  $('#planAdd')&&($('#planAdd').onclick=()=>{ const pid=sel.value; const q=+($('#planQtd').value||0); if(!pid){toast('Escolha o preparo');return;} if(!(q>0)){toast('Informe a quantidade');return;} PLAN.itens.push({pid,qtd:q}); planSave(); render(); });
+  $$('#planList .planDel').forEach(b=>b.onclick=()=>{ PLAN.itens.splice(+b.dataset.i,1); planSave(); render(); });
+  $('#planCalc')&&($('#planCalc').onclick=planCalc);
+  if(PLAN._need) renderPlanResult();
+}
+async function computePlanNeeds(itens){
+  const need={};
+  for(const it of itens){
+    const R=(ST.receitas||[]).find(x=>x.id===it.pid); if(!R) continue;
+    const ri=rendInfo(R); const base=+ri.base||0; const f= base>0 ? ((+it.qtd||0)/base) : 0; if(!(f>0)) continue;
+    let rows=[]; try{ rows=await post('rpc/central_receita_itens',{pid:it.pid}); }catch(e){ rows=[]; }
+    (rows||[]).forEach(x=>{ if(!x.insumo_id) return;
+      const fc=fcDoInsumo(x.nome); const liq=(x.qtd_liq!=null?+x.qtd_liq:+x.qtd)||0;
+      const baseC=convCusto(fc!==1?liq:(+x.qtd||0), x.unidade, x.unidade_custo);
+      const bruto=(fc!==1 ? baseC.q*fc : baseC.q) * f;
+      const id=x.insumo_id, ins=ST.byId[id]||{};
+      if(!need[id]) need[id]={id, nome:(ins.nome||x.nome||'insumo'), un:(ins.unidade_custo||baseC.u||''), categoria:(ins.categoria||'Sem categoria'), custo:(+ins.custo_por_unidade||0), qtd:0};
+      need[id].qtd+=bruto;
+    });
+  }
+  Object.values(need).forEach(n=>{ const saldo=perdaSaldoInsumo(n.id); n.saldo=saldo; n.falta=Math.max(0,(n.qtd||0)-(saldo||0)); });
+  return need;
+}
+async function planCalc(){
+  const box=$('#planResult'); if(!PLAN||!PLAN.itens.length){ if(box)box.innerHTML='<div class="ini-vazio">Adicione pelo menos um preparo.</div>'; return; }
+  if(box) box.innerHTML='<div class="uinfo">calculando…</div>';
+  PLAN._need=await computePlanNeeds(PLAN.itens); planSave();
+  renderPlanResult();
+}
+function renderPlanResult(){
+  const box=$('#planResult'); if(!box) return; const need=PLAN._need||{};
+  const arr=Object.values(need); const comprar=arr.filter(n=>n.falta>0.0005); const tem=arr.filter(n=>!(n.falta>0.0005));
+  if(!arr.length){ box.innerHTML='<div class="ini-vazio">Sem insumos nas receitas selecionadas (ou receitas sem rendimento definido).</div>'; return; }
+  const cats={}; comprar.forEach(n=>{ (cats[n.categoria]=cats[n.categoria]||[]).push(n); });
+  const catKeys=Object.keys(cats).sort();
+  const totalFalta=comprar.reduce((s,n)=>s+(n.falta*(n.custo||0)),0);
+  let h=`<div class="lbl">Lista de compras — falta comprar (${comprar.length})</div>`;
+  if(!comprar.length) h+=`<div class="ini-vazio">Tudo o que as receitas precisam já está no estoque. 🎉</div>`;
+  else h+=catKeys.map(cat=>`<div class="pcat-h" style="font-weight:800;color:var(--vinho,#A82A2A);margin:10px 0 4px;text-transform:uppercase;font-size:12px;letter-spacing:.04em">${esc(cat)}</div><div class="ini-list">`+cats[cat].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(n=>`<div class="ini-row"><div class="t">${esc(n.nome)}<small>precisa ${num(n.qtd)} ${esc(n.un)} · tem ${num(n.saldo)}</small></div><b style="color:var(--vinho,#A82A2A);white-space:nowrap">${num(n.falta)} ${esc(n.un)}</b></div>`).join('')+`</div>`).join('');
+  if(totalFalta>0) h+=`<div class="uinfo" style="margin-top:8px">Custo estimado da compra: <b>${brl(totalFalta)}</b> (pelo último custo por unidade).</div>`;
+  if(tem.length) h+=`<div class="uinfo" style="margin-top:6px;color:var(--mut)">${tem.length} insumo(s) já com estoque suficiente (não entram na compra).</div>`;
+  h+=`<div class="btn2" style="margin-top:10px"><button class="btn sec" id="planPrint"><i class="ph-duotone ph-printer"></i> Imprimir / PDF</button></div>`;
+  box.innerHTML=h;
+  $('#planPrint')&&($('#planPrint').onclick=printPlanCompras);
+}
+function printPlanCompras(){
+  const need=PLAN._need||{}; const comprar=Object.values(need).filter(n=>n.falta>0.0005);
+  const cats={}; comprar.forEach(n=>{ (cats[n.categoria]=cats[n.categoria]||[]).push(n); });
+  const catKeys=Object.keys(cats).sort();
+  const recs=ST.receitas||[];
+  const plano=(PLAN.itens||[]).map(it=>{ const r=recs.find(x=>x.id===it.pid)||{}; return `${esc(r.nome||'preparo')} — ${num(it.qtd)} ${esc(r.id?prodUn(r):'')}`; }).join(' · ');
+  const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
+  const rows=catKeys.map(cat=>`<tr class="cat"><td colspan="2">${esc(cat)}</td></tr>`+cats[cat].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(n=>`<tr><td>${esc(n.nome)}</td><td class="q">${num(n.falta)} ${esc(n.un)}</td></tr>`).join('')).join('');
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Lista de compras — Produção do dia</title>
+  <style>*{box-sizing:border-box}body{font-family:Georgia,'Times New Roman',serif;color:#2A1A17;padding:34px;max-width:640px;margin:0 auto}
+  h1{color:#A82A2A;font-size:25px;margin:0 0 4px}.d{color:#8A7A72;font-size:13px;margin-bottom:18px}
+  table{width:100%;border-collapse:collapse}th{text-align:left;color:#B79A8E;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:0 4px 6px;border-bottom:2px solid #A82A2A}
+  td{padding:8px 4px;border-bottom:1px solid #ECE3D9;font-size:15px}td.q{text-align:right;font-weight:bold;white-space:nowrap}
+  tr.cat td{background:#F7EFE7;color:#A82A2A;font-weight:bold;text-transform:uppercase;font-size:12px;letter-spacing:.04em}
+  @media print{body{padding:6px}}</style></head>
+  <body><h1>Lista de compras — Produção do dia</h1>
+  <div class="d">Central · ${fmtData(new Date().toISOString().slice(0,10))}${plano?' · Produção: '+plano:''}</div>
+  <table><tr><th>Insumo</th><th class="q" style="text-align:right">Comprar</th></tr>${rows||'<tr><td colspan=2>Nada a comprar — estoque suficiente.</td></tr>'}</table>
+  </body></html>`);
+  w.document.close();
+}
+
 function viewInicio(){
   const hoje=new Date().toISOString().slice(0,10);
   const peds=(ST.pedidos&&ST.pedidos!=='loading')?ST.pedidos.filter(p=>p.status==='solicitado'):null;
@@ -3142,6 +3239,7 @@ function viewInicio(){
   const ph=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(x=>String(x.data).slice(0,10)===hoje):null;
   const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
   let h='';
+  h+=`<button class="btn" data-go="plan" style="width:100%;margin:0 0 14px;background:var(--vinho,#A82A2A);color:#fff;border:0;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700"><i class="ph-duotone ph-clipboard-text"></i> Produção do dia → lista de compras</button>`;
   h+=`<div class="ini-grid">
     <div class="ini-card" data-go="ped"><div class="k">Pedidos pendentes</div><div class="n" style="color:var(--pendFg)">${peds?peds.length:'…'}</div><div class="s">${peds?(peds.length?[nCcmq?nCcmq+' CCMQ':'',nMac?nMac+' MAC':''].filter(Boolean).join(' · ')||'aguardando':'nenhum a fazer'):'carregando'}</div></div>
     <div class="ini-card" data-go="al"><div class="k">Alertas abertos</div><div class="n" style="color:${al.length?'var(--urgFg)':'var(--okFg)'}">${al.length}</div><div class="s">${al.length?'toque pra resolver':'tudo resolvido'}</div></div>
