@@ -2403,7 +2403,7 @@ function notaCatMemory(){
 function relNotasAccrual(comp){
   const mem=notaCatMemory(); const out=[];
   (ST.notas||[]).forEach(n=>{
-    const mesN=(n.data_emissao||'').slice(0,7); if(!mesN) return;
+    const mesN=(n.competencia||(n.data_emissao||'').slice(0,7)); if(!mesN) return;
     if(comp!=='todas' && mesN!==comp) return;
     if(pagsDaNota(n.chave).length) return;             // já tem pagamento -> conta pelo lançamento
     if(n.xml_motivo==='nfe_cancelada') return;         // nota cancelada não é despesa
@@ -2428,7 +2428,7 @@ function notaCategory(n, memMap){
 function relDataCompetencia(comp){
   const mem=notaCatMemory(); const byCat={};
   (ST.notas||[]).forEach(n=>{
-    const mesN=(n.data_emissao||'').slice(0,7); if(!mesN) return;
+    const mesN=(n.competencia||(n.data_emissao||'').slice(0,7)); if(!mesN) return;
     if(comp!=='todas' && mesN!==comp) return;
     if(n.xml_motivo==='nfe_cancelada') return;
     const val=+n.valor_total||0; if(!(val>0)) return;
@@ -2481,19 +2481,21 @@ function verNotaAccrual(chave){
     ? 'Esta nota é despesa da competência da <b>emissão</b>. Ela já tem pagamento conciliado — a categoria vem do que você classificou no pagamento.'
     : 'Esta nota entra na despesa <b>por competência</b> (mês da emissão) mesmo sem pagamento. Ao <b>conciliar o pagamento</b> na aba Lançamentos, a categoria dela passa a ser a que você marcar no pagamento.';
   openSheet(`<h3>${esc(n.emitente||('Nota '+(n.numero||'')))}</h3>
-    <div class="hint">Emitida em ${fmtDate(n.data_emissao)} · ${brl(-(+n.valor_total||0))} · competência ${compLabel((n.data_emissao||'').slice(0,7))} · ${paga?'paga':'sem pagamento'}</div>
+    <div class="hint">Emitida em ${fmtDate(n.data_emissao)} · ${brl(-(+n.valor_total||0))} · competência ${compLabel(n.competencia||(n.data_emissao||'').slice(0,7))}${n.competencia?' <span style=\"color:#9A6B1E;font-weight:700\">(ajustada)</span>':''} · ${paga?'paga':'sem pagamento'}</div>
     <div class="note" style="font-size:12.5px">${msg}</div>
     ${(function(){var its=Array.isArray(n.itens)?n.itens:[]; if(!its.length) return ''; return '<div style="font-weight:700;font-size:12px;margin:12px 0 7px;color:var(--mut);letter-spacing:.02em">PRODUTOS DA NOTA</div>'+its.map(function(i){return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:12.5px;border-top:1px solid var(--fio)"><div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(i.desc||'')+'</div><div class="date" style="font-size:11px">'+(+i.qtd||0).toLocaleString('pt-BR')+' '+esc(i.un||'')+' × '+brl(+i.vunit||0)+'</div></div><div class="amt neg" style="font-size:12.5px;white-space:nowrap">'+brl(-(+i.vtotal||0))+'</div></div>';}).join(''); })()}
     <div class="fld" style="margin-top:12px"><label>Categoria desta nota${n.categoria?' <span class="mut" style="text-transform:none;letter-spacing:0;font-weight:400">(definida manualmente)</span>':''}</label>${catSelectHTML(n.categoria||null)}</div>
     <div class="hint" style="font-size:11.5px">Escolha aqui pra classificar esta nota direto no relatório.${paga?' Como já tem pagamento, o normal é classificar no pagamento — mas você pode forçar aqui.':''}</div>
     ${paga?`<button class="btn o" id="vnaGoPag" style="width:100%;margin-top:12px"><i class="ph-duotone ph-arrow-right"></i> Ir para o pagamento</button>`:''}
     <button class="btn o" id="vnaMover" style="width:100%;margin-top:12px"><i class="ph-duotone ph-arrows-left-right"></i> Mover para outra unidade</button>
+    <button class="btn o" id="vnaComp" style="width:100%;margin-top:12px"><i class="ph-duotone ph-calendar"></i> Mudar competência (só no relatório)</button>
     <button class="btn p" id="vnaSave" style="width:100%;margin-top:12px"><i class="ph-duotone ph-check"></i> Salvar categoria</button>
     ${n.categoria?'<button class="btn" id="vnaClear" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Limpar categoria manual</button>':''}
     <button class="btn" onclick="closeSheet()" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Fechar</button>`);
   const bs=$('#vnaSave'); if(bs)bs.onclick=async()=>{ const el=$('#sheetBody .pCat'); await notaSetCategoria(chave, el?(el.value||null):null); };
   const bg=$('#vnaGoPag'); if(bg)bg.onclick=()=>{ const ps=(typeof pagsDaNota==='function')?pagsDaNota(chave):[]; if(ps.length && typeof openDetalheLanc==='function'){ closeSheet(); openDetalheLanc(ps[0]); } else if(typeof toast==='function'){ toast('Pagamento nao encontrado'); } };
   const bm=$('#vnaMover'); if(bm)bm.onclick=()=>{ closeSheet(); if(typeof openMoverNota==='function') openMoverNota(chave); };
+  const bcp=$('#vnaComp'); if(bcp)bcp.onclick=()=>{ closeSheet(); if(typeof openMudarCompNota==='function') openMudarCompNota(chave); };
   const bc=$('#vnaClear'); if(bc)bc.onclick=async()=>{ await notaSetCategoria(chave, null); };
 }
 async function notaSetCategoria(chave,cat){
@@ -2502,6 +2504,30 @@ async function notaSetCategoria(chave,cat){
     const n=notaObj(chave); if(n)n.categoria=cat||null;
     closeSheet(); toast(cat?'Categoria da nota atualizada':'Categoria manual removida'); renderRelatorio();
   }catch(e){ toast('Erro: '+e.message); }
+}
+function openMudarCompNota(chave){
+  const n=notaObj(chave); if(!n){ if(typeof toast==='function')toast('Nota não encontrada'); return; }
+  const emis=(n.data_emissao||'').slice(0,7);
+  const atual=n.competencia||emis;
+  openSheet(`<h3>Competência da nota</h3>
+    <div class="hint">${esc(n.emitente||('Nota '+(n.numero||'')))} · ${brl(-(+n.valor_total||0))} · emitida em ${fmtDate(n.data_emissao)}</div>
+    <div class="note" style="font-size:12.5px">Escolha em que mês esta nota deve entrar no relatório <b>por competência</b>. A data de emissão <b>não muda</b> — só onde a nota conta no fechamento.</div>
+    <div class="fld" style="margin-top:12px"><label>Competência no relatório</label><select id="ncomp">${monthList().map(c=>`<option value="${c}" ${c===atual?'selected':''}>${compLabel(c)}${c===emis?' · emissão':''}</option>`).join('')}</select></div>
+    ${n.competencia?`<div class="hint" style="font-size:11.5px;color:#9A6B1E">Hoje ajustada para ${compLabel(n.competencia)} (emissão foi ${compLabel(emis)}).</div>`:''}
+    <button class="btn p" id="ncompSave" style="width:100%;margin-top:12px"><i class="ph-duotone ph-check"></i> Salvar competência</button>
+    ${n.competencia?`<button class="btn" id="ncompReset" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Voltar pro mês de emissão (${compLabel(emis)})</button>`:''}
+    <button class="btn" onclick="closeSheet()" style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--border)">Cancelar</button>`);
+  const sv=$('#ncompSave'); if(sv)sv.onclick=async()=>{ const el=$('#ncomp'); const v=el?el.value:emis; await notaSetCompetencia(chave,(v===emis?null:v)); };
+  const rs=$('#ncompReset'); if(rs)rs.onclick=async()=>{ await notaSetCompetencia(chave,null); };
+}
+async function notaSetCompetencia(chave,comp){
+  try{
+    await api(`financeiro_notas?chave=eq.${encodeURIComponent(chave)}`,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify({competencia:comp||null})});
+    const n=notaObj(chave); if(n)n.competencia=comp||null;
+    closeSheet(); toast(comp?('Competência da nota → '+compLabel(comp)):'Competência voltou pro mês de emissão');
+    if(typeof renderRelatorio==='function') renderRelatorio();
+    if(typeof renderNotas==='function') renderNotas();
+  }catch(e){ toast('Erro ao mudar competência: '+(e&&e.message||e)); }
 }
 function renderRelatorio(){
   const {comp,byCat,pendN,pendTot,accrualN,accrualTot}=relData();
