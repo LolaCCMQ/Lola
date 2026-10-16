@@ -340,9 +340,16 @@ function gerarLote(nome,data,seq){
   const yy=(d[0]||'').slice(2), mm=d[1]||'', dd=d[2]||'';
   return siglaProduto(nome)+'-'+dd+mm+yy+'-'+String(seq).padStart(2,'0');
 }
-async function proxSeqLote(ppId,data){
+async function proxSeqLote(ppId,data,nome){
   if(DEMO) return 1;
-  try{ const rows=await api('lola_central_prod_hist?preproducao_id=eq.'+ppId+'&data=eq.'+data+'&ativo=neq.false&select=id');
+  /* 16/10/2026: conta pela SIGLA+DIA (igual ao app da Central) — siglas se repetem entre produtos */
+  try{
+    if(!nome){ const r=ST.recById&&ST.recById[ppId]; nome=r&&r.nome; }
+    if(nome){ const pref=gerarLote(nome,data,0).replace(/00$/,'');
+      const rows=await api('lola_central_prod_hist?lote=like.'+encodeURIComponent(pref+'*')+'&select=lote');
+      let mx=0; (rows||[]).forEach(x=>{ const m=/-(\d+)$/.exec(x.lote||''); if(m) mx=Math.max(mx,+m[1]); });
+      return mx+1; }
+    const rows=await api('lola_central_prod_hist?preproducao_id=eq.'+ppId+'&data=eq.'+data+'&ativo=neq.false&select=id');
     return (rows&&rows.length||0)+1;
   }catch(e){ return 1; }
 }
@@ -1042,7 +1049,7 @@ async function baixarProducao(x,qtdReal,unReal,data,quem){
   const qtdSaldo=convCusto(qtdReal,unReal,unSaldo).q;
   const novo=(+s.saldo||0)+qtdSaldo;
   await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
-  const seqLote=await proxSeqLote(r.id,data); const lote=gerarLote(r.nome,data,seqLote);
+  const seqLote=await proxSeqLote(r.id,data,r.nome); const lote=gerarLote(r.nome,data,seqLote);
   const _h=await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:qtdSaldo, saldo_depois:novo, criado_por:quem, lote}],'return=representation');
   const histId=(Array.isArray(_h)&&_h[0])?_h[0].id:null;
   ST.saldo[r.id]={preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem};

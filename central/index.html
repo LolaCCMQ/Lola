@@ -674,8 +674,9 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
      pras sócias). O auth.js continua morando no /adm — caminho absoluto pra não
      depender de quantas pastas acima este arquivo está. -->
 <script src="/adm/auth.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<!-- 16/10/2026: QR e leitor servidos daqui mesmo (central/vendor) — não dependem do cdnjs na hora de imprimir/bipar -->
+<script src="vendor/qrcode.min.js"></script>
+<script src="vendor/jsQR.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], fc:{}, alertas:[], tab:'ini',
@@ -699,7 +700,7 @@ async function carregar(){
     const [notas, imp, insumos, mapa, movs, fc, alertas, prod, receitas, saldo, perdas, inv] = await Promise.all([
       api('financeiro_notas?unit=eq.central&select=chave,emitente,cnpj,numero,data_emissao,valor_total,itens,totais,parcelas,dif_motivo,vencimento&order=data_emissao.desc'),
       api('lola_central_estoque_nota?select=nota_chave'),
-      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,evento,local,preco_atualizado_em,preco_atualizado_por,conservacao,validade_dias_resfriado,validade_dias_congelado&order=categoria,nome'),
+      api('lola_insumos?ativo=neq.false&select=id,nome,categoria,unidade_custo,custo_por_unidade,preproducao_id,evento,local,preco_atualizado_em,preco_atualizado_por,conservacao,validade_dias_resfriado,validade_dias_congelado&order=categoria,nome'),
       api('lola_central_estoque_map?select=desc_norm,insumo_id,fator,ignorar'),
       api('lola_central_estoque_mov?select=insumo_id,qtd,custo_total,origem_tipo,origem_ref'),
       api('lola_central_fc?select=insumo_norm,peso_medio_g,fc'),
@@ -1041,8 +1042,16 @@ function gerarLote(nome,data,seq){
   const yy=(d[0]||'').slice(2), mm=d[1]||'', dd=d[2]||'';
   return siglaProduto(nome)+'-'+dd+mm+yy+'-'+String(seq).padStart(2,'0');
 }
-async function proxSeqLote(ppId,data){
-  try{ const rows=await api('lola_central_prod_hist?preproducao_id=eq.'+ppId+'&data=eq.'+data+'&ativo=neq.false&select=id');
+async function proxSeqLote(ppId,data,nome){
+  /* 16/10/2026: a sequência conta pela SIGLA+DIA, não pelo produto — siglas se repetem
+     (MOLH = Pesto/Romesco, PDPU = os dois pudins...) e dois produtos saíam com o MESMO lote. */
+  try{
+    if(!nome){ const r=(ST.receitas||[]).find(x=>x.id===ppId); nome=r&&r.nome; }
+    if(nome){ const pref=gerarLote(nome,data,0).replace(/00$/,'');
+      const rows=await api('lola_central_prod_hist?lote=like.'+encodeURIComponent(pref+'*')+'&select=lote');
+      let mx=0; (rows||[]).forEach(x=>{ const m=/-(\d+)$/.exec(x.lote||''); if(m) mx=Math.max(mx,+m[1]); });
+      return mx+1; }
+    const rows=await api('lola_central_prod_hist?preproducao_id=eq.'+ppId+'&data=eq.'+data+'&ativo=neq.false&select=id');
     return (rows&&rows.length||0)+1;
   }catch(e){ return 1; }
 }
@@ -1579,7 +1588,7 @@ async function salvarProduzir(){
   $('#shSave').setAttribute('disabled','');
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
     await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:un, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
-    const seqLote=await proxSeqLote(r.id,data); const lote=gerarLote(r.nome,data,seqLote);
+    const seqLote=await proxSeqLote(r.id,data,r.nome); const lote=gerarLote(r.nome,data,seqLote);
     const obs=($('#prodObs')&&$('#prodObs').value||'').trim();
     const _h=await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:q, saldo_depois:novo, criado_por:quem, lote, observacoes:obs||null}],'return=representation');
     const histId=(Array.isArray(_h)&&_h[0])?_h[0].id:null;
@@ -2008,10 +2017,15 @@ function openEtiqueta(id){
    ajustar o total contado. Formato: LOLA:<lote>:<produto>:<unidade>. Gerado em canvas
    (síncrono) e embutido como dataURL — funciona na janela de impressão sem depender de
    internet no momento de imprimir. */
+function qrAscii(t){ return String(t==null?'':t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').replace(/:/g,' ').trim(); }
+function qrTextoEtiqueta(lote,nome,un){ return 'LOLA:'+qrAscii(lote)+':'+qrAscii(nome)+':'+qrAscii(un); }
 function qrEtiquetaDataURL(lote, nomeProduto, unidade, px){
   try{
     const div=document.createElement('div');
-    new QRCode(div,{text:`LOLA:${lote}:${nomeProduto}:${unidade}`, width:px||240, height:px||240, colorDark:'#000000', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M});
+    /* 16/10/2026: SÓ ASCII. Com acento (Camarão, Requeijão, Geléia, Filé...) a biblioteca põe um
+       caractere invisível (BOM) no começo do QR e a leitura não reconhecia o "LOLA:" — o QR
+       saía na etiqueta mas não rastreava nada. Testado: com acento lê "\uFEFFLOLA:...", sem acento lê certo. */
+    new QRCode(div,{text:qrTextoEtiqueta(lote,nomeProduto,unidade), width:px||240, height:px||240, colorDark:'#000000', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M});
     const cv=div.querySelector('canvas');
     return cv?cv.toDataURL('image/png'):'';
   }catch(e){ return ''; }
@@ -2022,10 +2036,14 @@ function qrEtiquetaDataURL(lote, nomeProduto, unidade, px){
    (puxa de lola_central_prod_hist, que já tem data/criado_por/lote, mais observacoes
    novo). É uma consulta simples — não confundir com a bipagem de conferência de saída
    de pedido (fluxo diferente, superado pelo status simples solicitado→...→recebido). */
-function bipParseLote(raw){
-  const m=/^LOLA:([^:]*):([^:]*):([^:]*)$/.exec(String(raw||'').trim());
-  return m?m[1]:String(raw||'').trim();
+/* lê o QR da etiqueta. Tolera o caractere invisível (BOM) das etiquetas antigas com acento,
+   espaços e minúsculas — QR já impresso continua valendo. */
+function bipParseQR(raw){
+  const t=String(raw||'').replace(/[\uFEFF\u200B]/g,'').trim();
+  const m=/^LOLA:([^:]*):(.*):([^:]*)$/i.exec(t);
+  return m?{lote:m[1].trim().toUpperCase(), produto:m[2].trim(), un:m[3].trim()}:{lote:t.toUpperCase(), produto:'', un:''};
 }
+function bipParseLote(raw){ return bipParseQR(raw).lote; }
 function abrirConsultaLote(){
   $('#shTitle').textContent='🔍 Consultar lote';
   const f=$('.sh-foot'); if(f) f.style.display='none';
@@ -2037,11 +2055,12 @@ function abrirConsultaLote(){
   openSheet();
   const inp=$('#loteInput');
   if(inp){ inp.focus(); inp.onkeydown=(e)=>{ if(e.key==='Enter'){ e.preventDefault(); consultarLote(inp.value); } }; }
-  $('#loteCamBtn')&&($('#loteCamBtn').onclick=toggleCameraLote);
+  $('#loteCamBtn')&&($('#loteCamBtn').onclick=()=>toggleCameraLote());
 }
-let LOTE_CAM_STREAM=null, LOTE_CAM_LOOP=null;
-async function toggleCameraLote(){
+let LOTE_CAM_STREAM=null, LOTE_CAM_LOOP=null, LOTE_CAM_CB=null, LOTE_CAM_ULT='', LOTE_CAM_ULT_T=0;
+async function toggleCameraLote(cb){
   if(LOTE_CAM_STREAM){ fecharCameraLote(); return; }
+  LOTE_CAM_CB=(typeof cb==='function')?cb:null; LOTE_CAM_ULT='';
   const video=$('#loteCamVideo'), status=$('#loteCamStatus'); if(!video)return;
   status.textContent='Abrindo câmera…'; video.style.display='';
   try{
@@ -2056,6 +2075,7 @@ function fecharCameraLote(){
   if(video) video.style.display='none'; if(status) status.textContent='';
   if(LOTE_CAM_LOOP) cancelAnimationFrame(LOTE_CAM_LOOP);
   if(LOTE_CAM_STREAM){ LOTE_CAM_STREAM.getTracks().forEach(t=>t.stop()); LOTE_CAM_STREAM=null; }
+  LOTE_CAM_CB=null;
 }
 function cameraLoteLoop(video, status){
   const canvas=document.createElement('canvas'), ctx=canvas.getContext('2d');
@@ -2071,6 +2091,9 @@ function cameraLoteLoop(video, status){
         if(nativo){ const codes=await detector.detect(canvas); if(codes.length) texto=codes[0].rawValue; }
         else if(window.jsQR){ const img=ctx.getImageData(0,0,canvas.width,canvas.height); const r=jsQR(img.data,img.width,img.height); if(r) texto=r.data; }
       }catch(e){}
+      if(texto && LOTE_CAM_CB){ const agora=Date.now();
+        if(texto!==LOTE_CAM_ULT || agora-LOTE_CAM_ULT_T>2500){ LOTE_CAM_ULT=texto; LOTE_CAM_ULT_T=agora; try{ LOTE_CAM_CB(texto); }catch(e){} }
+        LOTE_CAM_LOOP=requestAnimationFrame(tick); return; }
       if(texto){ status.textContent='Lido: '+texto; fecharCameraLote(); const inp=$('#loteInput'); if(inp)inp.value=texto; consultarLote(texto); return; }
     }
     LOTE_CAM_LOOP=requestAnimationFrame(tick);
@@ -2127,6 +2150,7 @@ async function printEtiquetas(){
   const sz=sizes[tam]||sizes.a4; const roll = tam!=='a4';
   const lote=($('#etLote').value||'').trim();
   const qrURL=lote?qrEtiquetaDataURL(lote, r.nome, prodUn(r)):'';
+  if(lote && !qrURL && !confirm('O QR code não foi gerado (o leitor de QR não carregou nesta página). As etiquetas vão sair SEM QR, só com o lote escrito.\n\nRecarregue a página e tente de novo. Imprimir assim mesmo?')) return;
   /* cada etiqueta física sai numerada dentro do lote (01/N, 02/N…) — é o
      "inserir na etiqueta em ordem" pedido pela Mahara pro rastreio */
   const labelHTML=(i)=>`<div class="lab"><div class="rin">
@@ -2723,7 +2747,7 @@ async function delEnvio(id, nome){
 async function carregarPedidos(){
   ST.pedidos='loading'; if(ST.tab==='ped'||ST.tab==='ini') render();
   try{
-    ST.pedidos=await api('lola_pedidos?select=id,numero_pedido,unidade,status,central_status,central_aceito_por,data_pedido,responsavel,valor_total,observacoes,lola_pedidos_itens(nome_item,quantidade,unidade,subtotal)&order=data_pedido.desc,numero_pedido.desc&limit=80');
+    ST.pedidos=await api('lola_pedidos?select=id,numero_pedido,unidade,status,central_status,central_aceito_por,data_pedido,responsavel,valor_total,observacoes,lola_pedidos_itens(id,nome_item,quantidade,unidade,subtotal,preparado,preparado_por,preparado_em)&order=data_pedido.desc,numero_pedido.desc&limit=80');
     await carregarRecebimentos();
   }
   catch(e){ ST.pedidos=[]; }
@@ -2972,8 +2996,15 @@ function openPedido(id){
       h+=`<button class="notebtn" id="pedNota"><i class="ph-duotone ph-receipt"></i> Ver nota de recebimento</button>`;
     }
   }
-  h+=`<div class="lbl">Itens (${its.length}) · ${brl(p.valor_total)}</div>`;
-  h+=its.map(x=>`<div class="ring"><span>${esc(x.nome_item)}</span><b>${num(x.quantidade)} ${esc(x.unidade||'')}</b></div>`).join('')||'<div class="uinfo">Sem itens.</div>';
+  if(cs==='aceito'||cs==='pronto'){
+    /* 16/10/2026: conferência por bipagem DENTRO do app da Central (antes só existia no app
+       do Lola, em Pedidos à Central, e quem trabalha na Central não chegava nela). Grava no
+       mesmo campo (lola_pedidos_itens.preparado), então os dois apps veem a mesma coisa. */
+    h+=`<div id="confBox">${confHTML(p)}</div>`;
+  } else {
+    h+=`<div class="lbl">Itens (${its.length}) · ${brl(p.valor_total)}</div>`;
+    h+=its.map(x=>`<div class="ring"><span>${esc(x.nome_item)}</span><b>${num(x.quantidade)} ${esc(x.unidade||'')}</b></div>`).join('')||'<div class="uinfo">Sem itens.</div>';
+  }
   h+=`<div class="pacts" style="margin-top:14px">`;
   if(cs==='novo') h+=`<button class="prodbtn" id="pedAceitar"><i class="ph-duotone ph-check"></i> Aceitar pedido</button>`;
   else if(cs==='aceito') h+=`<button class="prodbtn" id="pedPronto"><i class="ph-duotone ph-package"></i> Pronto pra enviar</button><button class="pdel" id="pedVolta" title="voltar"><i class="ph-duotone ph-arrow-counter-clockwise"></i></button>`;
@@ -2984,9 +3015,92 @@ function openPedido(id){
   $('#pedNota')&&($('#pedNota').onclick=()=>notaRecebimento(p, ri&&ri.rec));
   $('#pedImprimir')&&($('#pedImprimir').onclick=()=>imprimirPedidoCentral(p));
   $('#pedAceitar')&&($('#pedAceitar').onclick=()=>setPedidoStatus(id,'aceito'));
-  $('#pedPronto')&&($('#pedPronto').onclick=()=>setPedidoStatus(id,'pronto'));
+  $('#pedPronto')&&($('#pedPronto').onclick=()=>{
+    const falta=(p.lola_pedidos_itens||[]).filter(x=>(+x.quantidade||0)>0 && !x.preparado);
+    if(falta.length && !confirm('Ainda falta bipar '+falta.length+' ite'+(falta.length===1?'m':'ns')+':\n\n'+falta.map(x=>'• '+x.nome_item).join('\n')+'\n\nMarcar como pronto pra enviar mesmo assim?')) return;
+    setPedidoStatus(id,'pronto'); });
+  if(cs==='aceito'||cs==='pronto') wireConf(p);
   $('#pedVolta')&&($('#pedVolta').onclick=()=>setPedidoStatus(id,'novo'));
   $('#pedVolta2')&&($('#pedVolta2').onclick=()=>setPedidoStatus(id,'aceito'));
+}
+/* ===== Conferência do pedido por bipagem (16/10/2026) =====
+   Bipa o QR da etiqueta (leitor USB ou câmera) ou toca no item pra marcar à mão.
+   O QR traz LOLA:<lote>:<produto>:<un>; acha o item do pedido pelo nome do produto
+   (ou pelo vínculo insumo → pré-produção, pra itens com nome diferente da receita).
+   Se bipar só o código do lote, procura a produção desse lote. */
+function _qn(t){ return norm(qrAscii(t)).replace(/\s+(UN|UND|UNID)$/,''); }
+function _itemDoProduto(p, produto, ppId){
+  const its=(p.lola_pedidos_itens||[]).filter(x=>(+x.quantidade||0)>0);
+  const alvo=_qn(produto);
+  const casa=x=>{
+    if(alvo && _qn(x.nome_item)===alvo) return true;
+    const ins=(ST.insumos||[]).find(i=>i && norm(i.nome)===norm(x.nome_item));
+    if(ins && ins.preproducao_id){
+      if(ppId && ins.preproducao_id===ppId) return true;
+      const r=(ST.receitas||[]).find(y=>y.id===ins.preproducao_id); if(r && alvo && _qn(r.nome)===alvo) return true; }
+    if(ppId){ const r=(ST.receitas||[]).find(y=>y.id===ppId); if(r && _qn(r.nome)===_qn(x.nome_item)) return true; }
+    return false; };
+  const cands=its.filter(casa);
+  return cands.find(x=>!x.preparado)||cands[0]||null;
+}
+function confHTML(p){
+  const its=(p.lola_pedidos_itens||[]).filter(x=>(+x.quantidade||0)>0);
+  const ok=its.filter(x=>x.preparado).length, pode=(p.central_status||'novo')==='aceito';
+  let h=`<div class="lbl">Conferência · ${ok}/${its.length} bipado${its.length===1?'':'s'}<span class="spacer"></span><span style="text-transform:none;letter-spacing:0;color:var(--mut)">${brl(p.valor_total)}</span></div>`;
+  if(pode) h+=`<div class="rendrow" style="margin-bottom:6px"><input type="text" id="confInput" placeholder="Bipe a etiqueta (ou digite o lote)…" autocomplete="off" style="flex:1"><button type="button" id="confCam" title="Usar câmera" style="flex-shrink:0;width:42px;border:1.5px solid var(--lbl);border-radius:10px;background:#fff;color:var(--vinho);font-size:16px"><i class="ph-duotone ph-camera"></i></button></div>
+    <video id="loteCamVideo" playsinline style="display:none;width:100%;border-radius:10px;margin-top:4px;max-height:200px;object-fit:cover"></video>
+    <div id="loteCamStatus" class="tss" style="margin:4px 0"></div>
+    <div id="confMsg" class="uinfo" style="min-height:16px;margin-bottom:6px">${ok===its.length&&its.length?'<b style="color:var(--okFg)">Tudo bipado — pode marcar Pronto pra enviar.</b>':'Sem etiqueta? Toque no item pra marcar à mão.'}</div>`;
+  h+=its.map(x=>`<div class="ring confit" data-it="${x.id}" style="${pode?'cursor:pointer;':''}${x.preparado?'background:var(--okBg);':''}">
+      <span>${x.preparado?'<i class="ph-duotone ph-check-circle" style="color:var(--okFg)"></i> ':'<i class="ph-duotone ph-circle" style="color:var(--lbl)"></i> '}${esc(x.nome_item)}${x.preparado&&x.preparado_por?`<br><small style="color:var(--mut)">bipado por ${esc(x.preparado_por)}${x.preparado_em?' · '+new Date(x.preparado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</small>`:''}</span>
+      <b>${num(x.quantidade)} ${esc(x.unidade||'')}</b></div>`).join('')||'<div class="uinfo">Sem itens.</div>';
+  return h;
+}
+async function confMarcar(p, it, valor){
+  const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
+  const body={preparado:valor, preparado_em:valor?new Date().toISOString():null, preparado_por:valor?quem:null};
+  await lolaEnsure();
+  const r=await fetch(SB_URL+'/rest/v1/lola_pedidos_itens?id=eq.'+it.id,{method:'PATCH',headers:lolaHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(body)});
+  if(!r.ok) throw new Error(await r.text());
+  Object.assign(it,body);
+}
+function confRender(p, msg, cor){
+  const box=$('#confBox'); if(!box) return; const foco=document.activeElement&&document.activeElement.id==='confInput';
+  const cam=!!LOTE_CAM_STREAM;
+  if(cam){ /* não recria o vídeo enquanto a câmera está aberta — só atualiza a lista e a mensagem */
+    const tmp=document.createElement('div'); tmp.innerHTML=confHTML(p);
+    box.querySelectorAll('.confit').forEach(e=>e.remove()); tmp.querySelectorAll('.confit').forEach(e=>box.appendChild(e));
+    const l=box.querySelector('.lbl'), l2=tmp.querySelector('.lbl'); if(l&&l2) l.innerHTML=l2.innerHTML;
+  } else box.innerHTML=confHTML(p);
+  if(msg){ const m=$('#confMsg'); if(m) m.innerHTML=`<b style="color:${cor||'var(--sec)'}">${msg}</b>`; }
+  wireConf(p, true); if(foco||!cam){ const i=$('#confInput'); if(i) i.focus(); }
+}
+async function confBipar(p, raw){
+  const q=bipParseQR(raw); if(!q.lote && !q.produto) return;
+  let ppId=null, produto=q.produto;
+  if(!produto || q.lote){ try{ const rows=await api('lola_central_prod_hist?lote=eq.'+encodeURIComponent(q.lote)+'&ativo=neq.false&select=preproducao_id&limit=1'); if(rows&&rows[0]) ppId=rows[0].preproducao_id; }catch(e){} }
+  if(!produto && !ppId){ confRender(p,'Não achei nenhuma produção com o lote "'+esc(q.lote)+'".','var(--urgFg)'); return; }
+  const it=_itemDoProduto(p, produto, ppId);
+  const nomeLido=produto||((ST.receitas||[]).find(r=>r.id===ppId)||{}).nome||q.lote;
+  if(!it){ confRender(p,'"'+esc(nomeLido)+'" não está neste pedido.','var(--urgFg)'); try{ navigator.vibrate&&navigator.vibrate([80,60,80]); }catch(e){} return; }
+  if(it.preparado){ confRender(p,esc(it.nome_item)+' já estava bipado.','var(--pendFg)'); return; }
+  try{ await confMarcar(p,it,true); try{ navigator.vibrate&&navigator.vibrate(60); }catch(e){}
+    const its=(p.lola_pedidos_itens||[]).filter(x=>(+x.quantidade||0)>0), ok=its.filter(x=>x.preparado).length;
+    confRender(p,'✓ '+esc(it.nome_item)+(q.lote&&produto?' · lote '+esc(q.lote):'')+(ok===its.length?' — tudo bipado!':' — faltam '+(its.length-ok)),'var(--okFg)');
+  }catch(e){ confRender(p,'Erro ao gravar: '+esc(e.message),'var(--urgFg)'); }
+}
+function wireConf(p, soLista){
+  if((p.central_status||'novo')!=='aceito') return;
+  const inp=$('#confInput');
+  if(inp && !soLista) setTimeout(()=>inp.focus(),80);
+  if(inp) inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); const v=inp.value; inp.value=''; confBipar(p,v); } };
+  const cb=$('#confCam'); if(cb) cb.onclick=()=>toggleCameraLote(t=>confBipar(p,t));
+  $$('#confBox .confit').forEach(el=>el.onclick=async()=>{
+    const it=(p.lola_pedidos_itens||[]).find(x=>String(x.id)===el.dataset.it); if(!it) return;
+    if(it.preparado && !confirm('Desmarcar "'+it.nome_item+'"?')) return;
+    try{ await confMarcar(p,it,!it.preparado); confRender(p, it.preparado?('✓ '+esc(it.nome_item)+' marcado à mão'):(esc(it.nome_item)+' desmarcado'), it.preparado?'var(--okFg)':'var(--sec)'); }
+    catch(e){ toast('Erro: '+e.message); }
+  });
 }
 /* ===== Baixa automática ao marcar o pedido "pronto pra enviar" (sai da Central) ===== */
 function _matchProducao(nome){ const n=norm(nome); if(!n)return null; return (ST.receitas&&ST.receitas.find?ST.receitas.find(x=>norm(x.nome)===n):null)||null; }
@@ -4182,7 +4296,7 @@ async function salvarManual(){
 }
 
 function openSheet(){ $('#sheetBg').classList.add('on'); $('#sheet').classList.add('on'); }
-function closeSheet(){ $('#sheetBg').classList.remove('on'); $('#sheet').classList.remove('on'); const f=$('.sh-foot'); if(f) f.style.display=''; }
+function closeSheet(){ try{ fecharCameraLote(); }catch(e){} $('#sheetBg').classList.remove('on'); $('#sheet').classList.remove('on'); const f=$('.sh-foot'); if(f) f.style.display=''; }
 
 /* ============ eventos base ============ */
 $('#tabEnt').onclick=()=>{ST.tab='ent';render();};
