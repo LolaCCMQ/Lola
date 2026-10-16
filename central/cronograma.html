@@ -549,6 +549,7 @@ function viewSemana(){
   h+=`<div class="tools">
     <button class="btn sec" id="gerar"><i class="ph-duotone ph-magic-wand"></i> Gerar da grade</button>
     <button class="btn sec" id="encaixar"><i class="ph-duotone ph-clock-clockwise"></i> Encaixar horários</button>
+    <button class="btn sec" id="compras"><i class="ph-duotone ph-shopping-cart"></i> Lista de compras</button>
     <button class="btn" id="nova"><i class="ph-duotone ph-plus"></i> Nova produção</button></div>`;
   if(!lista.length) return h+`<div class="empty"><i class="ph-duotone ph-calendar-blank"></i>Semana vazia. Toque em <b>Gerar da grade</b>.</div>`;
   const {a,b}=faixaHoras(lista);
@@ -575,6 +576,7 @@ function viewDia(){
     <div class="per"><b style="text-transform:capitalize">${DIAS_L[dow(d)]}, ${fmtDM(d)}</b><span>${doDia.length} produç${doDia.length===1?'ão':'ões'}${doDia.length?' · '+cargaTxt(doDia):''}${d===hoje()?' · hoje':''}</span></div>
     <button class="arw" id="nx"><i class="ph-duotone ph-caret-right"></i></button></div>`;
   h+=`<div class="tools"><button class="btn sec" id="encaixar"><i class="ph-duotone ph-clock-clockwise"></i> Encaixar horários</button>
+      <button class="btn sec" id="compras"><i class="ph-duotone ph-shopping-cart"></i> Lista de compras</button>
       <button class="btn" id="nova"><i class="ph-duotone ph-plus"></i> Nova produção</button></div>`;
   if(!doDia.length) return h+`<div class="empty"><i class="ph-duotone ph-coffee"></i>Nenhuma produção prevista para este dia.</div>`;
   const {a,b}=faixaHoras(doDia);
@@ -673,6 +675,14 @@ function wire(){
   if(nx) nx.onclick=()=>{ if(ST.view==='dia'){ST.dia=addD(ST.dia||hoje(),1);} else {ST.semana=addD(ST.semana,7);} render(); };
   const g=$('#gerar'); if(g) g.onclick=gerarSemana;
   const en=$('#encaixar'); if(en) en.onclick=encaixarHorarios;
+  /* lista de compras das produções previstas (16/10/2026) — abre o app da Central já com o período:
+     Dia = aquele dia; Semana = de hoje (ou do início, se a semana for futura) até sábado */
+  const cp=$('#compras'); if(cp) cp.onclick=()=>{
+    let de,ate;
+    if(ST.view==='dia'){ de=ate=ST.dia||hoje(); }
+    else { const fim=addD(ST.semana,5); de=ST.semana<hoje()?hoje():ST.semana; ate=fim; if(de>ate){ toast('Essa semana já passou.'); return; } }
+    location.href='index.html?compras=1&de='+de+'&ate='+ate;
+  };
   $$('#app .slot[data-hora]').forEach(s=>s.addEventListener('click',ev=>{
     if(ev.target.closest('.pcard')) return;            // clique no cartão abre o cartão
     openNova(s.dataset.slot, s.dataset.hora);

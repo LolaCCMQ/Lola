@@ -3138,13 +3138,116 @@ async function concluirTarefa(id){
    Lança preparos + quantidade, explode as receitas (mesma lógica de FC/convCusto de Produzir),
    soma os insumos, DESCONTA o estoque e monta a lista de compras agrupada por categoria. */
 let PLAN=null;
-function planLoad(){ if(PLAN&&PLAN.itens) return PLAN; try{ PLAN=JSON.parse(localStorage.getItem('central_plan_dia')||'null'); }catch(e){ PLAN=null; } if(!PLAN||typeof PLAN!=='object') PLAN={itens:[]}; if(!Array.isArray(PLAN.itens)) PLAN.itens=[]; return PLAN; }
-function planSave(){ try{ localStorage.setItem('central_plan_dia', JSON.stringify({itens:(PLAN&&PLAN.itens)||[]})); }catch(e){} }
+function planLoad(){ if(PLAN&&PLAN.itens) return PLAN; try{ PLAN=JSON.parse(localStorage.getItem('central_plan_dia')||'null'); }catch(e){ PLAN=null; } if(!PLAN||typeof PLAN!=='object') PLAN={itens:[]}; if(!Array.isArray(PLAN.itens)) PLAN.itens=[]; if(!Array.isArray(PLAN.pulados)) PLAN.pulados=[]; if(PLAN.grade==null) PLAN.grade=true; return PLAN; }
+function planSave(){ try{ localStorage.setItem('central_plan_dia', JSON.stringify({itens:(PLAN&&PLAN.itens)||[], pulados:(PLAN&&PLAN.pulados)||[], de:PLAN&&PLAN.de, ate:PLAN&&PLAN.ate, grade:PLAN?PLAN.grade!==false:true, periodo:PLAN&&PLAN.periodo})); }catch(e){} }
+/* ===== Lista de compras a partir do CRONOGRAMA (pedido da Mahara, 16/10/2026) =====
+   Puxa as produções previstas (status previsto/fazendo — "feito" já baixou estoque) de
+   lola_central_cronograma no período; dia que ainda não foi gerado no cronograma pode usar
+   a GRADE fixa (lola_central_cronograma_grade). Converte a qtd prevista pra unidade de
+   rendimento da receita e joga na mesma conta da "Produção do dia" (computePlanNeeds). */
+function _isoD(d){ const z=new Date(d); z.setMinutes(z.getMinutes()-z.getTimezoneOffset()); return z.toISOString().slice(0,10); }
+function _dObj(s){ const [a,b,c]=String(s).slice(0,10).split('-').map(Number); return new Date(a,b-1,c); }
+function _addD(s,n){ const d=_dObj(s); d.setDate(d.getDate()+n); return _isoD(d); }
+function _dm(s){ const p=String(s).slice(0,10).split('-'); return p[2]+'/'+p[1]; }
+const _DIAS_C=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function planPeriodo(k){
+  const h=_isoD(new Date()), w=_dObj(h).getDay(), seg=_addD(h,-((w+6)%7));
+  if(k==='hoje') return [h,h];
+  if(k==='amanha'){ let a=_addD(h,1); if(_dObj(a).getDay()===0) a=_addD(a,1); return [a,a]; }   // domingo não tem produção
+  if(k==='semana') return [h,_addD(seg,5)];
+  if(k==='prox'){ const s2=_addD(seg,7); return [s2,_addD(s2,5)]; }
+  return null;
+}
+/* qtd prevista no cronograma → FATOR da receita (quantas receitas cheias), pela mesma regra que o
+   cronograma usa ao concluir (itensEscalados: qtd ÷ rendimento na mesma dimensão) — assim a lista
+   bate com o que vai sair do estoque. g/kg e ml/L contam como a mesma coisa (1 g ≈ 1 ml, igual ao custo). */
+function cronFatorReceita(r,q,un){
+  q=+q||0; const rq=+r.rendimento_qtd||0; if(!(rq>0)) return {erro:'receita sem rendimento cadastrado'};
+  const UN=['un','und','unid','unidade','unidades','porção','porcao','porções','porcoes'];
+  const a=String(un||r.rendimento_un||'').toLowerCase().trim(), b=String(r.rendimento_un||'').toLowerCase().trim();
+  const ca=conv(q,a), cb=conv(rq,b);
+  const massaVol=u=>u==='kg'||u==='L';
+  if(massaVol(ca.u)&&massaVol(cb.u)) return {f:ca.q/cb.q};
+  if(a===b || (UN.includes(a)&&UN.includes(b)) || (!a&&!b)) return {f:q/rq};
+  return {erro:'cronograma em '+(un||'?')+', receita rende em '+(r.rendimento_un||'?')};
+}
+async function puxarCronograma(){
+  planLoad();
+  const de=PLAN.de, ate=PLAN.ate;
+  if(!de||!ate||ate<de){ toast('Escolha o período (de / até).'); return; }
+  const btn=$('#planPuxar'); if(btn){ btn.disabled=true; btn.innerHTML='<i class="ph-duotone ph-spinner"></i> buscando…'; }
+  try{
+    const [ag,gr]=await Promise.all([
+      api('lola_central_cronograma?ativo=neq.false&data=gte.'+de+'&data=lte.'+ate+'&select=id,data,status,preproducao_id,item_nome,qtd_prevista,unidade&order=data,turno,ordem'),
+      PLAN.grade!==false ? api('lola_central_cronograma_grade?ativo=neq.false&select=id,dia_semana,preproducao_id,item_nome,qtd,unidade&order=dia_semana,turno,ordem') : Promise.resolve([])
+    ]);
+    const recs={}; (ST.receitas||[]).forEach(r=>recs[r.id]=r);
+    const novos=[], pulados=[]; let nCron=0, nGrade=0, nFeito=0;
+    const comCron=new Set((ag||[]).map(x=>String(x.data).slice(0,10)));
+    const add=(x,data,src,q,un)=>{
+      const nome=x.item_nome||(recs[x.preproducao_id]||{}).nome||'(sem nome)';
+      if(String(un||'')==='tarefa') return;                                   // tarefa não tem insumo
+      if(!x.preproducao_id){ pulados.push({nome,data,motivo:'sem receita ligada no cronograma'}); return; }
+      const r=recs[x.preproducao_id]; if(!r){ pulados.push({nome,data,motivo:'receita inativa ou de fora da Central'}); return; }
+      if(!(+q>0)){ pulados.push({nome,data,motivo:'sem quantidade prevista'}); return; }
+      const c=cronFatorReceita(r,q,un);
+      if(c.erro){ pulados.push({nome,data,motivo:c.erro}); return; }
+      const ri=rendInfo(r); if(!(+ri.base>0)){ pulados.push({nome,data,motivo:'receita sem rendimento cadastrado'}); return; }
+      novos.push({pid:r.id, qtd:c.f*ri.base, data, src, qMostra:+q, unMostra:un||r.rendimento_un||''});
+      if(src==='cron') nCron++; else nGrade++;
+    };
+    (ag||[]).forEach(x=>{
+      const st=x.status||'previsto';
+      if(st==='feito'){ nFeito++; return; }                                   // já baixou estoque ao concluir
+      if(st==='cancelado') return;
+      add(x,String(x.data).slice(0,10),'cron',x.qtd_prevista,x.unidade);
+    });
+    if(PLAN.grade!==false){
+      for(let d=de; d<=ate; d=_addD(d,1)){
+        const ds=_dObj(d).getDay(); if(ds===0||comCron.has(d)) continue;      // domingo sem produção; dia já no cronograma usa o cronograma
+        (gr||[]).filter(g=>+g.dia_semana===ds).forEach(g=>add(g,d,'grade',g.qtd,g.unidade));
+      }
+    }
+    PLAN.itens=PLAN.itens.filter(it=>!it.src).concat(novos);               // mantém os lançados à mão, troca os puxados
+    PLAN.pulados=pulados; PLAN._need=null; PLAN.puxadoEm={de,ate,nCron,nGrade,nFeito};
+    planSave();
+    if(!novos.length){ render(); toast(nFeito?'No período só há produções já feitas.':'Nada previsto com receita nesse período.'); return; }
+    render();
+    toast(novos.length+' produç'+(novos.length===1?'ão':'ões')+' puxada'+(novos.length===1?'':'s')+(nGrade?' ('+nGrade+' da grade fixa)':'')+' — montando a lista…');
+    await planCalc();
+  }catch(e){ toast('Erro ao puxar o cronograma: '+e.message); render(); }
+}
+/* saldo atual dos insumos lido direto do banco, em páginas — não depende do que foi carregado ao abrir o app */
+async function saldoInsumosAtual(){
+  const tot={}; let off=0;
+  for(let i=0;i<200;i++){
+    const rows=await api('lola_central_estoque_mov?select=insumo_id,qtd&order=id&limit=1000&offset='+off);
+    (rows||[]).forEach(m=>{ if(m.insumo_id) tot[m.insumo_id]=(tot[m.insumo_id]||0)+(+m.qtd||0); });
+    if(!rows||rows.length<1000) break; off+=1000;
+  }
+  return tot;
+}
 function viewPlanProd(){
   planLoad();
   const recs=(ST.receitas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
-  let h=`<div class="note"><b>Produção do dia.</b> Lance o que vai produzir (preparo + quantidade). O sistema soma os insumos de todas as receitas, <b>desconta o que já tem em estoque</b> e monta a <b>lista de compras</b> por categoria — ideal pra fazer o pedido do hortifrúti na véspera.</div>`;
-  h+=`<div class="mf" style="margin-top:4px"><label>Adicionar preparo</label>
+  let h=`<div class="note"><b>Lista de compras pela produção.</b> Puxe as produções previstas no cronograma (ou lance à mão). O sistema soma os insumos de todas as receitas, <b>desconta o que já tem em estoque</b> e monta a <b>lista de compras</b> por categoria — ideal pra fazer o pedido do hortifrúti na véspera.</div>`;
+  const pk=PLAN.periodo||'';
+  h+=`<div class="ini-list" style="padding:12px 14px;margin-bottom:12px">
+    <div style="font-weight:800;color:var(--vinho);display:flex;align-items:center;gap:6px;margin-bottom:8px"><i class="ph-duotone ph-calendar-check"></i> Puxar do cronograma</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      ${[['amanha','Amanhã'],['hoje','Hoje'],['semana','Resto da semana'],['prox','Próxima semana']].map(([k,l])=>`<button class="chip planPer" data-k="${k}" style="min-height:36px${pk===k?';background:var(--vinho);color:#fff;border-color:var(--vinho)':''}">${l}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--mut);font-weight:700">de <input type="date" id="planDe" value="${esc(PLAN.de||'')}"></label>
+      <label style="font-size:12px;color:var(--mut);font-weight:700">até <input type="date" id="planAte" value="${esc(PLAN.ate||'')}"></label>
+    </div>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--sec);margin:10px 0">
+      <input type="checkbox" id="planGrade" ${PLAN.grade!==false?'checked':''} style="margin-top:2px">
+      <span>Dia que ainda não foi gerado no cronograma: usar a <b>grade fixa</b></span></label>
+    <button class="btn" id="planPuxar" style="width:100%"><i class="ph-duotone ph-download-simple"></i> Puxar produções e montar a lista</button>
+    <div class="uinfo" style="margin-top:6px">Entram as produções <b>previstas</b> e <b>fazendo</b>. As já <b>feitas</b> ficam de fora — os insumos delas já saíram do estoque.</div>
+  </div>`;
+  h+=`<div class="mf" style="margin-top:4px"><label>Adicionar preparo à mão</label>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select id="planSel" style="flex:2;min-width:160px"><option value="">— escolha o preparo —</option>${recs.map(r=>`<option value="${r.id}">${esc(r.nome)}</option>`).join('')}</select>
       <input id="planQtd" type="number" step="0.001" inputmode="decimal" placeholder="qtd" style="flex:1;min-width:80px">
@@ -3153,8 +3256,12 @@ function viewPlanProd(){
     </div></div>`;
   h+=`<div class="lbl" style="margin-top:10px">Produções planejadas (${PLAN.itens.length})</div><div class="ini-list" id="planList">`;
   if(!PLAN.itens.length) h+=`<div class="ini-vazio">Nada ainda — escolha um preparo acima.</div>`;
-  else h+=PLAN.itens.map((it,i)=>{ const r=recs.find(x=>x.id===it.pid)||{}; const un=r.id?prodUn(r):''; return `<div class="ini-row"><div class="t">${esc(r.nome||'(preparo)')}<small>${num(it.qtd)} ${esc(un)}</small></div><button class="chip planDel" data-i="${i}" title="remover"><i class="ph-duotone ph-trash"></i></button></div>`; }).join('');
+  else h+=PLAN.itens.map((it,i)=>({it,i})).sort((a,b)=>String(a.it.data||'9').localeCompare(String(b.it.data||'9'))||a.i-b.i).map(({it,i})=>{ const r=recs.find(x=>x.id===it.pid)||{}; const un=it.un||(r.id?prodUn(r):'');
+    const tag=it.src?`${_DIAS_C[_dObj(it.data).getDay()]} ${_dm(it.data)} · ${it.src==='grade'?'grade fixa':'cronograma'} · `:'à mão · ';
+    return `<div class="ini-row"><div class="t">${esc(r.nome||'(preparo)')}<small>${tag}${it.qMostra!=null?num(it.qMostra)+' '+esc(it.unMostra||''):num(it.qtd)+' '+esc(un)}</small></div><button class="chip planDel" data-i="${i}" title="remover"><i class="ph-duotone ph-trash"></i></button></div>`; }).join('');
   h+=`</div>`;
+  if(PLAN.itens.length) h+=`<div style="text-align:right;margin-top:6px"><button class="chip" id="planLimpar" style="display:inline-flex;min-height:34px"><i class="ph-duotone ph-broom"></i> Limpar tudo</button></div>`;
+  if((PLAN.pulados||[]).length) h+=`<div class="note" style="margin-top:10px"><b>Ficaram de fora da conta (${PLAN.pulados.length}):</b><br>${PLAN.pulados.map(p=>`${esc(p.nome)} <span style="color:var(--mut)">— ${p.data?_dm(p.data)+' · ':''}${esc(p.motivo)}</span>`).join('<br>')}</div>`;
   h+=`<div class="btn2" style="margin-top:12px"><button class="btn" id="planCalc" style="flex:1"><i class="ph-duotone ph-calculator"></i> Montar lista de compras</button></div>`;
   h+=`<div id="planResult" style="margin-top:14px"></div>`;
   return h;
@@ -3164,27 +3271,72 @@ function wirePlanProd(){
   const sel=$('#planSel'), un=$('#planUn');
   const upUn=()=>{ const r=(ST.receitas||[]).find(x=>x.id===sel.value); if(un) un.textContent=r?prodUn(r):''; };
   if(sel){ sel.onchange=upUn; upUn(); }
-  $('#planAdd')&&($('#planAdd').onclick=()=>{ const pid=sel.value; const q=+($('#planQtd').value||0); if(!pid){toast('Escolha o preparo');return;} if(!(q>0)){toast('Informe a quantidade');return;} PLAN.itens.push({pid,qtd:q}); planSave(); render(); });
-  $$('#planList .planDel').forEach(b=>b.onclick=()=>{ PLAN.itens.splice(+b.dataset.i,1); planSave(); render(); });
+  $('#planAdd')&&($('#planAdd').onclick=()=>{ const pid=sel.value; const q=+($('#planQtd').value||0); if(!pid){toast('Escolha o preparo');return;} if(!(q>0)){toast('Informe a quantidade');return;} PLAN.itens.push({pid,qtd:q}); PLAN._need=null; planSave(); render(); });
+  $$('#planList .planDel').forEach(b=>b.onclick=()=>{ PLAN.itens.splice(+b.dataset.i,1); PLAN._need=null; planSave(); render(); });
   $('#planCalc')&&($('#planCalc').onclick=planCalc);
+  $$('#app .planPer').forEach(b=>b.onclick=()=>{ const p=planPeriodo(b.dataset.k); if(!p) return; PLAN.de=p[0]; PLAN.ate=p[1]; PLAN.periodo=b.dataset.k; planSave(); render(); });
+  if(!PLAN.de){ const p=planPeriodo('amanha'); PLAN.de=p[0]; PLAN.ate=p[1]; PLAN.periodo='amanha'; const a=$('#planDe'),b=$('#planAte'); if(a)a.value=p[0]; if(b)b.value=p[1]; }
+  $('#planDe')&&($('#planDe').onchange=e=>{ PLAN.de=e.target.value; PLAN.periodo=''; if(PLAN.ate&&PLAN.ate<PLAN.de) PLAN.ate=PLAN.de; planSave(); render(); });
+  $('#planAte')&&($('#planAte').onchange=e=>{ PLAN.ate=e.target.value; PLAN.periodo=''; planSave(); render(); });
+  $('#planGrade')&&($('#planGrade').onchange=e=>{ PLAN.grade=e.target.checked; planSave(); });
+  $('#planPuxar')&&($('#planPuxar').onclick=puxarCronograma);
+  $('#planLimpar')&&($('#planLimpar').onclick=()=>{ if(!confirm('Tirar todas as produções da lista?')) return; PLAN.itens=[]; PLAN.pulados=[]; PLAN._need=null; PLAN.puxadoEm=null; planSave(); render(); });
   if(PLAN._need) renderPlanResult();
 }
 async function computePlanNeeds(itens){
-  const need={};
-  for(const it of itens){
-    const R=(ST.receitas||[]).find(x=>x.id===it.pid); if(!R) continue;
-    const ri=rendInfo(R); const base=+ri.base||0; const f= base>0 ? ((+it.qtd||0)/base) : 0; if(!(f>0)) continue;
-    let rows=[]; try{ rows=await post('rpc/central_receita_itens',{pid:it.pid}); }catch(e){ rows=[]; }
-    (rows||[]).forEach(x=>{ if(!x.insumo_id) return;
+  /* soma os insumos das receitas. Pré-preparo dentro de receita (ex.: PP Caldo de Costela na Demi Glace,
+     PP Caldo de Camarão na Croqueta) não tem insumo_id: abre a receita dele também, mas só pelo que FALTA —
+     desconta o saldo pronto dele (lola_central_saldo) e o que já está planejado produzir no período. (16/10/2026) */
+  const need={}, cacheRec={}, sub={};
+  const recs=(ST.receitas||[]).filter(r=>r&&r.id); const recPorNome={}; recs.forEach(r=>recPorNome[norm(r.nome)]=r);
+  const getRows=async pid=>{ if(!cacheRec[pid]){ let rows=[]; try{ rows=await post('rpc/central_receita_itens',{pid}); }catch(e){ rows=[]; } cacheRec[pid]=rows||[]; } return cacheRec[pid]; };
+  const massaVol=u=>u==='kg'||u==='L';
+  /* quantidade de um pré-preparo em "medida comparável": kg/L juntos (1 g ≈ 1 ml) ou unidade */
+  const medida=(q,u)=>{ const c=conv(q,u); return massaVol(c.u)?{q:c.q,d:'mv'}:{q:+q||0,d:String(u||'un').toLowerCase()}; };
+  const explode=async(R,f,origem)=>{
+    const rows=await getRows(R.id);
+    for(const x of rows){
+      if(!x.insumo_id){                                   // pré-preparo dentro da receita
+        const SR=recPorNome[norm(x.nome)]; if(!SR||SR.id===R.id) continue;
+        const m=medida(((+x.qtd)||0)*f, x.unidade);
+        const k=SR.id; if(!sub[k]) sub[k]={r:SR, d:m.d, precisa:0, usos:{}};
+        if(sub[k].d!==m.d){ sub[k].incompat=true; continue; }
+        sub[k].precisa+=m.q; sub[k].usos[origem]=1; continue;
+      }
       const fc=fcDoInsumo(x.nome); const liq=(x.qtd_liq!=null?+x.qtd_liq:+x.qtd)||0;
       const baseC=convCusto(fc!==1?liq:(+x.qtd||0), x.unidade, x.unidade_custo);
       const bruto=(fc!==1 ? baseC.q*fc : baseC.q) * f;
       const id=x.insumo_id, ins=ST.byId[id]||{};
-      if(!need[id]) need[id]={id, nome:(ins.nome||x.nome||'insumo'), un:(ins.unidade_custo||baseC.u||''), categoria:(ins.categoria||'Sem categoria'), custo:(+ins.custo_por_unidade||0), qtd:0};
-      need[id].qtd+=bruto;
-    });
+      if(!need[id]) need[id]={id, nome:(ins.nome||x.nome||'insumo'), un:(ins.unidade_custo||baseC.u||''), categoria:(ins.categoria||'Sem categoria'), custo:(+ins.custo_por_unidade||0), qtd:0, usos:{}};
+      need[id].qtd+=bruto; need[id].usos[origem]=1;
+    }
+  };
+  for(const it of itens){
+    const R=recs.find(x=>x.id===it.pid); if(!R) continue;
+    const ri=rendInfo(R); const base=+ri.base||0; const f= base>0 ? ((+it.qtd||0)/base) : 0; if(!(f>0)) continue;
+    await explode(R,f,R.nome||'');
   }
-  Object.values(need).forEach(n=>{ const saldo=perdaSaldoInsumo(n.id); n.saldo=saldo; n.falta=Math.max(0,(n.qtd||0)-(saldo||0)); });
+  /* pré-preparos: o que já tem pronto + o que o período vai produzir cobre primeiro; o resto vira insumo */
+  const planejado={}; itens.forEach(it=>{ const R=recs.find(x=>x.id===it.pid); if(!R) return; const ri=rendInfo(R); if(!(+ri.base>0)) return;
+    const f=(+it.qtd||0)/ri.base; const m=medida(f*(+R.rendimento_qtd||0), R.rendimento_un); (planejado[R.id]=planejado[R.id]||[]).push(m); });
+  const feitos=new Set();
+  for(let volta=0; volta<5; volta++){
+    const pend=Object.keys(sub).filter(k=>!feitos.has(k)); if(!pend.length) break;
+    for(const k of pend){
+      feitos.add(k); const S=sub[k], R=S.r;
+      const sal=(ST.saldo||{})[R.id]; let tem=0;
+      if(sal){ const m=medida(+sal.saldo||0, sal.unidade||R.rendimento_un); if(m.d===S.d) tem+=Math.max(0,m.q); }
+      (planejado[R.id]||[]).forEach(m=>{ if(m.d===S.d) tem+=m.q; });
+      S.tem=tem; S.falta=S.incompat?0:Math.max(0,S.precisa-tem);
+      if(S.falta>0.0005){
+        const rm=medida(+R.rendimento_qtd||0, R.rendimento_un);
+        if(rm.d===S.d && rm.q>0){ S.f=S.falta/rm.q; const rr=await getRows(R.id); if(!rr.length) S.semIngred=true; else await explode(R,S.f,R.nome+' (pré-preparo)'); } else S.semConta=true;
+      }
+    }
+  }
+  PLAN._sub=Object.values(sub).map(S=>({nome:S.r.nome, d:S.d, precisa:S.precisa, tem:S.tem||0, falta:S.falta||0, usos:Object.keys(S.usos), semConta:!!(S.semConta||S.incompat), semIngred:!!S.semIngred}));
+  let sal=null; try{ sal=await saldoInsumosAtual(); }catch(e){ sal=null; }
+  Object.values(need).forEach(n=>{ const saldo=sal?(sal[n.id]||0):perdaSaldoInsumo(n.id); n.saldo=saldo; n.falta=Math.max(0,(n.qtd||0)-Math.max(0,saldo||0)); n.usos=Object.keys(n.usos||{}); });
   return need;
 }
 async function planCalc(){
@@ -3202,9 +3354,13 @@ function renderPlanResult(){
   const totalFalta=comprar.reduce((s,n)=>s+(n.falta*(n.custo||0)),0);
   let h=`<div class="lbl">Lista de compras — falta comprar (${comprar.length})</div>`;
   if(!comprar.length) h+=`<div class="ini-vazio">Tudo o que as receitas precisam já está no estoque. 🎉</div>`;
-  else h+=catKeys.map(cat=>`<div class="pcat-h" style="font-weight:800;color:var(--vinho,#A82A2A);margin:10px 0 4px;text-transform:uppercase;font-size:12px;letter-spacing:.04em">${esc(cat)}</div><div class="ini-list">`+cats[cat].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(n=>`<div class="ini-row"><div class="t">${esc(n.nome)}<small>precisa ${num(n.qtd)} ${esc(n.un)} · tem ${num(n.saldo)}</small></div><b style="color:var(--vinho,#A82A2A);white-space:nowrap">${num(n.falta)} ${esc(n.un)}</b></div>`).join('')+`</div>`).join('');
+  else h+=catKeys.map(cat=>`<div class="pcat-h" style="font-weight:800;color:var(--vinho,#A82A2A);margin:10px 0 4px;text-transform:uppercase;font-size:12px;letter-spacing:.04em">${esc(cat)}</div><div class="ini-list">`+cats[cat].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(n=>`<div class="ini-row"><div class="t">${esc(n.nome)}<small>precisa ${num(n.qtd)} ${esc(n.un)} · tem ${num(n.saldo)}${(n.usos||[]).length?'<br>para: '+esc(n.usos.join(', ')):''}</small></div><b style="color:var(--vinho,#A82A2A);white-space:nowrap">${num(n.falta)} ${esc(n.un)}</b></div>`).join('')+`</div>`).join('');
   if(totalFalta>0) h+=`<div class="uinfo" style="margin-top:8px">Custo estimado da compra: <b>${brl(totalFalta)}</b> (pelo último custo por unidade).</div>`;
   if(tem.length) h+=`<div class="uinfo" style="margin-top:6px;color:var(--mut)">${tem.length} insumo(s) já com estoque suficiente (não entram na compra).</div>`;
+  const sub=PLAN._sub||[];
+  if(sub.length){ const u=d=>d==='mv'?'kg/L':d;
+    h+=`<div class="lbl" style="margin-top:14px">Pré-preparos usados dentro das receitas</div><div class="ini-list">`+sub.map(x=>`<div class="ini-row" style="cursor:default"><div class="t">${esc(x.nome)}<small>precisa ${num(x.precisa)} ${u(x.d)} · pronto ou já previsto ${num(x.tem)} · em ${esc(x.usos.join(', '))}</small></div><b style="white-space:nowrap;color:${x.semConta?'var(--urgFg)':(x.falta>0.0005?'var(--vinho,#A82A2A)':'var(--okFg)')}">${x.semConta?'confira à mão':(x.falta>0.0005?'fazer '+num(x.falta)+' '+u(x.d)+(x.semIngred?'<br><small style="font-weight:600;color:var(--urgFg)">receita sem ingredientes — insumos fora da lista</small>':''):'coberto')}</b></div>`).join('')+`</div>
+    <div class="uinfo" style="margin-top:6px">O que falta desses pré-preparos já entrou na lista de compras acima (pelos insumos da receita deles).</div>`; }
   h+=`<div class="btn2" style="margin-top:10px"><button class="btn sec" id="planPrint"><i class="ph-duotone ph-printer"></i> Imprimir / PDF</button></div>`;
   box.innerHTML=h;
   $('#planPrint')&&($('#planPrint').onclick=printPlanCompras);
@@ -3214,18 +3370,19 @@ function printPlanCompras(){
   const cats={}; comprar.forEach(n=>{ (cats[n.categoria]=cats[n.categoria]||[]).push(n); });
   const catKeys=Object.keys(cats).sort();
   const recs=ST.receitas||[];
-  const plano=(PLAN.itens||[]).map(it=>{ const r=recs.find(x=>x.id===it.pid)||{}; return `${esc(r.nome||'preparo')} — ${num(it.qtd)} ${esc(r.id?prodUn(r):'')}`; }).join(' · ');
+  const plano=(PLAN.itens||[]).map(it=>{ const r=recs.find(x=>x.id===it.pid)||{}; return `${it.data?_dm(it.data)+' ':''}${esc(r.nome||'preparo')} — ${it.qMostra!=null?num(it.qMostra)+' '+esc(it.unMostra||''):num(it.qtd)+' '+esc(r.id?prodUn(r):'')}`; }).join(' · ');
+  const px=PLAN.puxadoEm, tit = px ? ('Lista de compras — produções de '+(px.de===px.ate?_dm(px.de):_dm(px.de)+' a '+_dm(px.ate))) : 'Lista de compras — Produção do dia';
   const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups do navegador pra imprimir.'); return; }
   const rows=catKeys.map(cat=>`<tr class="cat"><td colspan="2">${esc(cat)}</td></tr>`+cats[cat].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(n=>`<tr><td>${esc(n.nome)}</td><td class="q">${num(n.falta)} ${esc(n.un)}</td></tr>`).join('')).join('');
-  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Lista de compras — Produção do dia</title>
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${tit}</title>
   <style>*{box-sizing:border-box}body{font-family:Georgia,'Times New Roman',serif;color:#2A1A17;padding:34px;max-width:640px;margin:0 auto}
   h1{color:#A82A2A;font-size:25px;margin:0 0 4px}.d{color:#8A7A72;font-size:13px;margin-bottom:18px}
   table{width:100%;border-collapse:collapse}th{text-align:left;color:#B79A8E;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:0 4px 6px;border-bottom:2px solid #A82A2A}
   td{padding:8px 4px;border-bottom:1px solid #ECE3D9;font-size:15px}td.q{text-align:right;font-weight:bold;white-space:nowrap}
   tr.cat td{background:#F7EFE7;color:#A82A2A;font-weight:bold;text-transform:uppercase;font-size:12px;letter-spacing:.04em}
   @media print{body{padding:6px}}</style></head>
-  <body><h1>Lista de compras — Produção do dia</h1>
-  <div class="d">Central · ${fmtData(new Date().toISOString().slice(0,10))}${plano?' · Produção: '+plano:''}</div>
+  <body><h1>${tit}</h1>
+  <div class="d">Central · impresso em ${fmtData(_isoD(new Date()))}${plano?' · Produção: '+plano:''}</div>
   <table><tr><th>Insumo</th><th class="q" style="text-align:right">Comprar</th></tr>${rows||'<tr><td colspan=2>Nada a comprar — estoque suficiente.</td></tr>'}</table>
   </body></html>`);
   w.document.close();
@@ -3239,7 +3396,7 @@ function viewInicio(){
   const ph=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(x=>String(x.data).slice(0,10)===hoje):null;
   const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
   let h='';
-  h+=`<button class="btn" data-go="plan" style="width:100%;margin:0 0 14px;background:var(--vinho,#A82A2A);color:#fff;border:0;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700"><i class="ph-duotone ph-clipboard-text"></i> Produção do dia → lista de compras</button>`;
+  h+=`<button class="btn" data-go="plan" style="width:100%;margin:0 0 14px;background:var(--vinho,#A82A2A);color:#fff;border:0;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700"><i class="ph-duotone ph-clipboard-text"></i> Produção prevista → lista de compras</button>`;
   h+=`<div class="ini-grid">
     <div class="ini-card" data-go="ped"><div class="k">Pedidos pendentes</div><div class="n" style="color:var(--pendFg)">${peds?peds.length:'…'}</div><div class="s">${peds?(peds.length?[nCcmq?nCcmq+' CCMQ':'',nMac?nMac+' MAC':''].filter(Boolean).join(' · ')||'aguardando':'nenhum a fazer'):'carregando'}</div></div>
     <div class="ini-card" data-go="al"><div class="k">Alertas abertos</div><div class="n" style="color:${al.length?'var(--urgFg)':'var(--okFg)'}">${al.length}</div><div class="s">${al.length?'toque pra resolver':'tudo resolvido'}</div></div>
@@ -4052,7 +4209,13 @@ $('#imX').onclick=closeIns; $('#insBg').onclick=closeIns; $('#imSave').onclick=s
 $('#resX').onclick=closeRes; $('#resBg').onclick=closeRes; $('#resCentral').onclick=()=>resSalvar('central'); $('#resCcmq').onclick=()=>resSalvar('ccmq');
 $('#cpX').onclick=fecharCompraDet; $('#cpBg').onclick=fecharCompraDet;
 
-(async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Cozinha Central'}); carregar(); })();
+(async()=>{ await lolaGate({papeis:['admin','financeiro','gerente','operacional'], titulo:'Cozinha Central'}); await carregar();
+  /* vindo do cronograma: index.html?compras=1&de=AAAA-MM-DD&ate=AAAA-MM-DD → abre a lista de compras já puxada */
+  try{ const q=new URLSearchParams(location.search);
+    if(q.get('compras')){ planLoad(); const de=q.get('de'), ate=q.get('ate');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(de||'')&&/^\d{4}-\d{2}-\d{2}$/.test(ate||'')){ PLAN.de=de; PLAN.ate=ate; PLAN.periodo=''; }
+      planSave(); history.replaceState(null,'',location.pathname); ST.tab='plan'; render(); puxarCronograma(); }
+  }catch(e){} })();
 </script>
 </body>
 </html>
