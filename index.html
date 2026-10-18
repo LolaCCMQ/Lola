@@ -869,6 +869,8 @@
         <button class="nav-item" data-mod="escala" data-menu="doc_escala" onclick="switchModule('escala')"><span class="ni"><i class="ph-duotone ph-calendar-dots"></i></span><span class="nl">Escala</span></button>
         <button class="nav-item" data-mod="especiais" data-menu-free="especiais" onclick="window.open('https://lolabar.com.br/especiais-admin','_blank','noopener')" title="Adicionar itens nos Especiais do Dia (abre em nova aba)"><span class="ni"><i class="ph-duotone ph-sparkle"></i></span><span class="nl">Especiais do Dia</span></button>
         <button class="nav-item" data-mod="administrativo" onclick="window.open('/adm/','_blank','noopener')" title="Área administrativa (login próprio)"><span class="ni"><i class="ph-duotone ph-lock-key"></i></span><span class="nl">Administrativo</span></button>
+        <!-- 18/10 (Bianca): app Emissão de Notas (NFS-e) — abre em nova aba, igual Especiais/Administrativo. data-menu-free = visível pra todo mundo. -->
+        <button class="nav-item" data-mod="nfse" data-menu-free="nfse" onclick="window.open('/nfse/?u='+encodeURIComponent((window.__portalUser&&window.__portalUser.name)||''),'_blank','noopener')" title="Emissão de Notas (NFS-e) — abre em nova aba"><span class="ni"><i class="ph-duotone ph-receipt"></i></span><span class="nl">Emissão de Notas</span></button>
 
 
       </div>
@@ -1051,6 +1053,7 @@ var HOME_APPS=[
     {m:'eventos', label:'Eventos', d:'Reservas e produção', icon:'calendar-dots', col:'#C4622D', bg:'#FBEDE3'}
   ]},
   {g:'Gestão', items:[
+    {m:'nfse', label:'Emissão de Notas', d:'NFS-e: preparar e registrar', icon:'receipt', col:'#A8272A', bg:'#F7E7E7'},
     {m:'lolamac', label:'Lola MAC', d:'Indicadores da unidade MAC', icon:'chart-line-up', col:'#2C7A4B', bg:'#E6F3EA'},
     {m:'equipe', label:'Equipe', d:'Dados básicos, experiência e aniversários', icon:'identification-badge', col:'#8A6A2B', bg:'#F4EEE2'} /* 16/09 (Bianca): app Equipe — gerente só vê, admin edita; liberar por pessoa no Acesso */
     /* 19/07: RH e Usuários saíram da home (moram no /adm, só admin); Avaliações subiu pra Operação */
