@@ -999,7 +999,7 @@ async function carregarSaldoInsumos(){
       (ent[id]=ent[id]||[]).push({q:parseFloat(r.qtd)||0,un:r.unidade,data:r.data}); });
     // 19/08 (Bianca): descartes (vencido/estragado/quebra/sobra) DÃO BAIXA no saldo.
     const mvd=await db('lola_ccmq_estoque_mov','GET',null,
-      '?origem_tipo=eq.descarte&select=insumo_id,qtd,unidade,data&limit=20000');
+      '?origem_tipo=in.(descarte,transferencia)&select=insumo_id,qtd,unidade,data&limit=20000'); // 18/10: transferência pro Lola MAC também sai do saldo do Lola
     const des={};
     (mvd||[]).forEach(r=>{ const id=r.insumo_id; if(!id)return;
       (des[id]=des[id]||[]).push({q:parseFloat(r.qtd)||0,un:r.unidade,data:r.data}); });
