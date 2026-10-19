@@ -1193,7 +1193,7 @@ async function estEntradaOk(){
   try{
     if(tipo==='transferencia'){
       // baixa no estoque do Lola (lola_ccmq_estoque_mov; o saldo do Lola desconta origem 'transferencia')
-      await api('lola_ccmq_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify({insumo_id:id,tipo:'saida',qtd:q,unidade:un,origem_tipo:'transferencia',origem_ref:'para o Lola MAC',data:hojeISO(),criado_por:quem()||null})});
+      await api('lola_ccmq_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify({insumo_id:id,tipo:'baixa',qtd:q,unidade:un,origem_tipo:'transferencia',origem_ref:'para o Lola MAC',data:hojeISO(),criado_por:quem()||null})});
     }
     await api('lola_mac_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify([row])});
     fecharSheetGen(); toast('Entrada lançada ✓'); abrirEstoque();
