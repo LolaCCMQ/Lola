@@ -737,7 +737,7 @@ function convU(q,from,to){
 function semTabelasHTML(){
   return '<div class="errbox"><i class="ph-duotone ph-database ei"></i><b>Falta criar as tabelas do MAC</b><p>As telas de vendas, estoque e cardápio já estão prontas, mas o banco ainda não tem as tabelas novas. Rode o script <b>mac/sql/2026-10-18-mac-vendas-estoque.sql</b> no SQL Editor do Supabase (uma vez só).</p></div>';
 }
-function erroTabela(e){ return /lola_mac_(catalogo|vendas|venda_|estoque_mov)/.test(e&&e.message||'') && /(404|PGRST205|42P01|does not exist|Could not find)/.test(e&&e.message||''); }
+function erroTabela(e){ const m=(e&&e.message)||''; return /PGRST205|42P01/.test(m) || (/HTTP 404/.test(m) && /lola_mac_/.test(m)); } /* a mensagem vem cortada em 140 caracteres — o código do erro é o que importa */
 
 /* ===================== CARGA ===================== */
 async function macLoad(){
