@@ -1951,7 +1951,7 @@ let ETIQ_CUR=null, ETIQ_CONS='resfriado';
 function openEtiqueta(id){
   const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r;
   const s=(ST.saldo||{})[id]||{}; const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'';
-  const hoje=new Date().toISOString().slice(0,10);
+  const hoje=(()=>{ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); })(); /* 18/10: data LOCAL (em UTC, depois das 21h já virava o dia seguinte) */
   ETIQ_CONS=s.conservacao||'resfriado';
   const diasR=s.validade_dias!=null?s.validade_dias:2, diasC=s.validade_dias_congelado!=null?s.validade_dias_congelado:15;
   const ri=rendInfo(r);
@@ -2149,7 +2149,7 @@ async function etChecarRastreio(){
 }
 async function printEtiquetas(){
   const r=ETIQ_CUR; if(!r)return;
-  const dataP=$('#etData').value||new Date().toISOString().slice(0,10);
+  const dataP=$('#etData').value||(()=>{ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); })();
   const resp=($('#etResp').value||'').trim();
   const diasR=parseInt($('#etDiasR').value||'0',10)||0;
   const diasC=parseInt($('#etDiasC').value||'0',10)||0;
