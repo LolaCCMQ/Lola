@@ -3520,7 +3520,6 @@ function viewInicio(){
   const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
   let h='';
   h+=`<button class="btn" data-go="plan" style="width:100%;margin:0 0 14px;background:var(--vinho,#A82A2A);color:#fff;border:0;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700"><i class="ph-duotone ph-clipboard-text"></i> Produção prevista → lista de compras</button>`;
-  h+=`<button class="btn sec" data-go="estlola" style="width:100%;margin:-6px 0 14px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700"><i class="ph-duotone ph-storefront"></i> Estoque do Lola (pra se preparar pros pedidos)</button>`;
   h+=`<div class="ini-grid">
     <div class="ini-card" data-go="ped"><div class="k">Pedidos pendentes</div><div class="n" style="color:var(--pendFg)">${peds?peds.length:'…'}</div><div class="s">${peds?(peds.length?[nCcmq?nCcmq+' CCMQ':'',nMac?nMac+' MAC':''].filter(Boolean).join(' · ')||'aguardando':'nenhum a fazer'):'carregando'}</div></div>
     <div class="ini-card" data-go="al"><div class="k">Alertas abertos</div><div class="n" style="color:${al.length?'var(--urgFg)':'var(--okFg)'}">${al.length}</div><div class="s">${al.length?'toque pra resolver':'tudo resolvido'}</div></div>

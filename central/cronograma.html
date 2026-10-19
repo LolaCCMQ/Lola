@@ -875,6 +875,7 @@ function openTarefa(id){
         <div class="mf"><label>Unidade</label><input type="text" id="fUn" value="${esc(un)}"></div></div>`;
   }
   if(x.preproducao_id){
+    h+=`<div class="lbl">Situação deste item <span class="sp"></span><span class="n">pra decidir quanto produzir</span></div><div id="sitBox"><div class="spin"></div></div>`;
     h+=`<div class="lbl">Receita <span class="sp"></span><span class="n" id="recEsc">—</span></div><div id="recBox"><div class="spin"></div></div>`;
   }else{
     h+=`<div class="note" style="margin-top:12px"><i class="ph-duotone ph-info"></i> Este item <b>não tem receita ligada</b> — é só uma tarefa do cronograma. Pra ele abrir a ficha e simular a baixa de insumos, edite e escolha a receita.</div>`;
@@ -895,12 +896,49 @@ function openTarefa(id){
   const br=$('#bReab'); if(br) br.onclick=reabrir;
   const bm=$('#bMover'); if(bm) bm.onclick=()=>moverTarefa(x);
   openSheet();
-  if(x.preproducao_id) carregarReceita(x);
+  if(x.preproducao_id){ carregarReceita(x); situacaoItem(x).then(si=>{ const b=$('#sitBox'); if(b) b.innerHTML=situacaoHTML(si,x); }); }
   if(x.status==='previsto'){
     const qEl=$('#fQtd'); if(qEl) qEl.oninput=()=>{ if(x.preproducao_id) carregarReceita(x,+qEl.value||0); };
   }
   if(x.status==='andamento') startTick(x);
   if(x.status==='feito'&&x.preproducao_id) mostrarSimulacao(x);
+}
+/* ===== 18/10/2026 (Mahara): no cartão (e na ficha impressa) de cada produção, a situação do item:
+   última contagem no LOLA (lola_contagem_itens do insumo ligado via lola_insumos.preproducao_id),
+   estoque atual na CENTRAL (lola_central_saldo) e os PEDIDOS já encomendados que ainda não saíram
+   da Central (lola_pedidos solicitado e central_status ≠ pronto). ===== */
+let _PEDS_ABERTOS=null, _PEDS_T=0;
+function _nItem(t){ return norm(t).replace(/^pp\s+/,'').replace(/\s+(un|und|unid|porcao|porção)$/,'').trim(); }
+async function situacaoItem(x){
+  const out={lola:null, central:null, pedidos:[], erro:null};
+  const r=ST.recById[x.preproducao_id]||{};
+  const sal=ST.saldo[x.preproducao_id]; if(sal) out.central={saldo:+sal.saldo||0, un:sal.unidade||prodUn(r)};
+  if(DEMO) return out;
+  try{
+    const ins=await api('lola_insumos?preproducao_id=eq.'+x.preproducao_id+'&ativo=neq.false&select=id,nome,unidade_compra,unidade_custo&limit=5');
+    const alvo=(ins&&ins[0])||null; out.insNome=alvo?alvo.nome:null;
+    if(alvo){
+      const ci=await api('lola_contagem_itens?insumo_id=eq.'+alvo.id+'&select=qtd_contada,lola_contagens!contagem_id(data_contagem,responsavel)&limit=500');
+      let best=null; (ci||[]).forEach(c=>{ const d=c.lola_contagens&&c.lola_contagens.data_contagem; if(d&&(!best||d>best.data)) best={qtd:+c.qtd_contada||0,data:d,resp:c.lola_contagens.responsavel}; });
+      if(best) out.lola=Object.assign(best,{un:alvo.unidade_compra||alvo.unidade_custo||''});
+    }
+    if(!_PEDS_ABERTOS||Date.now()-_PEDS_T>60000){
+      _PEDS_ABERTOS=await api('lola_pedidos?status=eq.solicitado&select=id,numero_pedido,unidade,data_pedido,central_status,lola_pedidos_itens(nome_item,quantidade,unidade)&order=data_pedido.asc&limit=100'); _PEDS_T=Date.now();
+    }
+    const nomes=new Set([_nItem(r.nome||x.item_nome), ...(ins||[]).map(i=>_nItem(i.nome))]);
+    (_PEDS_ABERTOS||[]).filter(p=>p.central_status!=='pronto').forEach(p=>(p.lola_pedidos_itens||[]).forEach(it=>{
+      if(nomes.has(_nItem(it.nome_item)) && +it.quantidade>0) out.pedidos.push({n:p.numero_pedido||'?', uni:(p.unidade||'').toUpperCase(), data:String(p.data_pedido||'').slice(0,10), qtd:+it.quantidade, un:it.unidade||'', status:p.central_status||'novo'});
+    }));
+  }catch(e){ out.erro=e.message; }
+  return out;
+}
+function situacaoHTML(si,x){
+  const dm=d=>d?fmtDM(d):'';
+  const tot=si.pedidos.reduce((s,p)=>s+p.qtd,0);
+  return `<div class="ring"><span><i class="ph-duotone ph-storefront"></i> Última contagem no <b>Lola</b>${si.lola?`<br><small style="color:var(--mut)">${dm(si.lola.data)}${si.lola.resp?' · '+esc(si.lola.resp):''}</small>`:''}</span><b>${si.lola?num(si.lola.qtd)+' '+esc(si.lola.un):(si.insNome===null?'<span style="color:var(--mut);font-weight:600">item não ligado no Lola</span>':'<span style="color:var(--mut);font-weight:600">sem contagem</span>')}</b></div>
+    <div class="ring"><span><i class="ph-duotone ph-factory"></i> Estoque na <b>Central</b> agora</span><b>${si.central?num(si.central.saldo)+' '+esc(si.central.un):'—'}</b></div>
+    <div class="ring" style="align-items:flex-start"><span><i class="ph-duotone ph-truck"></i> Pedidos já encomendados<br><small style="color:var(--mut)">ainda não enviados pela Central</small></span><b style="text-align:right">${si.pedidos.length?si.pedidos.map(p=>`#${esc(String(p.n))} ${esc(p.uni)} · ${dm(p.data)}: ${num(p.qtd)} ${esc(p.un)}`).join('<br>')+(si.pedidos.length>1?`<br><span style="color:var(--vinho)">total ${num(tot)}</span>`:''):'<span style="color:var(--mut);font-weight:600">nenhum</span>'}</b></div>
+    ${si.erro?`<div class="uinfo">Não consegui ler tudo: ${esc(si.erro)}</div>`:''}`;
 }
 /* move a produção pra outro dia/turno/hora — substitui o arrastar-e-soltar (19/08) */
 async function moverTarefa(x){
@@ -1170,6 +1208,8 @@ async function imprimir(x){
     const c=convCusto(i.fc!==1?i.bruta:i.base, i.un, i.unCusto);
     return `<tr><td>${esc(i.nome)}</td><td class="q">${num(c.q)} ${esc(c.u||i.unCusto||i.un||'')}</td></tr>`;}).join('');
   const w=window.open('','_blank','width=560,height=760'); if(!w){toast('Libere o pop-up pra imprimir.');return;}
+  let sit=''; try{ const si=await situacaoItem(x);
+    sit=`<div class="box" style="display:block"><b>Situação do item</b><br>Lola (última contagem): <b>${si.lola?num(si.lola.qtd)+' '+esc(si.lola.un)+' em '+fmtDM(si.lola.data):'—'}</b> · Central agora: <b>${si.central?num(si.central.saldo)+' '+esc(si.central.un):'—'}</b><br>Pedidos encomendados: <b>${si.pedidos.length?si.pedidos.map(p=>'#'+esc(String(p.n))+' '+esc(p.uni)+' '+num(p.qtd)+' '+esc(p.un)).join(' · '):'nenhum'}</b></div>`; }catch(e){}
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(x.item_nome||'Receita')}</title>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
   <style>body{font-family:Manrope,sans-serif;color:#2A1A17;padding:26px;max-width:640px;margin:0 auto}
@@ -1185,6 +1225,7 @@ async function imprimir(x){
   <h1>${esc(x.item_nome||r.nome||'Receita')}</h1>
   <div class="sub">Cozinha Central · ${DIAS_L[dow(x.data)]} ${fmtDM(x.data)} · ${TUR_L[x.turno||'manha']}${x.hora?' · '+hhmm(x.hora):''}</div>
   <div class="box"><span><b>Produzir:</b> ${dstr(x.qtd_prevista,un)}</span><span><b>Quem faz:</b> ${esc(x.responsavel||'________')}</span></div>
+  ${sit}
   <table>${linhas||'<tr><td>Sem ingredientes cadastrados</td><td></td></tr>'}</table>
   ${r.modo_preparo?`<div style="margin-top:16px;font-size:13px;white-space:pre-wrap">${esc(r.modo_preparo)}</div>`:''}
   <div class="ass"><div>Início: ____:____</div><div>Fim: ____:____</div><div>Rendeu: __________</div></div>
