@@ -1962,7 +1962,7 @@ function openEtiqueta(id){
   /* loteamento (17/08): sugere o lote da produção real daquele dia, se já
      tiver sido registrada; senão propõe um código novo (nº 01 do dia) */
   const _histHoje=_hist.find(h=>String(h.data).slice(0,10)===hoje);
-  const loteSug=(_histHoje&&_histHoje.lote)||(_hist[0]&&_hist[0].lote)||gerarLote(r.nome,hoje,1);
+  const loteSug=(_histHoje&&_histHoje.lote)||gerarLote(r.nome,hoje,1); /* 18/10: não reaproveita mais o lote de outro dia — se hoje não foi registrada, o aviso de rastreio aparece */
   $('#shTitle').textContent='Etiquetas — '+r.nome;
   /* 17/07: "tudo podia ser menor simulando como vai ficar na etiqueta" — campos em pares + prévia ao vivo */
   $('#shBody').innerHTML=`
@@ -2007,7 +2007,7 @@ function openEtiqueta(id){
       ${$('#etIng').checked?'<div style="font-size:9px;margin-top:3px;color:#555">Ingredientes: (entram na impressão)</div>':''}`;
   };
   ['etData','etResp','etLote','etDiasR','etDiasC','etPeso','etCons','etIng','etQtd'].forEach(i=>{ const e2=$('#'+i); if(e2){ e2.oninput=etPrev; e2.onchange=etPrev; } });
-  ETIQ_SEM_RASTREIO_OK=false; etChecarRastreio(); { const lt=$('#etLote'); if(lt) lt.addEventListener('change',()=>{ ETIQ_SEM_RASTREIO_OK=false; etChecarRastreio(); }); }
+  ETIQ_SEM_RASTREIO_OK=false; etChecarRastreio(); ['etLote','etData'].forEach(i=>{ const lt=$('#'+i); if(lt) lt.addEventListener('change',()=>{ ETIQ_SEM_RASTREIO_OK=false; $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas'; etChecarRastreio(); }); });
   $$('#etConsBtns button').forEach(b=>b.onclick=()=>{ ETIQ_CONS=b.dataset.c; $$('#etConsBtns button').forEach(x=>x.classList.toggle('on',x===b)); etPrev(); });
   etPrev();
   $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
@@ -2131,6 +2131,14 @@ async function etChecarRastreio(){
   const lote=(($('#etLote')||{}).value||'').trim(); if(!lote){ box.innerHTML=''; return null; }
   const h=await etLoteExiste(lote);
   if(h==='erro'){ box.innerHTML=''; return 'erro'; }
+  const dEt=(($('#etData')||{}).value||'').slice(0,10), dLote=String((h&&h.data)||'').slice(0,10);
+  if(h && dEt && dLote && dEt!==dLote){
+    box.innerHTML=`<div class="note" style="background:#FBF0DD;color:#8A5A12;border:1px solid #F3DDBE"><b><i class="ph-duotone ph-warning"></i> Esse lote é de outra produção.</b><br>
+      O lote <b>${esc(lote)}</b> é da produção de <b>${fmtData(dLote)}</b>, mas a etiqueta diz produção em <b>${fmtData(dEt)}</b>. Se o que você vai etiquetar foi feito em ${fmtData(dEt)}, essa produção <b>não foi registrada</b>: não entrou no estoque e não tem rastreio próprio.
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" type="button" id="etIrProduzir" style="flex:1"><i class="ph-duotone ph-plus-circle"></i> Registrar a produção de ${fmtData(dEt)}</button></div></div>`;
+    const b=$('#etIrProduzir'); if(b) b.onclick=()=>{ const id=r.id; closeSheet(); setTimeout(()=>openProduzir(id),120); };
+    return null;
+  }
   if(h){ box.innerHTML=`<div class="note" style="background:var(--okBg);color:var(--okFg)"><i class="ph-duotone ph-check-circle"></i> Lote <b>${esc(lote)}</b> registrado: produção de ${fmtData(String(h.data).slice(0,10))}${h.qtd_produzida!=null?' · '+num(h.qtd_produzida)+' '+esc(prodUn(r)):''}. A etiqueta vai rastrear certinho.</div>`; return h; }
   box.innerHTML=`<div class="note" style="background:#FBEAE7;color:#B5302E;border:1px solid #F0C9C2"><b><i class="ph-duotone ph-warning"></i> Esta produção não foi registrada.</b><br>
     O lote <b>${esc(lote)}</b> não existe no rastreio e a produção <b>não entrou no estoque da Central</b>. O QR da etiqueta não vai achar nada.<br>
