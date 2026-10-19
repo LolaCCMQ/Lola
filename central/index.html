@@ -674,9 +674,8 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
      pras sócias). O auth.js continua morando no /adm — caminho absoluto pra não
      depender de quantas pastas acima este arquivo está. -->
 <script src="/adm/auth.js"></script>
-<!-- 16/10/2026: QR e leitor servidos daqui mesmo (central/vendor) — não dependem do cdnjs na hora de imprimir/bipar -->
-<script src="vendor/qrcode.min.js"></script>
-<script src="vendor/jsQR.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], fc:{}, alertas:[], tab:'ini',
