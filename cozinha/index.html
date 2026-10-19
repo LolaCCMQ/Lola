@@ -957,6 +957,10 @@ function mkStat(ic,lb,val,sub,col){
    saldo = última contagem + entradas das notas depois dela.
    Fase 2 (a construir): descontar as vendas do Bitbar.
 ══════════════════════════════════ */
+/* 18/10/2026: ?leitura=1 = consulta pura (o app da Central abre o Estoque do Lola assim pro
+   responsável da Central se preparar pros pedidos). Esconde tudo que grava; ?filtro=central abre
+   já na aba Central. */
+var SO_LEITURA=(function(){ try{ return new URLSearchParams(location.search).get('leitura')==='1'; }catch(_){ return false; } })();
 var _saldoMap={};
 var _ppPrecoMap={};
 var _cozUso=null;
@@ -1102,6 +1106,7 @@ async function pgIns(c){
     function mkSecH(cat,n){const cor=CAT_COR[cat]||'#A82A2A';const sh=div('ins-sech');sh.innerHTML='<span class="sq" style="background:'+cor+'"></span><span class="nm" style="color:'+cor+'">'+cat+'</span><span class="ct">'+n+' '+(n===1?'item':'itens')+'</span>';return sh;}
     const cats=CATS_ORDER.filter(c=>_ins.some(i=>i.categoria===c && _insDaCozinha(i)));
     let filtCat='Todos';let filtBusca='';
+    try{ if(new URLSearchParams(location.search).get('filtro')==='central') filtCat='__Central'; }catch(_){}
     let sortBy=null,sortDir='asc'; // null = ordem padrão (categoria/nome)
     const LABELS={'Bebidas Alcoólicas':'Alcoólicas','Bebidas Não Alcoólicas':'Não Alcoólicas','Cervejas':'Cervejas','Vinhos':'Vinhos','Carnes e Pescados':'Carnes','Hortifruti':'Hortifruti','Insumos Alimentos':'Alimentos','Limpeza':'Limpeza','Pães':'Pães','__Central':'Central'};
     const temCentral=_ins.some(i=>i.fornecedor_padrao==='Central' && _insDaCozinha(i));
@@ -1116,14 +1121,15 @@ async function pgIns(c){
       });
     }
     mkCatTabs();
+    if(SO_LEITURA){ const nt=div(null,null,{style:'background:#E6EEF8;color:#2C5AA0;border-radius:12px;padding:10px 14px;font-size:12.5px;margin-bottom:10px'}); nt.innerHTML='<i class="ph-duotone ph-eye"></i> <b>Estoque do Lola — só consulta.</b> Última contagem, o que foi vendido desde então e a posição prevista de cada item. Use pra se preparar pros próximos pedidos.'; c.appendChild(nt); }
     c.appendChild(tabW);
     c.appendChild(div('abar no-print',[
       mkSearch(q=>{filtBusca=q;drawIns($('#ins-t'));},'Buscar insumo...'),
       div('fl_ gap2',[
-        el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-clipboard-text"></i> Nova contagem',onclick:()=>modalNovaContagem()}),
+        ...(SO_LEITURA?[]:[el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-clipboard-text"></i> Nova contagem',onclick:()=>modalNovaContagem()})]),
         el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-download-simple"></i> Baixar planilha',onclick:()=>exportInsumosXlsx()}),
-        el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-upload-simple"></i> Conferir preços',onclick:()=>nav('conferencia')}),
-        el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-plus"></i> Novo insumo',onclick:()=>modalIns()}),
+        ...(SO_LEITURA?[]:[el('button','btn bo bsm',null,{html:'<i class="ph-duotone ph-upload-simple"></i> Conferir preços',onclick:()=>nav('conferencia')}),
+        el('button','btn bp bsm',null,{html:'<i class="ph-duotone ph-plus"></i> Novo insumo',onclick:()=>modalIns()})]),
       ],{style:'flex-wrap:wrap'})
     ]));
     const w=div(null,null,{id:'ins-t'});c.appendChild(w);
@@ -1305,8 +1311,8 @@ function mkInsTableX(itens){
       const item=(ic,lb,fn,cls)=>{ const b=el('button',cls||null,null,{html:'<i class="ph-duotone ph-'+ic+'"></i> '+lb}); b.onclick=(e2)=>{e2.stopPropagation();fecharInsMenu();fn();}; menu.appendChild(b); };
       item('magnifying-glass','Buscar receitas',()=>ondeEUsado(i));
       item('chart-line','Ver tendência',()=>verHistoricoPreco(i));
-      item('pencil-simple','Editar',()=>modalIns(i));
-      if(podeMexerAqui()) item('trash','Excluir',async()=>{
+      if(!SO_LEITURA) item('pencil-simple','Editar',()=>modalIns(i));
+      if(podeMexerAqui() && !SO_LEITURA) item('trash','Excluir',async()=>{
         if(!confirm('Excluir "'+i.nome+'"?'))return;
         await db('lola_insumos','PATCH',{ativo:false},'?id=eq.'+i.id);
         _ins=_ins.filter(x=>x.id!==i.id);
@@ -1394,8 +1400,8 @@ function mkInsTable(itens){
       const item=(ic,lb,fn,cls)=>{ const b=el('button',cls||null,null,{html:'<i class="ph-duotone ph-'+ic+'"></i> '+lb}); b.onclick=(e2)=>{e2.stopPropagation();fecharInsMenu();fn();}; menu.appendChild(b); };
       item('magnifying-glass','Buscar receitas',()=>ondeEUsado(i));
       item('chart-line','Ver tend\u00EAncia',()=>verHistoricoPreco(i));
-      item('pencil-simple','Editar',()=>modalIns(i));
-      if(podeMexerAqui()) item('trash','Excluir',async()=>{
+      if(!SO_LEITURA) item('pencil-simple','Editar',()=>modalIns(i));
+      if(podeMexerAqui() && !SO_LEITURA) item('trash','Excluir',async()=>{
         if(!confirm('Excluir "'+i.nome+'"?'))return;
         await db('lola_insumos','PATCH',{ativo:false},'?id=eq.'+i.id);
         _ins=_ins.filter(x=>x.id!==i.id);
@@ -9306,7 +9312,7 @@ async function abrirFichaInsumo(insumoId, nomeFallback){
   mo.addEventListener('click',e=>e.stopPropagation());
   ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
   mo.appendChild(div('mh',[el('h3',null,nomeFallback||'Insumo'),
-    btn('btn bg bsm','✎ Editar',()=>{ ov.remove(); const _it=_ins.find(x=>x.id===insumoId); if(_it) modalIns(_it); }),
+    ...(SO_LEITURA?[]:[btn('btn bg bsm','✎ Editar',()=>{ ov.remove(); const _it=_ins.find(x=>x.id===insumoId); if(_it) modalIns(_it); })]),
     btn('xb','✕',()=>ov.remove())]));
   const mb=div('mb'); mb.appendChild(div('ld',[div('sp'),document.createTextNode('Buscando...')]));
   mo.appendChild(mb); ov.appendChild(mo); document.body.appendChild(ov);
