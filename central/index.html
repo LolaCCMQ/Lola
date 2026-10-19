@@ -1967,6 +1967,7 @@ function openEtiqueta(id){
   /* 17/07: "tudo podia ser menor simulando como vai ficar na etiqueta" — campos em pares + prévia ao vivo */
   $('#shBody').innerHTML=`
     <div class="mf"><label>Produção e responsável</label><div class="rendrow"><input type="date" id="etData" value="${hoje}" style="max-width:160px"><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div></div>
+    <div id="etAvisoRastreio"></div>
     <div class="mf"><label>Lote <span style="color:var(--urgFg);font-weight:700">*obrigatório</span> <span style="color:var(--mut);font-weight:400">— vem da produção já registrada nesse dia; ajuste se for de outro dia</span></label><input type="text" id="etLote" required value="${esc(loteSug)}"></div>
     <label class="iml">Como está sendo guardado agora</label>
     <div id="etConsBtns" class="unrow" style="margin-bottom:12px">${['resfriado','congelado','seco'].map(c=>`<button data-c="${c}" class="${c===ETIQ_CONS?'on':''}"><i class="ph-duotone ${CONS_IC[c]}"></i> ${CONS_L[c]}</button>`).join('')}</div>
@@ -2006,6 +2007,7 @@ function openEtiqueta(id){
       ${$('#etIng').checked?'<div style="font-size:9px;margin-top:3px;color:#555">Ingredientes: (entram na impressão)</div>':''}`;
   };
   ['etData','etResp','etLote','etDiasR','etDiasC','etPeso','etCons','etIng','etQtd'].forEach(i=>{ const e2=$('#'+i); if(e2){ e2.oninput=etPrev; e2.onchange=etPrev; } });
+  ETIQ_SEM_RASTREIO_OK=false; etChecarRastreio(); { const lt=$('#etLote'); if(lt) lt.addEventListener('change',()=>{ ETIQ_SEM_RASTREIO_OK=false; etChecarRastreio(); }); }
   $$('#etConsBtns button').forEach(b=>b.onclick=()=>{ ETIQ_CONS=b.dataset.c; $$('#etConsBtns button').forEach(x=>x.classList.toggle('on',x===b)); etPrev(); });
   etPrev();
   $('#shSave').innerHTML='<i class="ph-duotone ph-printer"></i> Imprimir etiquetas';
@@ -2118,6 +2120,25 @@ async function consultarLote(raw){
     </div>`;
   }catch(e){ box.innerHTML='<div class="tss">Erro ao consultar: '+esc(e.message)+'</div>'; }
 }
+/* 18/10/2026 (Mahara): etiqueta de produção que NÃO foi registrada (sem Concluir no cronograma
+   nem Produzir) não tem lote no rastreio e não entrou no estoque da Central — avisar antes de imprimir. */
+let ETIQ_SEM_RASTREIO_OK=false;
+async function etLoteExiste(lote){
+  try{ const r=await api('lola_central_prod_hist?lote=eq.'+encodeURIComponent(lote)+'&ativo=neq.false&select=id,preproducao_id,data,qtd_produzida&limit=1'); return (r&&r[0])||null; }catch(e){ return 'erro'; }
+}
+async function etChecarRastreio(){
+  const box=$('#etAvisoRastreio'); const r=ETIQ_CUR; if(!box||!r) return null;
+  const lote=(($('#etLote')||{}).value||'').trim(); if(!lote){ box.innerHTML=''; return null; }
+  const h=await etLoteExiste(lote);
+  if(h==='erro'){ box.innerHTML=''; return 'erro'; }
+  if(h){ box.innerHTML=`<div class="note" style="background:var(--okBg);color:var(--okFg)"><i class="ph-duotone ph-check-circle"></i> Lote <b>${esc(lote)}</b> registrado: produção de ${fmtData(String(h.data).slice(0,10))}${h.qtd_produzida!=null?' · '+num(h.qtd_produzida)+' '+esc(prodUn(r)):''}. A etiqueta vai rastrear certinho.</div>`; return h; }
+  box.innerHTML=`<div class="note" style="background:#FBEAE7;color:#B5302E;border:1px solid #F0C9C2"><b><i class="ph-duotone ph-warning"></i> Esta produção não foi registrada.</b><br>
+    O lote <b>${esc(lote)}</b> não existe no rastreio e a produção <b>não entrou no estoque da Central</b>. O QR da etiqueta não vai achar nada.<br>
+    Registre primeiro (botão <b>Produzir</b>, ou <b>Concluir</b> no cronograma) e depois imprima.
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" type="button" id="etIrProduzir" style="flex:1"><i class="ph-duotone ph-plus-circle"></i> Registrar a produção agora</button></div></div>`;
+  const b=$('#etIrProduzir'); if(b) b.onclick=()=>{ const id=r.id; closeSheet(); setTimeout(()=>openProduzir(id),120); };
+  return null;
+}
 async function printEtiquetas(){
   const r=ETIQ_CUR; if(!r)return;
   const dataP=$('#etData').value||new Date().toISOString().slice(0,10);
@@ -2132,6 +2153,16 @@ async function printEtiquetas(){
      ele não tem rastreio do produto, então bloqueia a impressão até preencher. */
   const loteChk=($('#etLote').value||'').trim();
   if(!loteChk){ toast('Preencha o lote antes de imprimir — é obrigatório pra rastrear o produto.'); $('#etLote').focus(); return; }
+  if(!ETIQ_SEM_RASTREIO_OK){
+    const reg=await etChecarRastreio();
+    if(!reg && reg!=='erro'){
+      ETIQ_SEM_RASTREIO_OK=true;
+      $('#shSave').innerHTML='<i class="ph-duotone ph-warning"></i> Imprimir mesmo assim (sem rastreio)';
+      const bx=$('#etAvisoRastreio'); if(bx) bx.scrollIntoView({behavior:'smooth',block:'center'});
+      toast('Atenção: essa produção não entrou no estoque e o rastreio não foi gerado.');
+      return;
+    }
+  }
   /* 19/08 (Mahara): a etiqueta já sai com as DUAS datas de validade (resfriado
      e congelado), calculadas a partir da data de produção — assim se o item for
      congelado depois, a data já está impressa e não precisa reimprimir. */
