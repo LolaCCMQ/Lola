@@ -149,6 +149,80 @@
   .toast.on{opacity:1}
   .hidden{display:none!important}
   .loading{text-align:center;color:var(--t3);font-size:13.5px;padding:30px}
+  /* ===== 18/10/2026: VENDAS (PDV), ESTOQUE e CARDÁPIO do MAC ===== */
+  .hub{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:6px}
+  .hub .hb{padding:13px 8px;text-align:center;cursor:pointer}
+  .hub .hb i{font-size:24px;display:block;margin-bottom:5px}
+  .hub .hb b{font-size:13px;font-weight:600;display:block}
+  .hub .hb small{font-size:11px;color:var(--t3)}
+  .hoje-card{padding:14px 15px;margin-bottom:9px}
+  .hoje-card .hrow{display:flex;justify-content:space-between;align-items:baseline}
+  .hoje-card .hval{font-family:'Fraunces',serif;font-weight:600;font-size:24px}
+  .hoje-card .hpag{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .conta-card{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+  .conta-card .ci{width:38px;height:38px;border-radius:11px;background:var(--verde-bg);color:var(--verde);display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 38px}
+  .conta-card b{font-weight:600;font-size:14px;display:block}
+  .conta-card small{font-size:12px;color:var(--t3)}
+  .conta-card .cv{margin-left:auto;font-family:'Fraunces',serif;font-weight:600;font-size:16px}
+  .catchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin:4px 0 10px;-webkit-overflow-scrolling:touch}
+  .catchips span{flex:0 0 auto;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:16px;background:var(--card);border:1px solid var(--borda);color:var(--t2);cursor:pointer}
+  .catchips span.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin-bottom:12px}
+  .pbtn{background:var(--card);border:1px solid var(--borda);border-radius:13px;padding:10px 9px;text-align:left;cursor:pointer;min-height:64px;font-family:inherit;color:var(--t1);position:relative}
+  .pbtn b{display:block;font-size:13px;font-weight:600;line-height:1.2;padding-right:20px}
+  .pbtn small{display:block;font-size:12px;color:var(--t3);margin-top:4px}
+  .pbtn .qb{position:absolute;top:6px;right:7px;background:var(--vinho);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 7px}
+  .pbtn.semp small{color:var(--ambar)}
+  .cart{padding:6px 12px;margin-bottom:10px}
+  .crow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--borda)}
+  .crow:last-child{border-bottom:0}
+  .crow .cn{flex:1;min-width:0;cursor:pointer}
+  .crow .cn b{font-size:13.5px;font-weight:600;display:block}
+  .crow .cn small{font-size:11.5px;color:var(--t3)}
+  .crow .cn small.pg{color:var(--verde);font-weight:600}
+  .qty{display:flex;align-items:center;gap:4px}
+  .qty button{width:30px;height:30px;border-radius:9px;border:1px solid var(--borda);background:var(--card);font-size:16px;color:var(--t2);cursor:pointer;font-family:inherit}
+  .qty span{min-width:26px;text-align:center;font-weight:700;font-size:14px}
+  .crow .cs{width:74px;text-align:right;font-weight:600;font-size:13.5px}
+  .tot{display:flex;justify-content:space-between;align-items:baseline;padding:4px 2px 0}
+  .tot b{font-family:'Fraunces',serif;font-weight:600;font-size:24px}
+  .tot span{font-size:12.5px;color:var(--t2)}
+  .stickybar{position:sticky;bottom:0;background:linear-gradient(to top,var(--creme) 75%,rgba(251,247,241,0));padding:10px 0 6px;margin-top:6px}
+  .stickybar .two .btn{margin-top:0}
+  .formas{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
+  .formas span{text-align:center;padding:11px 4px;border-radius:12px;background:var(--card);border:1px solid var(--borda);font-size:13px;font-weight:600;cursor:pointer;color:var(--t2)}
+  .formas span i{display:block;font-size:19px;margin-bottom:3px}
+  .formas span.on{background:var(--vinho);border-color:var(--vinho);color:#fff}
+  .modos{display:flex;gap:6px;margin-bottom:12px}
+  .modos span{flex:1;text-align:center;padding:9px 4px;border-radius:12px;background:var(--card);border:1px solid var(--borda);font-size:12.5px;font-weight:600;cursor:pointer;color:var(--t2)}
+  .modos span.on{background:var(--t1);border-color:var(--t1);color:#fff}
+  .falta{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:baseline}
+  .falta b{font-family:'Fraunces',serif;font-size:22px;font-weight:600}
+  .chkrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--borda);font-size:13.5px}
+  .chkrow input{width:20px;height:20px;flex:0 0 20px}
+  .chkrow .cv{margin-left:auto;font-weight:600}
+  .chkrow .sp{color:var(--vinho);font-size:12px;font-weight:600;cursor:pointer;margin-left:8px}
+  .pagl{font-size:12.5px;color:var(--t2);padding:6px 2px;border-bottom:1px dashed var(--borda);display:flex;justify-content:space-between;gap:8px}
+  .estrow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--borda)}
+  .estrow:last-child{border-bottom:0}
+  .estrow .en{flex:1;min-width:0}
+  .estrow .en b{font-size:13.5px;font-weight:600;display:block}
+  .estrow .en small{font-size:11.5px;color:var(--t3)}
+  .estrow .ev{font-family:'Fraunces',serif;font-weight:600;font-size:16px;white-space:nowrap}
+  .estrow .ev.neg{color:#B23A2E}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--ambar-bg);color:var(--ambar);margin-left:6px;white-space:nowrap}
+  .badge.ok{background:var(--verde-bg);color:var(--verde)}
+  .badge.red{background:#FBE4DF;color:#B23A2E}
+  select.inp{width:100%;background:var(--card);border:1px solid var(--borda);border-radius:13px;padding:11px 13px;font-size:15px;font-family:inherit;color:var(--t1)}
+  .note{background:#F7EFE6;border-radius:12px;padding:10px 13px;font-size:12.5px;color:var(--t2);margin-bottom:12px}
+  .sugg{max-height:220px;overflow:auto;border:1px solid var(--borda);border-radius:12px;background:var(--card);margin-top:6px}
+  .sugg div{padding:9px 12px;font-size:13.5px;border-bottom:1px solid var(--borda);cursor:pointer}
+  .sugg div:last-child{border-bottom:0}
+  .sugg div small{color:var(--t3);margin-left:6px}
+  .ped-card{padding:12px 14px;margin-bottom:8px}
+  .ped-card .prw{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .ped-card .btn{margin-top:8px;min-height:40px;font-size:13.5px}
+
 </style>
 </head>
 <body>
@@ -161,6 +235,48 @@
     </div>
     <div class="htitle" id="hTitle">Lola MAC</div>
     <div class="hsub" id="hSub">Fechamento diário · vendas e atendimento</div>
+  </div>
+
+
+  <!-- ===== 18/10/2026: VENDAS DE HOJE (no Início) ===== -->
+  <div id="vendasHoje"></div>
+
+  <!-- ===== TELA VENDA (PDV) ===== -->
+  <div id="viewVenda" class="hidden">
+    <div class="field" style="margin-bottom:8px"><input id="pvBusca" placeholder="Buscar produto…" oninput="pvRenderGrid()"></div>
+    <div class="catchips" id="pvCats"></div>
+    <div class="pgrid" id="pvGrid"></div>
+    <div class="sec-label" style="margin-top:6px"><i class="ph-duotone ph-receipt"></i><span id="pvContaLbl">Conta</span></div>
+    <div class="card cart" id="pvCart"></div>
+    <div class="stickybar">
+      <div class="tot"><span id="pvTotSub"></span><b id="pvTot">R$ 0,00</b></div>
+      <div class="two" style="margin-top:10px">
+        <div><button class="btn ghost" onclick="pvMais()"><i class="ph-duotone ph-dots-three"></i>Opções</button></div>
+        <div style="flex:2"><button class="btn" onclick="pvCobrar()"><i class="ph-duotone ph-credit-card"></i>Cobrar</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TELA ESTOQUE DO MAC ===== -->
+  <div id="viewEstoque" class="hidden">
+    <div class="two" style="margin-bottom:6px">
+      <div><button class="btn" style="margin-top:0" onclick="estEntrada()"><i class="ph-duotone ph-arrow-circle-down"></i>Entrada</button></div>
+      <div><button class="btn ghost" style="margin-top:0" onclick="estSaida()"><i class="ph-duotone ph-trash"></i>Descarte</button></div>
+    </div>
+    <div id="estPedidos"></div>
+    <div class="field" style="margin:12px 0 4px"><input id="estBusca" placeholder="Buscar item…" oninput="estRender()"></div>
+    <div class="sec-label"><i class="ph-duotone ph-package"></i>Posição de estoque<span style="margin-left:auto;font-weight:600;text-transform:none;letter-spacing:0" id="estResumo"></span></div>
+    <div class="card" id="estLista"></div>
+    <div class="sec-label"><i class="ph-duotone ph-clock-counter-clockwise"></i>Últimas movimentações</div>
+    <div class="card" id="estMovs"></div>
+  </div>
+
+  <!-- ===== TELA CARDÁPIO ===== -->
+  <div id="viewCardapio" class="hidden">
+    <div class="note">Os produtos que aparecem na tela de vendas. <b>Preço a confirmar</b> = sugerido a partir do preço do mesmo item no Lola CCMQ; confira e salve. Em <b>De onde sai do estoque</b> você liga o produto ao insumo (revenda) ou à ficha técnica (preparado).</div>
+    <div class="field" style="margin-bottom:6px"><input id="cdBusca" placeholder="Buscar produto…" oninput="cdRender()"></div>
+    <div id="cdLista"></div>
+    <button class="btn" onclick="cdEditar(null)"><i class="ph-duotone ph-plus-circle"></i>Novo produto</button>
   </div>
 
   <!-- ===== TELA INÍCIO ===== -->
@@ -213,6 +329,7 @@
     <div class="sd" id="diaDataLbl"></div>
 
     <div class="field"><label>Data</label><input type="date" id="dData" onchange="refreshDiaData()"></div>
+    <div class="dashed" id="btnPuxarVendas" onclick="puxarVendasDoDia()" style="margin:-4px 0 14px;background:var(--verde-bg);border-color:#BFDCC9;color:var(--verde)"><i class="ph-duotone ph-download-simple"></i>Puxar das vendas registradas nesse dia</div>
     <div class="field"><label>Pessoas atendidas</label><input type="number" id="dPessoas" inputmode="numeric" placeholder="0"></div>
 
     <div class="field">
@@ -250,6 +367,17 @@
       <button class="btn save" onclick="saveDia()"><i class="ph-duotone ph-check"></i>Salvar dia</button>
     </div>
     <div class="del-day hidden" id="delDayRow"><span onclick="askDeleteDia()"><i class="ph-duotone ph-trash"></i> Excluir este dia</span></div>
+  </div>
+</div>
+
+
+<!-- ===== 18/10/2026: FOLHAS DO PDV / ESTOQUE / CARDÁPIO ===== -->
+<div class="sheet-bg" id="sheetGen">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3 id="sgTitle"></h3>
+    <div class="sd" id="sgSub" style="text-transform:none"></div>
+    <div id="sgBody"></div>
   </div>
 </div>
 
@@ -569,5 +697,643 @@ document.querySelectorAll('.sheet-bg,.modal-bg').forEach(bg=>{bg.addEventListene
 
 loadAll();
 </script>
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   18/10/2026 (Mahara) — VENDAS na hora (PDV), ESTOQUE próprio e CARDÁPIO do MAC
+   Tabelas: lola_mac_catalogo · lola_mac_vendas · lola_mac_venda_itens ·
+            lola_mac_venda_pagamentos · lola_mac_estoque_mov
+   (script de criação: mac/sql/2026-10-18-mac-vendas-estoque.sql)
+   - Cada conta (mesa/cliente) vai recebendo itens; "Cobrar" registra pagamentos
+     (tudo junto, dividido igual ou por itens) e, quando quita, baixa o estoque.
+   - Estoque = soma de movimentos: entra por pedido à Central, compra direta,
+     transferência do Lola (que dá baixa no estoque do Lola); sai por venda e descarte.
+   - O fechamento do dia ganha "Puxar das vendas registradas".
+   ══════════════════════════════════════════════════════════════════════ */
+const M={cat:[],vendas:[],venda:null,view:null,filtro:'Todas',semTabelas:false,ins:null,insById:{},ppToIns:{},fichas:null,fichaItens:{},movs:[],pagModo:'tudo',pagForma:'pix',pagN:2,pagSel:{},refsOk:false};
+const FORMAS=[['pix','Pix','ph-qr-code'],['debito','Débito','ph-credit-card'],['credito','Crédito','ph-credit-card'],['dinheiro','Dinheiro','ph-money'],['voucher','Voucher','ph-ticket'],['cortesia','Cortesia','ph-gift']];
+const FORMA_L={pix:'Pix',debito:'Débito',credito:'Crédito',dinheiro:'Dinheiro',voucher:'Voucher',cortesia:'Cortesia'};
+const CATS_ORDEM=['Cafés','Comidas','Doces','Sorvetes','Bebidas','Cervejas','Vinhos','Lojinha','Outros'];
+function quem(){ if(USER) return USER; try{ const s=JSON.parse(localStorage.getItem('lola_session')||'null'); return (s&&(s.nome||s.email))||''; }catch(e){ return ''; } }
+function hojeISO(){ return todayStr(); }
+function R$(n){ return 'R$ '+brl(n); }
+function n2(v){ return Math.round((+v||0)*100)/100; }
+function nrm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }
+function numf(v,c){ return (+v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?3:c}); }
+const HJ=Object.assign({},H,{'Prefer':'return=representation'});
+const HM=Object.assign({},H,{'Prefer':'return=minimal'});
+async function post(path,body){ return api(path,{method:'POST',headers:HJ,body:JSON.stringify(body)}); }
+async function patch(path,body){ return api(path,{method:'PATCH',headers:HM,body:JSON.stringify(body)}); }
+async function del(path){ return api(path,{method:'DELETE',headers:HM}); }
+function convU(q,from,to){
+  const f=nrm(from), t=nrm(to); q=+q||0;
+  if(!t||f===t||(!f)) return q;
+  const k={g:['kg',1/1000],kg:['g',1000],ml:['l',1/1000],l:['ml',1000],lt:['ml',1000],litro:['ml',1000]};
+  if((f==='g'&&t==='kg')||(f==='ml'&&(t==='l'||t==='lt'||t==='litro'))) return q/1000;
+  if((f==='kg'&&t==='g')||((f==='l'||f==='lt'||f==='litro')&&t==='ml')) return q*1000;
+  if((f==='l'||f==='lt'||f==='litro')&&(t==='l'||t==='lt'||t==='litro')) return q;
+  if((f==='un'||f==='und'||f==='unid'||f==='unidade')&&(t==='un'||t==='und'||t==='unid'||t==='unidade')) return q;
+  return null;
+}
+function semTabelasHTML(){
+  return '<div class="errbox"><i class="ph-duotone ph-database ei"></i><b>Falta criar as tabelas do MAC</b><p>As telas de vendas, estoque e cardápio já estão prontas, mas o banco ainda não tem as tabelas novas. Rode o script <b>mac/sql/2026-10-18-mac-vendas-estoque.sql</b> no SQL Editor do Supabase (uma vez só).</p></div>';
+}
+function erroTabela(e){ return /lola_mac_(catalogo|vendas|venda_|estoque_mov)/.test(e&&e.message||'') && /(404|PGRST205|42P01|does not exist|Could not find)/.test(e&&e.message||''); }
+
+/* ===================== CARGA ===================== */
+async function macLoad(){
+  try{
+    const [cat,vd]=await Promise.all([
+      api('lola_mac_catalogo?ativo=eq.true&order=ordem.asc,nome.asc'),
+      api('lola_mac_vendas?data=eq.'+hojeISO()+'&status=neq.cancelada&select=*,lola_mac_venda_itens(*),lola_mac_venda_pagamentos(*)&order=aberta_em.desc')
+    ]);
+    M.cat=cat||[]; M.vendas=vd||[]; M.semTabelas=false;
+    // contas abertas de dias anteriores também aparecem (não somem à meia-noite)
+    try{ const ab=await api('lola_mac_vendas?status=eq.aberta&data=lt.'+hojeISO()+'&select=*,lola_mac_venda_itens(*),lola_mac_venda_pagamentos(*)'); (ab||[]).forEach(v=>M.vendas.push(v)); }catch(e){}
+  }catch(e){ if(erroTabela(e)) M.semTabelas=true; else console.error(e); }
+  renderVendasHoje();
+}
+function catById(id){ return M.cat.find(c=>c.id===id)||null; }
+function vendaPago(v){ return n2((v.lola_mac_venda_pagamentos||[]).reduce((s,p)=>s+(+p.valor||0),0)); }
+function vendaTotal(v){ return n2((v.lola_mac_venda_itens||[]).reduce((s,i)=>s+(+i.subtotal||0),0)); }
+function vendaLiquido(v){ return n2(vendaTotal(v)-(+v.desconto||0)); }
+
+/* ===================== INÍCIO: VENDAS DE HOJE ===================== */
+function renderVendasHoje(){
+  const el=document.getElementById('vendasHoje'); if(!el) return;
+  let h='<div class="sec-label"><i class="ph-duotone ph-cash-register"></i>Vendas · estoque · cardápio</div>';
+  h+='<div class="hub">'
+    +'<div class="card hb" onclick="novaVenda()"><i class="ph-duotone ph-shopping-cart" style="color:var(--vinho)"></i><b>Nova venda</b><small>abrir conta</small></div>'
+    +'<div class="card hb" onclick="abrirEstoque()"><i class="ph-duotone ph-package" style="color:var(--verde)"></i><b>Estoque</b><small>do MAC</small></div>'
+    +'<div class="card hb" onclick="abrirCardapio()"><i class="ph-duotone ph-list-bullets" style="color:var(--ambar)"></i><b>Cardápio</b><small>preços</small></div>'
+    +'</div>';
+  /* sem as tabelas novas no banco: não mostra nada (o app segue como antes) — liga sozinho quando o script for rodado */
+  if(M.semTabelas){ el.innerHTML=''; const pb=document.getElementById('btnPuxarVendas'); if(pb) pb.classList.add('hidden'); return; }
+  const hoje=M.vendas.filter(v=>v.data===hojeISO());
+  const pagas=hoje.filter(v=>v.status==='paga'), abertas=M.vendas.filter(v=>v.status==='aberta');
+  const porForma={}; let receita=0;
+  hoje.forEach(v=>(v.lola_mac_venda_pagamentos||[]).forEach(p=>{ porForma[p.forma]=(porForma[p.forma]||0)+(+p.valor||0); if(p.forma!=='cortesia') receita+=(+p.valor||0); }));
+  h+='<div class="card hoje-card"><div class="hrow"><span style="font-size:12px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Recebido hoje</span><span style="font-size:12.5px;color:var(--t2)">'+pagas.length+' conta'+(pagas.length===1?'':'s')+' fechada'+(pagas.length===1?'':'s')+(abertas.length?' · '+abertas.length+' aberta'+(abertas.length===1?'':'s'):'')+'</span></div>'
+    +'<div class="hval">'+R$(receita)+'</div>'
+    +(Object.keys(porForma).length?'<div class="hpag">'+FORMAS.filter(f=>porForma[f[0]]).map(f=>'<span class="chip cafe" style="background:'+(f[0]==='cortesia'?'#FBE4DF;color:#B23A2E':'var(--verde-bg)')+'">'+f[1]+' '+R$(porForma[f[0]])+'</span>').join('')+'</div>':'<div style="font-size:12.5px;color:var(--t3);margin-top:6px">Nenhuma venda registrada hoje ainda.</div>')
+    +'</div>';
+  if(abertas.length){
+    h+='<div class="sec-label" style="margin-top:14px"><i class="ph-duotone ph-hourglass-medium"></i>Contas abertas</div>';
+    h+=abertas.map(v=>{ const it=(v.lola_mac_venda_itens||[]); const pg=vendaPago(v);
+      return '<div class="card conta-card" onclick="abrirVenda('+v.id+')"><div class="ci"><i class="ph-duotone ph-receipt"></i></div><div><b>'+esc(v.identificacao||('Conta #'+v.id))+'</b><small>'+it.length+' ite'+(it.length===1?'m':'ns')+' · desde '+new Date(v.aberta_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+(v.data!==hojeISO()?' · '+v.data.split('-').reverse().slice(0,2).join('/'):'')+(pg?' · pago '+R$(pg):'')+'</small></div><div class="cv">'+R$(vendaLiquido(v))+'</div></div>';
+    }).join('');
+  }
+  if(pagas.length){
+    h+='<div class="sec-label" style="margin-top:14px"><i class="ph-duotone ph-check-circle"></i>Fechadas hoje</div>';
+    h+=pagas.slice(0,30).map(v=>'<div class="card conta-card" onclick="abrirVenda('+v.id+')"><div class="ci" style="background:#F1ECE6;color:var(--t2)"><i class="ph-duotone ph-check"></i></div><div><b>'+esc(v.identificacao||('Conta #'+v.id))+'</b><small>'+(v.fechada_em?new Date(v.fechada_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'')+' · '+[...new Set((v.lola_mac_venda_pagamentos||[]).map(p=>FORMA_L[p.forma]))].join(' + ')+'</small></div><div class="cv">'+R$(vendaLiquido(v))+'</div></div>').join('');
+  }
+  el.innerHTML=h;
+}
+
+/* ===================== NAVEGAÇÃO ===================== */
+const _VIEWS=['viewInicio','viewMes','viewVenda','viewEstoque','viewCardapio'];
+function showView(id,title,sub){
+  _VIEWS.forEach(v=>{ const e=document.getElementById(v); if(e) e.classList.toggle('hidden',v!==id); });
+  const vh=document.getElementById('vendasHoje'); if(vh) vh.classList.toggle('hidden',id!=='viewInicio');
+  document.getElementById('fecharTop').classList.toggle('hidden',!(id==='viewInicio'||id==='viewMes'));
+  if(title!=null) document.getElementById('hTitle').textContent=title;
+  if(sub!=null) document.getElementById('hSub').textContent=sub;
+  document.getElementById('backLbl').textContent=(id==='viewInicio')?'Menu':'Lola MAC';
+  M.view=(id==='viewInicio'||id==='viewMes')?null:id;
+  window.scrollTo(0,0);
+}
+const _goInicioOrig=goInicio;
+goInicio=function(){ M.view=null; M.venda=null; _goInicioOrig(); showView('viewInicio'); macLoad(); };
+const _openMesOrig=openMes;
+openMes=function(k){ const vh=document.getElementById('vendasHoje'); if(vh) vh.classList.add('hidden'); return _openMesOrig(k); };
+const _onBackOrig=onBack;
+onBack=function(){ if(M.view){ goInicio(); return; } _onBackOrig(); };
+
+/* ===================== PDV ===================== */
+function abrirSheetGen(title,sub,html){ document.getElementById('sgTitle').textContent=title; document.getElementById('sgSub').innerHTML=sub||''; document.getElementById('sgBody').innerHTML=html; openSheet('sheetGen'); }
+function fecharSheetGen(){ closeSheet('sheetGen'); }
+function novaVenda(){
+  if(M.semTabelas){ toast('Falta criar as tabelas do MAC'); return; }
+  abrirSheetGen('Nova venda','Identificação é opcional — ajuda quando tem mais de uma conta aberta.',
+    '<div class="field"><label>Mesa / cliente</label><input id="nvId" placeholder="ex.: Mesa 3, Ana, balcão…"></div>'
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="fecharSheetGen()">Cancelar</button><button class="btn save" onclick="criarVenda()"><i class="ph-duotone ph-check"></i>Começar</button></div>');
+  setTimeout(()=>{ const i=document.getElementById('nvId'); if(i){ i.focus(); i.onkeydown=e=>{ if(e.key==='Enter') criarVenda(); }; } },120);
+}
+async function criarVenda(){
+  const ident=(document.getElementById('nvId').value||'').trim()||null;
+  try{ const r=await post('lola_mac_vendas',{data:hojeISO(),identificacao:ident,criado_por:quem()||null});
+    const v=r[0]; v.lola_mac_venda_itens=[]; v.lola_mac_venda_pagamentos=[]; M.vendas.unshift(v);
+    fecharSheetGen(); abrirVendaObj(v);
+  }catch(e){ if(erroTabela(e)){ M.semTabelas=true; fecharSheetGen(); renderVendasHoje(); } toast('Erro ao abrir a conta'); console.error(e); }
+}
+async function abrirVenda(id){
+  try{ const r=await api('lola_mac_vendas?id=eq.'+id+'&select=*,lola_mac_venda_itens(*),lola_mac_venda_pagamentos(*)'); if(r&&r[0]) abrirVendaObj(r[0]); }
+  catch(e){ toast('Erro ao abrir a conta'); }
+}
+function abrirVendaObj(v){
+  (v.lola_mac_venda_itens||[]).sort((a,b)=>a.id-b.id);
+  M.venda=v; M.pagSel={}; M.pagModo='tudo'; M.pagN=2;
+  showView('viewVenda', v.identificacao||('Conta #'+v.id), v.status==='aberta'?'Toque nos produtos pra lançar · conta aberta':(v.status==='paga'?'Conta fechada':'Conta cancelada'));
+  pvRenderCats(); pvRenderGrid(); pvRenderCart();
+}
+function pvCatsList(){ const s=new Set(M.cat.map(c=>c.categoria||'Outros')); return CATS_ORDEM.filter(c=>s.has(c)).concat([...s].filter(c=>!CATS_ORDEM.includes(c))); }
+function pvRenderCats(){
+  const el=document.getElementById('pvCats');
+  el.innerHTML=['Todas',...pvCatsList()].map(c=>'<span class="'+(c===M.filtro?'on':'')+'" onclick="M.filtro=\''+esc(c).replace(/'/g,"\\'")+'\';pvRenderCats();pvRenderGrid()">'+esc(c)+'</span>').join('');
+}
+function pvRenderGrid(){
+  const el=document.getElementById('pvGrid'); const v=M.venda; if(!el||!v) return;
+  const aberta=v.status==='aberta';
+  document.getElementById('pvBusca').parentNode.classList.toggle('hidden',!aberta);
+  document.getElementById('pvCats').classList.toggle('hidden',!aberta);
+  if(!aberta){ el.innerHTML=''; return; }
+  const q=nrm(document.getElementById('pvBusca').value);
+  const qtdNa={}; (v.lola_mac_venda_itens||[]).forEach(i=>{ if(i.catalogo_id) qtdNa[i.catalogo_id]=(qtdNa[i.catalogo_id]||0)+(+i.qtd||0); });
+  const lista=M.cat.filter(c=>(M.filtro==='Todas'||c.categoria===M.filtro) && (!q || nrm(c.nome).includes(q) || (c.aliases||[]).some(a=>nrm(a).includes(q))));
+  if(!lista.length){ el.innerHTML='<div class="empty" style="grid-column:1/-1">Nenhum produto. <span style="color:var(--vinho);font-weight:600;cursor:pointer" onclick="pvAvulso()">Lançar item avulso</span></div>'; return; }
+  el.innerHTML=lista.map(c=>'<button class="pbtn'+(c.preco==null?' semp':'')+'" onclick="pvAdd('+c.id+')">'+(qtdNa[c.id]?'<span class="qb">'+numf(qtdNa[c.id])+'</span>':'')+'<b>'+esc(c.nome)+'</b><small>'+(c.preco==null?'definir preço':R$(c.preco))+'</small></button>').join('')
+    +'<button class="pbtn" onclick="pvAvulso()" style="border-style:dashed"><b>+ Item avulso</b><small>fora do cardápio</small></button>';
+}
+function pvRenderCart(){
+  const v=M.venda; const el=document.getElementById('pvCart'); if(!el||!v) return;
+  const its=v.lola_mac_venda_itens||[]; const aberta=v.status==='aberta';
+  const pags=v.lola_mac_venda_pagamentos||[];
+  document.getElementById('pvContaLbl').textContent=(v.identificacao||('Conta #'+v.id))+' · '+its.length+' ite'+(its.length===1?'m':'ns');
+  let h='';
+  if(!its.length) h='<div class="empty" style="padding:16px">Toque num produto acima pra lançar.</div>';
+  else h=its.map(i=>{ const pg=i.pagamento_id?pags.find(p=>p.id===i.pagamento_id):null;
+    return '<div class="crow"><div class="cn" onclick="pvEditItem('+i.id+')"><b>'+esc(i.nome)+'</b><small>'+R$(i.preco_unit)+' cada'+(i.obs?' · '+esc(i.obs):'')+'</small>'+(pg?'<small class="pg"> · pago por '+esc(pg.pessoa||FORMA_L[pg.forma])+'</small>':'')+'</div>'
+      +(aberta&&!i.pagamento_id?'<div class="qty"><button onclick="pvQty('+i.id+',-1)">−</button><span>'+numf(i.qtd)+'</span><button onclick="pvQty('+i.id+',1)">+</button></div>':'<div class="qty"><span>'+numf(i.qtd)+'×</span></div>')
+      +'<div class="cs">'+R$(i.subtotal)+'</div></div>'; }).join('');
+  if(pags.length) h+='<div style="padding:8px 0 4px">'+pags.map(p=>'<div class="pagl"><span><i class="ph-duotone ph-check-circle" style="color:var(--verde)"></i> '+FORMA_L[p.forma]+(p.pessoa?' · '+esc(p.pessoa):'')+'</span><b>'+R$(p.valor)+'</b></div>').join('')+'</div>';
+  el.innerHTML=h;
+  const tot=vendaTotal(v), liq=vendaLiquido(v), pago=vendaPago(v);
+  document.getElementById('pvTot').textContent=R$(aberta?Math.max(0,n2(liq-pago)):liq);
+  document.getElementById('pvTotSub').textContent=aberta?((+v.desconto?'total '+R$(tot)+' − desc. '+R$(v.desconto)+' · ':'')+(pago?'já pago '+R$(pago)+' · falta':'total')):(v.status==='paga'?'conta fechada':'cancelada');
+  const sb=document.querySelector('#viewVenda .stickybar .two');
+  sb.innerHTML=aberta
+    ?'<div><button class="btn ghost" onclick="pvMais()"><i class="ph-duotone ph-dots-three"></i>Opções</button></div><div style="flex:2"><button class="btn" onclick="pvCobrar()"'+(its.length?'':' disabled style="opacity:.5"')+'><i class="ph-duotone ph-credit-card"></i>Cobrar</button></div>'
+    :'<div><button class="btn ghost" onclick="goInicio()"><i class="ph-duotone ph-arrow-left"></i>Voltar</button></div><div style="flex:2"><button class="btn" onclick="pvReabrir()"><i class="ph-duotone ph-arrow-counter-clockwise"></i>Reabrir conta</button></div>';
+}
+async function pvSyncTotal(){ const v=M.venda; const t=vendaTotal(v); v.total=t; try{ await patch('lola_mac_vendas?id=eq.'+v.id,{total:t}); }catch(e){} }
+async function pvAdd(catId,precoForcado){
+  const v=M.venda; if(!v||v.status!=='aberta') return; const c=catById(catId); if(!c) return;
+  const preco=precoForcado!=null?precoForcado:c.preco;
+  if(preco==null){ pvPedirPreco(c); return; }
+  const ex=(v.lola_mac_venda_itens||[]).find(i=>i.catalogo_id===c.id && !i.pagamento_id && !i.obs && n2(i.preco_unit)===n2(preco));
+  try{
+    if(ex){ ex.qtd=(+ex.qtd||0)+1; ex.subtotal=n2(ex.qtd*ex.preco_unit); pvRenderCart(); pvRenderGrid(); await patch('lola_mac_venda_itens?id=eq.'+ex.id,{qtd:ex.qtd,subtotal:ex.subtotal}); }
+    else{ const r=await post('lola_mac_venda_itens',{venda_id:v.id,catalogo_id:c.id,nome:c.nome,setor:c.setor||'cafe',qtd:1,preco_unit:preco,subtotal:n2(preco)}); v.lola_mac_venda_itens.push(r[0]); pvRenderCart(); pvRenderGrid(); }
+    await pvSyncTotal();
+  }catch(e){ toast('Erro ao lançar'); console.error(e); }
+}
+function pvPedirPreco(c){
+  abrirSheetGen(c.nome,'Este produto ainda não tem preço no cardápio.',
+    '<div class="field"><label>Preço desta venda (R$)</label><input id="ppVal" type="number" inputmode="decimal" step="0.01"></div>'
+    +'<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;margin-bottom:6px"><input type="checkbox" id="ppSalvar" checked style="width:18px;height:18px"> Salvar como preço do cardápio</label>'
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="fecharSheetGen()">Cancelar</button><button class="btn save" onclick="pvPrecoOk('+c.id+')"><i class="ph-duotone ph-check"></i>Lançar</button></div>');
+  setTimeout(()=>{ const i=document.getElementById('ppVal'); if(i) i.focus(); },120);
+}
+async function pvPrecoOk(catId){
+  const val=parseFloat(document.getElementById('ppVal').value); if(!(val>=0)){ toast('Diga o preço'); return; }
+  const salvar=document.getElementById('ppSalvar').checked; const c=catById(catId);
+  fecharSheetGen();
+  if(salvar&&c){ c.preco=val; c.preco_confirmado=true; try{ await patch('lola_mac_catalogo?id=eq.'+c.id,{preco:val,preco_confirmado:true,updated_at:new Date().toISOString()}); }catch(e){} }
+  pvAdd(catId,val);
+}
+function pvAvulso(){
+  abrirSheetGen('Item avulso','Algo que não está no cardápio (não mexe no estoque).',
+    '<div class="field"><label>Descrição</label><input id="avNome" placeholder="ex.: taxa de rolha"></div>'
+    +'<div class="two"><div class="field"><label>Qtd</label><input id="avQtd" type="number" inputmode="decimal" value="1"></div><div class="field"><label>Preço unit. (R$)</label><input id="avVal" type="number" inputmode="decimal" step="0.01"></div></div>'
+    +'<div class="field"><label>Entra como</label><select class="inp" id="avSetor"><option value="cafe">Café</option><option value="lojinha">Lojinha</option></select></div>'
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="fecharSheetGen()">Cancelar</button><button class="btn save" onclick="pvAvulsoOk()"><i class="ph-duotone ph-check"></i>Lançar</button></div>');
+}
+async function pvAvulsoOk(){
+  const v=M.venda; const nome=(document.getElementById('avNome').value||'').trim(); const q=parseFloat(document.getElementById('avQtd').value)||1; const p=parseFloat(document.getElementById('avVal').value);
+  if(!nome||!(p>=0)){ toast('Preencha descrição e preço'); return; }
+  try{ const r=await post('lola_mac_venda_itens',{venda_id:v.id,catalogo_id:null,nome,setor:document.getElementById('avSetor').value,qtd:q,preco_unit:p,subtotal:n2(q*p)}); v.lola_mac_venda_itens.push(r[0]); fecharSheetGen(); pvRenderCart(); await pvSyncTotal(); }
+  catch(e){ toast('Erro ao lançar'); }
+}
+async function pvQty(itemId,d){
+  const v=M.venda; const it=(v.lola_mac_venda_itens||[]).find(i=>i.id===itemId); if(!it) return;
+  const nq=n2((+it.qtd||0)+d);
+  try{
+    if(nq<=0){ v.lola_mac_venda_itens=v.lola_mac_venda_itens.filter(i=>i.id!==itemId); pvRenderCart(); pvRenderGrid(); await del('lola_mac_venda_itens?id=eq.'+itemId); }
+    else{ it.qtd=nq; it.subtotal=n2(nq*it.preco_unit); pvRenderCart(); pvRenderGrid(); await patch('lola_mac_venda_itens?id=eq.'+itemId,{qtd:nq,subtotal:it.subtotal}); }
+    await pvSyncTotal();
+  }catch(e){ toast('Erro'); }
+}
+function pvEditItem(itemId){
+  const v=M.venda; const it=(v.lola_mac_venda_itens||[]).find(i=>i.id===itemId); if(!it) return;
+  if(v.status!=='aberta'||it.pagamento_id){ toast(it.pagamento_id?'Item já pago — estorne o pagamento pra mexer':'Conta fechada'); return; }
+  abrirSheetGen(it.nome,'Ajustar este item da conta',
+    '<div class="two"><div class="field"><label>Quantidade</label><input id="eiQtd" type="number" inputmode="decimal" step="0.5" value="'+it.qtd+'"></div><div class="field"><label>Preço unit. (R$)</label><input id="eiVal" type="number" inputmode="decimal" step="0.01" value="'+it.preco_unit+'"></div></div>'
+    +'<div class="field"><label>Observação</label><input id="eiObs" value="'+esc(it.obs||'')+'" placeholder="ex.: sem açúcar"></div>'
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="pvQty('+it.id+',-'+it.qtd+');fecharSheetGen()"><i class="ph-duotone ph-trash"></i>Tirar</button><button class="btn save" onclick="pvEditOk('+it.id+')"><i class="ph-duotone ph-check"></i>Salvar</button></div>');
+}
+async function pvEditOk(itemId){
+  const v=M.venda; const it=v.lola_mac_venda_itens.find(i=>i.id===itemId); if(!it) return;
+  const q=parseFloat(document.getElementById('eiQtd').value), p=parseFloat(document.getElementById('eiVal').value), o=(document.getElementById('eiObs').value||'').trim()||null;
+  if(!(q>0)||!(p>=0)){ toast('Quantidade e preço válidos'); return; }
+  it.qtd=q; it.preco_unit=p; it.obs=o; it.subtotal=n2(q*p);
+  try{ await patch('lola_mac_venda_itens?id=eq.'+it.id,{qtd:q,preco_unit:p,obs:o,subtotal:it.subtotal}); fecharSheetGen(); pvRenderCart(); pvRenderGrid(); await pvSyncTotal(); }catch(e){ toast('Erro ao salvar'); }
+}
+function pvMais(){
+  const v=M.venda;
+  abrirSheetGen('Opções da conta',esc(v.identificacao||('Conta #'+v.id)),
+    '<div class="field"><label>Mesa / cliente</label><input id="omId" value="'+esc(v.identificacao||'')+'"></div>'
+    +'<div class="field"><label>Desconto (R$)</label><input id="omDesc" type="number" inputmode="decimal" step="0.01" value="'+(+v.desconto||'')+'"></div>'
+    +'<div class="field"><label>Observação</label><input id="omObs" value="'+esc(v.obs||'')+'"></div>'
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="pvCancelar()"><i class="ph-duotone ph-x-circle"></i>Cancelar conta</button><button class="btn save" onclick="pvMaisOk()"><i class="ph-duotone ph-check"></i>Salvar</button></div>'
+    +'<div class="del-day"><span onclick="fecharSheetGen();goInicio()" style="color:var(--t2)"><i class="ph-duotone ph-arrow-left"></i> Deixar a conta aberta e voltar</span></div>');
+}
+async function pvMaisOk(){
+  const v=M.venda; v.identificacao=(document.getElementById('omId').value||'').trim()||null; v.desconto=parseFloat(document.getElementById('omDesc').value)||0; v.obs=(document.getElementById('omObs').value||'').trim()||null;
+  try{ await patch('lola_mac_vendas?id=eq.'+v.id,{identificacao:v.identificacao,desconto:v.desconto,obs:v.obs}); fecharSheetGen(); abrirVendaObj(v); }catch(e){ toast('Erro ao salvar'); }
+}
+function pvCancelar(){
+  const v=M.venda; fecharSheetGen();
+  if((v.lola_mac_venda_pagamentos||[]).length){ toast('Estorne os pagamentos antes de cancelar'); return; }
+  confirmModal('Cancelar esta conta?','Os itens saem das vendas de hoje.',async()=>{
+    try{ await patch('lola_mac_vendas?id=eq.'+v.id,{status:'cancelada',fechada_em:new Date().toISOString(),fechado_por:quem()||null}); await estornarEstoqueVenda(v.id); closeModal(); toast('Conta cancelada'); goInicio(); }catch(e){ toast('Erro'); }
+  });
+}
+
+/* ----- COBRAR: tudo junto · dividir igual · por itens ----- */
+function pvCobrar(){ pvRenderPag(); openSheet('sheetGen'); }
+function pvFalta(){ const v=M.venda; return Math.max(0,n2(vendaLiquido(v)-vendaPago(v))); }
+function pvRenderPag(){
+  const v=M.venda; const falta=pvFalta(); const pags=v.lola_mac_venda_pagamentos||[];
+  document.getElementById('sgTitle').textContent='Cobrar';
+  document.getElementById('sgSub').innerHTML=esc(v.identificacao||('Conta #'+v.id));
+  let h='<div class="falta"><span style="font-size:13px;color:var(--t2)">'+(pags.length?'Falta receber':'Total da conta')+'</span><b>'+R$(falta)+'</b></div>';
+  if(pags.length) h+='<div style="margin:-4px 0 12px">'+pags.map(p=>'<div class="pagl"><span>'+FORMA_L[p.forma]+(p.pessoa?' · '+esc(p.pessoa):'')+'</span><span><b>'+R$(p.valor)+'</b> <i class="ph-duotone ph-x" style="color:var(--t3);cursor:pointer;margin-left:6px" title="estornar" onclick="pvEstornar('+p.id+')"></i></span></div>').join('')+'</div>';
+  h+='<div class="modos">'+[['tudo','Tudo junto'],['igual','Dividir igual'],['itens','Por itens']].map(m=>'<span class="'+(M.pagModo===m[0]?'on':'')+'" onclick="M.pagModo=\''+m[0]+'\';pvRenderPag()">'+m[1]+'</span>').join('')+'</div>';
+  let valor=falta, pessoaDef='';
+  if(M.pagModo==='igual'){
+    const jaIgual=pags.filter(p=>p.tipo_divisao==='igual').length;
+    const n=Math.max(2,M.pagN|0); const restantes=Math.max(1,n-jaIgual);
+    valor = restantes===1 ? falta : Math.floor((falta/restantes)*100)/100;
+    pessoaDef='Pessoa '+(jaIgual+1)+' de '+n;
+    h+='<div class="two"><div class="field"><label>Dividir entre</label><input id="pgN" type="number" inputmode="numeric" min="2" value="'+n+'" onchange="M.pagN=parseInt(this.value)||2;pvRenderPag()"></div><div class="field"><label>Cada um paga</label><input disabled value="'+R$(restantes===1?falta:Math.floor((falta/restantes)*100)/100)+'"></div></div>';
+  }
+  if(M.pagModo==='itens'){
+    const livres=(v.lola_mac_venda_itens||[]).filter(i=>!i.pagamento_id);
+    if(!livres.length) h+='<div class="note">Todos os itens já foram pagos.</div>';
+    h+=livres.map(i=>'<div class="chkrow"><input type="checkbox" '+(M.pagSel[i.id]?'checked':'')+' onchange="M.pagSel['+i.id+']=this.checked;pvRenderPag()"><span>'+numf(i.qtd)+'× '+esc(i.nome)+'</span>'+((+i.qtd>1||true)?'<span class="sp" onclick="pvDividirItem('+i.id+')">dividir</span>':'')+'<span class="cv">'+R$(i.subtotal)+'</span></div>').join('');
+    valor=n2(livres.filter(i=>M.pagSel[i.id]).reduce((s,i)=>s+(+i.subtotal||0),0));
+    h+='<div class="field" style="margin-top:12px"><label>Quem está pagando (opcional)</label><input id="pgPessoa" placeholder="ex.: Ana"></div>';
+  }
+  h+='<div class="field"><label>Forma de pagamento</label></div><div class="formas">'+FORMAS.map(f=>'<span class="'+(M.pagForma===f[0]?'on':'')+'" onclick="M.pagForma=\''+f[0]+'\';pvRenderPag()"><i class="ph-duotone '+f[2]+'"></i>'+f[1]+'</span>').join('')+'</div>';
+  h+='<div class="two"><div class="field"><label>Valor (R$)</label><input id="pgVal" type="number" inputmode="decimal" step="0.01" value="'+(valor||'')+'" '+(M.pagModo==='itens'?'disabled':'')+' oninput="pvTroco()"></div>'
+    +(M.pagForma==='dinheiro'?'<div class="field"><label>Recebido em dinheiro</label><input id="pgRec" type="number" inputmode="decimal" step="0.01" oninput="pvTroco()"></div>':'')+'</div>'
+    +'<div id="pgTroco" style="font-size:13px;color:var(--verde);font-weight:600;margin:-6px 0 8px"></div>';
+  if(M.pagModo!=='itens') h+='<input type="hidden" id="pgPessoa" value="'+esc(pessoaDef)+'">';
+  h+='<div class="sheet-actions"><button class="btn ghost" onclick="fecharSheetGen()">Voltar</button><button class="btn save" onclick="pvPagar()"'+(falta<=0?' disabled style="opacity:.5"':'')+'><i class="ph-duotone ph-check"></i>Registrar '+FORMA_L[M.pagForma]+'</button></div>';
+  if(falta<=0) h+='<button class="btn" onclick="fecharVenda()"><i class="ph-duotone ph-check-circle"></i>Fechar a conta</button>';
+  document.getElementById('sgBody').innerHTML=h;
+}
+function pvTroco(){
+  const r=document.getElementById('pgRec'), out=document.getElementById('pgTroco'); if(!out) return;
+  if(!r){ out.textContent=''; return; }
+  const val=parseFloat(document.getElementById('pgVal').value)||0, rec=parseFloat(r.value)||0;
+  out.textContent=rec>val?('Troco: '+R$(rec-val)):'';
+}
+async function pvDividirItem(itemId){
+  const v=M.venda; const it=v.lola_mac_venda_itens.find(i=>i.id===itemId); if(!it) return;
+  const nTxt=prompt('Dividir "'+it.nome+'" ('+R$(it.subtotal)+') em quantas partes?','2'); const n=parseInt(nTxt||'0');
+  if(!(n>=2&&n<=20)) return;
+  const parteQ=n2((+it.qtd)/n)||+(+it.qtd/n).toFixed(3), base=Math.floor((it.subtotal/n)*100)/100, sobra=n2(it.subtotal-base*n);
+  try{
+    const novos=[]; for(let k=1;k<n;k++) novos.push({venda_id:v.id,catalogo_id:it.catalogo_id,nome:it.nome+' ('+(k+1)+'/'+n+')',setor:it.setor,qtd:+(it.qtd/n).toFixed(3),preco_unit:it.preco_unit,subtotal:base,obs:it.obs});
+    const r=await post('lola_mac_venda_itens',novos);
+    const sub1=n2(base+sobra); await patch('lola_mac_venda_itens?id=eq.'+it.id,{nome:it.nome+' (1/'+n+')',qtd:+(it.qtd/n).toFixed(3),subtotal:sub1});
+    it.nome=it.nome+' (1/'+n+')'; it.qtd=+(it.qtd/n).toFixed(3); it.subtotal=sub1; (r||[]).forEach(x=>v.lola_mac_venda_itens.push(x));
+    pvRenderCart(); pvRenderPag();
+  }catch(e){ toast('Erro ao dividir'); console.error(e); }
+}
+async function pvPagar(){
+  const v=M.venda; const falta=pvFalta();
+  let val=parseFloat(document.getElementById('pgVal').value)||0; val=n2(val);
+  if(!(val>0)){ toast(M.pagModo==='itens'?'Marque os itens que essa pessoa vai pagar':'Diga o valor'); return; }
+  if(val>falta+0.009){ toast('Valor maior do que falta ('+R$(falta)+')'); return; }
+  const pessoa=((document.getElementById('pgPessoa')||{}).value||'').trim()||null;
+  try{
+    const r=await post('lola_mac_venda_pagamentos',{venda_id:v.id,forma:M.pagForma,valor:val,pessoa,tipo_divisao:M.pagModo==='tudo'?null:M.pagModo,criado_por:quem()||null});
+    const p=r[0]; v.lola_mac_venda_pagamentos.push(p);
+    if(M.pagModo==='itens'){ const ids=v.lola_mac_venda_itens.filter(i=>!i.pagamento_id&&M.pagSel[i.id]).map(i=>i.id);
+      if(ids.length){ await patch('lola_mac_venda_itens?id=in.('+ids.join(',')+')',{pagamento_id:p.id}); v.lola_mac_venda_itens.forEach(i=>{ if(ids.includes(i.id)) i.pagamento_id=p.id; }); }
+      M.pagSel={}; }
+    pvRenderCart();
+    if(pvFalta()<=0.004){ await fecharVenda(); return; }
+    toast(FORMA_L[p.forma]+' '+R$(p.valor)+' registrado · falta '+R$(pvFalta()));
+    pvRenderPag();
+  }catch(e){ toast('Erro ao registrar pagamento'); console.error(e); }
+}
+async function pvEstornar(pagId){
+  const v=M.venda; if(v.status!=='aberta'){ toast('Reabra a conta pra estornar'); return; }
+  try{ await patch('lola_mac_venda_itens?pagamento_id=eq.'+pagId,{pagamento_id:null}); await del('lola_mac_venda_pagamentos?id=eq.'+pagId);
+    v.lola_mac_venda_pagamentos=v.lola_mac_venda_pagamentos.filter(p=>p.id!==pagId); v.lola_mac_venda_itens.forEach(i=>{ if(i.pagamento_id===pagId) i.pagamento_id=null; });
+    pvRenderCart(); pvRenderPag(); toast('Pagamento estornado');
+  }catch(e){ toast('Erro ao estornar'); }
+}
+async function fecharVenda(){
+  const v=M.venda;
+  try{
+    await patch('lola_mac_vendas?id=eq.'+v.id,{status:'paga',total:vendaTotal(v),fechada_em:new Date().toISOString(),fechado_por:quem()||null});
+    v.status='paga';
+    let aviso=''; try{ const r=await baixarEstoqueVenda(v); if(r.sem) aviso=' · '+r.sem+' ite'+(r.sem===1?'m':'ns')+' sem estoque ligado'; }catch(e){ aviso=' · estoque não baixou ('+e.message+')'; }
+    fecharSheetGen(); toast('Conta fechada ✓'+aviso); goInicio();
+  }catch(e){ toast('Erro ao fechar a conta'); console.error(e); }
+}
+function pvReabrir(){
+  const v=M.venda;
+  confirmModal('Reabrir esta conta?','Volta a ficar aberta e o estoque que ela baixou é devolvido.',async()=>{
+    try{ await patch('lola_mac_vendas?id=eq.'+v.id,{status:'aberta',fechada_em:null,fechado_por:null}); await estornarEstoqueVenda(v.id); v.status='aberta'; closeModal(); abrirVendaObj(v); toast('Conta reaberta'); }catch(e){ toast('Erro'); }
+  });
+}
+
+/* ===================== ESTOQUE: referências e baixa ===================== */
+async function garantirRefs(force){
+  if(M.refsOk&&!force) return;
+  const [ins,fic]=await Promise.all([
+    api('lola_insumos?ativo=eq.true&select=id,nome,unidade_custo,categoria,custo_por_unidade,preproducao_id&order=nome.asc&limit=5000'),
+    api('lola_fichas_tecnicas?ativo=eq.true&select=id,nome,rendimento_qtd,rendimento_un,preco_venda&order=nome.asc&limit=2000')
+  ]);
+  M.ins=ins||[]; M.insById={}; M.ppToIns={}; M.ins.forEach(i=>{ M.insById[i.id]=i; if(i.preproducao_id) M.ppToIns[i.preproducao_id]=i.id; });
+  M.fichas=fic||[]; M.refsOk=true;
+}
+async function itensDaFicha(fid){
+  if(M.fichaItens[fid]) return M.fichaItens[fid];
+  const r=await api('lola_fichas_tecnicas_itens?ficha_id=eq.'+fid+'&select=insumo_id,preproducao_id,qtd_bruta,unidade');
+  M.fichaItens[fid]=r||[]; return M.fichaItens[fid];
+}
+/* o que 1 item vendido tira do estoque → [{insumo_id|catalogo_id, qtd, unidade}] (qtd positiva) */
+async function consumoDoItem(it){
+  const c=it.catalogo_id?catById(it.catalogo_id):null;
+  if(!c||c.controla_estoque===false) return null;
+  const q=+it.qtd||0, fat=+c.fator||1;
+  if(c.insumo_id){ const ins=M.insById[c.insumo_id]; return [{insumo_id:c.insumo_id,qtd:q*fat,unidade:(ins&&ins.unidade_custo)||c.unidade||'un'}]; }
+  if(c.ficha_id){
+    const f=(M.fichas||[]).find(x=>x.id===c.ficha_id); const rend=(f&&+f.rendimento_qtd)||1;
+    const its=await itensDaFicha(c.ficha_id); const out=[];
+    its.forEach(fi=>{ const qb=+fi.qtd_bruta||0; if(!qb) return; const insId=fi.insumo_id||(fi.preproducao_id?M.ppToIns[fi.preproducao_id]:null); if(!insId) return;
+      const ins=M.insById[insId]; const alvo=(ins&&ins.unidade_custo)||fi.unidade; let qq=q*fat*qb/rend; const cv=convU(qq,fi.unidade,alvo);
+      out.push({insumo_id:insId,qtd:cv!=null?cv:qq,unidade:cv!=null?alvo:fi.unidade}); });
+    return out.length?out:null;
+  }
+  return [{catalogo_id:c.id,qtd:q*fat,unidade:c.unidade||'un'}];
+}
+async function baixarEstoqueVenda(v){
+  await garantirRefs();
+  await estornarEstoqueVenda(v.id); // nunca baixa duas vezes
+  const rows=[]; let sem=0;
+  for(const it of (v.lola_mac_venda_itens||[])){
+    const cons=await consumoDoItem(it);
+    if(!cons){ if(it.catalogo_id) { const c=catById(it.catalogo_id); if(c&&c.controla_estoque!==false) sem++; } continue; }
+    cons.forEach(x=>rows.push({data:v.data||hojeISO(),insumo_id:x.insumo_id||null,catalogo_id:x.catalogo_id||null,qtd:-(+x.qtd.toFixed(4)),unidade:x.unidade,origem_tipo:'venda',origem_ref:'venda:'+v.id,obs:it.nome,criado_por:quem()||null}));
+  }
+  if(rows.length) await api('lola_mac_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify(rows)});
+  return {n:rows.length,sem};
+}
+async function estornarEstoqueVenda(vid){ try{ await del('lola_mac_estoque_mov?origem_tipo=eq.venda&origem_ref=eq.venda:'+vid); }catch(e){} }
+
+/* ===================== ESTOQUE: tela ===================== */
+async function abrirEstoque(){
+  if(M.semTabelas){ toast('Falta criar as tabelas do MAC'); return; }
+  showView('viewEstoque','Estoque do MAC','Entra por pedido à Central, compra e transferência do Lola · sai por venda e descarte');
+  document.getElementById('estLista').innerHTML='<div class="loading">Carregando…</div>';
+  try{
+    await garantirRefs();
+    const [movs,cat]=await Promise.all([ api('lola_mac_estoque_mov?select=*&order=created_at.desc&limit=20000'), api('lola_mac_catalogo?ativo=eq.true&order=ordem.asc,nome.asc') ]);
+    M.movs=movs||[]; M.cat=cat||M.cat;
+    estRender(); estRenderPedidos();
+  }catch(e){ if(erroTabela(e)){ M.semTabelas=true; document.getElementById('estLista').innerHTML=semTabelasHTML(); } else document.getElementById('estLista').innerHTML='<div class="empty">Erro ao carregar: '+esc(e.message)+'</div>'; }
+}
+function estItens(){
+  const map={};
+  const add=(k,nome,un,extra)=>{ if(!map[k]) map[k]=Object.assign({k,nome,un,saldo:0,aprox:false,ult:null,n:0},extra||{}); return map[k]; };
+  M.cat.forEach(c=>{ if(c.controla_estoque===false) return;
+    if(c.insumo_id){ const i=M.insById[c.insumo_id]; if(i) add('i:'+i.id,i.nome,i.unidade_custo||'un',{insumo_id:i.id}); }
+    else if(!c.ficha_id) add('c:'+c.id,c.nome,c.unidade||'un',{catalogo_id:c.id}); });
+  M.movs.forEach(m=>{
+    let it;
+    if(m.insumo_id){ const i=M.insById[m.insumo_id]; it=add('i:'+m.insumo_id,i?i.nome:'(insumo removido)',i?(i.unidade_custo||m.unidade):m.unidade,{insumo_id:m.insumo_id}); }
+    else { const c=catById(m.catalogo_id); it=add('c:'+m.catalogo_id,c?c.nome:'(produto)',c?(c.unidade||'un'):m.unidade,{catalogo_id:m.catalogo_id}); }
+    const cv=convU(m.qtd,m.unidade,it.un); if(cv==null){ it.aprox=true; } else it.saldo+=cv;
+    it.n++; if(!it.ult||m.created_at>it.ult) it.ult=m.created_at;
+  });
+  return Object.values(map).sort((a,b)=>a.nome.localeCompare(b.nome));
+}
+function estRender(){
+  const q=nrm((document.getElementById('estBusca')||{}).value);
+  const its=estItens().filter(i=>!q||nrm(i.nome).includes(q));
+  const el=document.getElementById('estLista');
+  const comMov=its.filter(i=>i.n).length;
+  document.getElementById('estResumo').textContent=its.length+' itens · '+comMov+' com movimento';
+  el.innerHTML=its.length?its.map(i=>'<div class="estrow" onclick="estItem(\''+i.k+'\')" style="cursor:pointer"><div class="en"><b>'+esc(i.nome)+(i.aprox?'<span class="badge">unid. diferente</span>':'')+'</b><small>'+(i.n?('últ. mov. '+new Date(i.ult).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})):'sem movimento ainda')+'</small></div><div class="ev'+(i.saldo<-0.0001?' neg':'')+'">'+numf(i.saldo)+' '+esc(i.un||'')+'</div></div>').join(''):'<div class="empty">Nada no estoque ainda. Lance uma <b>Entrada</b>.</div>';
+  const mv=M.movs.slice(0,25);
+  const ORL={pedido_central:'Pedido à Central',compra:'Compra',transferencia:'Do Lola',venda:'Venda',descarte:'Descarte',contagem:'Contagem',ajuste:'Ajuste'};
+  document.getElementById('estMovs').innerHTML=mv.length?mv.map(m=>{ const nome=m.insumo_id?((M.insById[m.insumo_id]||{}).nome||'insumo'):((catById(m.catalogo_id)||{}).nome||'produto');
+    return '<div class="estrow"><div class="en"><b>'+esc(nome)+'</b><small>'+ORL[m.origem_tipo]+' · '+m.data.split('-').reverse().slice(0,2).join('/')+(m.criado_por?' · '+esc(m.criado_por):'')+(m.origem_ref&&m.origem_tipo!=='venda'?' · '+esc(m.origem_ref):'')+'</small></div><div class="ev" style="font-size:14px;color:'+(+m.qtd<0?'#B23A2E':'var(--verde)')+'">'+(+m.qtd>0?'+':'')+numf(m.qtd)+' '+esc(m.unidade||'')+'</div></div>'; }).join(''):'<div class="empty">Sem movimentações.</div>';
+}
+function estItem(k){
+  const it=estItens().find(i=>i.k===k); if(!it) return;
+  const hist=M.movs.filter(m=>(it.insumo_id&&m.insumo_id===it.insumo_id)||(it.catalogo_id&&m.catalogo_id===it.catalogo_id)).slice(0,15);
+  abrirSheetGen(it.nome,'Saldo: <b>'+numf(it.saldo)+' '+esc(it.un)+'</b>',
+    '<div class="field"><label>Contagem — quanto tem de verdade agora ('+esc(it.un)+')</label><input id="ctQtd" type="number" inputmode="decimal" step="0.01" placeholder="'+numf(it.saldo)+'"></div>'
+    +'<div class="sheet-actions" style="margin-top:4px"><button class="btn ghost" onclick="fecharSheetGen();estEntrada(\''+k+'\')"><i class="ph-duotone ph-arrow-circle-down"></i>Entrada</button><button class="btn save" onclick="estContagem(\''+k+'\')"><i class="ph-duotone ph-check"></i>Salvar contagem</button></div>'
+    +'<div class="sec-label">Histórico</div><div class="card">'+(hist.map(m=>'<div class="estrow"><div class="en"><b>'+m.origem_tipo.replace('_',' ')+'</b><small>'+m.data.split('-').reverse().join('/')+(m.obs?' · '+esc(m.obs):'')+(m.origem_ref?' · '+esc(m.origem_ref):'')+'</small></div><div class="ev" style="font-size:14px">'+(+m.qtd>0?'+':'')+numf(m.qtd)+' '+esc(m.unidade||'')+'</div></div>').join('')||'<div class="empty">Sem movimento.</div>')+'</div>');
+}
+async function estContagem(k){
+  const it=estItens().find(i=>i.k===k); const v=parseFloat(document.getElementById('ctQtd').value);
+  if(!(v>=0)){ toast('Diga quanto tem'); return; }
+  const dif=+(v-it.saldo).toFixed(4); if(Math.abs(dif)<0.0001){ fecharSheetGen(); toast('Bate com o saldo ✓'); return; }
+  try{ await api('lola_mac_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify([{data:hojeISO(),insumo_id:it.insumo_id||null,catalogo_id:it.catalogo_id||null,qtd:dif,unidade:it.un,origem_tipo:'contagem',origem_ref:'contado '+numf(v)+' '+it.un,criado_por:quem()||null}])});
+    fecharSheetGen(); toast('Contagem salva ('+(dif>0?'+':'')+numf(dif)+')'); abrirEstoque(); }catch(e){ toast('Erro ao salvar'); }
+}
+/* seletor de item de estoque: insumos do cadastro + produtos do cardápio que são o próprio estoque */
+function pickerHTML(id,ph){ return '<input id="'+id+'" placeholder="'+(ph||'Buscar insumo ou produto…')+'" autocomplete="off" oninput="pickerBusca(\''+id+'\')"><div class="sugg hidden" id="'+id+'_s"></div><input type="hidden" id="'+id+'_k">'; }
+function pickerOpcoes(){
+  const out=[]; M.cat.forEach(c=>{ if(c.controla_estoque!==false&&!c.insumo_id&&!c.ficha_id) out.push({k:'c:'+c.id,nome:c.nome,un:c.unidade||'un',tag:'cardápio'}); });
+  (M.ins||[]).forEach(i=>out.push({k:'i:'+i.id,nome:i.nome,un:i.unidade_custo||'un',tag:i.categoria||'insumo'}));
+  return out;
+}
+function pickerBusca(id){
+  const q=nrm(document.getElementById(id).value); const box=document.getElementById(id+'_s'); document.getElementById(id+'_k').value='';
+  if(q.length<2){ box.classList.add('hidden'); return; }
+  const ops=pickerOpcoes().filter(o=>nrm(o.nome).includes(q)).slice(0,25);
+  box.classList.toggle('hidden',!ops.length);
+  box.innerHTML=ops.map(o=>'<div onclick="pickerSet(\''+id+'\',\''+o.k+'\')">'+esc(o.nome)+'<small>'+esc(o.un)+' · '+esc(o.tag)+'</small></div>').join('');
+}
+function pickerSet(id,k){
+  const o=pickerOpcoes().find(x=>x.k===k); if(!o) return;
+  document.getElementById(id).value=o.nome; document.getElementById(id+'_k').value=k; document.getElementById(id+'_s').classList.add('hidden');
+  const un=document.getElementById(id+'_un'); if(un) un.value=o.un;
+  const tr=document.getElementById('enTipo'); if(tr) estEntradaTipo();
+}
+function estEntrada(kPre){
+  const tipos=[['compra','Compra direta'],['transferencia','Do Lola (transferência)'],['ajuste','Ajuste / outro']];
+  abrirSheetGen('Entrada no estoque do MAC','Pedido à Central: use o botão “Dar entrada” no pedido, na tela de estoque.',
+    '<div class="field"><label>Tipo</label><select class="inp" id="enTipo" onchange="estEntradaTipo()">'+tipos.map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>Item</label>'+pickerHTML('enItem')+'</div>'
+    +'<div class="two"><div class="field"><label>Quantidade</label><input id="enQtd" type="number" inputmode="decimal" step="0.01"></div><div class="field"><label>Unidade</label><input id="enItem_un" placeholder="un, kg, L"></div></div>'
+    +'<div id="enCompra"><div class="two"><div class="field"><label>Custo total (R$)</label><input id="enCusto" type="number" inputmode="decimal" step="0.01"></div><div class="field"><label>Fornecedor</label><input id="enForn" placeholder="ex.: mercado"></div></div></div>'
+    +'<div class="note hidden" id="enTransfNote">Sai do <b>estoque do Lola</b> e entra no do MAC. Só funciona com insumos do cadastro (não com produtos só do cardápio).</div>'
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="fecharSheetGen()">Cancelar</button><button class="btn save" onclick="estEntradaOk()"><i class="ph-duotone ph-check"></i>Lançar entrada</button></div>');
+  if(kPre) setTimeout(()=>pickerSet('enItem',kPre),50);
+}
+function estEntradaTipo(){ const t=document.getElementById('enTipo').value; document.getElementById('enCompra').classList.toggle('hidden',t!=='compra'); document.getElementById('enTransfNote').classList.toggle('hidden',t!=='transferencia'); }
+async function estEntradaOk(){
+  const tipo=document.getElementById('enTipo').value, k=document.getElementById('enItem_k').value, q=parseFloat(document.getElementById('enQtd').value), un=(document.getElementById('enItem_un').value||'').trim()||'un';
+  if(!k){ toast('Escolha o item na lista'); return; } if(!(q>0)){ toast('Diga a quantidade'); return; }
+  const [t,id]=k.split(':'); if(tipo==='transferencia'&&t!=='i'){ toast('Transferência do Lola só com insumo do cadastro'); return; }
+  const custo=tipo==='compra'?(parseFloat(document.getElementById('enCusto').value)||null):null;
+  const forn=tipo==='compra'?((document.getElementById('enForn').value||'').trim()||null):null;
+  const row={data:hojeISO(),insumo_id:t==='i'?id:null,catalogo_id:t==='c'?+id:null,qtd:q,unidade:un,origem_tipo:tipo,origem_ref:tipo==='transferencia'?'do Lola CCMQ':forn,custo_total:custo,custo_unit:custo?+(custo/q).toFixed(4):null,criado_por:quem()||null};
+  try{
+    if(tipo==='transferencia'){
+      // baixa no estoque do Lola (lola_ccmq_estoque_mov; o saldo do Lola desconta origem 'transferencia')
+      await api('lola_ccmq_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify({insumo_id:id,tipo:'saida',qtd:q,unidade:un,origem_tipo:'transferencia',origem_ref:'para o Lola MAC',data:hojeISO(),criado_por:quem()||null})});
+    }
+    await api('lola_mac_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify([row])});
+    fecharSheetGen(); toast('Entrada lançada ✓'); abrirEstoque();
+  }catch(e){ toast('Erro: '+e.message.slice(0,80)); console.error(e); }
+}
+function estSaida(){
+  abrirSheetGen('Descarte','Vencido, quebrado, estragado… sai do estoque do MAC.',
+    '<div class="field"><label>Item</label>'+pickerHTML('dsItem')+'</div>'
+    +'<div class="two"><div class="field"><label>Quantidade</label><input id="dsQtd" type="number" inputmode="decimal" step="0.01"></div><div class="field"><label>Unidade</label><input id="dsItem_un" placeholder="un, kg, L"></div></div>'
+    +'<div class="field"><label>Motivo</label><select class="inp" id="dsMot"><option>Vencido</option><option>Estragado</option><option>Quebra</option><option>Sobra</option><option>Consumo interno</option><option>Outro</option></select></div>'
+    +'<div class="field"><label>Observação</label><input id="dsObs"></div>'
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="fecharSheetGen()">Cancelar</button><button class="btn save" onclick="estSaidaOk()"><i class="ph-duotone ph-check"></i>Lançar descarte</button></div>');
+}
+async function estSaidaOk(){
+  const k=document.getElementById('dsItem_k').value, q=parseFloat(document.getElementById('dsQtd').value), un=(document.getElementById('dsItem_un').value||'').trim()||'un';
+  if(!k){ toast('Escolha o item na lista'); return; } if(!(q>0)){ toast('Diga a quantidade'); return; }
+  const [t,id]=k.split(':'); const obs=(document.getElementById('dsObs').value||'').trim();
+  try{ await api('lola_mac_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify([{data:hojeISO(),insumo_id:t==='i'?id:null,catalogo_id:t==='c'?+id:null,qtd:-q,unidade:un,origem_tipo:'descarte',origem_ref:document.getElementById('dsMot').value+(obs?' · '+obs:''),criado_por:quem()||null}])});
+    fecharSheetGen(); toast('Descarte lançado'); abrirEstoque(); }catch(e){ toast('Erro ao lançar'); }
+}
+/* ----- Pedidos à Central do MAC → entrada ----- */
+async function estRenderPedidos(){
+  const el=document.getElementById('estPedidos'); if(!el) return;
+  try{
+    const peds=await api('lola_pedidos?unidade=eq.mac&status=neq.cancelado&select=id,numero_pedido,data_pedido,status,central_status,lola_pedidos_itens(nome_item,quantidade,unidade)&order=data_pedido.desc&limit=40');
+    const feitos=new Set(M.movs.filter(m=>m.origem_tipo==='pedido_central').map(m=>m.origem_ref));
+    const pend=(peds||[]).filter(p=>(p.central_status==='pronto'||/recebido/.test(p.status||''))&&!feitos.has('pedido:'+p.id));
+    M._peds=peds||[];
+    el.innerHTML=pend.length?('<div class="sec-label"><i class="ph-duotone ph-truck"></i>Pedidos da Central esperando entrada</div>'+pend.map(p=>'<div class="card ped-card"><div class="prw"><div><b style="font-weight:600">Pedido #'+(p.numero_pedido||p.id)+'</b><div style="font-size:12px;color:var(--t3)">'+String(p.data_pedido).slice(0,10).split('-').reverse().join('/')+' · '+(p.lola_pedidos_itens||[]).length+' itens · '+(p.central_status==='pronto'?'enviado pela Central':p.status)+'</div></div></div><button class="btn" onclick="estPedidoEntrada(\''+p.id+'\')"><i class="ph-duotone ph-arrow-circle-down"></i>Dar entrada no estoque do MAC</button></div>').join('')):'';
+  }catch(e){ el.innerHTML=''; }
+}
+function _acharAlvo(nome){
+  const n=nrm(nome).replace(/\s+(un|und|unid)$/,'');
+  const ins=(M.ins||[]).find(i=>nrm(i.nome).replace(/\s+(un|und|unid)$/,'')===n); if(ins) return 'i:'+ins.id;
+  const c=M.cat.find(c=>nrm(c.nome)===n||(c.aliases||[]).some(a=>nrm(a)===n)); if(c){ if(c.insumo_id) return 'i:'+c.insumo_id; if(!c.ficha_id) return 'c:'+c.id; }
+  return '';
+}
+function estPedidoEntrada(pid){
+  const p=(M._peds||[]).find(x=>String(x.id)===String(pid)); if(!p) return;
+  const its=(p.lola_pedidos_itens||[]).filter(i=>+i.quantidade>0);
+  M._pedEnt={p,its};
+  abrirSheetGen('Pedido #'+(p.numero_pedido||p.id),'Confira as quantidades que chegaram. Item sem ligação fica de fora.',
+    its.map((i,ix)=>{ const k=_acharAlvo(i.nome_item); const o=k?pickerOpcoes().find(x=>x.k===k):null;
+      return '<div class="field" style="margin-bottom:10px"><label>'+esc(i.nome_item)+(o?'':' <span class="badge red">sem ligação</span>')+'</label><div class="two"><div style="flex:2">'+pickerHTML('pe'+ix,'Ligar a…')+'</div><div><input id="peq'+ix+'" type="number" inputmode="decimal" step="0.01" value="'+i.quantidade+'"></div><div style="flex:0 0 64px"><input id="pe'+ix+'_un" value="'+esc(i.unidade||(o&&o.un)||'un')+'"></div></div></div>'; }).join('')
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="fecharSheetGen()">Cancelar</button><button class="btn save" onclick="estPedidoOk()"><i class="ph-duotone ph-check"></i>Dar entrada</button></div>');
+  setTimeout(()=>its.forEach((i,ix)=>{ const k=_acharAlvo(i.nome_item); if(k){ const un=document.getElementById('pe'+ix+'_un').value; pickerSet('pe'+ix,k); document.getElementById('pe'+ix+'_un').value=un; } }),30);
+}
+async function estPedidoOk(){
+  const {p,its}=M._pedEnt||{}; if(!p) return; const rows=[]; let fora=0;
+  its.forEach((i,ix)=>{ const k=document.getElementById('pe'+ix+'_k').value; const q=parseFloat(document.getElementById('peq'+ix).value)||0; if(!k||!(q>0)){ fora++; return; }
+    const [t,id]=k.split(':'); rows.push({data:hojeISO(),insumo_id:t==='i'?id:null,catalogo_id:t==='c'?+id:null,qtd:q,unidade:(document.getElementById('pe'+ix+'_un').value||'un').trim(),origem_tipo:'pedido_central',origem_ref:'pedido:'+p.id,obs:'Pedido #'+(p.numero_pedido||'')+' · '+i.nome_item,criado_por:quem()||null}); });
+  if(!rows.length){ toast('Nenhum item ligado'); return; }
+  try{ await api('lola_mac_estoque_mov',{method:'POST',headers:HM,body:JSON.stringify(rows)}); fecharSheetGen(); toast(rows.length+' itens entraram'+(fora?' · '+fora+' ficaram de fora':'')); abrirEstoque(); }
+  catch(e){ toast('Erro ao dar entrada'); }
+}
+
+/* ===================== CARDÁPIO ===================== */
+async function abrirCardapio(){
+  if(M.semTabelas){ toast('Falta criar as tabelas do MAC'); return; }
+  showView('viewCardapio','Cardápio do MAC','Produtos, preços e de onde sai o estoque');
+  document.getElementById('cdLista').innerHTML='<div class="loading">Carregando…</div>';
+  try{ await garantirRefs(); const cat=await api('lola_mac_catalogo?order=ordem.asc,nome.asc'); M.catTodos=cat||[]; M.cat=M.catTodos.filter(c=>c.ativo!==false); cdRender(); }
+  catch(e){ document.getElementById('cdLista').innerHTML=erroTabela(e)?semTabelasHTML():'<div class="empty">Erro: '+esc(e.message)+'</div>'; }
+}
+function cdOrigem(c){
+  if(c.controla_estoque===false) return 'não controla estoque';
+  if(c.insumo_id){ const i=M.insById[c.insumo_id]; return 'estoque: '+(i?i.nome:'insumo')+(+c.fator!==1?' × '+numf(c.fator):''); }
+  if(c.ficha_id){ const f=(M.fichas||[]).find(x=>x.id===c.ficha_id); return 'ficha: '+(f?f.nome:'ficha técnica'); }
+  return 'estoque: o próprio produto';
+}
+function cdRender(){
+  const q=nrm((document.getElementById('cdBusca')||{}).value); const all=(M.catTodos||M.cat).filter(c=>!q||nrm(c.nome).includes(q));
+  const g={}; all.forEach(c=>{ (g[c.categoria||'Outros']=g[c.categoria||'Outros']||[]).push(c); });
+  const ks=CATS_ORDEM.filter(k=>g[k]).concat(Object.keys(g).filter(k=>!CATS_ORDEM.includes(k)));
+  const semPreco=all.filter(c=>c.ativo!==false&&(c.preco==null||!c.preco_confirmado)).length;
+  document.getElementById('cdLista').innerHTML=(semPreco?'<div class="note"><b>'+semPreco+'</b> produto'+(semPreco===1?'':'s')+' com preço a confirmar ou sem preço.</div>':'')
+    +ks.map(k=>'<div class="sec-label">'+esc(k)+'</div><div class="card">'+g[k].map(c=>'<div class="estrow" onclick="cdEditar('+c.id+')" style="cursor:pointer;'+(c.ativo===false?'opacity:.5':'')+'"><div class="en"><b>'+esc(c.nome)+(c.preco==null?'<span class="badge red">sem preço</span>':(!c.preco_confirmado?'<span class="badge">a confirmar</span>':''))+(c.setor==='lojinha'?'<span class="badge ok">lojinha</span>':'')+(c.ativo===false?'<span class="badge">inativo</span>':'')+'</b><small>'+esc(cdOrigem(c))+'</small></div><div class="ev" style="font-size:15px">'+(c.preco==null?'—':R$(c.preco))+'</div></div>').join('')+'</div>').join('');
+}
+function cdEditar(id){
+  const c=id?(M.catTodos||M.cat).find(x=>x.id===id):{nome:'',categoria:'Cafés',setor:'cafe',preco:null,controla_estoque:true,fator:1,unidade:'un',ativo:true};
+  if(!c) return; M._cdEd=c;
+  const orig=c.controla_estoque===false?'nao':(c.insumo_id?'insumo':(c.ficha_id?'ficha':'proprio'));
+  const insNome=c.insumo_id&&M.insById[c.insumo_id]?M.insById[c.insumo_id].nome:'';
+  const fic=c.ficha_id?(M.fichas||[]).find(x=>x.id===c.ficha_id):null;
+  abrirSheetGen(id?'Editar produto':'Novo produto',id&&c.aliases&&c.aliases.length?'Já foi anotado como: '+esc(c.aliases.slice(0,6).join(', ')):'',
+    '<div class="field"><label>Nome</label><input id="cdNome" value="'+esc(c.nome)+'"></div>'
+    +'<div class="two"><div class="field"><label>Categoria</label><select class="inp" id="cdCat">'+CATS_ORDEM.map(k=>'<option'+(k===c.categoria?' selected':'')+'>'+k+'</option>').join('')+'</select></div><div class="field"><label>Entra no fechamento como</label><select class="inp" id="cdSetor"><option value="cafe"'+(c.setor!=='lojinha'?' selected':'')+'>Café</option><option value="lojinha"'+(c.setor==='lojinha'?' selected':'')+'>Lojinha</option></select></div></div>'
+    +'<div class="field"><label>Preço (R$)</label><input id="cdPreco" type="number" inputmode="decimal" step="0.01" value="'+(c.preco!=null?c.preco:'')+'">'+(c.preco!=null&&!c.preco_confirmado?'<div style="font-size:11.5px;color:var(--ambar);margin-top:4px">Sugerido pelo preço do Lola CCMQ — salvar confirma.</div>':'')+'</div>'
+    +'<div class="field"><label>De onde sai do estoque quando vende</label><select class="inp" id="cdOrig" onchange="cdOrigUI()">'
+      +[['proprio','O próprio produto (conta unidades)'],['insumo','Um insumo do cadastro (revenda)'],['ficha','Uma ficha técnica (preparado)'],['nao','Não controla estoque']].map(o=>'<option value="'+o[0]+'"'+(o[0]===orig?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'
+    +'<div class="field" id="cdInsBox"><label>Insumo</label><input id="cdIns" placeholder="Buscar insumo…" value="'+esc(insNome)+'" oninput="cdBuscaIns()" autocomplete="off"><div class="sugg hidden" id="cdIns_s"></div><input type="hidden" id="cdIns_k" value="'+(c.insumo_id||'')+'"><div class="two" style="margin-top:8px"><div><div class="sublab" style="color:var(--t3)">QUANTO SAI POR VENDA</div><input id="cdFator" type="number" inputmode="decimal" step="0.001" value="'+(c.fator||1)+'"></div></div></div>'
+    +'<div class="field" id="cdFicBox"><label>Ficha técnica</label><input id="cdFic" placeholder="Buscar ficha…" value="'+esc(fic?fic.nome:'')+'" oninput="cdBuscaFic()" autocomplete="off"><div class="sugg hidden" id="cdFic_s"></div><input type="hidden" id="cdFic_k" value="'+(c.ficha_id||'')+'"></div>'
+    +(id?'<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;margin:4px 0 6px"><input type="checkbox" id="cdAtivo" '+(c.ativo!==false?'checked':'')+' style="width:18px;height:18px"> Aparece na tela de vendas</label>':'')
+    +'<div class="sheet-actions"><button class="btn ghost" onclick="fecharSheetGen()">Cancelar</button><button class="btn save" onclick="cdSalvar()"><i class="ph-duotone ph-check"></i>Salvar</button></div>');
+  cdOrigUI();
+}
+function cdOrigUI(){ const o=document.getElementById('cdOrig').value; document.getElementById('cdInsBox').classList.toggle('hidden',o!=='insumo'); document.getElementById('cdFicBox').classList.toggle('hidden',o!=='ficha'); }
+function cdBuscaIns(){ const q=nrm(document.getElementById('cdIns').value), box=document.getElementById('cdIns_s'); document.getElementById('cdIns_k').value=''; if(q.length<2){ box.classList.add('hidden'); return; }
+  const ops=(M.ins||[]).filter(i=>nrm(i.nome).includes(q)).slice(0,25); box.classList.toggle('hidden',!ops.length);
+  box.innerHTML=ops.map(i=>'<div onclick="document.getElementById(\'cdIns\').value=this.dataset.n;document.getElementById(\'cdIns_k\').value=\''+i.id+'\';document.getElementById(\'cdIns_s\').classList.add(\'hidden\')" data-n="'+esc(i.nome)+'">'+esc(i.nome)+'<small>'+esc(i.unidade_custo||'')+' · '+esc(i.categoria||'')+'</small></div>').join(''); }
+function cdBuscaFic(){ const q=nrm(document.getElementById('cdFic').value), box=document.getElementById('cdFic_s'); document.getElementById('cdFic_k').value=''; if(q.length<2){ box.classList.add('hidden'); return; }
+  const ops=(M.fichas||[]).filter(f=>nrm(f.nome).includes(q)).slice(0,25); box.classList.toggle('hidden',!ops.length);
+  box.innerHTML=ops.map(f=>'<div onclick="document.getElementById(\'cdFic\').value=this.dataset.n;document.getElementById(\'cdFic_k\').value=\''+f.id+'\';document.getElementById(\'cdFic_s\').classList.add(\'hidden\')" data-n="'+esc(f.nome)+'">'+esc(f.nome)+'<small>'+(f.preco_venda?R$(f.preco_venda):'')+'</small></div>').join(''); }
+async function cdSalvar(){
+  const c=M._cdEd; const nome=(document.getElementById('cdNome').value||'').trim(); if(!nome){ toast('Dê um nome'); return; }
+  const o=document.getElementById('cdOrig').value; const pv=document.getElementById('cdPreco').value;
+  const body={nome,categoria:document.getElementById('cdCat').value,setor:document.getElementById('cdSetor').value,preco:pv===''?null:parseFloat(pv),preco_confirmado:pv!=='',
+    controla_estoque:o!=='nao',insumo_id:o==='insumo'?(document.getElementById('cdIns_k').value||null):null,ficha_id:o==='ficha'?(document.getElementById('cdFic_k').value||null):null,
+    fator:o==='insumo'?(parseFloat(document.getElementById('cdFator').value)||1):1,updated_at:new Date().toISOString()};
+  if(o==='insumo'&&!body.insumo_id){ toast('Escolha o insumo na lista'); return; }
+  if(o==='ficha'&&!body.ficha_id){ toast('Escolha a ficha na lista'); return; }
+  const at=document.getElementById('cdAtivo'); if(at) body.ativo=at.checked;
+  try{ if(c.id) await patch('lola_mac_catalogo?id=eq.'+c.id,body); else { body.criado_por=quem()||null; body.ordem=999; await post('lola_mac_catalogo',body); }
+    fecharSheetGen(); toast('Produto salvo'); abrirCardapio(); }
+  catch(e){ toast(/duplicate|unique/i.test(e.message)?'Já existe um produto com esse nome':'Erro ao salvar'); }
+}
+
+/* ===================== FECHAMENTO: puxar das vendas ===================== */
+async function puxarVendasDoDia(){
+  const data=document.getElementById('dData').value; if(!data){ toast('Escolha a data'); return; }
+  try{
+    const vs=await api('lola_mac_vendas?data=eq.'+data+'&status=eq.paga&select=*,lola_mac_venda_itens(*),lola_mac_venda_pagamentos(*)');
+    if(!vs||!vs.length){ toast('Nenhuma conta fechada nesse dia'); return; }
+    let cafe=0, loja=0, receita=0; const porForma={}, prod={};
+    vs.forEach(v=>{ const itens=v.lola_mac_venda_itens||[]; const tot=vendaTotal(v)||1;
+      const pagReal=(v.lola_mac_venda_pagamentos||[]).filter(p=>p.forma!=='cortesia').reduce((s,p)=>s+(+p.valor||0),0);
+      (v.lola_mac_venda_pagamentos||[]).forEach(p=>{ porForma[p.forma]=(porForma[p.forma]||0)+(+p.valor||0); });
+      receita+=pagReal; const r=pagReal/tot;
+      itens.forEach(i=>{ const val=(+i.subtotal||0)*r; if(i.setor==='lojinha') loja+=val; else cafe+=val;
+        const nm=String(i.nome).replace(/\s*\(\d+\/\d+\)$/,''); const k=nrm(nm); prod[k]=prod[k]||{nome:nm,q:0}; prod[k].q+=(+i.qtd||0); }); });
+    document.getElementById('dTotal').value=n2(receita); document.getElementById('dCafe').value=n2(cafe); document.getElementById('dLoja').value=n2(loja);
+    if(!document.getElementById('dPessoas').value) document.getElementById('dPessoas').value=vs.length;
+    document.getElementById('prodLines').innerHTML=''; Object.values(prod).sort((a,b)=>b.q-a.q).forEach(p=>addProdLine(p.nome,Math.round(p.q*100)/100));
+    const linhaPag='Pagamentos (vendas registradas): '+FORMAS.filter(f=>porForma[f[0]]).map(f=>f[1]+' '+R$(porForma[f[0]])).join(' · ');
+    const info=document.getElementById('dInfo'); info.value=(info.value||'').split('\n').filter(l=>!/^Pagamentos \(vendas registradas\)/.test(l)).concat([linhaPag]).join('\n').trim();
+    checkMoney(); toast(vs.length+' contas puxadas ✓');
+  }catch(e){ toast(erroTabela(e)?'Falta criar as tabelas do MAC':'Erro ao puxar as vendas'); }
+}
+macLoad();
+</script>
+
 </body>
 </html>

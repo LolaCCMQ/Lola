@@ -36,3 +36,11 @@ link salvo apontando pra lá.
 ## Onde paramos
 - 17/08/2026 — trazido do repo `LolaMAC` para `equipelola.net/mac/`. Nada mudou por
   dentro; o `?u=` continua sendo passado pelo portal. Login não ligado (ver acima).
+
+## 18/10/2026 — Vendas (PDV), Estoque e Cardápio do MAC
+- **Início** ganhou "Nova venda · Estoque · Cardápio", o recebido do dia por forma de pagamento e as contas abertas/fechadas.
+- **Venda**: cada conta (mesa/cliente) recebe itens tocando nos produtos; "Cobrar" registra pagamento tudo junto, **dividido igual** (N pessoas) ou **por itens** (cada um paga o seu; um item pode ser dividido em partes). Quitou → fecha e **baixa o estoque**. Reabrir/cancelar devolve o estoque.
+- **Estoque**: soma de movimentos em `lola_mac_estoque_mov`. Entra por **pedido à Central** (botão "Dar entrada" nos pedidos do MAC enviados), **compra direta** e **transferência do Lola** (que grava a saída em `lola_ccmq_estoque_mov` origem `transferencia`, descontada no saldo do Lola). Sai por **venda** e **descarte**. Contagem ajusta o saldo.
+- **Cardápio** (`lola_mac_catalogo`): montado dos nomes já anotados nos fechamentos; preço sugerido pelo Lola CCMQ fica "a confirmar". Cada produto diz de onde sai o estoque: ele mesmo, um insumo (revenda) ou uma ficha técnica.
+- **Fechamento**: "Puxar das vendas registradas nesse dia" preenche total, café/lojinha, produtos e a linha de pagamentos.
+- Tabelas: `mac/sql/2026-10-18-mac-vendas-estoque.sql` (rodar uma vez no SQL Editor). **Enquanto as tabelas não existem o app fica como antes** (tudo isso se esconde sozinho).
