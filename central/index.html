@@ -675,7 +675,8 @@ iframe.estfull{position:fixed;inset:0;width:100vw!important;height:100vh!importa
      depender de quantas pastas acima este arquivo está. -->
 <script src="/adm/auth.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<!-- 26/10/2026: o jsQR do cdnjs dá 404 (nunca carregou) — sem ele a câmera não lê QR em celular sem BarcodeDetector (iPhone). Servido daqui. -->
+<script src="vendor/jsQR.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const ST={notas:[], imp:new Set(), insumos:[], byId:{}, map:{}, movs:[], fc:{}, alertas:[], tab:'ini',
@@ -2019,7 +2020,10 @@ function openEtiqueta(id){
    (síncrono) e embutido como dataURL — funciona na janela de impressão sem depender de
    internet no momento de imprimir. */
 function qrAscii(t){ return String(t==null?'':t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').replace(/:/g,' ').trim(); }
-function qrTextoEtiqueta(lote,nome,un){ return 'LOLA:'+qrAscii(lote)+':'+qrAscii(nome)+':'+qrAscii(un); }
+/* 26/10/2026: o QR vira um ENDEREÇO — qualquer câmera de celular abre a página de rastreio do lote
+   (central/lote.html), sem app e sem login. O formato antigo LOLA:<lote>:<produto>:<un> continua sendo lido. */
+const LOTE_URL='https://equipelola.net/central/lote.html?l=';
+function qrTextoEtiqueta(lote,nome,un){ return LOTE_URL+encodeURIComponent(qrAscii(lote)); }
 function qrEtiquetaDataURL(lote, nomeProduto, unidade, px){
   try{
     const div=document.createElement('div');
@@ -2041,6 +2045,7 @@ function qrEtiquetaDataURL(lote, nomeProduto, unidade, px){
    espaços e minúsculas — QR já impresso continua valendo. */
 function bipParseQR(raw){
   const t=String(raw||'').replace(/[\uFEFF\u200B]/g,'').trim();
+  const mu=/[?&]l=([^&#\s]+)/i.exec(t); if(/^https?:\/\//i.test(t) && mu){ return {lote:decodeURIComponent(mu[1]).trim().toUpperCase(), produto:'', un:''}; }
   const m=/^LOLA:([^:]*):(.*):([^:]*)$/i.exec(t);
   return m?{lote:m[1].trim().toUpperCase(), produto:m[2].trim(), un:m[3].trim()}:{lote:t.toUpperCase(), produto:'', un:''};
 }

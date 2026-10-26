@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lola · Lote de produção</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* 26/10/2026 (Mahara): "os QR codes seguem não funcionando". O QR passou a ser um ENDEREÇO
+   (equipelola.net/central/lote.html?l=<lote>) — abre com a câmera de qualquer celular, sem app
+   e sem login, e mostra o rastreio da produção. Só leitura: nada aqui grava no banco. */
+:root{--creme:#FBF7F1;--card:#fff;--border:#ECE3D9;--azul:#2C5AA0;--ink:#2A1A17;--sec:#5A463E;--mut:#8A7A72;--lbl:#B79A8E;
+  --okBg:#E6F3EA;--okFg:#2C7A4B;--pendBg:#FBF0DD;--pendFg:#9A6B1E;--urgBg:#FBEAE7;--urgFg:#B5302E}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--creme);color:var(--ink);font-family:Manrope,system-ui,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:520px;margin:0 auto;padding:22px 16px 40px}
+.top{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--azul);margin-bottom:6px}
+h1{font-family:Fraunces,serif;font-weight:600;font-size:26px;line-height:1.15;margin-bottom:4px}
+.lote{display:inline-block;font-weight:800;font-size:13px;color:var(--azul);background:#E6EEF8;border-radius:8px;padding:3px 9px;margin:6px 0 16px;letter-spacing:.03em}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:4px 16px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #F1E9E0}
+.row:last-child{border-bottom:0}
+.row span{color:var(--sec)}
+.row b{text-align:right}
+.st{border-radius:14px;padding:12px 14px;font-weight:700;margin-bottom:12px;font-size:14px}
+.st.ok{background:var(--okBg);color:var(--okFg)} .st.at{background:var(--pendBg);color:var(--pendFg)} .st.x{background:var(--urgBg);color:var(--urgFg)}
+.obs{font-size:14px;color:var(--sec);white-space:pre-wrap}
+.empty{text-align:center;color:var(--mut);padding:40px 10px}
+.empty b{display:block;font-family:Fraunces,serif;font-size:20px;color:var(--ink);margin-bottom:6px}
+form{display:flex;gap:8px;margin-top:16px}
+input{flex:1;border:1px solid var(--border);border-radius:12px;padding:12px;font:inherit;background:#fff}
+button{border:0;border-radius:12px;background:var(--azul);color:#fff;font:inherit;font-weight:700;padding:0 16px}
+.foot{font-size:11.5px;color:var(--lbl);text-align:center;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty">Carregando…</div></div>
+<script>
+const SB_URL='https://mvjbsdpfjhywhaonvpfl.supabase.co';
+const SB_KEY='sb_publishable_VMJzYe1AwL9zEoFs-ljUIw_OOkDpqhy';
+const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>(+v||0).toLocaleString('pt-BR',{maximumFractionDigits:3});
+const fmt=d=>{ if(!d) return '—'; const [y,m,dd]=String(d).slice(0,10).split('-'); return dd+'/'+m+'/'+y; };
+const addD=(d,n)=>{ const x=new Date(String(d).slice(0,10)+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+const hoje=(()=>{ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); })();
+async function api(p){ const r=await fetch(SB_URL+'/rest/v1/'+p,{headers:H}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+function busca(msg){ return `<form onsubmit="event.preventDefault();location.search='?l='+encodeURIComponent(this.l.value.trim().toUpperCase())"><input name="l" placeholder="Código do lote (ex.: CHIP-231026-01)" autocomplete="off"><button>Ver</button></form>`; }
+async function main(){
+  const app=document.getElementById('app');
+  const q=new URLSearchParams(location.search); const lote=(q.get('l')||'').trim().toUpperCase();
+  if(!lote){ app.innerHTML='<div class="top">Lola · Cozinha Central</div><h1>Rastreio de produção</h1><p style="color:var(--sec);margin-top:6px">Aponte a câmera pro QR da etiqueta ou digite o lote.</p>'+busca(); return; }
+  try{
+    const hs=await api('lola_central_prod_hist?lote=eq.'+encodeURIComponent(lote)+'&ativo=neq.false&select=id,preproducao_id,data,qtd_produzida,criado_por,lote,observacoes&limit=1');
+    const h=hs&&hs[0];
+    if(!h){ app.innerHTML=`<div class="top">Lola · Cozinha Central</div><div class="empty"><b>Lote não encontrado</b>Não existe produção registrada com o lote <b style="display:inline;font-family:inherit;font-size:inherit">${esc(lote)}</b>.<br>Se a etiqueta foi impressa sem registrar a produção, ela não tem rastreio.</div>`+busca(); return; }
+    const [pp,sal]=await Promise.all([
+      api('lola_preproducoes?id=eq.'+h.preproducao_id+'&select=nome,rendimento_un,porcao_qtd,porcao_un').catch(()=>[]),
+      api('lola_central_saldo?preproducao_id=eq.'+h.preproducao_id+'&select=unidade,conservacao,validade_dias,validade_dias_congelado').catch(()=>[])
+    ]);
+    const p=(pp&&pp[0])||{}, s=(sal&&sal[0])||{};
+    const nome=String(p.nome||'Produção').replace(/^PP\s+/i,'');
+    const un=s.unidade||p.rendimento_un||'';
+    const vR=s.validade_dias!=null?addD(h.data,+s.validade_dias):null, vC=s.validade_dias_congelado!=null?addD(h.data,+s.validade_dias_congelado):null;
+    let st='';
+    if(vR){ if(hoje>vR && (!vC||hoje>vC)) st='<div class="st x">Vencido — passou da validade resfriado e congelado.</div>';
+      else if(hoje>vR) st='<div class="st at">Venceu a validade resfriado ('+fmt(vR)+'). Só vale se estiver congelado (até '+fmt(vC)+').</div>';
+      else if(hoje===vR) st='<div class="st at">Vence hoje (resfriado).</div>';
+      else st='<div class="st ok">Dentro da validade.</div>'; }
+    app.innerHTML=`<div class="top">Lola · Cozinha Central · rastreio</div>
+      <h1>${esc(nome)}</h1><div class="lote">${esc(h.lote)}</div>${st}
+      <div class="card">
+        <div class="row"><span>Produzido em</span><b>${fmt(h.data)}</b></div>
+        <div class="row"><span>Quantidade produzida</span><b>${h.qtd_produzida!=null?num(h.qtd_produzida)+' '+esc(un):'—'}</b></div>
+        <div class="row"><span>Responsável</span><b>${esc(h.criado_por||'—')}</b></div>
+        ${vR?`<div class="row"><span>Validade resfriado</span><b>${fmt(vR)}</b></div>`:''}
+        ${vC?`<div class="row"><span>Validade congelado</span><b>${fmt(vC)}</b></div>`:''}
+        ${s.conservacao?`<div class="row"><span>Conservação</span><b>${esc(s.conservacao)}</b></div>`:''}
+      </div>
+      ${h.observacoes?`<div class="card" style="padding:12px 16px"><div style="font-size:11px;font-weight:800;color:var(--lbl);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Observações</div><div class="obs">${esc(h.observacoes)}</div></div>`:''}
+      ${busca()}<div class="foot">equipelola.net · só consulta</div>`;
+    document.title='Lote '+h.lote+' · '+nome;
+  }catch(e){ app.innerHTML='<div class="empty"><b>Não consegui carregar</b>'+esc(e.message)+'<br>Verifique a internet e tente de novo.</div>'+busca(); }
+}
+main();
+</script>
+</body>
+</html>
