@@ -5935,7 +5935,9 @@ async function registrarRecebimento(p){
     // Footer
     mo.appendChild(div('mf',[
       btn('btn bg','Cancelar',()=>ov.remove()),
-      btn('btn bp','\u{1F4BE} Salvar recebimento',async()=>{
+      btn('btn bp','\u{1F4BE} Salvar recebimento',async(ev)=>{
+        /* 27/10: o #126 foi gravado 11 vezes (salvar demora e a pessoa clicava de novo) — trava enquanto grava */
+        const _bt=ev&&ev.currentTarget; if(_bt&&_bt.dataset.salvando) return;
         const respVal=_resp.v.trim();
         if(!respVal){inpResp.style.borderColor='#dc2626';inpResp.focus();alert('Informe quem recebeu.');return;}
         const naoConf=itens.filter(x=>!conf[x.id]&&(parseFloat(recvMap[x.id].qtdRecebida)||0)>0);
@@ -5944,6 +5946,7 @@ async function registrarRecebimento(p){
         // Verificar divergências
         const divergencias=Object.values(recvMap).filter(v=>parseFloat(v.qtdRecebida)!==parseFloat(v.item.quantidade));
         const statusReceb=divergencias.length>0?'recebido_divergencia':'recebido_completo';
+        if(_bt){ _bt.dataset.salvando='1'; _bt.disabled=true; _bt.textContent='Salvando…'; }
         // Salvar recebimento
         const[receb]=await db('lola_pedidos_recebimentos','POST',{
           pedido_id:p.id,recebido_por:respVal,data_recebimento:dataReceb,status:statusReceb
