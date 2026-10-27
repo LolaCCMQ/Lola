@@ -5915,7 +5915,7 @@ async function registrarRecebimento(p){
       // Input qtd recebida
       const tdRecv=document.createElement('td');tdRecv.style.cssText='padding:4px 10px;text-align:right';
       const inpR=document.createElement('input');inpR.type='number';inpR.min='0';inpR.step='0.5';
-      inpR.value=N(it.quantidade,1);
+      inpR.value=String(parseFloat(it.quantidade)||0); /* 27/10: N() formata com vírgula ('3,0') e o campo numérico ficava VAZIO — quem não digitava gravava recebido 0 */
       inpR.style.cssText='width:80px;padding:5px 7px;border:2px solid var(--rb);border-radius:8px;font-size:13px;text-align:right;font-family:Manrope,sans-serif;font-weight:700';
       inpR.setAttribute('inputmode','decimal');
       const difTd=document.createElement('td');difTd.style.cssText='padding:8px 10px;font-size:12px;text-align:right;font-weight:700';
