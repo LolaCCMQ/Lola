@@ -5821,7 +5821,7 @@ async function registrarRecebimento(p){
     // Instrução
     const dica=document.createElement('div');
     dica.style.cssText='background:var(--rt);border:1.5px solid var(--rb);border-radius:10px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--v);margin-bottom:14px';
-    dica.textContent='Bipe a etiqueta de cada item (leitor ou câmera) ou toque no ✓ pra conferir à mão. Ajuste a quantidade recebida se veio diferente.';
+    dica.textContent='Confira cada item como preferir: digitando a quantidade recebida ou bipando a etiqueta (leitor ou câmera). O ✓ ajuda a acompanhar o que já foi conferido — não é obrigatório.';
     mb.appendChild(dica);
     /* 27/10/2026 (Mahara): bipagem no RECEBIMENTO dos itens da Central (a Juliana não tinha como bipar).
        O QR da etiqueta é o link do lote (…/central/lote.html?l=<lote>) ou o formato antigo LOLA:<lote>:<produto>:<un>.
@@ -5928,6 +5928,7 @@ async function registrarRecebimento(p){
         inpR.style.borderColor=dif===0?'var(--vd)':dif<0?'#dc2626':'#c47700';
       }
       inpR.addEventListener('input',updateDif);updateDif();
+      inpR.addEventListener('change',()=>{ if(!conf[it.id]){ conf[it.id]=true; marcar(it.id); } }); /* digitar a quantidade também conta como conferido (27/10) */
       tdRecv.appendChild(inpR);tr.appendChild(tdRecv);tr.appendChild(difTd);
       tbody.appendChild(tr);
     });
@@ -5940,8 +5941,6 @@ async function registrarRecebimento(p){
         const _bt=ev&&ev.currentTarget; if(_bt&&_bt.dataset.salvando) return;
         const respVal=_resp.v.trim();
         if(!respVal){inpResp.style.borderColor='#dc2626';inpResp.focus();alert('Informe quem recebeu.');return;}
-        const naoConf=itens.filter(x=>!conf[x.id]&&(parseFloat(recvMap[x.id].qtdRecebida)||0)>0);
-        if(naoConf.length && !confirm(naoConf.length+' ite'+(naoConf.length===1?'m não foi conferido':'ns não foram conferidos')+' (nem bipado nem marcado):\n\n'+naoConf.map(x=>'• '+x.nome_item).join('\n')+'\n\nSalvar o recebimento mesmo assim?')) return;
         const dataReceb=document.getElementById('inp-data-receb')?.value||new Date().toISOString().split('T')[0];
         // Verificar divergências
         const divergencias=Object.values(recvMap).filter(v=>parseFloat(v.qtdRecebida)!==parseFloat(v.item.quantidade));
