@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- 27/10/2026: leitor de QR pra bipagem no recebimento (mesma cópia local que o app da Central usa) -->
+<script src="/central/vendor/jsQR.js"></script>
 <style>
 :root{--v:#A82A2A;--ve:#7E1E1F;--rf:#FBF7F1;--rb:#ECE3D9;--rt:#F5E9E6;--rm:#B79A8E;--tx:#2A1A17;--ts:#5A463E;--vd:#2C7A4B;--am:#9A6B1E;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -5810,7 +5812,7 @@ async function registrarRecebimento(p){
     const itens=await db('lola_pedidos_itens','GET',null,'?select=*&pedido_id=eq.'+p.id);
     mb.innerHTML='';
     // Campos do recebedor
-    const _resp={v:''};
+    const _resp={v:(typeof ME!=='undefined'&&ME)?ME:''};
     const inpResp=finp('',_resp.v,v=>_resp.v=v);inpResp.placeholder='Seu nome (obrigatório)';
     mb.appendChild(div('fg2 mb3',[
       fgrp('Recebido por',inpResp),
@@ -5819,8 +5821,68 @@ async function registrarRecebimento(p){
     // Instrução
     const dica=document.createElement('div');
     dica.style.cssText='background:var(--rt);border:1.5px solid var(--rb);border-radius:10px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--v);margin-bottom:14px';
-    dica.textContent='Confira cada item e informe a quantidade recebida. Deixe igual ao solicitado se foi recebido completo.';
+    dica.textContent='Bipe a etiqueta de cada item (leitor ou câmera) ou toque no ✓ pra conferir à mão. Ajuste a quantidade recebida se veio diferente.';
     mb.appendChild(dica);
+    /* 27/10/2026 (Mahara): bipagem no RECEBIMENTO dos itens da Central (a Juliana não tinha como bipar).
+       O QR da etiqueta é o link do lote (…/central/lote.html?l=<lote>) ou o formato antigo LOLA:<lote>:<produto>:<un>.
+       Acha a produção do lote e marca o item do pedido como conferido. */
+    const bipBar=div(null,null,{style:'display:flex;gap:8px;align-items:center;margin-bottom:6px'});
+    const bipInp=el('input','fi',null,{placeholder:'Bipe a etiqueta aqui (ou digite o lote)…',autocomplete:'off',style:'flex:1'});
+    const camBtn=btn('btn bo bsm','📷 Câmera',()=>recvCamera());
+    bipBar.appendChild(bipInp); bipBar.appendChild(camBtn); mb.appendChild(bipBar);
+    const camVid=el('video',null,null,{playsinline:'',style:'display:none;width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:6px'}); mb.appendChild(camVid);
+    const bipMsg=div(null,null,{style:'font-size:12.5px;font-weight:700;min-height:18px;margin-bottom:10px;color:var(--ts)'}); mb.appendChild(bipMsg);
+    const conf={}; const lotesPorItem={};
+    const _nrm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^pp\s+/,'').replace(/\s+(un|und|unid|porcao)$/,'').replace(/\s+/g,' ').trim();
+    let _insC=[], _ppNome={};
+    try{ _insC=await db('lola_insumos','GET',null,'?fornecedor_padrao=eq.Central&select=id,nome,preproducao_id')||[]; }catch(_e){}
+    function parseQR(raw){
+      const t=String(raw||'').replace(/[\uFEFF\u200B]/g,'').trim();
+      const mu=/[?&]l=([^&#\s]+)/i.exec(t); if(/^https?:\/\//i.test(t)&&mu) return {lote:decodeURIComponent(mu[1]).trim().toUpperCase(),produto:''};
+      const m=/^LOLA:([^:]*):(.*):([^:]*)$/i.exec(t); if(m) return {lote:m[1].trim().toUpperCase(),produto:m[2].trim()};
+      return {lote:t.toUpperCase(),produto:''};
+    }
+    function itemDaProducao(ppId,produto){
+      const alvo=new Set(); if(produto) alvo.add(_nrm(produto)); if(ppId&&_ppNome[ppId]) alvo.add(_nrm(_ppNome[ppId]));
+      _insC.forEach(i=>{ if(ppId&&i.preproducao_id===ppId) alvo.add(_nrm(i.nome)); });
+      const cands=itens.filter(it=>alvo.has(_nrm(it.nome_item)));
+      return cands.find(it=>!conf[it.id])||cands[0]||null;
+    }
+    function msg(t,cor){ bipMsg.textContent=t; bipMsg.style.color=cor||'var(--ts)'; }
+    async function bipar(raw){
+      const q=parseQR(raw); if(!q.lote&&!q.produto) return;
+      let ppId=null;
+      try{ const h=await db('lola_central_prod_hist','GET',null,'?lote=eq.'+encodeURIComponent(q.lote)+'&ativo=neq.false&select=preproducao_id&limit=1'); if(h&&h[0]) ppId=h[0].preproducao_id; }catch(_e){}
+      if(ppId&&!_ppNome[ppId]){ try{ const pp=await db('lola_preproducoes','GET',null,'?id=eq.'+ppId+'&select=nome'); if(pp&&pp[0]) _ppNome[ppId]=pp[0].nome; }catch(_e){} }
+      if(!ppId&&!q.produto){ msg('⚠️ Lote '+q.lote+' não encontrado no rastreio da Central — confira à mão.','#c47700'); return; }
+      const it=itemDaProducao(ppId,q.produto);
+      const nomeLido=q.produto||_ppNome[ppId]||q.lote;
+      if(!it){ msg('❌ "'+nomeLido+'" não está neste pedido.','#dc2626'); try{navigator.vibrate&&navigator.vibrate([80,60,80]);}catch(_e){} return; }
+      (lotesPorItem[it.id]=lotesPorItem[it.id]||new Set()).add(q.lote);
+      const ja=conf[it.id]; conf[it.id]=true; marcar(it.id);
+      try{navigator.vibrate&&navigator.vibrate(60);}catch(_e){}
+      const n=itens.filter(x=>conf[x.id]).length;
+      msg((ja?'✓ '+it.nome_item+' (mais uma etiqueta)':'✓ '+it.nome_item+' conferido')+' · lote '+q.lote+' — '+n+'/'+itens.length+(n===itens.length?' · tudo conferido!':''),'var(--vd)');
+    }
+    bipInp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); const v=bipInp.value; bipInp.value=''; bipar(v); } });
+    setTimeout(()=>bipInp.focus(),200);
+    let camStream=null, camLoop=null, ultT='', ultTs=0;
+    async function recvCamera(){
+      if(camStream){ pararCam(); return; }
+      try{ camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); camVid.srcObject=camStream; camVid.style.display=''; await camVid.play(); camBtn.textContent='⏹ Parar câmera'; msg('Aponte a câmera pro QR da etiqueta'); }
+      catch(e){ msg('Não consegui abrir a câmera (permissão negada ou indisponível).','#dc2626'); return; }
+      const cv=document.createElement('canvas'), cx=cv.getContext('2d'); const nat='BarcodeDetector' in window; const det=nat?new BarcodeDetector({formats:['qr_code']}):null;
+      const tick=async()=>{ if(!camStream) return;
+        if(camVid.videoWidth){ cv.width=camVid.videoWidth; cv.height=camVid.videoHeight; cx.drawImage(camVid,0,0); let t=null;
+          try{ if(nat){ const r=await det.detect(cv); if(r.length) t=r[0].rawValue; } else if(window.jsQR){ const d=cx.getImageData(0,0,cv.width,cv.height); const r=jsQR(d.data,d.width,d.height); if(r) t=r.data; } }catch(_e){}
+          if(t){ const now=Date.now(); if(t!==ultT||now-ultTs>2500){ ultT=t; ultTs=now; bipar(t); } } }
+        camLoop=requestAnimationFrame(tick); };
+      tick();
+    }
+    function pararCam(){ if(camLoop) cancelAnimationFrame(camLoop); if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } camVid.style.display='none'; camBtn.textContent='📷 Câmera'; }
+    const _ovRemove=ov.remove.bind(ov); ov.remove=function(){ pararCam(); _ovRemove(); };
+    const marcaEl={};
+    function marcar(id){ const b=marcaEl[id]; if(!b) return; const on=!!conf[id]; b.textContent=on?'✓':'○'; b.style.background=on?'var(--vd)':'#fff'; b.style.color=on?'#fff':'var(--ts)'; b.style.borderColor=on?'var(--vd)':'var(--rb)'; b.title=on?('conferido'+(lotesPorItem[id]?' · lote '+[...lotesPorItem[id]].join(', '):'')):'toque pra conferir à mão'; }
     // Tabela de itens com input de qtd recebida
     const recvMap={};
     itens.forEach(it=>{recvMap[it.id]={item:it,qtdRecebida:parseFloat(it.quantidade)||0};});
@@ -5828,9 +5890,9 @@ async function registrarRecebimento(p){
     const tbl=document.createElement('table');tbl.style.cssText='width:100%;border-collapse:collapse';
     const thead=document.createElement('thead');
     const htr=document.createElement('tr');
-    ['Item','Un','Qtd\u00a0solicitada','Qtd\u00a0recebida','Difer.'].forEach((h,i)=>{
+    ['✓','Item','Un','Qtd\u00a0solicitada','Qtd\u00a0recebida','Difer.'].forEach((h,i)=>{
       const th=document.createElement('th');
-      th.style.cssText='padding:7px 10px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--v);background:var(--rt);text-align:'+(i>=2?'right':'left');
+      th.style.cssText='padding:7px 10px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--v);background:var(--rt);text-align:'+(i>=3?'right':(i===0?'center':'left'));
       th.textContent=h;htr.appendChild(th);
     });
     thead.appendChild(htr);tbl.appendChild(thead);
@@ -5844,6 +5906,9 @@ async function registrarRecebimento(p){
         if(typeof content==='string'||typeof content==='number')td.textContent=String(content);
         else td.appendChild(content);return td;
       }
+      const cb=document.createElement('button'); cb.type='button'; cb.style.cssText='width:30px;height:30px;border-radius:50%;border:2px solid var(--rb);background:#fff;font-weight:800;font-size:14px;cursor:pointer;color:var(--ts)'; cb.textContent='○';
+      cb.onclick=()=>{ conf[it.id]=!conf[it.id]; marcar(it.id); const n=itens.filter(x=>conf[x.id]).length; msg((conf[it.id]?'✓ '+it.nome_item+' conferido à mão':it.nome_item+' desmarcado')+' — '+n+'/'+itens.length,'var(--ts)'); };
+      marcaEl[it.id]=cb; const tdc=document.createElement('td'); tdc.style.cssText='padding:4px 6px;text-align:center'; tdc.appendChild(cb); tr.appendChild(tdc);
       tr.appendChild(mkTd(it.nome_item,'left','font-weight:600'));
       tr.appendChild(mkTd(it.unidade||''));
       tr.appendChild(mkTd(N(it.quantidade,1),'right','font-weight:700'));
@@ -5873,6 +5938,8 @@ async function registrarRecebimento(p){
       btn('btn bp','\u{1F4BE} Salvar recebimento',async()=>{
         const respVal=_resp.v.trim();
         if(!respVal){inpResp.style.borderColor='#dc2626';inpResp.focus();alert('Informe quem recebeu.');return;}
+        const naoConf=itens.filter(x=>!conf[x.id]&&(parseFloat(recvMap[x.id].qtdRecebida)||0)>0);
+        if(naoConf.length && !confirm(naoConf.length+' ite'+(naoConf.length===1?'m não foi conferido':'ns não foram conferidos')+' (nem bipado nem marcado):\n\n'+naoConf.map(x=>'• '+x.nome_item).join('\n')+'\n\nSalvar o recebimento mesmo assim?')) return;
         const dataReceb=document.getElementById('inp-data-receb')?.value||new Date().toISOString().split('T')[0];
         // Verificar divergências
         const divergencias=Object.values(recvMap).filter(v=>parseFloat(v.qtdRecebida)!==parseFloat(v.item.quantidade));
