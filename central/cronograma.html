@@ -353,6 +353,40 @@ async function proxSeqLote(ppId,data,nome){
     return (rows&&rows.length||0)+1;
   }catch(e){ return 1; }
 }
+/* ===== 29/10/2026 (Mahara): PORCIONAR DEPOIS — às vezes a produção e o porcionamento
+   acontecem em momentos diferentes. Ao concluir, dá pra marcar "porcionar depois":
+   - os insumos baixam na hora e o LOTE nasce na data da produção (a validade conta dali);
+   - o saldo da Central NÃO soma ainda; sai UMA etiqueta do granel ("12 kg — a porcionar");
+   - entra no cronograma um cartão "Porcionar — X" (etapa='porcionar', origem_id = produção),
+     com o granel anotado (granel_qtd/granel_un);
+   - ao concluir o porcionamento informa as porções: o saldo soma, o registro do lote
+     (lola_central_prod_hist) passa a ter a quantidade, e as etiquetas das porções saem
+     com o MESMO lote e a data da PRODUÇÃO.
+   Colunas novas em lola_central_cronograma: etapa, origem_id, granel_qtd, granel_un
+   (SQL em central/sql/2026-10-29-porcionar-depois.sql). Sem elas a opção não aparece. */
+function ehPorc(x){ return !!x && x.etapa==='porcionar'; }
+async function filhoPorc(x){
+  const l=ST.agenda.find(a=>a.etapa==='porcionar'&&a.origem_id===x.id&&a.ativo!==false); if(l||DEMO) return l||null;
+  try{ const rows=await api('lola_central_cronograma?origem_id=eq.'+x.id+'&etapa=eq.porcionar&ativo=neq.false&select=*&limit=1'); return (rows&&rows[0])||null; }catch(e){ return null; }
+}
+async function paiPorc(x){
+  if(!x.origem_id) return null;
+  const l=ST.agenda.find(a=>a.id===x.origem_id); if(l||DEMO) return l||null;
+  try{ const rows=await api('lola_central_cronograma?id=eq.'+x.origem_id+'&select=*&limit=1'); return (rows&&rows[0])||null; }catch(e){ return null; }
+}
+async function histDe(id){
+  if(!id) return null;
+  if(DEMO) return (ST._demoHist||{})[id]||null;
+  try{ const rows=await api('lola_central_prod_hist?id=eq.'+id+'&select=id,lote,data,qtd_produzida,saldo_depois,observacoes&limit=1'); return (rows&&rows[0])||null; }catch(e){ return null; }
+}
+function granelStr(x){ return x&&x.granel_qtd!=null ? num(x.granel_qtd)+' '+(x.granel_un||'kg') : ''; }
+/* abre a tela de etiquetas do app da Central já preenchida (lote, data da produção, nº de etiquetas) */
+function urlEtiqueta(ppId,lote,dataProd,n,granel){
+  const q=new URLSearchParams({etiqueta:ppId, lote:lote||'', data:String(dataProd||'').slice(0,10), n:String(n||1)});
+  if(granel) q.set('granel',granel);
+  return (DEMO?'index.html':'/central/')+'?'+q.toString();
+}
+function abrirEtiqueta(url){ const w=window.open(url,'_blank'); if(!w) location.href=url; }
 /* tempo: guardado em MINUTOS-PESSOA. A Central tem 3 colaboradores além da chefe,
    então cada turno comporta ~3 x 4h = 720 min de trabalho. */
 const CAP_TURNO=720;
@@ -479,6 +513,8 @@ async function carregar(){
       api('lola_central_cronograma?ativo=neq.false&data=gte.'+ini+'&data=lte.'+fim+'&select=*&order=data,turno,ordem'),
       api('lola_central_cronograma_grade?ativo=neq.false&select=*&order=dia_semana,turno,ordem')
     ]);
+    /* 29/10: "porcionar depois" só aparece quando as colunas novas existem no banco */
+    ST.temPorc = DEMO ? true : await api('lola_central_cronograma?select=etapa,origem_id,granel_qtd,granel_un&limit=1').then(()=>true).catch(()=>false);
     ST.receitas=rec||[]; ST.recById={}; ST.receitas.forEach(r=>ST.recById[r.id]=r);
     ST.saldo={}; (sal||[]).forEach(s=>ST.saldo[s.preproducao_id]=s);
     ST.pessoas=pes||[];
@@ -510,11 +546,14 @@ function cardHTML(x){
   const livre=!x.preproducao_id;
   const q=dstr(x.qtd_prevista, x.unidade||r.rendimento_un||'un');
   const t = x.status==='feito'&&x.duracao_min!=null ? fmtMin(x.duracao_min) : (x.tempo_min?'~'+fmtMin(x.tempo_min):'');
-  const linha=[q, t, x.responsavel||''].filter(Boolean).join(' · ');
+  /* 29/10: produção que ficou a granel mostra "12 kg a porcionar"; o cartão do porcionamento mostra de onde vem */
+  const qMostra = (x.status==='feito'&&x.granel_qtd!=null&&!ehPorc(x)) ? granelStr(x)+' a porcionar'
+                : (ehPorc(x)&&x.granel_qtd!=null&&x.status!=='feito') ? granelStr(x)+' → '+q : q;
+  const linha=[qMostra, t, x.responsavel||''].filter(Boolean).join(' · ');
   return `<div class="pcard s-${s}${livre?' livre':''}" data-ag="${x.id}">
     <div class="body" data-open="${x.id}">
       ${x.hora?`<div class="hchip">${hhmm(x.hora)}</div>`:''}
-      <div class="mid"><b>${esc(x.item_nome||r.nome||'—')}</b><span>${esc(linha)}</span></div>
+      <div class="mid"><b>${ehPorc(x)?'<i class="ph-duotone ph-knife"></i> ':''}${esc(x.item_nome||r.nome||'—')}</b><span>${esc(linha)}</span></div>
       <div class="st">${s==='andamento'?'<span class="dot"></span>':''}${STATUS_L[x.status]||'Previsto'}${s==='atrasado'?' !':''}</div>
     </div></div>`;
 }
@@ -632,9 +671,13 @@ function viewProd(){
   const g={};
   lista.forEach(x=>{const k=x.preproducao_id||norm(x.item_nome); const r=ST.recById[x.preproducao_id]||{};
     const un=x.unidade||r.rendimento_un||'un';
-    g[k]=g[k]||{nome:x.item_nome||r.nome,un,vezes:0,prev:0,feito:0,min:0,nmin:0,id:x.preproducao_id,tarefa:un==='tarefa'};
+    g[k]=g[k]||{nome:ehPorc(x)?(r.nome||x.item_nome):(x.item_nome||r.nome),un,vezes:0,prev:0,feito:0,min:0,nmin:0,id:x.preproducao_id,tarefa:un==='tarefa'};
+    /* 29/10: o cartão de porcionar é a 2ª etapa da mesma produção — não conta de novo;
+       a produção a granel conta no "feito" pelo que rendeu a granel (na unidade da produção) */
+    if(ehPorc(x)) return;
     g[k].vezes++; g[k].prev+=qtdNaUnidade(+x.qtd_prevista||0,un,g[k].un);
-    if(x.status==='feito'){ g[k].feito+=qtdNaUnidade(+(x.qtd_produzida!=null?x.qtd_produzida:x.qtd_prevista)||0,un,g[k].un);
+    if(x.status==='feito'){ g[k].feito+= x.granel_qtd!=null ? qtdNaUnidade(+x.granel_qtd||0,x.granel_un||un,g[k].un)
+                                                            : qtdNaUnidade(+(x.qtd_produzida!=null?x.qtd_produzida:x.qtd_prevista)||0,un,g[k].un);
       if(x.duracao_min!=null){g[k].min+=+x.duracao_min;g[k].nmin++;} }
   });
   h+=`<div class="lbl">Produções da semana<span class="sp"></span><span class="n">${Object.keys(g).length} itens</span></div>`;
@@ -860,6 +903,8 @@ function openTarefa(id){
     <div class="mf"><label>Hora (opcional)</label><input type="time" id="fHora" value="${hhmm(x.hora)||''}"></div>
     <button class="btn sec" id="bMover" type="button" style="width:100%;margin-bottom:12px"><i class="ph-duotone ph-calendar-check"></i> Salvar dia/horário</button>`;
   if(x.obs) h+=`<div class="note" style="background:#FDF0E0;color:#8A5A12"><i class="ph-duotone ph-note"></i> ${esc(x.obs)}</div>`;
+  /* 29/10: as duas etapas (produção a granel / porcionamento) mostram uma à outra */
+  if(ehPorc(x) || (x.status==='feito'&&x.granel_qtd!=null)) h+=`<div id="porcBox"><div class="spin"></div></div>`;
   if(x.status==='andamento'){
     h+=`<div class="timer"><div class="k">em produção há</div><div class="v" id="crono">00:00</div>
       <div class="s">começou ${new Date(x.iniciado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}${x.responsavel?' · '+esc(x.responsavel):''}</div></div>`;
@@ -867,16 +912,16 @@ function openTarefa(id){
   if(x.status==='feito'){
     h+=`<div class="timer" style="background:var(--okBg)"><div class="k" style="color:var(--okFg)">tempo gasto</div>
       <div class="v" style="color:var(--okFg)">${x.duracao_min!=null?num(x.duracao_min,0)+' min':'—'}</div>
-      <div class="s">rendeu <b>${dstr(x.qtd_produzida!=null?x.qtd_produzida:x.qtd_prevista,un)}</b>${x.concluido_por?' · '+esc(x.concluido_por):''}</div></div>`;
+      <div class="s">rendeu <b>${(x.granel_qtd!=null&&!ehPorc(x))?granelStr(x)+' a granel':dstr(x.qtd_produzida!=null?x.qtd_produzida:x.qtd_prevista,un)}</b>${x.concluido_por?' · '+esc(x.concluido_por):''}</div></div>`;
   }
   if(x.status==='previsto'){
     h+=`<div class="mf"><label>Quem vai executar</label>${selPessoa(x.responsavel)}</div>
-        <div class="mf2"><div class="mf"><label>Quanto produzir</label><input type="number" id="fQtd" step="0.001" inputmode="decimal" value="${+x.qtd_prevista||''}"></div>
+        <div class="mf2"><div class="mf"><label>${ehPorc(x)?'Porções previstas':'Quanto produzir'}</label><input type="number" id="fQtd" step="0.001" inputmode="decimal" value="${+x.qtd_prevista||''}"></div>
         <div class="mf"><label>Unidade</label><input type="text" id="fUn" value="${esc(un)}"></div></div>`;
   }
   if(x.preproducao_id){
     h+=`<div class="lbl">Situação deste item <span class="sp"></span><span class="n">pra decidir quanto produzir</span></div><div id="sitBox"><div class="spin"></div></div>`;
-    h+=`<div class="lbl">Receita <span class="sp"></span><span class="n" id="recEsc">—</span></div><div id="recBox"><div class="spin"></div></div>`;
+    if(!ehPorc(x)) h+=`<div class="lbl">Receita <span class="sp"></span><span class="n" id="recEsc">—</span></div><div id="recBox"><div class="spin"></div></div>`;
   }else{
     h+=`<div class="note" style="margin-top:12px"><i class="ph-duotone ph-info"></i> Este item <b>não tem receita ligada</b> — é só uma tarefa do cronograma. Pra ele abrir a ficha e simular a baixa de insumos, edite e escolha a receita.</div>`;
   }
@@ -884,7 +929,7 @@ function openTarefa(id){
   $('#shBody').innerHTML=h;
 
   let foot='<button class="btn dan" id="bDel"><i class="ph-duotone ph-trash"></i> Remover</button>';
-  const pr=x.preproducao_id?`<button class="btn sec" id="bPrint"><i class="ph-duotone ph-printer"></i> Imprimir</button>`:'';
+  const pr=(x.preproducao_id&&!ehPorc(x))?`<button class="btn sec" id="bPrint"><i class="ph-duotone ph-printer"></i> Imprimir</button>`:'';
   if(x.status==='previsto') foot+=pr+`<button class="btn" id="bIni"><i class="ph-duotone ph-play"></i> Iniciar</button>`;
   else if(x.status==='andamento') foot+=pr+`<button class="btn ok" id="bFim"><i class="ph-duotone ph-check-circle"></i> Concluir</button>`;
   else foot+=pr+`<button class="btn sec" id="bReab"><i class="ph-duotone ph-arrow-counter-clockwise"></i> Reabrir</button>`;
@@ -896,12 +941,13 @@ function openTarefa(id){
   const br=$('#bReab'); if(br) br.onclick=reabrir;
   const bm=$('#bMover'); if(bm) bm.onclick=()=>moverTarefa(x);
   openSheet();
-  if(x.preproducao_id){ carregarReceita(x); situacaoItem(x).then(si=>{ const b=$('#sitBox'); if(b) b.innerHTML=situacaoHTML(si,x); }); }
+  if(x.preproducao_id){ if(!ehPorc(x)) carregarReceita(x); situacaoItem(x).then(si=>{ const b=$('#sitBox'); if(b) b.innerHTML=situacaoHTML(si,x); }); }
   if(x.status==='previsto'){
-    const qEl=$('#fQtd'); if(qEl) qEl.oninput=()=>{ if(x.preproducao_id) carregarReceita(x,+qEl.value||0); };
+    const qEl=$('#fQtd'); if(qEl) qEl.oninput=()=>{ if(x.preproducao_id&&!ehPorc(x)) carregarReceita(x,+qEl.value||0); };
   }
   if(x.status==='andamento') startTick(x);
-  if(x.status==='feito'&&x.preproducao_id) mostrarSimulacao(x);
+  if(x.status==='feito'&&x.preproducao_id&&!ehPorc(x)) mostrarSimulacao(x);
+  if($('#porcBox')) porcInfo(x);
 }
 /* ===== 18/10/2026 (Mahara): no cartão (e na ficha impressa) de cada produção, a situação do item:
    última contagem no LOLA (lola_contagem_itens do insumo ligado via lola_insumos.preproducao_id),
@@ -910,10 +956,13 @@ function openTarefa(id){
 let _PEDS_ABERTOS=null, _PEDS_T=0;
 function _nItem(t){ return norm(t).replace(/^pp\s+/,'').replace(/\s+(un|und|unid|porcao|porção)$/,'').trim(); }
 async function situacaoItem(x){
-  const out={lola:null, central:null, pedidos:[], erro:null};
+  const out={lola:null, central:null, pedidos:[], aPorc:[], erro:null};
   const r=ST.recById[x.preproducao_id]||{};
   const sal=ST.saldo[x.preproducao_id]; if(sal) out.central={saldo:+sal.saldo||0, un:sal.unidade||prodUn(r)};
-  if(DEMO) return out;
+  /* 29/10: granel produzido que ainda espera porcionamento (não está no saldo) */
+  const _ap=a=>a.etapa==='porcionar'&&a.preproducao_id===x.preproducao_id&&a.status!=='feito'&&a.ativo!==false;
+  if(DEMO){ out.aPorc=ST.agenda.filter(_ap); return out; }
+  try{ out.aPorc = ST.temPorc ? (await api('lola_central_cronograma?preproducao_id=eq.'+x.preproducao_id+'&etapa=eq.porcionar&status=neq.feito&ativo=neq.false&select=id,data,granel_qtd,granel_un,qtd_prevista,unidade,status&order=data')||[]) : []; }catch(e){ out.aPorc=ST.agenda.filter(_ap); }
   try{
     const ins=await api('lola_insumos?preproducao_id=eq.'+x.preproducao_id+'&ativo=neq.false&select=id,nome,unidade_compra,unidade_custo&limit=5');
     const alvo=(ins&&ins[0])||null; out.insNome=alvo?alvo.nome:null;
@@ -937,8 +986,40 @@ function situacaoHTML(si,x){
   const tot=si.pedidos.reduce((s,p)=>s+p.qtd,0);
   return `<div class="ring"><span><i class="ph-duotone ph-storefront"></i> Última contagem no <b>Lola</b>${si.lola?`<br><small style="color:var(--mut)">${dm(si.lola.data)}${si.lola.resp?' · '+esc(si.lola.resp):''}</small>`:''}</span><b>${si.lola?num(si.lola.qtd)+' '+esc(si.lola.un):(si.insNome===null?'<span style="color:var(--mut);font-weight:600">item não ligado no Lola</span>':'<span style="color:var(--mut);font-weight:600">sem contagem</span>')}</b></div>
     <div class="ring"><span><i class="ph-duotone ph-factory"></i> Estoque na <b>Central</b> agora</span><b>${si.central?num(si.central.saldo)+' '+esc(si.central.un):'—'}</b></div>
+    ${(si.aPorc||[]).length?`<div class="ring" style="align-items:flex-start"><span><i class="ph-duotone ph-knife"></i> <b>A porcionar</b> na Central<br><small style="color:var(--mut)">a granel, ainda fora do saldo</small></span><b style="text-align:right">${si.aPorc.map(a=>`${a.granel_qtd!=null?num(a.granel_qtd)+' '+esc(a.granel_un||'kg'):'granel'} → ${num(a.qtd_prevista)} ${esc(a.unidade||'un')} · ${dm(a.data)}`).join('<br>')}</b></div>`:''}
     <div class="ring" style="align-items:flex-start"><span><i class="ph-duotone ph-truck"></i> Pedidos já encomendados<br><small style="color:var(--mut)">ainda não enviados pela Central</small></span><b style="text-align:right">${si.pedidos.length?si.pedidos.map(p=>`#${esc(String(p.n))} ${esc(p.uni)} · ${dm(p.data)}: ${num(p.qtd)} ${esc(p.un)}`).join('<br>')+(si.pedidos.length>1?`<br><span style="color:var(--vinho)">total ${num(tot)}</span>`:''):'<span style="color:var(--mut);font-weight:600">nenhum</span>'}</b></div>
     ${si.erro?`<div class="uinfo">Não consegui ler tudo: ${esc(si.erro)}</div>`:''}`;
+}
+/* 29/10: quadro "a granel / porcionamento" dentro do cartão, com os botões de etiqueta */
+async function porcInfo(x){
+  const box=$('#porcBox'); if(!box) return;
+  const pai=ehPorc(x)?await paiPorc(x):x;
+  const filho=ehPorc(x)?x:await filhoPorc(x);
+  const hist=pai?await histDe(pai.prod_hist_id):null;
+  if(!$('#porcBox')) return;
+  const lote=hist&&hist.lote, dProd=(hist&&hist.data)||(pai&&pai.data);
+  const gr=granelStr(pai&&pai.granel_qtd!=null?pai:x);
+  const ppId=x.preproducao_id;
+  let h=`<div class="simbox" style="margin-bottom:12px"><div class="h"><i class="ph-duotone ph-knife"></i> Produção em duas etapas</div>
+    <div class="ring"><span>Produzido a granel${dProd?' em <b>'+fmtDM(dProd)+'</b>':''}</span><b>${esc(gr||'—')}</b></div>
+    <div class="ring"><span>Lote</span><b>${lote?esc(lote):'<span style="color:var(--mut);font-weight:600">—</span>'}</b></div>`;
+  if(filho){
+    const fd=filho.status==='feito';
+    h+=`<div class="ring"><span>Porcionamento${filho.data?' · '+DIAS_C[dow(filho.data)]+' '+fmtDM(filho.data)+' · '+(TUR_L[filho.turno||'manha']||''):''}</span><b>${fd?dstr(filho.qtd_produzida,filho.unidade||'un')+' porcionado':(STATUS_L[filho.status]||'Previsto')+' · '+dstr(filho.qtd_prevista,filho.unidade||'un')+' previstas'}</b></div>`;
+  }else if(!ehPorc(x)){
+    h+=`<div class="ring"><span>Porcionamento</span><b style="color:var(--urgFg)">cartão não encontrado</b></div>`;
+  }
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">`;
+  if(lote) h+=`<button class="btn sec" type="button" id="bEtGr" style="flex:1"><i class="ph-duotone ph-tag"></i> Etiqueta do granel</button>`;
+  if(lote&&filho&&filho.status==='feito') h+=`<button class="btn" type="button" id="bEtPorc" style="flex:1"><i class="ph-duotone ph-tag"></i> Etiquetas das porções</button>`;
+  if(!ehPorc(x)&&filho&&filho.id) h+=`<button class="btn sec" type="button" id="bVerPorc" style="flex:1"><i class="ph-duotone ph-arrow-right"></i> Abrir porcionamento</button>`;
+  if(ehPorc(x)&&pai&&ST.agenda.some(a=>a.id===pai.id)) h+=`<button class="btn sec" type="button" id="bVerPai" style="flex:1"><i class="ph-duotone ph-arrow-left"></i> Abrir produção</button>`;
+  h+=`</div>${!lote?'<div style="font-size:11.5px;color:var(--mut);margin-top:6px">Sem lote registrado — não dá pra imprimir etiqueta com rastreio.</div>':''}</div>`;
+  box.innerHTML=h;
+  const b1=$('#bEtGr'); if(b1) b1.onclick=()=>abrirEtiqueta(urlEtiqueta(ppId,lote,dProd,1,gr||'granel'));
+  const b2=$('#bEtPorc'); if(b2) b2.onclick=()=>abrirEtiqueta(urlEtiqueta(ppId,lote,dProd,Math.max(1,Math.round(+filho.qtd_produzida||0))));
+  const b3=$('#bVerPorc'); if(b3) b3.onclick=()=>{ if(!ST.agenda.some(a=>a.id===filho.id)) ST.agenda.push(filho); openTarefa(filho.id); };
+  const b4=$('#bVerPai'); if(b4) b4.onclick=()=>openTarefa(pai.id);
 }
 /* move a produção pra outro dia/turno/hora — substitui o arrastar-e-soltar (19/08) */
 async function moverTarefa(x){
@@ -1080,17 +1161,22 @@ async function iniciar(){
    lola_central_prod_hist (aparece em Produzidos) e baixa cada insumo em
    lola_central_estoque_mov com origem_ref='prodhist:<id>' — o mesmo elo
    que o app de Estoque usa pra poder desfazer. */
-async function baixarProducao(x,qtdReal,unReal,data,quem){
+async function baixarProducao(x,qtdReal,unReal,data,quem,opt){
+  opt=opt||{};
   const r=ST.recById[x.preproducao_id]; if(!r) return null;
   const s=ST.saldo[r.id]||{};
   const unSaldo=prodUn(r);
-  const qtdSaldo=convCusto(qtdReal,unReal,unSaldo).q;
+  /* 29/10 (porcionar depois): a granel o saldo NÃO soma — os insumos baixam igual, pelas porções previstas */
+  const qtdSaldo=opt.granel?0:convCusto(qtdReal,unReal,unSaldo).q;
   const novo=(+s.saldo||0)+qtdSaldo;
-  await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+  if(!opt.granel) await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
   const seqLote=await proxSeqLote(r.id,data,r.nome); const lote=gerarLote(r.nome,data,seqLote);
-  const _h=await post('lola_central_prod_hist',[{preproducao_id:r.id, data, qtd_produzida:qtdSaldo, saldo_depois:novo, criado_por:quem, lote}],'return=representation');
+  const _hr={preproducao_id:r.id, data, qtd_produzida:qtdSaldo, saldo_depois:novo, criado_por:quem, lote};
+  if(opt.obsHist) _hr.observacoes=opt.obsHist;
+  const _h=await post('lola_central_prod_hist',[_hr],'return=representation');
   const histId=(Array.isArray(_h)&&_h[0])?_h[0].id:null;
-  ST.saldo[r.id]={preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem};
+  if(DEMO&&histId){ ST._demoHist=ST._demoHist||{}; ST._demoHist[histId]=Object.assign({id:histId},_hr); }
+  if(!opt.granel) ST.saldo[r.id]={preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem};
   let nb=0;
   if(histId){
     try{
@@ -1137,23 +1223,46 @@ async function reverterProducao(x){
 }
 function concluir(){
   const x=CUR; if(!x) return;
+  if(ehPorc(x)) return concluirPorc(x);
   const r=ST.recById[x.preproducao_id]||{}; const un=x.unidade||r.rendimento_un||'un';
   const mins=Math.max(1,Math.round((Date.now()-new Date(x.iniciado_em).getTime())/60000));
   $('#shTitle').textContent='Concluir — '+(x.item_nome||'');
   const avisoEstoque = !x.preproducao_id ? '' : (DEMO
     ? '<div class="note" style="background:#F4F7FC;border:1px dashed #B9CBE6"><b>Modo demonstração:</b> nada é gravado (arquivo aberto fora do site).</div>'
-    : '<div class="note" style="background:#F4F7FC;border:1px dashed #B9CBE6"><b>Ao concluir:</b> os insumos desta receita baixam do estoque e a produção soma no saldo — igual ao botão Produzir de hoje.</div>');
+    : '<div class="note" style="background:#F4F7FC;border:1px dashed #B9CBE6" id="avEst"><b>Ao concluir:</b> os insumos desta receita baixam do estoque e a produção soma no saldo — igual ao botão Produzir de hoje.</div>');
+  /* 29/10: opção de porcionar depois (só pra produção ligada a receita, e com as colunas novas no banco) */
+  const podePorc = !!x.preproducao_id && ST.temPorc;
+  const amanha=(()=>{ let d=addD(x.data||hoje(),1); if(dow(d)===0) d=addD(d,1); return d; })();
+  const unGr=(()=>{ const ri=rendInfo(r); return ri.ehPorcao?(ri.rendUn||'kg'):(convUn(r.rendimento_un||'kg')||'kg'); })();
+  const blocoPorc = !podePorc ? '' : `
+    <label class="etck" style="display:flex;gap:8px;align-items:center;margin:4px 0 10px;font-weight:700"><input type="checkbox" id="fPorc"> Porcionar depois <span style="font-weight:400;color:var(--mut)">— guarda a granel e porciona em outro momento</span></label>
+    <div id="porcCampos" style="display:none">
+      <div class="mf2"><div class="mf"><label>Quanto rendeu a granel</label><input type="number" id="fGrQ" step="0.001" inputmode="decimal" placeholder="ex.: 12"></div>
+        <div class="mf"><label>Unidade</label><select id="fGrU">${['kg','L','g','ml','un'].map(u=>`<option${u===unGr?' selected':''}>${u}</option>`).join('')}</select></div></div>
+      <div class="mf2"><div class="mf"><label>Porcionar em</label><input type="date" id="fPData" value="${amanha}"></div>
+        <div class="mf"><label>Turno</label>${selTurno(x.turno||'manha')}</div></div>
+      <div class="mf"><label>Porções previstas (${esc(prodUn(r)||'un')})${rendInfo(r).ehPorcao?` <span style="font-weight:400;color:var(--mut)">— porção de ${num(rendInfo(r).porcaoQtd)} ${esc(rendInfo(r).rendUn||'kg')}</span>`:''}</label><input type="number" id="fPPrev" step="1" inputmode="numeric" value=""></div>
+      <div class="note" style="background:#F4F7FC;border:1px dashed #B9CBE6"><b>Porcionar depois:</b> os insumos baixam agora e o lote nasce hoje (a validade conta da produção). O saldo da Central <b>só soma quando porcionar</b>. Sai 1 etiqueta do granel, e um cartão "Porcionar" entra no cronograma no dia escolhido.</div>
+    </div>`;
   $('#shBody').innerHTML=`<div class="note">Tempo gasto: <b>${num(mins,0)} min</b> · executou: <b>${esc(x.responsavel||'—')}</b></div>
-    <div class="mf2"><div class="mf"><label>Quanto rendeu de verdade</label><input type="number" id="fReal" step="0.001" inputmode="decimal" value="${+x.qtd_prevista||''}"></div>
+    ${blocoPorc}
+    <div class="mf2" id="realRow"><div class="mf"><label>Quanto rendeu de verdade</label><input type="number" id="fReal" step="0.001" inputmode="decimal" value="${+x.qtd_prevista||''}"></div>
     <div class="mf"><label>Unidade</label><input type="text" id="fRealUn" value="${esc(un)}" readonly></div></div>
     <div class="mf"><label>Observação da produção</label><input type="text" id="fObs2" placeholder="opcional — ex.: rendeu menos, tomate muito maduro"></div>
     ${avisoEstoque}`;
+  /* porções previstas = granel ÷ peso da porção (dá pra corrigir à mão) */
+  const sugPorc=()=>{ const pp=$('#fPPrev'); if(!pp||pp.dataset.mexeu) return; const g=+$('#fGrQ').value||0; const ri=rendInfo(r);
+    if(g>0&&ri.ehPorcao&&ri.porcaoQtd>0){ const a=toBase(g,$('#fGrU').value), b=toBase(ri.porcaoQtd,ri.rendUn); if(a.d===b.d&&b.q>0) pp.value=Math.round(a.q/b.q); } };
+  if($('#fGrQ')){ $('#fGrQ').oninput=sugPorc; $('#fGrU').onchange=sugPorc; $('#fPPrev').oninput=()=>{ $('#fPPrev').dataset.mexeu='1'; }; }
+  const ck=$('#fPorc'); if(ck) ck.onchange=()=>{ const on=ck.checked; $('#porcCampos').style.display=on?'':'none'; $('#realRow').style.display=on?'none':''; const av=$('#avEst'); if(av) av.style.display=on?'none':''; };
   $('#shFoot').innerHTML=`<button class="btn sec" id="bV">Voltar</button><button class="btn ok" id="bOk"><i class="ph-duotone ph-check-circle"></i> Concluir</button>`;
   $('#bV').onclick=()=>openTarefa(x.id);
   $('#bOk').onclick=async()=>{
-    const real=+$('#fReal').value||+x.qtd_prevista||0;
+    const granel=!!($('#fPorc')&&$('#fPorc').checked);
     const data=x.data||hoje();
     const _s=(typeof lolaSession==='function'?lolaSession():null)||{}; const quem=ST.quem||_s.nome||_s.email||'portal';
+    if(granel) return concluirGranel(x,{mins,data,quem,un});
+    const real=+$('#fReal').value||+x.qtd_prevista||0;
     $('#bOk').setAttribute('disabled','');
     try{
       let histInfo=null;
@@ -1170,14 +1279,145 @@ function concluir(){
     }catch(e){ toast('Erro: '+e.message); $('#bOk').removeAttribute('disabled'); }
   };
 }
+/* 29/10: concluir a PRODUÇÃO a granel (porcionar depois).
+   Ordem pensada pra não deixar meio-gravado: 1) cria o cartão de porcionar, 2) baixa insumos +
+   lote (sem somar saldo), 3) fecha a produção. Se o passo 2 falhar, o cartão criado é desfeito. */
+async function concluirGranel(x,o){
+  const grQ=+$('#fGrQ').value||0, grU=$('#fGrU').value||'kg';
+  const pData=$('#fPData').value, pTurno=$('#fTurno').value||x.turno||'manha';
+  const pPrev=+$('#fPPrev').value||0;
+  if(!(grQ>0)){ toast('Diga quanto rendeu a granel.'); $('#fGrQ').focus(); return; }
+  if(!pData){ toast('Escolha o dia do porcionamento.'); return; }
+  if(!(pPrev>0)){ toast('Diga quantas porções devem sair.'); $('#fPPrev').focus(); return; }
+  const r=ST.recById[x.preproducao_id]||{};
+  const grTxt=num(grQ)+' '+grU;
+  const unPorc=prodUn(r)||'un';
+  /* a baixa de insumos segue o que rendeu a granel (mesma conta do Concluir normal);
+     se a unidade do granel não casa com a da produção, baixa pelo previsto */
+  const unProd=o.un; const casa=toBase(grQ,grU).d===toBase(1,unProd).d;
+  const qBaixa=casa?grQ:(+x.qtd_prevista||0), unBaixa=casa?grU:unProd;
+  $('#bOk').setAttribute('disabled','');
+  let filho=null;
+  try{
+    const irmaos=ST.agenda.filter(a=>a.data===pData&&(a.turno||'manha')===pTurno);
+    const row={data:pData, hora:null, turno:pTurno, ordem:irmaos.length+1, preproducao_id:x.preproducao_id,
+      item_nome:'Porcionar — '+(r.nome||x.item_nome||''), qtd_prevista:pPrev, unidade:unPorc,
+      responsavel:null, tempo_min:null, status:'previsto', obs:null, origem:'porcionar', teste:false, criado_por:o.quem,
+      etapa:'porcionar', origem_id:x.id, granel_qtd:grQ, granel_un:grU};
+    const res=await post('lola_central_cronograma',[row],'return=representation');
+    filho=(res&&res[0])||Object.assign({id:'tmp'+Date.now()},row);
+  }catch(e){ toast('Erro ao criar o porcionamento: '+e.message); $('#bOk').removeAttribute('disabled'); return; }
+  let histInfo=null;
+  try{
+    const obsDig=$('#fObs2').value||'';
+    histInfo=await baixarProducao(x,qBaixa,unBaixa,o.data,o.quem,{granel:true,
+      obsHist:'A granel: '+grTxt+' — a porcionar em '+fmtDM(pData)+' ('+num(pPrev)+' '+unPorc+' previstas)'+(obsDig?' · '+obsDig:'')});
+  }catch(e){
+    try{ if(filho&&filho.id&&!String(filho.id).startsWith('tmp')) await patch('lola_central_cronograma?id=eq.'+filho.id,{ativo:false}); }catch(_){}
+    toast('Erro ao baixar o estoque: '+e.message+' — nada foi concluído.'); $('#bOk').removeAttribute('disabled'); return;
+  }
+  try{
+    const obsDig=$('#fObs2').value||x.obs||null;
+    const lote=histInfo&&histInfo.lote;
+    const body={status:'feito', concluido_em:new Date().toISOString(), concluido_por:o.quem,
+      duracao_min:o.mins, qtd_produzida:0, granel_qtd:grQ, granel_un:grU,
+      obs:(lote?'Lote '+lote+' — ':'')+'a granel '+grTxt+', porcionar '+fmtDM(pData)+(obsDig?' — '+obsDig:''),
+      prod_hist_id:histInfo?histInfo.histId:null};
+    await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
+    if(lote){ const fo='Lote '+lote+' · produzido '+fmtDM(o.data)+' · granel '+grTxt;
+      try{ await patch('lola_central_cronograma?id=eq.'+filho.id,{obs:fo}); filho.obs=fo; }catch(_){} }
+    ST.agenda.push(filho);
+    clearInterval(TICK);
+    toast('Produção concluída a granel ✓'+(lote?' · lote '+lote:'')+' · porcionar '+fmtDM(pData));
+    openTarefa(x.id); render();
+  }catch(e){ toast('Erro ao fechar a produção: '+e.message+' — os insumos já baixaram; tente concluir de novo só o cartão.'); $('#bOk').removeAttribute('disabled'); }
+}
+/* 29/10: concluir o PORCIONAMENTO — soma as porções no saldo e no registro do lote (sem baixar insumo
+   nem criar lote novo). Depois oferece as etiquetas das porções com o lote e a data da produção. */
+function concluirPorc(x){
+  const mins=Math.max(1,Math.round((Date.now()-new Date(x.iniciado_em).getTime())/60000));
+  const un=x.unidade||'un';
+  $('#shTitle').textContent='Concluir — '+(x.item_nome||'');
+  $('#shBody').innerHTML=`<div class="note">Tempo gasto: <b>${num(mins,0)} min</b> · executou: <b>${esc(x.responsavel||'—')}</b>${x.granel_qtd!=null?' · granel: <b>'+esc(granelStr(x))+'</b>':''}</div>
+    <div class="mf2"><div class="mf"><label>Quantas porções saíram</label><input type="number" id="fReal" step="1" inputmode="numeric" value="${+x.qtd_prevista||''}"></div>
+    <div class="mf"><label>Unidade</label><input type="text" value="${esc(un)}" readonly></div></div>
+    <div class="mf"><label>Observação</label><input type="text" id="fObs2" placeholder="opcional"></div>
+    ${DEMO?'':'<div class="note" style="background:#F4F7FC;border:1px dashed #B9CBE6"><b>Ao concluir:</b> as porções somam no saldo da Central e entram no registro do lote. Os insumos já baixaram na produção.</div>'}`;
+  $('#shFoot').innerHTML=`<button class="btn sec" id="bV">Voltar</button><button class="btn ok" id="bOk"><i class="ph-duotone ph-check-circle"></i> Concluir</button>`;
+  $('#bV').onclick=()=>openTarefa(x.id);
+  $('#bOk').onclick=async()=>{
+    const real=+$('#fReal').value||0;
+    if(!(real>0)){ toast('Diga quantas porções saíram.'); return; }
+    const _s=(typeof lolaSession==='function'?lolaSession():null)||{}; const quem=ST.quem||_s.nome||_s.email||'portal';
+    $('#bOk').setAttribute('disabled','');
+    try{
+      const pai=await paiPorc(x); const hist=pai?await histDe(pai.prod_hist_id):null;
+      const r=ST.recById[x.preproducao_id];
+      const data=x.data||hoje();
+      if(r && !DEMO){
+        const unSaldo=prodUn(r);
+        const q=convCusto(real,un,unSaldo).q;
+        const atual=await api('lola_central_saldo?preproducao_id=eq.'+r.id+'&select=saldo,unidade').catch(()=>null);
+        const base=(atual&&atual[0])?(+atual[0].saldo||0):(+(ST.saldo[r.id]||{}).saldo||0);
+        const novo=base+q;
+        await post('lola_central_saldo?on_conflict=preproducao_id',[{preproducao_id:r.id, saldo:novo, unidade:unSaldo, saldo_data:data, atualizado_por:quem, updated_at:new Date().toISOString()}],'resolution=merge-duplicates,return=minimal');
+        ST.saldo[r.id]=Object.assign({},ST.saldo[r.id]||{},{preproducao_id:r.id, saldo:novo, unidade:unSaldo});
+        if(hist) await patch('lola_central_prod_hist?id=eq.'+hist.id,{qtd_produzida:q, saldo_depois:novo,
+          observacoes:(hist.observacoes?hist.observacoes+' · ':'')+'Porcionado em '+fmtDM(data)+': '+num(real)+' '+un+(quem?' ('+quem+')':'')});
+      }
+      const obsD=$('#fObs2').value;
+      const body={status:'feito', concluido_em:new Date().toISOString(), concluido_por:quem, duracao_min:mins, qtd_produzida:real,
+        obs:(x.obs||'')+(obsD?(x.obs?' — ':'')+obsD:'')||null};
+      await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
+      clearInterval(TICK);
+      toast('Porcionamento concluído ✓ · '+num(real)+' '+un+(hist&&hist.lote?' · lote '+hist.lote:'')+' — agora imprima as etiquetas');
+      openTarefa(x.id); render();
+    }catch(e){ toast('Erro: '+e.message); $('#bOk').removeAttribute('disabled'); }
+  };
+}
+/* 29/10: desfazer o porcionamento (reabrir/remover o cartão de porcionar já feito) */
+async function reverterPorc(x){
+  if(DEMO||x.status!=='feito') return;
+  const r=ST.recById[x.preproducao_id]; if(!r) return;
+  const pai=await paiPorc(x); const hist=pai?await histDe(pai.prod_hist_id):null;
+  const unSaldo=prodUn(r); const q=convCusto(+x.qtd_produzida||0,x.unidade||'un',unSaldo).q;
+  const atual=await api('lola_central_saldo?preproducao_id=eq.'+r.id+'&select=saldo').catch(()=>null);
+  const base=(atual&&atual[0])?(+atual[0].saldo||0):(+(ST.saldo[r.id]||{}).saldo||0);
+  const novo=base-q;
+  await patch('lola_central_saldo?preproducao_id=eq.'+r.id,{saldo:novo, updated_at:new Date().toISOString()});
+  ST.saldo[r.id]=Object.assign({},ST.saldo[r.id]||{},{saldo:novo});
+  if(hist) await patch('lola_central_prod_hist?id=eq.'+hist.id,{qtd_produzida:0,
+    observacoes:String(hist.observacoes||'').replace(/ · Porcionado em [^·]*$/,'')+' · porcionamento desfeito'});
+}
 async function reabrir(){
   const x=CUR; if(!x) return;
+  /* 29/10: cartão de porcionar — desfaz só o porcionamento (porções saem do saldo e do lote) */
+  if(ehPorc(x)){
+    if(x.status==='feito' && !DEMO){
+      if(!confirm('Reabrir o porcionamento tira as porções do saldo da Central e do registro do lote. Continuar?')) return;
+      try{ await reverterPorc(x); }catch(e){ toast('Aviso: não consegui desfazer no estoque — confira manualmente. ('+e.message+')'); }
+    }
+    const body={status:'previsto', iniciado_em:null, concluido_em:null, duracao_min:null, qtd_produzida:null};
+    try{ await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
+      toast('Porcionamento reaberto'); openTarefa(x.id); render();
+    }catch(e){ toast('Erro: '+e.message); }
+    return;
+  }
+  /* 29/10: produção a granel — o porcionamento ligado precisa ser desfeito antes */
+  let filho=null;
+  if(x.granel_qtd!=null){
+    filho=await filhoPorc(x);
+    if(filho && filho.status!=='previsto'){ toast('Reabra primeiro o cartão "Porcionar" ('+fmtDM(filho.data)+') — ele já foi iniciado ou concluído.'); return; }
+  }
   if(x.prod_hist_id && !DEMO){
-    if(!confirm('Reabrir devolve os insumos baixados e desfaz a soma no saldo desta produção. Continuar?')) return;
+    if(!confirm('Reabrir devolve os insumos baixados e desfaz a soma no saldo desta produção.'+(filho?' O cartão "Porcionar" de '+fmtDM(filho.data)+' também sai do cronograma.':'')+' Continuar?')) return;
     await reverterProducao(x);
   }
   const body={status:'previsto', iniciado_em:null, concluido_em:null, duracao_min:null, qtd_produzida:null, prod_hist_id:null};
-  try{ await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
+  if(x.granel_qtd!=null){ body.granel_qtd=null; body.granel_un=null; }
+  try{
+    if(filho){ await patch('lola_central_cronograma?id=eq.'+filho.id,{ativo:false}); ST.agenda=ST.agenda.filter(a=>a.id!==filho.id); }
+    await patch('lola_central_cronograma?id=eq.'+x.id,body); Object.assign(x,body);
     toast('Produção reaberta'); openTarefa(x.id); render();
   }catch(e){ toast('Erro: '+e.message); }
 }
@@ -1186,13 +1426,33 @@ async function reabrir(){
    baixou insumo de verdade, desfaz a baixa primeiro (mesmo caminho do
    Reabrir) antes de tirar da agenda — senão o saldo fica errado pra sempre. */
 async function removerTarefa(x){
+  /* 29/10: cartão de porcionar */
+  if(ehPorc(x)){
+    const msg = x.status==='feito'
+      ? 'Este porcionamento já foi concluído. Remover tira as porções do saldo da Central e do registro do lote, e a produção fica a granel sem porcionamento agendado. Continuar?'
+      : 'Remover o porcionamento? A produção continua a granel (os insumos já baixaram) e fica sem porcionamento agendado — pra desfazer tudo, use Reabrir na produção. Continuar?';
+    if(!confirm(msg)) return;
+    try{
+      if(x.status==='feito' && !DEMO) await reverterPorc(x);
+      await patch('lola_central_cronograma?id=eq.'+x.id,{ativo:false});
+      ST.agenda=ST.agenda.filter(a=>a.id!==x.id);
+      toast('Porcionamento removido'); closeSheet(); render();
+    }catch(e){ toast('Erro ao remover: '+e.message); }
+    return;
+  }
+  let filho=null;
+  if(x.granel_qtd!=null){
+    filho=await filhoPorc(x);
+    if(filho && filho.status!=='previsto'){ toast('Reabra primeiro o cartão "Porcionar" ('+fmtDM(filho.data)+') — ele já foi iniciado ou concluído.'); return; }
+  }
   const feito = x.status==='feito' && x.prod_hist_id;
   const msg = feito
-    ? 'Esta produção já foi concluída e baixou insumos do estoque. Remover vai desfazer essa baixa (devolver insumos e saldo) e tirar a produção do cronograma. Continuar?'
+    ? 'Esta produção já foi concluída e baixou insumos do estoque. Remover vai desfazer essa baixa (devolver insumos e saldo) e tirar a produção do cronograma.'+(filho?' O cartão "Porcionar" ligado também sai.':'')+' Continuar?'
     : 'Remover esta produção do cronograma?';
   if(!confirm(msg)) return;
   try{
     if(feito && !DEMO){ await reverterProducao(x); }
+    if(filho){ await patch('lola_central_cronograma?id=eq.'+filho.id,{ativo:false}); ST.agenda=ST.agenda.filter(a=>a.id!==filho.id); }
     await patch('lola_central_cronograma?id=eq.'+x.id,{ativo:false});
     ST.agenda=ST.agenda.filter(a=>a.id!==x.id);
     toast('Removido do cronograma');
@@ -1209,7 +1469,7 @@ async function imprimir(x){
     return `<tr><td>${esc(i.nome)}</td><td class="q">${num(c.q)} ${esc(c.u||i.unCusto||i.un||'')}</td></tr>`;}).join('');
   const w=window.open('','_blank','width=560,height=760'); if(!w){toast('Libere o pop-up pra imprimir.');return;}
   let sit=''; try{ const si=await situacaoItem(x);
-    sit=`<div class="box" style="display:block"><b>Situação do item</b><br>Lola (última contagem): <b>${si.lola?num(si.lola.qtd)+' '+esc(si.lola.un)+' em '+fmtDM(si.lola.data):'—'}</b> · Central agora: <b>${si.central?num(si.central.saldo)+' '+esc(si.central.un):'—'}</b><br>Pedidos encomendados: <b>${si.pedidos.length?si.pedidos.map(p=>'#'+esc(String(p.n))+' '+esc(p.uni)+' '+num(p.qtd)+' '+esc(p.un)).join(' · '):'nenhum'}</b></div>`; }catch(e){}
+    sit=`<div class="box" style="display:block"><b>Situação do item</b><br>Lola (última contagem): <b>${si.lola?num(si.lola.qtd)+' '+esc(si.lola.un)+' em '+fmtDM(si.lola.data):'—'}</b> · Central agora: <b>${si.central?num(si.central.saldo)+' '+esc(si.central.un):'—'}</b>${(si.aPorc||[]).length?' · A porcionar: <b>'+si.aPorc.map(a=>(a.granel_qtd!=null?num(a.granel_qtd)+' '+esc(a.granel_un||'kg'):'granel')+' ('+fmtDM(a.data)+')').join(', ')+'</b>':''}<br>Pedidos encomendados: <b>${si.pedidos.length?si.pedidos.map(p=>'#'+esc(String(p.n))+' '+esc(p.uni)+' '+num(p.qtd)+' '+esc(p.un)).join(' · '):'nenhum'}</b></div>`; }catch(e){}
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(x.item_nome||'Receita')}</title>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
   <style>body{font-family:Manrope,sans-serif;color:#2A1A17;padding:26px;max-width:640px;margin:0 auto}

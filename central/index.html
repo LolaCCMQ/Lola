@@ -1953,9 +1953,12 @@ function validadePrevista(dataBase,dias){
 }
 /* ---- etiquetas de porção ---- */
 const CONSERV_PADRAO='Refrig. 0 a -6°C: 24h · Freezer -18°C: 1 mês';
-let ETIQ_CUR=null, ETIQ_CONS='resfriado';
-function openEtiqueta(id){
-  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r;
+let ETIQ_CUR=null, ETIQ_CONS='resfriado', ETIQ_GRANEL='';
+/* 29/10/2026: openEtiqueta(id,{lote,data,n,granel}) — vindo do cronograma (porcionar depois):
+   lote e data da PRODUÇÃO já preenchidos; granel = "12 kg" → etiqueta única "A PORCIONAR". */
+function openEtiqueta(id,opt){
+  opt=opt||{};
+  const r=(ST.receitas||[]).find(x=>x.id===id); if(!r)return; ETIQ_CUR=r; ETIQ_GRANEL=opt.granel||'';
   const s=(ST.saldo||{})[id]||{}; const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'';
   const hoje=(()=>{ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); })(); /* 18/10: data LOCAL (em UTC, depois das 21h já virava o dia seguinte) */
   ETIQ_CONS=s.conservacao||'resfriado';
@@ -1964,15 +1967,17 @@ function openEtiqueta(id){
   /* 17/07: sugerir pela PRODUÇÃO real — "foram 20 porções produzidas" → sugere 20 */
   const _hist=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(h=>h.preproducao_id===id):[];
   const _ultProd=_hist.length?Math.round(+_hist[0].qtd_produzida||0):0;
-  const nSug=_ultProd>0?_ultProd:((ri.ehPorcao&&ri.base>0)?Math.round(ri.base):12);
+  const nSug=(opt.n>0)?Math.round(opt.n):(ETIQ_GRANEL?1:(_ultProd>0?_ultProd:((ri.ehPorcao&&ri.base>0)?Math.round(ri.base):12)));
   /* loteamento (17/08): sugere o lote da produção real daquele dia, se já
      tiver sido registrada; senão propõe um código novo (nº 01 do dia) */
   const _histHoje=_hist.find(h=>String(h.data).slice(0,10)===hoje);
-  const loteSug=(_histHoje&&_histHoje.lote)||gerarLote(r.nome,hoje,1); /* 18/10: não reaproveita mais o lote de outro dia — se hoje não foi registrada, o aviso de rastreio aparece */
-  $('#shTitle').textContent='Etiquetas — '+r.nome;
+  const loteSug=opt.lote||(_histHoje&&_histHoje.lote)||gerarLote(r.nome,hoje,1);
+  const dataSug=(/^\d{4}-\d{2}-\d{2}$/.test(opt.data||''))?opt.data:hoje; /* 18/10: não reaproveita mais o lote de outro dia — se hoje não foi registrada, o aviso de rastreio aparece */
+  $('#shTitle').textContent=(ETIQ_GRANEL?'Etiqueta do granel — ':(opt.lote?'Etiquetas das porções — ':'Etiquetas — '))+r.nome;
   /* 17/07: "tudo podia ser menor simulando como vai ficar na etiqueta" — campos em pares + prévia ao vivo */
   $('#shBody').innerHTML=`
-    <div class="mf"><label>Produção e responsável</label><div class="rendrow"><input type="date" id="etData" value="${hoje}" style="max-width:160px"><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div></div>
+    ${ETIQ_GRANEL?`<div class="note" style="background:#FBF0DD;color:#8A5A12;border:1px solid #F3DDBE"><i class="ph-duotone ph-knife"></i> <b>A granel — a porcionar:</b> ${esc(ETIQ_GRANEL)}. Sai 1 etiqueta pro recipiente; as das porções saem quando concluir o porcionamento no cronograma.</div>`:(opt.lote?`<div class="note" style="background:var(--okBg);color:var(--okFg)"><i class="ph-duotone ph-knife"></i> Porções do lote <b>${esc(opt.lote)}</b> — a data é a da <b>produção</b>, pra validade contar certo.</div>`:'')}
+    <div class="mf"><label>Produção e responsável</label><div class="rendrow"><input type="date" id="etData" value="${dataSug}" style="max-width:160px"><input type="text" id="etResp" value="${esc(quem)}" placeholder="quem produziu"></div></div>
     <div id="etAvisoRastreio"></div>
     <div class="mf"><label>Lote <span style="color:var(--urgFg);font-weight:700">*obrigatório</span> <span style="color:var(--mut);font-weight:400">— vem da produção já registrada nesse dia; ajuste se for de outro dia</span></label><input type="text" id="etLote" required value="${esc(loteSug)}"></div>
     <label class="iml">Como está sendo guardado agora</label>
@@ -2004,6 +2009,7 @@ function openEtiqueta(id){
     const qrPrevURL=lote?qrEtiquetaDataURL(lote, r.nome, prodUn(r), 120):'';
     el.innerHTML=`${qrPrevURL?`<img src="${qrPrevURL}" style="position:absolute;top:10px;right:10px;width:44px;height:44px">`:''}
       <div style="font-weight:800;font-size:13px;text-transform:uppercase;padding-right:${qrPrevURL?'50px':'0'}">${esc(r.nome)}</div>
+      ${ETIQ_GRANEL?`<div style="font-size:12px;font-weight:800;margin-top:3px">A PORCIONAR · ${esc(ETIQ_GRANEL)}</div>`:''}
       <div style="font-size:11px;margin-top:3px">Produção: <b>${f(new Date(dp+'T12:00:00'))}</b> · ${esc(($('#etResp').value||'').trim()||'—')} · guardado agora: ${CONS_L[ETIQ_CONS]}</div>
       <div style="font-size:11px">Validade resfriado: <b>${f(dvR)}</b> (${ddR}d)</div>
       <div style="font-size:11px">Validade congelado: <b>${f(dvC)}</b> (${ddC}d)</div>
@@ -2204,6 +2210,7 @@ async function printEtiquetas(){
   const labelHTML=(i)=>`<div class="lab"><div class="rin">
       ${qrURL?`<div class="lqr" style="width:${sz.qr};height:${sz.qr}"><img src="${qrURL}"></div>`:''}
       <div class="ln"${qrURL?` style="padding-right:calc(${sz.qr} + 2mm)"`:''}>${esc(r.nome)}</div>
+      ${ETIQ_GRANEL?`<div class="lr lg"><span>A PORCIONAR</span><b>${esc(ETIQ_GRANEL)}</b></div>`:''}
       <div class="lr"><span>Produção</span><b>${fmtData(dataP)}</b></div>
       <div class="lr"><span>Val. resfriado</span><b>${fmtData(dataVR)}${diasR?` (${diasR}d)`:''}</b></div>
       <div class="lr"><span>Val. congelado</span><b>${fmtData(dataVC)}${diasC?` (${diasC}d)`:''}</b></div>
@@ -2229,6 +2236,7 @@ async function printEtiquetas(){
     .lr.pw b{flex:1;text-align:left;padding-left:3mm;border-bottom:0.5pt solid #000;min-height:3mm}
     .lr{display:flex;justify-content:space-between;font-size:${roll?'10.5pt':'9pt'};line-height:${roll?'1.15':'1.3'}}
     .lr span{color:#333}.lr b{font-weight:bold}
+    .lr.lg{font-size:${roll?'11.5pt':'10.5pt'};border:1.2px solid #000;padding:0.3mm 1.2mm;margin:0.3mm 0}.lr.lg span{color:#000;font-weight:bold}
     .li{font-size:${roll?'8.5pt':'7.5pt'};line-height:1.2;margin-top:0.6mm;color:#111;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
     .li b{font-weight:bold}
     .lc{font-size:${roll?'8pt':'7.5pt'};line-height:1.2;margin-top:0.6mm;border-top:1px dotted #999;padding-top:0.6mm;color:#222}
@@ -3349,13 +3357,14 @@ async function puxarCronograma(){
   if(!de||!ate||ate<de){ toast('Escolha o período (de / até).'); return; }
   const btn=$('#planPuxar'); if(btn){ btn.disabled=true; btn.innerHTML='<i class="ph-duotone ph-spinner"></i> buscando…'; }
   try{
-    const [ag,gr]=await Promise.all([
-      api('lola_central_cronograma?ativo=neq.false&data=gte.'+de+'&data=lte.'+ate+'&select=id,data,status,preproducao_id,item_nome,qtd_prevista,unidade&order=data,turno,ordem'),
+    let [ag,gr]=await Promise.all([
+      api('lola_central_cronograma?ativo=neq.false&data=gte.'+de+'&data=lte.'+ate+'&select=*&order=data,turno,ordem'),
       PLAN.grade!==false ? api('lola_central_cronograma_grade?ativo=neq.false&select=id,dia_semana,preproducao_id,item_nome,qtd,unidade&order=dia_semana,turno,ordem') : Promise.resolve([])
     ]);
     const recs={}; (ST.receitas||[]).forEach(r=>recs[r.id]=r);
     const novos=[], pulados=[]; let nCron=0, nGrade=0, nFeito=0;
-    const comCron=new Set((ag||[]).map(x=>String(x.data).slice(0,10)));
+    ag=(ag||[]).filter(x=>x.etapa!=='porcionar');   // 29/10: porcionar não gasta insumo (já baixou na produção)
+    const comCron=new Set(ag.map(x=>String(x.data).slice(0,10)));
     const add=(x,data,src,q,un)=>{
       const nome=x.item_nome||(recs[x.preproducao_id]||{}).nome||'(sem nome)';
       if(String(un||'')==='tarefa') return;                                   // tarefa não tem insumo
@@ -4387,6 +4396,11 @@ $('#cpX').onclick=fecharCompraDet; $('#cpBg').onclick=fecharCompraDet;
     if(q.get('compras')){ planLoad(); const de=q.get('de'), ate=q.get('ate');
       if(/^\d{4}-\d{2}-\d{2}$/.test(de||'')&&/^\d{4}-\d{2}-\d{2}$/.test(ate||'')){ PLAN.de=de; PLAN.ate=ate; PLAN.periodo=''; }
       planSave(); history.replaceState(null,'',location.pathname); ST.tab='plan'; render(); puxarCronograma(); }
+    /* 29/10: vindo do cronograma: index.html?etiqueta=<receita>&lote=&data=&n=&granel= → abre as etiquetas já preenchidas */
+    else if(q.get('etiqueta')){ const id=q.get('etiqueta');
+      const opt={lote:q.get('lote')||'', data:q.get('data')||'', n:+q.get('n')||0, granel:q.get('granel')||''};
+      history.replaceState(null,'',location.pathname);
+      if((ST.receitas||[]).some(x=>x.id===id)) openEtiqueta(id,opt); else toast('Receita da etiqueta não encontrada na Central.'); }
   }catch(e){} })();
 </script>
 </body>
