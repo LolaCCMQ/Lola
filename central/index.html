@@ -1084,7 +1084,12 @@ function _estItems(){
   /* 23/07 (Bianca): lola_insumos é COMPARTILHADA (Lola + Central). Aqui entra SÓ o que
      tem movimento de estoque na Central — senão apareciam vinhos/bebidas do bar, que a
      Central não estoca. Mesmo recorte da tela antiga de Insumos. */
-  Object.keys(salIns).forEach(id=>{ const i=ST.byId[id]; if(!i||i.ativo===false)return; const s=salIns[id];
+  /* 28/10 (Bianca): pré-preparos que também têm "insumo gêmeo" (preproducao_id) ficavam
+     duplicados — apareciam em Pré-preparos E em Insumos. Esconde o gêmeo da lista de
+     Insumos quando o pré-preparo já está listado; nada é apagado no banco. */
+  const _ppIds=new Set((ST.receitas&&ST.receitas!=='loading'?ST.receitas:[]).map(r=>r.id));
+  Object.keys(salIns).forEach(id=>{ const i=ST.byId[id]; if(!i||i.ativo===false)return;
+    if(i.preproducao_id && _ppIds.has(i.preproducao_id)) return; const s=salIns[id];
     items.push({tipo:'insumo', id:id, nome:i.nome||'?', un:i.unidade_custo||'', saldo:s.q, valor:s.v, custo:(+i.custo_por_unidade||0), custoUn:i.unidade_custo||'un', local:i.local||'', cat:i.categoria||'', evento:!!i.evento}); });
   (ST.receitas&&ST.receitas!=='loading'?ST.receitas:[]).forEach(r=>{ const s=(ST.saldo||{})[r.id];
     items.push({tipo:'producao', id:r.id, nome:r.nome||'?', un:prodUn(r), saldo:s?(+s.saldo):null, saldoData:s?s.saldo_data:null, valor:null, custo:(+r.valor_venda_central||0), custoUn:prodUn(r), local:r.local||''}); });
@@ -1162,7 +1167,7 @@ function viewPlanilha(){
        categoria, sem acento), pra dar pra achar e lançar o 1º saldo. */
     if(PLAN_TIPO==='tudo'||PLAN_TIPO==='insumo'){
       const jaIds=new Set(rows.map(r=>r.id));
-      const extra=(ST.insumos||[]).filter(i=>i&&i.ativo!==false && !jaIds.has(i.id) && norm(i.nome).includes(b))
+      const extra=(ST.insumos||[]).filter(i=>i&&i.ativo!==false && !i.preproducao_id && !jaIds.has(i.id) && norm(i.nome).includes(b))
         .map(i=>({tipo:'insumo', id:i.id, nome:i.nome, un:i.unidade_custo||'', ini:0, contado:false, ent:0, sai:0, teo:0, sis:null, dif:null, semmov:true}));
       list=list.concat(extra);
     }
