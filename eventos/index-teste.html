@@ -311,7 +311,7 @@
   @media(max-width:640px){table.sticky-th thead{display:none}}
   /* 29/09: tabela do menu com colunas largas o bastante pra ler/editar, sem forçar scroll horizontal no desktop */
   .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:4px}
-  table.sticky-th{table-layout:fixed;width:100%}
+  table.sticky-th{table-layout:fixed;width:100%;min-width:1120px}
   table.sticky-th td input,table.sticky-th td select{font-size:14.5px}
   table.sticky-th td input[type=number]{padding:6px 6px;font-weight:700}
   .addpp-toggle{display:flex;gap:6px}
@@ -676,7 +676,9 @@ function renderFilters(){
   renderListFilters();
   const wrap=document.getElementById('filters');
   const opts=[{v:"todos",l:"Todos"}].concat(STATUS.map(s=>({v:s.v,l:s.l})));
-  wrap.innerHTML=opts.map(o=>`<button class="chip ${view.filter===o.v?'active':''}" onclick="setFilter('${o.v}')">${o.l}</button>`).join('');
+  const nMod=DB.events.filter(isModelo).length;
+  wrap.innerHTML=opts.map(o=>`<button class="chip ${view.filter===o.v?'active':''}" onclick="setFilter('${o.v}')">${o.l}</button>`).join('')
+    +`<button class="chip ${view.filter==='modelos'?'active':''}" onclick="setFilter('modelos')">⭐ Modelos${nMod?' ('+nMod+')':''}</button>`;
 }
 function setFilter(v){view.filter=v;renderFilters();renderList();}
 function renderList(){
@@ -686,7 +688,7 @@ function renderList(){
   let evs=DB.events.slice().sort((a,b)=>{var ga=_grp(a),gb=_grp(b);if(ga!==gb)return ga-gb;
     if(ga===0)return (a.data||"9999").localeCompare(b.data||"9999");
     return (b.data||"0000").localeCompare(a.data||"0000");});
-  if(view.filter!=="todos")evs=evs.filter(e=>e.status===view.filter);
+  if(view.filter==='modelos')evs=evs.filter(isModelo); else{evs=evs.filter(e=>!isModelo(e)); if(view.filter!=="todos")evs=evs.filter(e=>e.status===view.filter);}
   if(q)evs=evs.filter(e=>[e.nome,e.responsavel,e.ocasiao,e.contato].join(' ').toLowerCase().includes(q));
   if(view.modo==='lista'){
     if(view.locFilter)evs=evs.filter(e=>(e.local||'')===view.locFilter);
@@ -696,8 +698,8 @@ function renderList(){
   const list=document.getElementById('list');
   if(!evs.length){
     list.innerHTML=`<div class="empty full" style="grid-column:1/-1"><div class="big">🥂</div>
-      <h3>Nenhum evento ${(view.filter!=='todos'||view.locFilter||view.mesFilter)?'com esses filtros':'ainda'}</h3>
-      <p>Clique em <b>+ Novo evento</b> para começar a organizar.</p></div>`;
+      <h3>${view.filter==='modelos'?'Nenhum modelo ainda':('Nenhum evento '+((view.filter!=='todos'||view.locFilter||view.mesFilter)?'com esses filtros':'ainda'))}</h3>
+      <p>${view.filter==='modelos'?'Abra um evento já preenchido e clique em <b>⭐ Salvar como modelo</b> — ele vira um modelo para duplicar e personalizar.':'Clique em <b>+ Novo evento</b> para começar a organizar.'}</p></div>`;
     return;
   }
   if(view.modo==='lista'){
@@ -741,8 +743,121 @@ function renderList(){
       <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="badge ${st.c}">${st.l}</span>${(()=>{const pay=payStatus(e);return pay.txt==='—'?'':'<span class="pay '+pay.cls+'">'+(pay.ico?pay.ico+' ':'')+pay.txt+'</span>';})()}</div>
       <div class="progress"><div style="width:${pct}%"></div></div>
       <div class="pct"><span>Checklist</span><span>${pct}%</span></div>
+      ${isModelo(e)?`<div style="margin-top:10px"><button class="btn-primary btn-sm" onclick="event.stopPropagation();openDuplicar('${e.id}','usar')">⧉ Usar este modelo</button></div>`:''}
     </div>`;
   }).join('');
+}
+/* ===== Duplicar evento e Modelos (Rodada 9 · 29/10/2026) =====
+   Duplicar cria um evento NOVO (insert) a partir de outro — o original nunca é alterado.
+   "Modelo" = evento marcado em ev.checks['_modelo'] (sem coluna nova): fica fora da lista normal e
+   aparece no filtro "Modelos". Nunca copia: cliente, contato, pagamentos/sinal/comprovantes, compras e notas,
+   convidados, contagem, perdas, transferências, versão de orçamento, nem o que foi marcado como feito/pago. */
+function isModelo(ev){return !!(ev&&ev.checks&&ev.checks['_modelo']);}
+const DUP_OPCOES=[
+  {k:'dados',l:'Dados do evento (tipo, local, horário, duração, ocasião, serviço, observações)'},
+  {k:'menu',l:'Menu e itens (com receitas e OS por área)'},
+  {k:'orc',l:'Orçamento: nº de pax, mão de obra, % de serviço e imposto'},
+  {k:'extras',l:'Custos extras e fornecedores (valores, sem “pago”)'},
+  {k:'oper',l:'Operacional / Show / Negociação: anotações, valores e links (sem “feito”)'},
+  {k:'mat',l:'Materiais e louças (sem marcar saída/volta)'},
+  {k:'equipe',l:'Equipe escalada (cargo, nome, horário, valor — sem “pago”)'},
+  {k:'dia',l:'Itens avulsos da aba “No dia do evento”'},
+  {k:'layout',l:'Layout de mesas'}
+];
+function dupClone(x){return JSON.parse(JSON.stringify(x==null?null:x));}
+function dupBuild(src,o){
+  const ev=blankEvent();
+  ev.nome=o.nome||''; ev.responsavel=o.responsavel||''; ev.data=o.data||''; ev.status='pre';
+  if(o.paxIn!==undefined&&o.paxIn!=='')ev.paxIn=o.paxIn;
+  if(o.dados){
+    ['tipo','local','horario','duracao','ocasiao','servico','exclusividade','cupula','nota','obs'].forEach(function(k){if(src[k]!==undefined&&src[k]!==null)ev[k]=src[k];});
+    ev.paxIn=(o.paxIn!==undefined&&o.paxIn!=='')?o.paxIn:src.paxIn; ev.paxOut=src.paxOut;
+  }
+  if(o.orc){ev.pax=src.pax;ev.maoObra=src.maoObra;ev.gorjeta=src.gorjeta;ev.imposto=src.imposto;ev.moValor=src.moValor;ev.moQtd=src.moQtd;
+    if(o.paxIn!==undefined&&o.paxIn!==''&&(String(src.pax||'')===''||String(src.pax)===String(src.paxIn)))ev.pax=o.paxIn;}
+  if(o.menu)ev.menu=dupClone(src.menu||[]);
+  if(o.extras)ev.orcExtras=(dupClone(src.orcExtras||[])).map(function(e){e.pago=false;e.pagoEm='';delete e.obs;return e;});
+  if(o.mat)ev.materiais=(dupClone(src.materiais||[])).map(function(m){m.saiu=false;m.voltou=false;m.qtdVolta='';return m;});
+  if(o.equipe)ev.equipe=(dupClone(src.equipe||[])).map(function(r){r.pago=false;r.pagoEm='';delete r.obsPag;return r;});
+  if(o.oper){
+    ['negociacao','os','show'].forEach(function(fid){
+      const f=FASES.find(function(x){return x.id===fid;});if(!f)return;
+      f.itens.forEach(function(it,i){
+        const k=fid+'_'+i,c=src.checks&&src.checks[k];if(!c)return;
+        const n=dupClone(c);n.done=false;n.pago=false;n.pagoEm='';delete n.pagoObs;delete n.resp;delete n.respLinked;
+        ev.checks[k]=n;
+      });
+    });
+  }
+  if(o.dia&&src.checks&&Array.isArray(src.checks['_diaCustom']))ev.checks['_diaCustom']=dupClone(src.checks['_diaCustom']);
+  if(o.modelo)ev.checks['_modelo']=true;
+  return ev;
+}
+function dupModal(html){
+  let m=document.getElementById('dupOverlay');
+  if(!m){m=document.createElement('div');m.id='dupOverlay';m.style.cssText='position:fixed;inset:0;background:rgba(30,10,10,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';document.body.appendChild(m);}
+  m.innerHTML='<div style="background:var(--cream);border-radius:16px;max-width:560px;width:100%;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.35);max-height:92vh;overflow:auto">'+html+'</div>';
+  m.style.display='flex';
+}
+function dupClose(){const m=document.getElementById('dupOverlay');if(m)m.style.display='none';}
+/* modo: 'copia' (evento novo normal) | 'modelo' (salvar cópia como modelo) | 'usar' (criar evento a partir de um modelo) */
+function openDuplicar(id,modo){
+  const src=getEvent(id);if(!src)return;
+  modo=modo||(isModelo(src)?'usar':'copia');
+  const nomeBase=String(src.nome||'').replace(/^⭐\s*Modelo\s*[—-]\s*/i,'');
+  const nome=modo==='modelo'?('⭐ Modelo — '+nomeBase):(modo==='usar'?nomeBase:('Cópia de '+nomeBase));
+  const titulo=modo==='modelo'?'Salvar como modelo':(modo==='usar'?'Criar evento a partir do modelo':'Duplicar evento');
+  const aviso=modo==='modelo'
+    ?'Cria uma <b>cópia limpa</b> marcada como modelo (sem data, cliente nem pagamentos). O evento original não muda.'
+    :'Cria um <b>evento novo</b> a partir deste. O original não muda. Não são copiados: cliente, contato, pagamentos, notas de compra, convidados, contagem, perdas, transferências nem o que foi marcado como feito/pago.';
+  const sid=JSON.stringify(id).replace(/"/g,'&quot;');
+  dupModal('<div style="font-family:var(--serif);font-size:19px;color:var(--vinho);font-weight:700;margin-bottom:6px">'+titulo+'</div>'
+    +'<div class="intro" style="margin:0 0 10px">'+aviso+'</div>'
+    +'<div class="form-grid">'
+      +'<div class="field full"><label>Nome do novo evento</label><input type="text" id="dup_nome" value="'+esc(nome)+'"></div>'
+      +(modo==='modelo'?'':'<div class="field"><label>Data</label><input type="date" id="dup_data"></div>')
+      +(modo==='modelo'?'':'<div class="field"><label>Responsável</label><input type="text" id="dup_resp" value="'+esc(src.responsavel||'')+'"></div>')
+      +(modo==='modelo'?'':'<div class="field"><label>Nº de convidados (pax)</label><input type="number" id="dup_pax" value="'+esc(src.paxIn)+'"></div>')
+    +'</div>'
+    +'<div style="font-weight:700;margin:12px 0 6px">O que copiar</div>'
+    +DUP_OPCOES.map(function(op){return '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin:4px 0"><input type="checkbox" style="width:auto;margin-top:3px" id="dup_o_'+op.k+'" checked> <span>'+op.l+'</span></label>';}).join('')
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn-primary btn-sm" id="dup_go" onclick="confirmDuplicar('+sid+',\''+modo+'\')">'+(modo==='modelo'?'Salvar modelo':'Criar evento')+'</button><button class="btn-ghost btn-sm" onclick="dupClose()">Cancelar</button></div>');
+}
+async function confirmDuplicar(id,modo){
+  const src=getEvent(id);if(!src)return;
+  const nome=(document.getElementById('dup_nome').value||'').trim();
+  if(!nome){showFlash('Dê um nome ao evento.',true);return;}
+  const g=function(i){const e=document.getElementById(i);return e?e.value:'';};
+  const o={nome:nome,modelo:modo==='modelo'};
+  if(modo!=='modelo'){o.data=g('dup_data');o.responsavel=g('dup_resp');o.paxIn=g('dup_pax');}
+  DUP_OPCOES.forEach(function(op){const c=document.getElementById('dup_o_'+op.k);o[op.k]=!!(c&&c.checked);});
+  const btn=document.getElementById('dup_go');if(btn){btn.disabled=true;btn.textContent='Criando…';}
+  try{
+    const ev=dupBuild(src,o);
+    const ins=await sb.from('lola_eventos').insert(toRow(ev)).select().single();
+    if(ins.error)throw ins.error;
+    const novo=fromRow(ins.data);
+    if(o.layout){
+      try{
+        const r=await sb.from('lola_eventos').select('layout_png').eq('id',src.id).single();
+        const png=r&&r.data&&r.data.layout_png;
+        if(png){const u=await sb.from('lola_eventos').update({layout_png:png}).eq('id',novo.id);if(!u.error)novo.layoutPng=png;}
+      }catch(e){console.warn('layout não copiado',e);}
+    }
+    DB.events.push(novo);
+    dupClose();
+    if(modo==='modelo'){view.filter='modelos';renderFilters();renderList();showFlash('Modelo salvo ✓');}
+    else{open_(novo.id);showFlash('Evento criado a partir de “'+(src.nome||'evento')+'”');}
+  }catch(e){
+    console.error(e);showFlash('Não consegui duplicar — nada foi alterado.',true);
+    if(btn){btn.disabled=false;btn.textContent=modo==='modelo'?'Salvar modelo':'Criar evento';}
+  }
+}
+function toggleModelo(id){
+  const ev=getEvent(id);if(!ev)return;
+  ev.checks=ev.checks||{};
+  if(ev.checks['_modelo']){delete ev.checks['_modelo'];}else{ev.checks['_modelo']=true;}
+  persist(ev,true);renderDetail();
 }
 async function newEvent(){
   const ev=blankEvent();
@@ -839,6 +954,9 @@ function renderDetail(){
             ${STATUS.map(s=>`<option value="${s.v}" ${ev.status===s.v?'selected':''}>${s.l}</option>`).join('')}
           </select>
           <button class="btn-ghost btn-sm no-print" onclick="openTaskModal('','','${ev.id}')">📌 Nova tarefa</button>
+          ${isModelo(ev)
+            ?`<button class="btn-primary btn-sm no-print" onclick="openDuplicar('${ev.id}','usar')">⧉ Usar este modelo</button><button class="btn-ghost btn-sm no-print" onclick="toggleModelo('${ev.id}')" title="Volta a ser um evento comum">Deixar de ser modelo</button>`
+            :`<button class="btn-ghost btn-sm no-print" onclick="openDuplicar('${ev.id}','copia')">⧉ Duplicar</button><button class="btn-ghost btn-sm no-print" onclick="openDuplicar('${ev.id}','modelo')">⭐ Salvar como modelo</button>`}
           <button class="btn-ghost no-print" onclick="openPrintDialog()">🖨</button>
           <button class="danger no-print" onclick="delEvent('${ev.id}')">🗑</button>
         </div>
@@ -1747,7 +1865,7 @@ function materiaisHTML(ev,inline){
     <button class="btn-ghost btn-sm" onclick="addMat()">+ Item avulso / a comprar</button>
     <button class="btn-ghost btn-sm" onclick="openPrintDialog()">🖨 Imprimir folha</button>
   </div>
-  <table>
+  <div class="tbl-scroll"><table style="min-width:1040px">
     <thead><tr><th style="width:46px"></th><th>Material</th><th style="width:130px">Saída</th><th style="width:80px">Qtd</th><th style="width:70px">Comprar?</th><th style="width:100px">Custo un.</th><th style="width:70px">Saiu</th><th style="width:80px">Qtd volta</th><th style="width:70px">Voltou</th><th style="width:140px">Destino</th><th>Obs</th><th style="width:30px" class="no-print"></th></tr></thead>
     <tbody>
     ${m.length?m.map((r,i)=>`<tr>
@@ -1765,7 +1883,7 @@ function materiaisHTML(ev,inline){
       <td class="no-print"><button class="del-row" onclick="delMat(${i})">×</button></td>
     </tr>`).join(''):`<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:22px">Nenhum material ainda. Escolha do catálogo ou adicione um item avulso.</td></tr>`}
     </tbody>
-  </table>
+  </table></div>
   ${tot?`<div class="totals" style="margin-top:12px"><div class="line grand"><span>A comprar · ${comprar.length} ${comprar.length===1?'item':'itens'}</span><span>${fmt(tot)}</span></div></div>
   <div class="intro" style="margin-top:6px">Esse valor soma no <b>Orçamento</b>. <button class="btn-ghost btn-sm" onclick="gotoTab('orc')">Ver o Orçamento →</button></div>`:''}`;
 }
@@ -2377,7 +2495,7 @@ function menuHTML(ev){
   +'</div>'
   +'<div class="intro" style="margin:0 0 8px">Use as setinhas ↑↓ pra reordenar os itens e enxergar melhor a sequência de montagem do menu. "Previsão total" é pra itens que não são por pessoa — ex.: um lote pra vender no dia, com a quantidade que você prevê produzir/vender.</div>'
   +osBar
-  +'<table class="sticky-th"><thead><tr><th style="width:28px" class="no-print"><input type="checkbox" '+((ev.menu||[]).length&&_menuSel.size===(ev.menu||[]).length?'checked':'')+' onchange="menuSelAll(this.checked)" title="selecionar todos"></th><th style="width:76px">Cat</th><th>Item</th><th style="width:96px">Seção</th><th style="width:92px">Qtd</th><th style="width:48px">Un</th><th style="width:44px">/pax</th><th style="width:74px">Preço</th><th>Descrição p/ cliente</th><th style="width:108px">Louça / talher</th><th class="num" style="width:82px">Total</th><th style="width:124px" class="no-print">Fator de correção (pedido)</th><th style="width:88px" class="no-print"></th></tr></thead><tbody>'
+  +'<div class="tbl-scroll"><table class="sticky-th"><thead><tr><th style="width:28px" class="no-print"><input type="checkbox" '+((ev.menu||[]).length&&_menuSel.size===(ev.menu||[]).length?'checked':'')+' onchange="menuSelAll(this.checked)" title="selecionar todos"></th><th style="width:76px">Cat</th><th>Item</th><th style="width:96px">Seção</th><th style="width:92px">Qtd</th><th style="width:48px">Un</th><th style="width:44px">/pax</th><th style="width:74px">Preço</th><th>Descrição p/ cliente</th><th style="width:108px">Louça / talher</th><th class="num" style="width:82px">Total</th><th style="width:124px" class="no-print">Fator de correção (pedido)</th><th style="width:88px" class="no-print"></th></tr></thead><tbody>'
   +((ev.menu||[]).length?ev.menu.map((m,i)=>'<tr'+(_menuSel.has(i)?' style="background:var(--vinho-pale)"':'')+'>'
       +'<td class="no-print" style="text-align:center"><input type="checkbox" '+(_menuSel.has(i)?'checked':'')+' onchange="menuToggleSel('+i+',this.checked)"></td>'
       +'<td data-l="Categoria"><span class="menu-cat">'+['C','B'].map(c=>'<button class="'+c+(mcat(m)===c?' on':'')+'" onclick="setMenuCat('+i+',\''+c+'\')">'+c+'</button>').join('')+'</span></td>'
@@ -2395,7 +2513,7 @@ function menuHTML(ev){
       +'<td data-l="Pedido" class="no-print"><div style="display:flex;gap:4px;margin-bottom:4px"><input type="text" placeholder="ex: garrafa" value="'+esc(m.unCompra||'')+'" onchange="setMenu('+i+',\'unCompra\',this.value)" style="min-width:0"><input type="number" step="0.01" placeholder="tam. (ex: 750)" value="'+esc(m.tamCompra||'')+'" onchange="setMenu('+i+',\'tamCompra\',this.value)" style="min-width:0"></div><div style="font-size:12px">'+pedidoHTML(m,pax)+'</div></td>'
       +'<td class="no-print"><div class="row-actions" style="gap:3px;flex-wrap:nowrap"><button class="del-row" style="font-size:13px" onclick="moveMenu('+i+',-1)" title="Mover pra cima">▲</button><button class="del-row" style="font-size:13px" onclick="moveMenu('+i+',1)" title="Mover pra baixo">▼</button><button class="del-row" onclick="delMenu('+i+')" title="Remover">×</button></div></td></tr>').join('')
     :'<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:24px">Nenhum item ainda. Adicione acima.</td></tr>')
-  +'</tbody></table>'
+  +'</tbody></table></div>'
   +'<div class="section-title" style="margin-top:22px">Listas separadas</div>'
   +listaCatHTML(ev,'C')+listaCatHTML(ev,'B')
   +'<div class="totals"><div class="line grand"><span>Total do menu (comida + bebida)</span><span>'+fmt(totMenu)+'</span></div></div>'
@@ -3031,7 +3149,7 @@ async function delEvent(id){
   DB.events=DB.events.filter(e=>e.id!==id);backToDash();showFlash("Excluído");
 }
 function exportData(){
-  const evs=DB.events.slice().sort(function(a,b){return (a.data||'9999').localeCompare(b.data||'9999');});
+  const evs=DB.events.filter(function(e){return !isModelo(e);}).sort(function(a,b){return (a.data||'9999').localeCompare(b.data||'9999');});
   if(!evs.length){showFlash('Nenhum evento para exportar',true);return;}
   const fmtData=function(d){if(!d)return 'A definir';var x=new Date(d+'T00:00');return x.toLocaleDateString('pt-BR')+' · '+x.toLocaleDateString('pt-BR',{weekday:'short'}).toUpperCase().replace('.','');};
   let h='<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:var(--sans);color:#1E0A0A;max-width:920px;margin:0 auto;padding:24px">';
