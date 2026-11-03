@@ -1650,16 +1650,20 @@ async function carregarProduzidos(){
 }
 function viewProduzidos(){
   let h=`<div class="note">Tudo que já foi <b>produzido</b> na Central. Toque num item pra <b>imprimir etiquetas</b> ou <b>corrigir o rendimento</b> da receita.</div>`;
-  h+=`<div class="toolbar"><input type="search" id="bqz" placeholder="Buscar produção…" value="${esc(ST.buscaZ||'')}"><button class="btn sec" id="btnConsultaLote" type="button" style="flex-shrink:0"><i class="ph-duotone ph-qr-code"></i> Consultar lote</button></div>`;
+  h+=`<div class="toolbar"><input type="search" id="bqz" placeholder="Buscar por nome, lote, quem produziu ou data…" value="${esc(ST.buscaZ||'')}"><button class="btn sec" id="btnConsultaLote" type="button" style="flex-shrink:0"><i class="ph-duotone ph-qr-code"></i> Consultar lote</button></div>`;
   const d=ST.prodHist;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
   const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); if(r) return r.nome; const f=(ST.ppFora||{})[id]; return f?(f.nome+' ⚠ fora da lista da Central'):'(produção)'; };
   const g={}; d.forEach(x=>{ if(!x.preproducao_id)return; const k=x.preproducao_id; (g[k]=g[k]||{id:k,nome:nomeDe(k),n:0,total:0,ultima:null,evts:[]}); g[k].n++; g[k].total+=(+x.qtd_produzida||0); g[k].evts.push(x); if(!g[k].ultima||String(x.data)>String(g[k].ultima)){g[k].ultima=x.data;} });
   let list=Object.values(g);
-  if(ST.buscaZ){ const b=norm(ST.buscaZ); list=list.filter(x=>norm(x.nome).includes(b)); }
+  /* 03/11/2026 (Mahara): busca pelo nome E pelas produções (lote, quem produziu, observação, data dd/mm).
+     Se bater só em produções, o item abre sozinho mostrando só as que bateram. */
+  if(ST.buscaZ){ const b=norm(ST.buscaZ.trim());
+    const bateEvt=e=>[e.lote,e.criado_por,e.observacoes,fmtData(String(e.data).slice(0,10))].some(v=>v&&norm(String(v)).includes(b));
+    list=list.map(x=>{ if(norm(x.nome).includes(b)) return x; const ev=x.evts.filter(bateEvt); return ev.length?Object.assign({},x,{evts:ev,_achouEvt:true}):null; }).filter(Boolean); }
   list.sort((a,b)=>String(b.ultima||'').localeCompare(String(a.ultima||'')));
-  if(!list.length){ h+=`<div class="empty"><i class="ph-duotone ph-package"></i>Nada produzido ainda. Registre pelo botão Produzir.</div>`; return h; }
-  h+=`<div class="lbl">Produzidos (${list.length})</div>`;
+  if(!list.length){ h+=ST.buscaZ?`<div class="empty"><i class="ph-duotone ph-magnifying-glass"></i>Nada encontrado pra “${esc(ST.buscaZ)}”.</div>`:`<div class="empty"><i class="ph-duotone ph-package"></i>Nada produzido ainda. Registre pelo botão Produzir.</div>`; return h; }
+  h+=`<div class="lbl">Produzidos (${list.length})<span class="sp"></span><span class="n" style="font-weight:600;text-transform:none;letter-spacing:0">toque numa produção pra ver a ordem de produção</span></div>`;
   h+=`<div class="pzlist">`+list.map(x=>{ const r=(ST.receitas||[]).find(y=>y.id===x.id)||{}; const un=prodUn(r);
     const evts=x.evts.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
     const fem=/^(un|por|pç|fatia)/i.test(un);
@@ -1674,17 +1678,19 @@ function viewProduzidos(){
         <button class="pzbi pzet" title="Etiquetas" aria-label="Etiquetas"><i class="ph-duotone ph-tag"></i></button>
         <button class="pzbi pzrend" title="Rendimento" aria-label="Rendimento"><i class="ph-duotone ph-scales"></i></button>
       </div>
-      <div class="usos pzbox">
+      <div class="usos pzbox${x._achouEvt?' on':''}">
         <div class="lbl" style="margin:0 0 4px">Receita usada</div>
         <div class="pzrec"><div class="uinfo">carregando…</div></div>
-        <div class="lbl" style="margin:10px 0 4px">Produções (${x.n})</div>
-        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span>${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}${e.lote?' · <b style="color:var(--vinho)">'+esc(e.lote)+'</b>':''}${e.observacoes?'<br><span style="color:var(--mut);font-size:11px">'+esc(e.observacoes)+'</span>':''}</span><b>+${num(e.qtd_produzida)} ${porc?('porções <small style="font-weight:600;color:var(--mut)">de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)+'</small>'):esc(un)}</b><button class="pzcron" title="Adicionar ao cronograma"><i class="ph-duotone ph-calendar-plus"></i></button><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
+        <div class="lbl" style="margin:10px 0 4px">Produções (${x._achouEvt?evts.length+' de '+x.n:x.n})</div>
+        ${evts.map(e=>`<div class="ring pzevrow" data-eid="${e.id}"><span class="pzop" title="Ver ordem de produção" style="cursor:pointer"><i class="ph-duotone ph-file-text" style="color:var(--vinho)"></i> ${fmtData(String(e.data).slice(0,10))}${e.criado_por?' · '+esc(e.criado_por):''}${e.lote?' · <b style="color:var(--vinho)">'+esc(e.lote)+'</b>':''}${e.observacoes?'<br><span style="color:var(--mut);font-size:11px">'+esc(e.observacoes)+'</span>':''}</span><b>+${num(e.qtd_produzida)} ${porc?('porções <small style="font-weight:600;color:var(--mut)">de '+num(r.porcao_qtd)+' '+esc(r.porcao_un)+'</small>'):esc(un)}</b><button class="pzcron" title="Adicionar ao cronograma"><i class="ph-duotone ph-calendar-plus"></i></button><button class="pzedit" title="editar"><i class="ph-duotone ph-pencil-simple"></i></button><button class="pzdel" title="excluir"><i class="ph-duotone ph-trash"></i></button></div>`).join('')}
       </div>
     </div>`;
   }).join('')+`</div>`;
   return h;
 }
 function wireProduzidos(){
+  setTimeout(()=>{ $$('#app .pzrow .pzbox.on').forEach(b=>{ const tg=b.closest('.pzrow').querySelector('.pztog'); const rec=b.querySelector('.pzrec');
+    if(tg&&rec&&!rec.dataset.loaded){ b.classList.remove('on'); tg.onclick&&tg.onclick({target:tg}); } }); },0);
   const bq=$('#bqz'); if(bq){ bq.oninput=()=>{ST.buscaZ=bq.value; const p=bq.selectionStart; render(); const n=$('#bqz'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   const bcl=$('#btnConsultaLote'); if(bcl) bcl.onclick=abrirConsultaLote;
   $$('#app .pzrow').forEach(el=>{ const id=el.dataset.id;
@@ -1711,6 +1717,7 @@ function wireProduzidos(){
     el.querySelectorAll('.pzevrow').forEach(row=>{ const eid=row.dataset.eid;
       row.querySelector('.pzcron').onclick=()=>adicionarAoCronograma(eid, id);
       row.querySelector('.pzedit').onclick=()=>editProdEvento(eid, id);
+      const op=row.querySelector('.pzop'); if(op) op.onclick=()=>abrirOrdemProducao(eid, id);
       row.querySelector('.pzdel').onclick=()=>delProdEvento(eid, id);
     });
   });
@@ -1764,6 +1771,87 @@ async function delProdEvento(eid, prepId){
   }catch(err){ toast('Erro: '+err.message); }
 }
 let EDIT_EVT=null;
+/* ===== 03/11/2026 (Mahara): ORDEM DE PRODUÇÃO — tocar numa produção em "Itens produzidos" mostra
+   o que foi feito de verdade: quem, quando, lote, o que estava no cronograma, os INSUMOS REALMENTE
+   BAIXADOS (lola_central_estoque_mov com origem_ref 'prodhist:<id>'), o que a receita previa pra
+   esse rendimento, o rendimento obtido x esperado e o custo. Só leitura. ===== */
+async function abrirOrdemProducao(eid, prepId){
+  const e=evtDe(eid); if(!e) return;
+  const r=(ST.receitas||[]).find(x=>x.id===prepId)||((ST.ppFora||{})[prepId])||{}; const un=prodUn(r); const ri=rendInfo(r);
+  const nome=r.nome||'Produção';
+  $('#shTitle').textContent='Ordem de produção — '+nome;
+  const f=$('.sh-foot'); if(f) f.style.display='none';
+  $('#shBody').innerHTML='<div class="spin"></div>'; openSheet();
+  let movs=[], itens=[], cron=null, erro='';
+  try{
+    [movs, itens, cron]=await Promise.all([
+      api('lola_central_estoque_mov?origem_tipo=eq.producao&origem_ref=eq.'+encodeURIComponent('prodhist:'+eid)+'&select=insumo_id,qtd,unidade,custo_unit,custo_total,obs,data,criado_por&order=id'),
+      post('rpc/central_receita_itens',{pid:prepId}).catch(()=>[]),
+      api('lola_central_cronograma?prod_hist_id=eq.'+eid+'&select=data,turno,hora,responsavel,qtd_prevista,unidade,iniciado_em,concluido_em,duracao_min,obs,granel_qtd,granel_un&limit=1').then(x=>(x&&x[0])||null).catch(()=>null)
+    ]);
+  }catch(err){ erro=err.message; }
+  movs=movs||[]; itens=Array.isArray(itens)?itens:[];
+  const qProd=+e.qtd_produzida||0;
+  /* o que a receita prevê pra esse rendimento (bruto, na unidade de custo do insumo) */
+  const fRend=(ri.base>0&&qProd>0)?qProd/ri.base:0;
+  const prev={}; itens.forEach(z=>{ if(!z.insumo_id) return; const ins=ST.byId[z.insumo_id]||{unidade_custo:z.unidade_custo};
+    const fc=fcDoInsumo(z.nome); const liq=((z.qtd_liq!=null?+z.qtd_liq:+z.qtd)||0); const bruta=fc!==1?liq*fc:(+z.qtd||0);
+    prev[z.insumo_id]={nome:z.nome, q:(prev[z.insumo_id]?prev[z.insumo_id].q:0)+qtdCusto(bruta*fRend,z.unidade,ins), base:(prev[z.insumo_id]?prev[z.insumo_id].base:0)+qtdCusto(bruta,z.unidade,ins), un:ins.unidade_custo||z.unidade_custo||z.unidade}; });
+  /* usado de verdade, por insumo */
+  const usado={}; movs.forEach(m=>{ const k=m.insumo_id||('?'+m.obs); const u=(usado[k]=usado[k]||{q:0,custo:0,un:m.unidade||''}); u.q+=-(+m.qtd||0); u.custo+=-(+m.custo_total||0); });
+  const ids=[...new Set([...Object.keys(usado),...Object.keys(prev)])];
+  const custo=Object.values(usado).reduce((s,u)=>s+u.custo,0);
+  /* rendimento esperado pelos insumos que entraram: mediana de (usado ÷ receita cheia) × rendimento da receita */
+  const razoes=Object.keys(usado).filter(k=>prev[k]&&prev[k].base>0).map(k=>usado[k].q/prev[k].base).filter(v=>v>0).sort((a,b)=>a-b);
+  const fUso=razoes.length?razoes[Math.floor((razoes.length-1)/2)]:0;
+  const esperado=(fUso>0&&ri.base>0)?fUso*ri.base:null;
+  const pct=(esperado&&qProd>0)?qProd/esperado*100:null;
+  const unLbl=(ri.ehPorcao?'porções':un);
+  const linha=(k,v)=>`<div class="ring"><span>${k}</span><b style="text-align:right">${v}</b></div>`;
+  let h='';
+  if(erro) h+=`<div class="uinfo">Não consegui ler tudo: ${esc(erro)}</div>`;
+  h+=`<div class="note" style="display:flex;gap:12px;flex-wrap:wrap"><span><i class="ph-duotone ph-calendar-blank"></i> <b>${fmtData(String(e.data).slice(0,10))}</b></span>${e.criado_por?`<span><i class="ph-duotone ph-user"></i> <b>${esc(e.criado_por)}</b></span>`:''}${e.lote?`<span><i class="ph-duotone ph-barcode"></i> lote <b>${esc(e.lote)}</b></span>`:''}</div>`;
+  if(e.observacoes) h+=`<div class="note" style="background:#FDF0E0;color:#8A5A12"><i class="ph-duotone ph-note"></i> ${esc(e.observacoes)}</div>`;
+  /* rendimento */
+  h+=`<div class="lbl">Rendimento</div><div class="usos on" style="margin-top:0">`;
+  h+=linha('Rendeu', `<span style="font-size:16px">${num(qProd)} ${esc(unLbl)}</span>${ri.ehPorcao?`<br><small style="color:var(--mut);font-weight:600">porções de ${num(r.porcao_qtd)} ${esc(r.porcao_un||'')}</small>`:''}`);
+  if(cron&&cron.granel_qtd!=null) h+=linha('A granel (antes de porcionar)', num(cron.granel_qtd)+' '+esc(cron.granel_un||'kg'));
+  if(esperado!=null) h+=linha('Esperado pelos insumos usados', `${num(esperado)} ${esc(unLbl)}`)+linha('Aproveitamento', `<span style="color:${pct>=95?'var(--okFg)':pct>=85?'#8A5A12':'var(--urgFg)'}">${Math.round(pct)}%</span>`);
+  else if(ri.base>0) h+=linha('Receita cheia rende', `${num(ri.base)} ${esc(unLbl)}`);
+  if(custo>0){ h+=linha('Custo dos insumos', brl(custo)); if(qProd>0) h+=linha('Custo por '+(ri.ehPorcao?'porção':esc(un)), brl(custo/qProd)); }
+  h+=`</div>`;
+  /* cronograma */
+  if(cron){
+    h+=`<div class="lbl">No cronograma</div><div class="usos on" style="margin-top:0">`;
+    h+=linha('Previsto', `${fmtData(String(cron.data).slice(0,10))}${cron.turno?' · '+({manha:'Manhã',tarde:'Tarde',noite:'Noite'}[cron.turno]||cron.turno):''} · ${num(cron.qtd_prevista)} ${esc(cron.unidade||'')}`);
+    if(cron.responsavel) h+=linha('Executou', esc(cron.responsavel));
+    if(cron.duracao_min!=null) h+=linha('Tempo gasto', Math.round(cron.duracao_min)+' min');
+    h+=`</div>`;
+  }
+  /* insumos */
+  h+=`<div class="lbl">Insumos <span class="sp"></span><span class="n" style="text-transform:none;letter-spacing:0;font-weight:600">usado de verdade · receita p/ esse rendimento</span></div><div class="usos on" style="margin-top:0">`;
+  if(!ids.length) h+=`<div class="uinfo">Sem ingredientes ligados ao estoque nesta receita.</div>`;
+  ids.forEach(k=>{ const u=usado[k], pv=prev[k]; const ins=ST.byId[k]||{}; const nm=ins.nome||(pv&&pv.nome)||(String(k).startsWith('?')?'(insumo não identificado)':'(insumo)');
+    const unI=(u&&u.un)||(pv&&pv.un)||'';
+    const dif=(u&&pv&&pv.q>0)?(u.q/pv.q-1)*100:null;
+    h+=`<div class="ring" style="align-items:flex-start"><span>${esc(nm)}${u&&u.custo>0?`<br><small style="color:var(--mut)">${brl(u.custo)}</small>`:''}</span><b style="text-align:right">${u?num(u.q)+' '+esc(unI):'<span style="color:var(--mut);font-weight:600">não baixado</span>'}${pv?`<br><small style="color:var(--mut);font-weight:600">receita: ${num(pv.q)} ${esc(pv.un||'')}${dif!=null&&Math.abs(dif)>=5?` · <span style="color:${dif>0?'var(--urgFg)':'#2C7A4B'}">${dif>0?'+':''}${Math.round(dif)}%</span>`:''}</small>`:''}</b></div>`; });
+  if(!movs.length&&ids.length) h+=`<div class="uinfo" style="margin-top:6px">Esta produção foi registrada <b>sem baixar insumos</b> do estoque — os valores acima são só o que a receita prevê.</div>`;
+  h+=`</div>`;
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+    <button class="btn sec" id="opVoltar" style="flex:1"><i class="ph-duotone ph-arrow-left"></i> Voltar</button>
+    <button class="btn" id="opPrint" style="flex:1"><i class="ph-duotone ph-printer"></i> Imprimir</button></div>`;
+  $('#shBody').innerHTML=h;
+  $('#opVoltar').onclick=closeSheet;
+  $('#opPrint').onclick=()=>{ const w=window.open('','_blank'); if(!w){ toast('Libere os pop-ups pra imprimir.'); return; }
+    const corpo=$('#shBody').cloneNode(true); const bt=corpo.querySelector('#opVoltar'); if(bt) bt.parentNode.remove();
+    w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Ordem de produção — ${esc(nome)}</title><style>
+      body{font-family:Arial,sans-serif;color:#222;padding:22px;max-width:640px;margin:0 auto;font-size:13px} h1{font-size:19px;margin:0 0 10px}
+      .ring{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #e5ddd3}.ring b{text-align:right}
+      .lbl{font-weight:800;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin:14px 0 4px;color:#7A4FA3}.lbl .sp,.lbl .n{display:none}
+      .note{border:1px solid #e5ddd3;border-radius:8px;padding:8px 10px;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap}.uinfo{color:#666;font-size:12px}
+      small{color:#666} i.ph-duotone{display:none} @media print{@page{margin:14mm}}</style></head><body><h1>Ordem de produção — ${esc(nome)}</h1>${corpo.innerHTML}</body></html>`);
+    w.document.close(); setTimeout(()=>{ try{w.focus();w.print();}catch(_){} },400); };
+}
 function editProdEvento(eid, prepId){
   const e=evtDe(eid); if(!e)return; EDIT_EVT={eid, prepId, old:+e.qtd_produzida||0};
   const r=(ST.receitas||[]).find(x=>x.id===prepId)||{}; const un=prodUn(r);
