@@ -1640,6 +1640,12 @@ async function carregarProduzidos(){
   ST.prodHist='loading'; if(ST.tab==='pz'||ST.tab==='ini') render();
   try{ ST.prodHist=await api('lola_central_prod_hist?ativo=neq.false&select=id,preproducao_id,data,qtd_produzida,saldo_depois,criado_por,lote,observacoes&order=data.desc&limit=400'); }
   catch(e){ ST.prodHist=[]; }
+  /* 03/11/2026: produção de receita que não está na lista da Central (ex.: criada sem cozinha) —
+     busca o nome no banco pra não aparecer só "(produção)" */
+  try{ const conh=new Set((Array.isArray(ST.receitas)?ST.receitas:[]).map(r=>r.id));
+    const falta=[...new Set((Array.isArray(ST.prodHist)?ST.prodHist:[]).map(h=>h.preproducao_id).filter(id=>id&&!conh.has(id)))];
+    if(falta.length){ const rr=await api('lola_preproducoes?id=in.('+falta.join(',')+')&select=id,nome,cozinha');
+      ST.ppFora={}; (rr||[]).forEach(r=>{ ST.ppFora[r.id]=r; }); } }catch(e){}
   if(ST.tab==='pz'||ST.tab==='ini') render();
 }
 function viewProduzidos(){
@@ -1647,7 +1653,7 @@ function viewProduzidos(){
   h+=`<div class="toolbar"><input type="search" id="bqz" placeholder="Buscar produção…" value="${esc(ST.buscaZ||'')}"><button class="btn sec" id="btnConsultaLote" type="button" style="flex-shrink:0"><i class="ph-duotone ph-qr-code"></i> Consultar lote</button></div>`;
   const d=ST.prodHist;
   if(d==='loading'||!d){ h+=`<div class="spin"></div>`; return h; }
-  const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
+  const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); if(r) return r.nome; const f=(ST.ppFora||{})[id]; return f?(f.nome+' ⚠ fora da lista da Central'):'(produção)'; };
   const g={}; d.forEach(x=>{ if(!x.preproducao_id)return; const k=x.preproducao_id; (g[k]=g[k]||{id:k,nome:nomeDe(k),n:0,total:0,ultima:null,evts:[]}); g[k].n++; g[k].total+=(+x.qtd_produzida||0); g[k].evts.push(x); if(!g[k].ultima||String(x.data)>String(g[k].ultima)){g[k].ultima=x.data;} });
   let list=Object.values(g);
   if(ST.buscaZ){ const b=norm(ST.buscaZ); list=list.filter(x=>norm(x.nome).includes(b)); }
@@ -2341,7 +2347,7 @@ async function salvarNovaReceita(){
     } else { ings.push({nome_manual:n, unidade:u, qtd_bruta:q, qtd_liquida:q}); } });
   $('#shSave').setAttribute('disabled','');
   try{ const _s=lolaSession()||{}; const quem=_s.nome||_s.email||'portal';
-    const rows=await post('lola_preproducoes',[{nome, categoria:'central', e_preparo:true, ativo:true, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un, modo_preparo:modo||null, editado_por:quem, editado_em:new Date().toISOString()}],'return=representation');
+    const rows=await post('lola_preproducoes',[{nome, categoria:'central', cozinha:'central', /* 03/11/2026: sem isto a receita sumia do app ao recarregar */ e_preparo:true, ativo:true, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un, modo_preparo:modo||null, editado_por:quem, editado_em:new Date().toISOString()}],'return=representation');
     const novo=(Array.isArray(rows)&&rows[0])?rows[0]:null; if(!novo) throw new Error('sem retorno do banco');
     if(ings.length) await post('lola_preproducoes_itens', ings.map(i=>({preproducao_id:novo.id, ...i})),'return=minimal');
     ST.receitas=ST.receitas||[]; ST.receitas.push({id:novo.id, nome, rendimento_qtd:rend||null, rendimento_un:rendUn, porcao_qtd:porcao||null, porcao_un:un}); ST.receitas.sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
@@ -3575,7 +3581,7 @@ function viewInicio(){
   const nCcmq=peds?peds.filter(p=>p.unidade==='ccmq').length:0, nMac=peds?peds.filter(p=>p.unidade==='mac').length:0;
   const al=(ST.alertas||[]).filter(x=>!x.resolvido);
   const ph=(ST.prodHist&&ST.prodHist!=='loading')?ST.prodHist.filter(x=>String(x.data).slice(0,10)===hoje):null;
-  const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); return r?r.nome:'(produção)'; };
+  const nomeDe=id=>{ const r=(ST.receitas||[]).find(x=>x.id===id); if(r) return r.nome; const f=(ST.ppFora||{})[id]; return f?(f.nome+' ⚠ fora da lista da Central'):'(produção)'; };
   let h='';
   h+=`<button class="btn" data-go="plan" style="width:100%;margin:0 0 14px;background:var(--vinho,#A82A2A);color:#fff;border:0;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700"><i class="ph-duotone ph-clipboard-text"></i> Produção prevista → lista de compras</button>`;
   h+=`<div class="ini-grid">
