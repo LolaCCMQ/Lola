@@ -15,3 +15,4 @@
 
 ## Onde paramos
 - 14/08/2026 — app movido de `/eventos.html` para `/eventos/index.html`. Nada mudou por dentro.
+- 08/11/2026 — **📸 Vitrine** (botão no topo; código em `eventos/vitrine.js`, carregado no fim do index.html): fotos e descrições dos itens do catálogo (`lola_eventos_itens`), aba "Do cardápio do Lola" (fichas com foto que ainda não estão no catálogo) e "Material pro cliente" (impressão/PDF com fotos). Foto vem da foto própria do item ou da 1ª foto da ficha técnica (`lola_fichas_fotos`, ligada por `ficha_id` ou achada pelo nome). Foto própria vai pro bucket `anexos/eventos-itens/`. Precisa das colunas de `eventos/sql/2026-11-08-vitrine-itens.sql` (foto_url, ficha_id, tags); sem elas, só descrição e foto achada pelo nome. O formulário do catálogo ganhou os campos Descrição e Louça (o salvar já lia, mas o campo tinha sumido).
