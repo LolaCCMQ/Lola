@@ -16,12 +16,15 @@ function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\
 function fichaDoItem(c){
   if(c.ficha_id){var f=VT.fichas.find(function(x){return x.id===c.ficha_id;});if(f)return f;}
   var n=norm(c.nome); if(n.length<4)return null;
-  var cand=VT.fichas.filter(function(f){return f._n===n;});
-  if(!cand.length)cand=VT.fichas.filter(function(f){return f._n.length>=5&&(n.indexOf(f._n)>=0||f._n.indexOf(n)>=0);});
-  if(!cand.length)return null;
-  cand.sort(function(a,b){return (VT.fichasComFoto.has(b.id)?1:0)-(VT.fichasComFoto.has(a.id)?1:0)||Math.abs(a._n.length-n.length)-Math.abs(b._n.length-n.length);});
+  var A=toks(n), best=null, bs=0;
+  VT.fichas.forEach(function(f){var sc=semelhanca(A,f._t||(f._t=toks(f._n)));
+    if(sc>bs+1e-9||(Math.abs(sc-bs)<1e-9&&best&&VT.fichasComFoto.has(f.id)&&!VT.fichasComFoto.has(best.id))){bs=sc;best=f;}});
+  if(bs<0.6)return null;
+  var cand=[best];
   return cand[0];
 }
+function toks(n){return n.split(' ').filter(Boolean).map(function(w){return w.length>4?w.replace(/s$/,''):w;});}
+function semelhanca(A,B){if(!A.length||!B.length)return 0;var m=0;A.forEach(function(a){if(B.some(function(b){return a===b||(a.length>=4&&b.length>=4&&(a.indexOf(b)===0||b.indexOf(a)===0));}))m++;});return m/Math.max(A.length,B.length);}
 function fotoDoItem(c){
   if(c.foto_url)return {url:c.foto_url,origem:'própria'};
   var f=fichaDoItem(c); if(f&&VT.fichasComFoto.has(f.id))return {ficha:f.id,origem:'ficha "'+f.nome+'"'+(c.ficha_id?'':' (achada pelo nome)')};
@@ -114,9 +117,9 @@ function renderTopo(){
   var chips=[['__todas','Todas (sem bebidas)']].concat(secoes().map(function(s){return [s,s];})).concat([['__lola','➕ Do cardápio do Lola']]);
   var h='';
   if(VT.schemaOk===false)h+='<div class="vt-aviso">Descrições já podem ser editadas. Para <b>enviar foto própria</b>, <b>escolher a foto de uma ficha</b> e marcar <b>vegetariano/vegano</b>, falta rodar no Supabase o arquivo <code>eventos/sql/2026-11-08-vitrine-itens.sql</code>. Até lá, a foto aparece quando o item tem o mesmo nome de uma ficha técnica com foto.</div>';
-  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input class="search" style="flex:1;min-width:220px" placeholder="🔍 Buscar…" value="'+esc(VT.q)+'" oninput="vtBusca(this.value)">'
-   +'<select onchange="vtFiltro(this.value)" style="padding:7px;border-radius:10px;border:1px solid var(--border)"><option value="">Todos os itens</option><option value="semfoto"'+(VT.filtro==='semfoto'?' selected':'')+'>Sem foto</option><option value="semdesc"'+(VT.filtro==='semdesc'?' selected':'')+'>Sem descrição</option></select>'
-   +'<label style="font-size:12.5px;display:flex;gap:5px;align-items:center"><input type="checkbox" '+(VT.preco?'checked':'')+' onchange="vtPreco(this.checked)"> mostrar preço</label></div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input class="search" style="flex:1 1 260px;min-width:0;width:auto" placeholder="🔍 Buscar…" value="'+esc(VT.q)+'" oninput="vtBusca(this.value)">'
+   +'<select onchange="vtFiltro(this.value)" style="flex:0 0 auto;width:auto;padding:7px;border-radius:10px;border:1px solid var(--border)"><option value="">Todos os itens</option><option value="semfoto"'+(VT.filtro==='semfoto'?' selected':'')+'>Sem foto</option><option value="semdesc"'+(VT.filtro==='semdesc'?' selected':'')+'>Sem descrição</option></select>'
+   +'<label style="flex:0 0 auto;font-size:12.5px;display:flex;gap:5px;align-items:center;white-space:nowrap;margin:0"><input type="checkbox" style="width:auto;margin:0" '+(VT.preco?'checked':'')+' onchange="vtPreco(this.checked)"> mostrar preço</label></div>';
   h+='<div class="vt-chips">'+chips.map(function(c){return '<button class="vt-chip'+(VT.sec===c[0]?' on':'')+'" onclick="vtSec(\''+esc(c[0]).replace(/'/g,"\\'")+'\')">'+esc(c[1])+'</button>';}).join('')+'</div>';
   el.innerHTML=h;
 }
