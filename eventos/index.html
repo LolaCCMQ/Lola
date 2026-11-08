@@ -1525,8 +1525,8 @@ async function catSalvar(){
   const row={nome:nome,secao:document.getElementById('cf_sec').value||null,
     per_pax:CAT_UI.per!==false,preco:Math.round((Number(document.getElementById('cf_preco').value)||0)*100)/100,
     unidade:(document.getElementById('cf_un').value||'').trim()||null,ativo:true,updated_at:new Date().toISOString()};
-  var _d=_gv('cf_desc').trim(); if(_d)row.descricao=_d;
-  var _l=_gv('cf_louca').trim(); if(_l)row.louca=_l;
+  var _d=_gv('cf_desc').trim(); row.descricao=_d||null;
+  var _l=_gv('cf_louca').trim(); row.louca=_l||null;
   try{
     if(CAT_UI.editId){
       const r=await sb.from('lola_eventos_itens').update(row).eq('id',CAT_UI.editId);if(r.error)throw r.error;
