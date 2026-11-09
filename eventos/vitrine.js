@@ -406,7 +406,7 @@ setTimeout(contarPedidos,2500);
 
 /* ---------- 📦 Pacotes do site (tipos de evento do funil lolabar.com.br/orcamento-evento.html) ---------- */
 var PK={lista:[],ed:null,ok:null};
-var ESTILOS=[['','—'],['volante','Volante'],['ilhas','Ilhas'],['jantar','Jantar'],['miniporcoes','Mini porções'],['brunch','Brunch'],['coquetel','Coquetel'],['buffet_quente','Buffet (quente)'],['outro','Outro']];
+var ESTILOS=[['','—'],['volante','Volante'],['ilhas','Ilhas'],['jantar','Jantar'],['miniporcoes','Mini porções'],['brunch','Brunch'],['coquetel','Coquetel'],['buffet_quente','Buffet (quente)'],['empratado','Empratado'],['compartilhar','Pra compartilhar'],['buffet','Buffet'],['outro','Outro']];
 var LOC_PK=[['ccmq','Lola CCMQ'],['mac','Lola MAC'],['outro','Outro local']];
 window.openPacotesSite=async function(){
   css(); await carregar();
@@ -427,19 +427,19 @@ async function pkCarregar(){
 function pkOpcoes(g){var ids=(g.itens||[]).map(String);return itens().filter(function(c){return c.publico&&(ids.length?ids.indexOf(String(c.id))>=0:(g.secoes||[]).indexOf(c.secao)>=0);});}
 function pkLista(){
   var el=document.getElementById('pkBody');
-  var h='<div class="intro" style="margin-bottom:10px">Cada pacote é um <b>tipo de evento</b> no funil do site. O cliente escolhe local → data com horário de início e término (a duração sai daí) → pessoas → tipo → detalhes → opções do menu (com foto, sem quantidade). O preço é <b>por pessoa</b>, por tempo de serviço. As quantidades de cada item são calculadas aqui: <i>pessoas × unidades por pessoa por hora × horas</i>, divididas entre as opções escolhidas — e o evento já nasce como <b>Pré-reserva</b> na lista, com o menu ligado às fichas técnicas.</div>';
+  var h='<div class="intro" style="margin-bottom:10px">Cada pacote é um <b>tipo de evento</b> no funil do site. O cliente escolhe local → data com horário de início e término (a duração sai daí) → pessoas → tipo de evento → tipo de serviço → detalhes → opções do menu (com foto, sem quantidade). O preço é <b>por pessoa</b>, por tempo de serviço. As quantidades de cada item são calculadas aqui: <i>pessoas × unidades por pessoa por hora × horas</i>, divididas entre as opções escolhidas — e o evento já nasce como <b>Pré-reserva</b> na lista, com o menu ligado às fichas técnicas.</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">'+PK.lista.map(function(p){
     var dur=(p.duracoes||[]).map(function(d){return d.horas+'h '+(Number(d.preco_pp)>0?fmt(d.preco_pp):'<span style="color:var(--vinho)">sem preço</span>');}).join(' · ');
     dur+=' · hora a mais '+(Number(p.hora_extra_pp)>0?fmt(p.hora_extra_pp):'<span style="color:var(--vinho)">sem preço</span>');
     var gs=(p.grupos||[]).map(function(g){var n=pkOpcoes(g).length;return esc(g.titulo)+' ('+g.escolher+' de '+n+(n<g.escolher?' ⚠️':'')+')';}).join(' · ');
-    return '<div class="vt-card" style="padding:12px 14px;gap:6px'+(p.ativo?'':';opacity:.55')+'"><div class="vt-nome">'+esc(p.nome)+(p.ativo?'':' <span class="vt-meta">(oculto)</span>')+'</div><div class="vt-meta">⏱ '+dur+'</div><div class="vt-meta">🍽 '+(gs||'sem grupos')+'</div><div class="vt-meta">📍 '+(p.locais||[]).map(function(l){var x=LOC_PK.find(function(y){return y[0]===l;});return x?x[1]:l;}).join(', ')+'</div><div class="vt-acts"><button class="btn-primary btn-sm" onclick="pkEditar(\''+p.id+'\')">Editar</button></div></div>';
+    return '<div class="vt-card" style="padding:12px 14px;gap:6px'+(p.ativo?'':';opacity:.55')+'"><div class="vt-nome">'+esc(p.nome)+(p.ativo?'':' <span class="vt-meta">(oculto)</span>')+'</div><div class="vt-meta">⏱ '+dur+'</div><div class="vt-meta">🍽 serviço: '+((p.servicos||[]).map(function(o){return esc(o.nome);}).join(', ')||'—')+'</div><div class="vt-meta">🍽 '+(gs||'sem grupos')+'</div><div class="vt-meta">📍 '+(p.locais||[]).map(function(l){var x=LOC_PK.find(function(y){return y[0]===l;});return x?x[1]:l;}).join(', ')+'</div><div class="vt-acts"><button class="btn-primary btn-sm" onclick="pkEditar(\''+p.id+'\')">Editar</button></div></div>';
   }).join('')+'</div><div style="margin-top:12px"><button class="btn-ghost btn-sm" onclick="pkEditar(null)">+ Novo tipo de evento</button></div>'
   +'<div class="vt-meta" style="margin-top:10px">⚠️ = menos opções no site do que o cliente precisa escolher. Marque itens como 🌐 no site na 📸 Vitrine.</div>';
   el.innerHTML=h;
 }
 window.pkEditar=function(id){
-  var p=id?PK.lista.find(function(x){return x.id===id;}):{nome:'',descricao:'',inclui:'',ordem:(PK.lista.length+1),ativo:true,locais:['ccmq','mac','outro'],duracoes:[{horas:2,preco_pp:null}],grupos:[],min_pax:10,servico_pct:10,estilo_servico:''};
-  PK.ed=JSON.parse(JSON.stringify(p));PK.ed._arq=null;pkForm();
+  var p=id?PK.lista.find(function(x){return x.id===id;}):{servicos:[],nome:'',descricao:'',inclui:'',ordem:(PK.lista.length+1),ativo:true,locais:['ccmq','mac','outro'],duracoes:[{horas:2,preco_pp:null}],grupos:[],min_pax:10,servico_pct:10,estilo_servico:''};
+  PK.ed=JSON.parse(JSON.stringify(p));PK.ed._arq=null;(PK.ed.servicos||[]).forEach(function(o){o._fixo=true;});pkForm();
 };
 function pkForm(){
   var p=PK.ed,el=document.getElementById('pkBody');var secs=secoes();
@@ -460,6 +460,9 @@ function pkForm(){
    +'<button class="btn-ghost btn-sm" onclick="PKdurAdd()">+ tempo</button>'
    +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px">Cada hora a mais (por pessoa): R$ <input type="number" step="0.01" style="width:120px" value="'+(p.hora_extra_pp==null?'':esc(p.hora_extra_pp))+'" placeholder="hora adicional" oninput="PKset(\'hora_extra_pp\',this.value===\'\'?null:Number(this.value))"></div>'
    +'<div class="vt-meta">A duração vem dos horários de início e término que o cliente informa. O preço sai do maior tempo acima que caiba nessas horas + as horas a mais. Ex.: 3h = R$ 120 e hora a mais = R$ 25 → 4h30 = R$ 157,50 por pessoa.</div>'
+   +'<h4 style="margin:16px 0 6px;font-family:var(--serif);color:var(--vinho-deep)">Tipos de serviço</h4><div class="vt-meta" style="margin-bottom:6px">O cliente escolhe um depois do tipo de evento. Cada grupo do menu pode valer só pra alguns serviços.</div>'
+   +(p.servicos||[]).map(function(o,i){return '<div style="display:grid;grid-template-columns:1fr 2fr 150px auto;gap:8px;align-items:center;margin-bottom:6px"><input value="'+esc(o.nome)+'" placeholder="nome" oninput="PKsv('+i+',\'nome\',this.value)"><input value="'+esc(o.descricao||'')+'" placeholder="descrição pro cliente" oninput="PKsv('+i+',\'descricao\',this.value)"><select onchange="PKsv('+i+',\'estilo\',this.value)">'+ESTILOS.map(function(e){return '<option value="'+e[0]+'"'+(o.estilo===e[0]?' selected':'')+'>'+e[1]+'</option>';}).join('')+'</select><button class="btn-ghost btn-sm" onclick="PKsvDel('+i+')">✕</button></div>';}).join('')
+   +'<button class="btn-ghost btn-sm" onclick="PKsvAdd()">+ tipo de serviço</button>'
    +'<h4 style="margin:16px 0 6px;font-family:var(--serif);color:var(--vinho-deep)">Grupos de escolha do menu</h4>'
    +'<div class="vt-meta" style="margin-bottom:8px">Sem itens marcados, o grupo mostra todos os itens 🌐 no site das seções escolhidas. Marcando itens, só eles aparecem.</div>'
    +(p.grupos||[]).map(function(g,i){var ops=pkOpcoes(g),ids=(g.itens||[]).map(String);
@@ -470,6 +473,7 @@ function pkForm(){
       +'<div class="field" style="max-width:150px"><label>Unid. por pessoa/hora</label><input type="number" step="0.05" value="'+esc(g.qtd_pp_h)+'" oninput="PKg('+i+',\'qtd_pp_h\',Number(this.value)||0)"></div>'
       +'<button class="btn-ghost btn-sm" onclick="PKgDel('+i+')">Remover grupo</button></div>'
       +'<div class="vt-meta" style="margin:4px 0">Seções: '+secs.map(function(s){return '<label style="display:inline-flex;gap:3px;align-items:center;margin:0 8px 0 0;font-size:12px;white-space:nowrap"><input type="checkbox" style="width:auto;margin:0" '+((g.secoes||[]).indexOf(s)>=0?'checked':'')+' onchange="PKgSec('+i+',\''+esc(s)+'\',this.checked)"> '+esc(s)+'</label>';}).join('')+'</div>'
+      +((p.servicos||[]).length?'<div class="vt-meta" style="margin:4px 0">Aparece em: '+(p.servicos||[]).map(function(o){var on=!(g.servicos||[]).length||(g.servicos||[]).indexOf(o.id)>=0;return '<label style="display:inline-flex;gap:3px;align-items:center;margin:0 8px 0 0;font-size:12px;white-space:nowrap"><input type="checkbox" style="width:auto;margin:0" '+(on?'checked':'')+' onchange="PKgSv('+i+',\''+esc(o.id)+'\',this.checked)"> '+esc(o.nome)+'</label>';}).join('')+'</div>':'')
       +'<div class="vt-meta">'+ops.length+' opções no site'+(ops.length<g.escolher?' <b style="color:var(--vinho)">— menos do que o cliente precisa escolher</b>':'')+' · exemplo com 50 pessoas e '+((p.duracoes||[])[0]||{horas:2}).horas+'h: '+Math.round(50*(Number(g.qtd_pp_h)||0)*(Number(((p.duracoes||[])[0]||{horas:2}).horas)||0))+' unidades no total</div>'
       +'<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px">Escolher itens específicos ('+ids.length+' marcados)</summary><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 10px;margin-top:6px">'
       +cand.map(function(c){var f=fichaDoItem(c);return '<label style="display:flex;gap:5px;align-items:center;font-size:12px;margin:0"><input type="checkbox" style="width:auto;margin:0" '+(ids.indexOf(String(c.id))>=0?'checked':'')+' onchange="PKgIt('+i+',\''+c.id+'\',this.checked)"> '+esc(c.nome)+(c.publico?' 🌐':'')+(f?' <span style="color:var(--muted)" title="ficha técnica ligada">· 📋 '+esc(f.nome)+'</span>':'')+'</label>';}).join('')
@@ -484,6 +488,10 @@ window.PKdur=function(i,k,v){PK.ed.duracoes[i][k]=(v===''?null:Number(String(v).
 window.PKdurAdd=function(){PK.ed.duracoes=PK.ed.duracoes||[];PK.ed.duracoes.push({horas:3,preco_pp:null});pkForm();};
 window.PKdurDel=function(i){PK.ed.duracoes.splice(i,1);pkForm();};
 window.PKg=function(i,k,v){PK.ed.grupos[i][k]=v;};
+window.PKsv=function(i,k,v){PK.ed.servicos[i][k]=v;if(k==='nome'&&!PK.ed.servicos[i]._fixo)PK.ed.servicos[i].id=norm(v).replace(/ /g,'-')||('s'+i);};
+window.PKsvAdd=function(){PK.ed.servicos=PK.ed.servicos||[];PK.ed.servicos.push({id:'s'+Date.now().toString(36),nome:'',descricao:'',estilo:''});pkForm();};
+window.PKsvDel=function(i){var id=PK.ed.servicos[i].id;PK.ed.servicos.splice(i,1);(PK.ed.grupos||[]).forEach(function(g){g.servicos=(g.servicos||[]).filter(function(x){return x!==id;});});pkForm();};
+window.PKgSv=function(i,id,on){var g=PK.ed.grupos[i],todos=(PK.ed.servicos||[]).map(function(o){return o.id;});var cur=(g.servicos||[]).length?g.servicos.slice():todos.slice();var k=cur.indexOf(id);if(on&&k<0)cur.push(id);if(!on&&k>=0)cur.splice(k,1);g.servicos=cur.length===todos.length?[]:cur;};
 window.PKgAdd=function(){PK.ed.grupos=PK.ed.grupos||[];PK.ed.grupos.push({titulo:'Novo grupo',secoes:['Comidinhas'],itens:[],escolher:2,qtd_pp_h:1});pkForm();};
 window.PKgDel=function(i){PK.ed.grupos.splice(i,1);pkForm();};
 window.PKgSec=function(i,s,on){var g=PK.ed.grupos[i];g.secoes=g.secoes||[];var k=g.secoes.indexOf(s);if(on&&k<0)g.secoes.push(s);if(!on&&k>=0)g.secoes.splice(k,1);pkForm();};
@@ -497,7 +505,8 @@ window.pkSalvar=async function(){
       var up=await sb.storage.from('anexos').upload(path,blob,{upsert:true,contentType:'image/jpeg'});if(up.error)throw up.error;p.foto_url=sb.storage.from('anexos').getPublicUrl(path).data.publicUrl;}
     var row={nome:p.nome.trim(),descricao:p.descricao||null,inclui:p.inclui||null,foto_url:p.foto_url||null,ordem:Number(p.ordem)||0,ativo:!!p.ativo,locais:p.locais||[],
       duracoes:(p.duracoes||[]).filter(function(d){return Number(d.horas)>0;}).sort(function(a,b){return a.horas-b.horas;}),
-      grupos:(p.grupos||[]).map(function(g){return {titulo:g.titulo,secoes:g.secoes||[],itens:(g.itens||[]).map(String),escolher:Number(g.escolher)||1,qtd_pp_h:Number(g.qtd_pp_h)||0};}),
+      grupos:(p.grupos||[]).map(function(g){return {titulo:g.titulo,secoes:g.secoes||[],itens:(g.itens||[]).map(String),escolher:Number(g.escolher)||1,qtd_pp_h:Number(g.qtd_pp_h)||0,servicos:g.servicos||[]};}),
+      servicos:(p.servicos||[]).filter(function(o){return (o.nome||'').trim();}).map(function(o){return {id:o.id,nome:o.nome.trim(),descricao:o.descricao||'',estilo:o.estilo||''};}),
       min_pax:Number(p.min_pax)||0,servico_pct:Number(p.servico_pct)||0,estilo_servico:p.estilo_servico||null,hora_extra_pp:(p.hora_extra_pp==null||p.hora_extra_pp==='')?null:Number(p.hora_extra_pp),updated_at:new Date().toISOString()};
     var r=p.id?await sb.from('lola_eventos_pacotes').update(row).eq('id',p.id):await sb.from('lola_eventos_pacotes').insert(row);
     if(r.error)throw r.error;showFlash('Pacote salvo ✓');await pkCarregar();

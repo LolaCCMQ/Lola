@@ -72,9 +72,11 @@ create table if not exists public.lola_eventos_pacotes (
   min_pax int not null default 10,
   servico_pct numeric not null default 10,
   estilo_servico text,                          -- vai pro campo "Estilo de serviço" do evento (volante, ilhas, brunch, coquetel, buffet_quente…)
-  hora_extra_pp numeric                         -- preço por pessoa de cada hora além do maior tempo base (o cliente digita as horas)
+  hora_extra_pp numeric,                        -- preço por pessoa de cada hora além do maior tempo base
+  servicos jsonb not null default '[]'::jsonb   -- tipos de serviço do pacote: [{"id":"express","nome":"Express","descricao":"…","estilo":"empratado"}]
 );
 alter table public.lola_eventos_pacotes add column if not exists hora_extra_pp numeric;
+alter table public.lola_eventos_pacotes add column if not exists servicos jsonb not null default '[]'::jsonb;
 alter table public.lola_eventos_pacotes enable row level security;
 drop policy if exists "todos leem pacotes" on public.lola_eventos_pacotes;
 create policy "todos leem pacotes" on public.lola_eventos_pacotes for select to anon, authenticated using (true);
@@ -83,27 +85,33 @@ create policy "portal edita pacotes" on public.lola_eventos_pacotes for all to a
 grant select, insert, update, delete on public.lola_eventos_pacotes to anon, authenticated;
 
 -- Pacotes iniciais (preços em branco: preencher no app). Só insere se a tabela estiver vazia.
-insert into public.lola_eventos_pacotes (nome, descricao, inclui, ordem, locais, duracoes, grupos, min_pax, estilo_servico)
+insert into public.lola_eventos_pacotes (nome, descricao, inclui, ordem, locais, duracoes, grupos, servicos, min_pax, estilo_servico)
 select * from (values
-  ('Coffee break', 'Pra reunião, workshop ou encontro de trabalho: salgado, doce e café que não acaba.', 'Café passado, chás, água com e sem gás e suco. Louça, montagem e reposição.', 1,
-    array['ccmq','mac','outro'], '[{"horas":1,"preco_pp":null},{"horas":2,"preco_pp":null},{"horas":4,"preco_pp":null}]'::jsonb,
-    '[{"titulo":"Salgados","secoes":["Comidinhas"],"itens":[],"escolher":3,"qtd_pp_h":1.5},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":2,"qtd_pp_h":0.75}]'::jsonb, 10, 'ilhas'),
+  ('Coffee Break', 'Manhã ou tarde, perfeito para reuniões, workshops e encontros de trabalho.', 'Café passado, chás, água com e sem gás e suco. Louça, montagem e reposição.', 1,
+    array['ccmq','mac','outro'], '[{"horas": 1, "preco_pp": null}, {"horas": 2, "preco_pp": null}, {"horas": 4, "preco_pp": null}]'::jsonb,
+    '[{"titulo": "Salgados", "secoes": ["Comidinhas"], "itens": [], "escolher": 3, "qtd_pp_h": 1.5, "servicos": []}, {"titulo": "Doces", "secoes": ["Sobremesa"], "itens": [], "escolher": 2, "qtd_pp_h": 0.75, "servicos": []}]'::jsonb,
+    '[{"id": "apoio", "nome": "Mesa de apoio", "descricao": "Tudo montado numa mesa bonita, cada um se serve no intervalo.", "estilo": "ilhas"}, {"id": "volante", "nome": "Volante", "descricao": "A equipe passa servindo, sem precisar parar a reunião.", "estilo": "volante"}]'::jsonb, 10, 'ilhas'),
   ('Brunch', 'Manhã ou começo de tarde sem pressa, com coisas boas pra beliscar.', 'Café, chás, sucos e água. Louça e serviço.', 2,
-    array['ccmq','mac','outro'], '[{"horas":2,"preco_pp":null},{"horas":3,"preco_pp":null}]'::jsonb,
-    '[{"titulo":"Salgados","secoes":["Comidinhas"],"itens":[],"escolher":4,"qtd_pp_h":2},{"titulo":"Mini porções","secoes":["Mini porção"],"itens":[],"escolher":1,"qtd_pp_h":0.4},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":2,"qtd_pp_h":0.75}]'::jsonb, 15, 'brunch'),
-  ('Almoço', 'Almoço servido pra equipe, família ou convidados: entrada, prato principal e sobremesa.', 'Água, louça e serviço.', 3,
-    array['ccmq','mac','outro'], '[{"horas":2,"preco_pp":null},{"horas":3,"preco_pp":null}]'::jsonb,
-    '[{"titulo":"Pra começar","secoes":["Comidinhas"],"itens":[],"escolher":2,"qtd_pp_h":0.7},{"titulo":"Prato principal","secoes":["Mini porção"],"itens":[],"escolher":2,"qtd_pp_h":0.5},{"titulo":"Sobremesa","secoes":["Sobremesa"],"itens":[],"escolher":1,"qtd_pp_h":0.5}]'::jsonb, 10, 'jantar'),
+    array['ccmq','mac','outro'], '[{"horas": 2, "preco_pp": null}, {"horas": 3, "preco_pp": null}]'::jsonb,
+    '[{"titulo": "Salgados", "secoes": ["Comidinhas"], "itens": [], "escolher": 4, "qtd_pp_h": 2, "servicos": []}, {"titulo": "Mini porções", "secoes": ["Mini porção"], "itens": [], "escolher": 1, "qtd_pp_h": 0.4, "servicos": []}, {"titulo": "Doces", "secoes": ["Sobremesa"], "itens": [], "escolher": 2, "qtd_pp_h": 0.75, "servicos": []}]'::jsonb,
+    '[{"id": "buffet", "nome": "Buffet", "descricao": "Mesa farta pra cada um montar o seu prato.", "estilo": "buffet"}, {"id": "compartilhar", "nome": "Pra compartilhar", "descricao": "Tábuas e travessas na mesa, todo mundo junto.", "estilo": "compartilhar"}]'::jsonb, 15, 'brunch'),
+  ('Almoço', 'Express para eventos mais corridos ou completo, com entrada, prato principal, sobremesa e cafezinho.', 'Água, cafezinho, louça e serviço.', 3,
+    array['ccmq','mac','outro'], '[{"horas": 1.5, "preco_pp": null}, {"horas": 3, "preco_pp": null}]'::jsonb,
+    '[{"titulo": "Entrada", "secoes": ["Entradas"], "itens": [], "escolher": 1, "qtd_pp_h": 0.4, "servicos": ["completo", "buffet"]}, {"titulo": "Prato principal", "secoes": ["Pratos principais"], "itens": [], "escolher": 2, "qtd_pp_h": 0.5, "servicos": []}, {"titulo": "Sobremesa", "secoes": ["Sobremesa"], "itens": [], "escolher": 1, "qtd_pp_h": 0.4, "servicos": ["completo", "buffet"]}]'::jsonb,
+    '[{"id": "express", "nome": "Express", "descricao": "Prato principal servido à mesa, rapidinho, pra eventos mais corridos.", "estilo": "empratado"}, {"id": "completo", "nome": "Completo", "descricao": "Entrada, prato principal, sobremesa e cafezinho, servidos à mesa.", "estilo": "empratado"}, {"id": "buffet", "nome": "Buffet", "descricao": "Entrada, pratos e sobremesa pra cada um se servir.", "estilo": "buffet"}]'::jsonb, 10, 'empratado'),
   ('Feijoada', 'A feijoada do Lola, com tudo o que acompanha, pra reunir a turma.', 'Feijoada completa com acompanhamentos, água e serviço.', 4,
-    array['ccmq','mac','outro'], '[{"horas":3,"preco_pp":null},{"horas":4,"preco_pp":null}]'::jsonb,
-    '[{"titulo":"Pra começar","secoes":["Comidinhas"],"itens":[],"escolher":2,"qtd_pp_h":0.7},{"titulo":"Sobremesa","secoes":["Sobremesa"],"itens":[],"escolher":1,"qtd_pp_h":0.35},{"titulo":"Bebidas","secoes":["Bebidas"],"itens":[],"escolher":2,"qtd_pp_h":0.7}]'::jsonb, 20, 'buffet_quente'),
-  ('Coquetel + jantar', 'Comidinhas passando, mini porções quentes e doces no fim: festa de pé sem ninguém ir pra casa com fome.', 'Equipe de serviço, louça e montagem.', 5,
-    array['ccmq','mac','outro'], '[{"horas":3,"preco_pp":null},{"horas":4,"preco_pp":null}]'::jsonb,
-    '[{"titulo":"Comidinhas","secoes":["Comidinhas"],"itens":[],"escolher":5,"qtd_pp_h":4},{"titulo":"Mini porções","secoes":["Mini porção"],"itens":[],"escolher":2,"qtd_pp_h":0.35},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":2,"qtd_pp_h":0.5},{"titulo":"Bebidas","secoes":["Bebidas"],"itens":[],"escolher":3,"qtd_pp_h":1}]'::jsonb, 20, 'coquetel'),
-  ('Super Completo', 'O mais personalizado: coquetel, jantar completo, lanchinhos e o que mais o seu evento pedir — a gente monta junto.', 'Equipe completa, louça, montagem, estação de destaque e bebidas.', 6,
-    array['ccmq','mac','outro'], '[{"horas":4,"preco_pp":null},{"horas":5,"preco_pp":null}]'::jsonb,
-    '[{"titulo":"Comidinhas","secoes":["Comidinhas"],"itens":[],"escolher":7,"qtd_pp_h":4.5},{"titulo":"Mini porções","secoes":["Mini porção"],"itens":[],"escolher":3,"qtd_pp_h":0.4},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":3,"qtd_pp_h":0.6},{"titulo":"Bebidas","secoes":["Bebidas"],"itens":[],"escolher":4,"qtd_pp_h":1.2}]'::jsonb, 30, 'coquetel')
-) as v(nome, descricao, inclui, ordem, locais, duracoes, grupos, min_pax, estilo_servico)
+    array['ccmq','mac','outro'], '[{"horas": 3, "preco_pp": null}, {"horas": 4, "preco_pp": null}]'::jsonb,
+    '[{"titulo": "Pra começar", "secoes": ["Comidinhas"], "itens": [], "escolher": 2, "qtd_pp_h": 0.7, "servicos": []}, {"titulo": "Sobremesa", "secoes": ["Sobremesa"], "itens": [], "escolher": 1, "qtd_pp_h": 0.35, "servicos": []}, {"titulo": "Bebidas", "secoes": ["Bebidas"], "itens": [], "escolher": 2, "qtd_pp_h": 0.7, "servicos": []}]'::jsonb,
+    '[{"id": "buffet", "nome": "Buffet", "descricao": "Feijoada e acompanhamentos montados pra cada um se servir.", "estilo": "buffet_quente"}, {"id": "compartilhar", "nome": "Na mesa, pra compartilhar", "descricao": "Panelinhas e travessas direto na mesa.", "estilo": "compartilhar"}]'::jsonb, 20, 'buffet_quente'),
+  ('Coquetel + Jantar', 'Comidinhas passando, mini porções quentes e doces no fim: festa de pé sem ninguém ir pra casa com fome.', 'Equipe de serviço, louça e montagem.', 5,
+    array['ccmq','mac','outro'], '[{"horas": 3, "preco_pp": null}, {"horas": 4, "preco_pp": null}]'::jsonb,
+    '[{"titulo": "Comidinhas", "secoes": ["Comidinhas"], "itens": [], "escolher": 5, "qtd_pp_h": 4, "servicos": []}, {"titulo": "Jantar", "secoes": ["Mini porção", "Pratos principais"], "itens": [], "escolher": 2, "qtd_pp_h": 0.35, "servicos": []}, {"titulo": "Doces", "secoes": ["Sobremesa"], "itens": [], "escolher": 2, "qtd_pp_h": 0.5, "servicos": []}, {"titulo": "Bebidas", "secoes": ["Bebidas"], "itens": [], "escolher": 3, "qtd_pp_h": 1, "servicos": []}]'::jsonb,
+    '[{"id": "volante", "nome": "Volante", "descricao": "Comidinhas passando o tempo todo e o jantar em mini porções.", "estilo": "volante"}, {"id": "ilhas", "nome": "Ilhas", "descricao": "Estações de comida pelo espaço, cada um se serve.", "estilo": "ilhas"}, {"id": "empratado", "nome": "Coquetel + jantar à mesa", "descricao": "Coquetel de pé na chegada e jantar servido à mesa.", "estilo": "jantar"}]'::jsonb, 20, 'coquetel'),
+  ('Super Completo', 'O mais personalizado: coquetel, jantar completo, lanchinhos e o que mais o seu evento pedir, a gente monta junto.', 'Equipe completa, louça, montagem, estação de destaque e bebidas.', 6,
+    array['ccmq','mac','outro'], '[{"horas": 4, "preco_pp": null}, {"horas": 5, "preco_pp": null}]'::jsonb,
+    '[{"titulo": "Comidinhas", "secoes": ["Comidinhas"], "itens": [], "escolher": 7, "qtd_pp_h": 4.5, "servicos": []}, {"titulo": "Jantar", "secoes": ["Mini porção", "Pratos principais"], "itens": [], "escolher": 3, "qtd_pp_h": 0.4, "servicos": []}, {"titulo": "Lanchinhos de pista", "secoes": ["Lanchinho de pista"], "itens": [], "escolher": 2, "qtd_pp_h": 0.4, "servicos": []}, {"titulo": "Doces", "secoes": ["Sobremesa"], "itens": [], "escolher": 3, "qtd_pp_h": 0.6, "servicos": []}, {"titulo": "Bebidas", "secoes": ["Bebidas"], "itens": [], "escolher": 4, "qtd_pp_h": 1.2, "servicos": []}]'::jsonb,
+    '[{"id": "volante", "nome": "Volante", "descricao": "Tudo passando entre os convidados.", "estilo": "volante"}, {"id": "ilhas", "nome": "Ilhas", "descricao": "Estações temáticas pelo espaço.", "estilo": "ilhas"}, {"id": "empratado", "nome": "Empratado", "descricao": "Jantar servido à mesa.", "estilo": "jantar"}, {"id": "buffet", "nome": "Buffet", "descricao": "Cada um se serve à vontade.", "estilo": "buffet"}, {"id": "misto", "nome": "Misto", "descricao": "Um pouco de cada, a gente monta junto.", "estilo": "outro"}]'::jsonb, 30, 'coquetel')
+) as v(nome, descricao, inclui, ordem, locais, duracoes, grupos, servicos, min_pax, estilo_servico)
 where not exists (select 1 from public.lola_eventos_pacotes);
 
 -- 4) Todo pedido do site vira, na hora, um evento "Pré-reserva" na aba Eventos do Portal.
@@ -138,10 +146,11 @@ begin
   v_local := case new.local when 'ccmq' then 'ccmq' when 'mac' then 'mac' when 'outro' then 'catering' else '' end;
   v_cupula := case when new.local = 'ccmq' then coalesce(nullif(v_det->>'espaco_ccmq',''),'')
                    when new.local = 'mac' then 'jardim_mac' when new.local = 'outro' then 'externo' else '' end;
-  if new.pacote_id is not null then select estilo_servico into v_estilo from lola_eventos_pacotes where id = new.pacote_id; end if;
+  v_estilo := nullif(v_det->>'servico_estilo','');
+  if v_estilo is null and new.pacote_id is not null then select estilo_servico into v_estilo from lola_eventos_pacotes where id = new.pacote_id; end if;
 
   v_obs := 'PEDIDO PELO SITE em ' || to_char(new.created_at at time zone 'America/Sao_Paulo','DD/MM/YYYY HH24:MI')
-    || E'\nPacote: ' || coalesce(new.formato,'—') || coalesce(' · ' || new.duracao,'')
+    || E'\nPacote: ' || coalesce(new.formato,'—') || coalesce(' · serviço: ' || nullif(v_det->>'servico_nome',''),'') || coalesce(' · ' || new.duracao,'')
     || coalesce(' · R$ ' || replace(to_char(new.preco_pp,'FM999990.00'),'.',',') || ' por pessoa','')
     || coalesce(' · estimativa mostrada ao cliente: R$ ' || replace(to_char(new.estimativa,'FM9999990.00'),'.',','),'')
     || E'\nContato: ' || coalesce(new.telefone,'') || coalesce(' · ' || new.email,'')

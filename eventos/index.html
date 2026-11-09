@@ -1042,7 +1042,7 @@ function formHTML(ev){
   </div>
   <div class="section-title">Formato do serviço</div>
   <div class="form-grid">
-    ${selField("Estilo de serviço","servico",ev,[{v:"",l:"Selecione..."},{v:"volante",l:"Volante"},{v:"ilhas",l:"Ilhas"},{v:"jantar",l:"Jantar"},{v:"miniporcoes",l:"Mini porções"},{v:"brunch",l:"Brunch"},{v:"coquetel",l:"Coquetel"},{v:"buffet_quente",l:"Buffet (quente)"},{v:"outro",l:"Outro"}])}
+    ${selField("Estilo de serviço","servico",ev,[{v:"",l:"Selecione..."},{v:"volante",l:"Volante"},{v:"ilhas",l:"Ilhas"},{v:"jantar",l:"Jantar"},{v:"miniporcoes",l:"Mini porções"},{v:"brunch",l:"Brunch"},{v:"coquetel",l:"Coquetel"},{v:"buffet_quente",l:"Buffet (quente)"},{v:"empratado",l:"Empratado"},{v:"compartilhar",l:"Pra compartilhar"},{v:"buffet",l:"Buffet"},{v:"outro",l:"Outro"}])}
     ${selField("Espaço","exclusividade",ev,[{v:"",l:"Selecione..."},{v:"exclusivo",l:"Exclusivo do espaço"},{v:"compartilhado",l:"Compartilhado"}])}
     ${selField("Local específico","cupula",ev,[{v:"",l:"Selecione..."},{v:"cupula_ccmq",l:"Cúpula CCMQ"},{v:"interno_ccmq",l:"Interno CCMQ"},{v:"todo_ccmq",l:"Todo CCMQ"},{v:"jardim_mac",l:"Jardim MAC"},{v:"plataforma_mac",l:"Plataforma MAC"},{v:"frente_cafe_mac",l:"Frente ao Café MAC"},{v:"todo_mac",l:"Todo MAC"},{v:"externo",l:"Evento Externo"}])}
     ${selField("Precisa de nota / Danfe?","nota",ev,[{v:"nao",l:"Não"},{v:"sim",l:"Sim"}])}
@@ -2380,7 +2380,7 @@ function openEquipePrint(){
   m.style.display='flex';
 }
 /* ===== ABA MENU (Rodada 1 · 08/07/2026) ===== */
-const SECOES=["Comidinhas","Mini porção","Lanchinho de pista","Bebidas","Sobremesa","Outros"];
+const SECOES=["Comidinhas","Entradas","Mini porção","Pratos principais","Lanchinho de pista","Bebidas","Sobremesa","Outros"];
 const CAT_NOME={C:'Produções de comida',B:'Produções de bebidas'};
 /* ===== Ordens de serviço por área (30/09) ===== */
 const OS_AREAS=[{k:'compras',l:'Compras',ic:'🛒'},{k:'central',l:'Produção Central',ic:'🏭'},{k:'cozinha',l:'Cozinha',ic:'👨‍🍳'},{k:'bar',l:'Bar',ic:'🍸'},{k:'montagem',l:'Montagem',ic:'🪑'},{k:'estoque',l:'Estoque',ic:'📦'}];
@@ -3458,6 +3458,6 @@ init();
 })();
 </script>
 <div id="printArea"></div>
-<script src="/eventos/vitrine.js?v=20261108c"></script>
+<script src="/eventos/vitrine.js?v=20261109a"></script>
 </body>
 </html>
