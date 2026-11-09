@@ -100,7 +100,7 @@ select * from (values
   ('Coquetel + jantar', 'Comidinhas passando, mini porções quentes e doces no fim: festa de pé sem ninguém ir pra casa com fome.', 'Equipe de serviço, louça e montagem.', 5,
     array['ccmq','mac','outro'], '[{"horas":3,"preco_pp":null},{"horas":4,"preco_pp":null}]'::jsonb,
     '[{"titulo":"Comidinhas","secoes":["Comidinhas"],"itens":[],"escolher":5,"qtd_pp_h":4},{"titulo":"Mini porções","secoes":["Mini porção"],"itens":[],"escolher":2,"qtd_pp_h":0.35},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":2,"qtd_pp_h":0.5},{"titulo":"Bebidas","secoes":["Bebidas"],"itens":[],"escolher":3,"qtd_pp_h":1}]'::jsonb, 20, 'coquetel'),
-  ('Premium completo', 'O Lola inteiro no seu evento: mais opções, estações e bebida liberada.', 'Equipe completa, louça, montagem, estação de destaque e bebidas.', 6,
+  ('Super Completo', 'O mais personalizado: coquetel, jantar completo, lanchinhos e o que mais o seu evento pedir — a gente monta junto.', 'Equipe completa, louça, montagem, estação de destaque e bebidas.', 6,
     array['ccmq','mac','outro'], '[{"horas":4,"preco_pp":null},{"horas":5,"preco_pp":null}]'::jsonb,
     '[{"titulo":"Comidinhas","secoes":["Comidinhas"],"itens":[],"escolher":7,"qtd_pp_h":4.5},{"titulo":"Mini porções","secoes":["Mini porção"],"itens":[],"escolher":3,"qtd_pp_h":0.4},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":3,"qtd_pp_h":0.6},{"titulo":"Bebidas","secoes":["Bebidas"],"itens":[],"escolher":4,"qtd_pp_h":1.2}]'::jsonb, 30, 'coquetel')
 ) as v(nome, descricao, inclui, ordem, locais, duracoes, grupos, min_pax, estilo_servico)
