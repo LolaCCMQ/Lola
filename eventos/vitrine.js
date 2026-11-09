@@ -36,6 +36,7 @@ function itens(){return (typeof CATALOGO!=='undefined'?CATALOGO:[]).filter(funct
 async function carregar(){
   if(VT.schemaOk===null){
     try{var t=await sb.from('lola_eventos_itens').select('foto_url,ficha_id,tags').limit(1);VT.schemaOk=!t.error;}catch(e){VT.schemaOk=false;}
+    try{var t2=await sb.from('lola_eventos_itens').select('publico').limit(1);VT.pubOk=!t2.error;}catch(e){VT.pubOk=false;}
   }
   if(!VT.fichas.length){
     var r=await Promise.all([
@@ -116,9 +117,9 @@ function renderTopo(){
   var el=document.getElementById('vtTopo');if(!el)return;
   var chips=[['__todas','Todas (sem bebidas)']].concat(secoes().map(function(s){return [s,s];})).concat([['__lola','➕ Do cardápio do Lola']]);
   var h='';
-  if(VT.schemaOk===false)h+='<div class="vt-aviso">Descrições já podem ser editadas. Para <b>enviar foto própria</b>, <b>escolher a foto de uma ficha</b> e marcar <b>vegetariano/vegano</b>, falta rodar no Supabase o arquivo <code>eventos/sql/2026-11-08-vitrine-itens.sql</code>. Até lá, a foto aparece quando o item tem o mesmo nome de uma ficha técnica com foto.</div>';
+  if(VT.schemaOk===false||VT.pubOk===false)h+='<div class="vt-aviso">Descrições já podem ser editadas. Para <b>enviar foto própria</b>, <b>escolher a foto de uma ficha</b> e marcar <b>vegetariano/vegano</b>, e escolher o que aparece na <b>página de orçamento do site</b>, falta rodar no Supabase o arquivo <code>eventos/sql/2026-11-08-orcamento-site.sql</code>. Até lá, a foto aparece quando o item tem o mesmo nome de uma ficha técnica com foto.</div>';
   h+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input class="search" style="flex:1 1 260px;min-width:0;width:auto" placeholder="🔍 Buscar…" value="'+esc(VT.q)+'" oninput="vtBusca(this.value)">'
-   +'<select onchange="vtFiltro(this.value)" style="flex:0 0 auto;width:auto;padding:7px;border-radius:10px;border:1px solid var(--border)"><option value="">Todos os itens</option><option value="semfoto"'+(VT.filtro==='semfoto'?' selected':'')+'>Sem foto</option><option value="semdesc"'+(VT.filtro==='semdesc'?' selected':'')+'>Sem descrição</option></select>'
+   +'<select onchange="vtFiltro(this.value)" style="flex:0 0 auto;width:auto;padding:7px;border-radius:10px;border:1px solid var(--border)"><option value="">Todos os itens</option><option value="semfoto"'+(VT.filtro==='semfoto'?' selected':'')+'>Sem foto</option><option value="semdesc"'+(VT.filtro==='semdesc'?' selected':'')+'>Sem descrição</option>'+(VT.pubOk?'<option value="site"'+(VT.filtro==='site'?' selected':'')+'>No site</option><option value="forasite"'+(VT.filtro==='forasite'?' selected':'')+'>Fora do site</option>':'')+'</select>'
    +'<label style="flex:0 0 auto;font-size:12.5px;display:flex;gap:5px;align-items:center;white-space:nowrap;margin:0"><input type="checkbox" style="width:auto;margin:0" '+(VT.preco?'checked':'')+' onchange="vtPreco(this.checked)"> mostrar preço</label></div>';
   h+='<div class="vt-chips">'+chips.map(function(c){return '<button class="vt-chip'+(VT.sec===c[0]?' on':'')+'" onclick="vtSec(\''+esc(c[0]).replace(/'/g,"\\'")+'\')">'+esc(c[1])+'</button>';}).join('')+'</div>';
   el.innerHTML=h;
@@ -136,6 +137,8 @@ function listaFiltrada(){
     if(q&&norm(c.nome+' '+(c.descricao||'')).indexOf(q)<0)return false;
     if(VT.filtro==='semfoto'&&fotoDoItem(c))return false;
     if(VT.filtro==='semdesc'&&c.descricao)return false;
+    if(VT.filtro==='site'&&!c.publico)return false;
+    if(VT.filtro==='forasite'&&c.publico)return false;
     return true;
   }).sort(function(a,b){return secoes().indexOf(a.secao)-secoes().indexOf(b.secao)||String(a.nome).localeCompare(String(b.nome));});
 }
@@ -161,7 +164,8 @@ function renderGrid(){
   }
   var l=listaFiltrada();
   var semFoto=l.filter(function(c){return !fotoDoItem(c);}).length, semDesc=l.filter(function(c){return !c.descricao;}).length;
-  var h='<div class="vt-meta" style="margin-bottom:10px">'+l.length+' itens · '+semFoto+' sem foto · '+semDesc+' sem descrição</div>';
+  var noSite=l.filter(function(c){return c.publico;}).length;
+  var h='<div class="vt-meta" style="margin-bottom:10px">'+l.length+' itens · '+semFoto+' sem foto · '+semDesc+' sem descrição'+(VT.pubOk?' · '+noSite+' no site (<a href="https://lolabar.com.br/orcamento-evento.html" target="_blank">ver página</a>)':'')+'</div>';
   if(!l.length){el.innerHTML=h+'<div class="intro">Nenhum item.</div>';return;}
   h+='<div class="vt-grid">'+l.map(function(c){
     var foto=fotoDoItem(c);
@@ -171,7 +175,9 @@ function renderGrid(){
      +(c.descricao?'<div class="vt-desc">'+esc(c.descricao)+'</div>':'<div class="vt-desc vazia">sem descrição</div>')
      +(c.louca?'<div class="vt-meta">🍽️ '+esc(c.louca)+'</div>':'')
      +(foto&&foto.ficha?'<div class="vt-meta" title="de onde vem a foto">📷 '+esc(foto.origem)+'</div>':'')
-     +'<div class="vt-acts"><button class="btn-ghost btn-sm" onclick="vtEditar(\''+esc(c.id)+'\')">✏️ Foto e descrição</button></div></div></div>';
+     +'<div class="vt-acts"><button class="btn-ghost btn-sm" onclick="vtEditar(\''+esc(c.id)+'\')">✏️ Foto e descrição</button>'
+     +(VT.pubOk?'<button class="btn-'+(c.publico?'primary':'ghost')+' btn-sm" title="'+(c.publico?'Aparece na página de orçamento do site. Toque pra tirar.':'Não aparece no site. Toque pra mostrar na página de orçamento.')+'" onclick="vtSite(\''+esc(c.id)+'\')">🌐 '+(c.publico?'no site':'fora do site')+'</button>':'')
+     +'</div></div></div>';
   }).join('')+'</div>';
   el.innerHTML=h; pintarFotosVisiveis(el);
 }
@@ -295,4 +301,100 @@ window.vtImprimir=async function(){
   var w=window.open('','_blank');if(!w){showFlash('Libere pop-ups pra imprimir.',true);return;}
   w.document.open();w.document.write(html);w.document.close();
 };
+
+/* ---------- 🌐 aparece no site (página de orçamento) ---------- */
+window.vtSite=async function(id){
+  var c=itens().find(function(x){return String(x.id)===String(id);});if(!c)return;
+  var novo=!c.publico;
+  if(novo&&(!c.descricao||!fotoDoItem(c))&&!confirm('Esse item ainda está '+(!c.descricao?'sem descrição':'sem foto')+'. Mostrar no site mesmo assim?'))return;
+  var r=await sb.from('lola_eventos_itens').update({publico:novo,updated_at:new Date().toISOString()}).eq('id',id);
+  if(r.error){showFlash('Erro: '+r.error.message,true);return;}
+  c.publico=novo;renderGrid();showFlash(novo?'Aparece no site ✓':'Tirado do site');
+};
+
+/* ---------- 📥 Pedidos de orçamento que chegam pelo site ---------- */
+var PD={lista:[],filtro:'novo',ok:null};
+var LOCAL_SITE={ccmq:['ccmq','interno_ccmq','Lola CCMQ'],cupula:['ccmq','cupula_ccmq','Cúpula CCMQ'],mac:['mac','jardim_mac','Lola MAC (jardim)'],catering:['catering','externo','No espaço do cliente'],indef:['','','Ainda não sabe']};
+function dtBR(d){if(!d)return 'a definir';var p=String(d).slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+async function contarPedidos(){
+  try{var r=await sb.from('lola_eventos_pedidos').select('id',{count:'exact',head:true}).eq('status','novo');
+    PD.ok=!r.error; var b=document.getElementById('btnPedidosSite'); if(b&&!r.error)b.textContent='📥 Pedidos do site'+(r.count?' ('+r.count+')':'');
+  }catch(e){PD.ok=false;}
+}
+window.openPedidosSite=async function(){
+  css();
+  var m=document.getElementById('pdOverlay');
+  if(!m){m=document.createElement('div');m.id='pdOverlay';m.style.cssText='position:fixed;inset:0;background:rgba(30,10,10,.55);z-index:9998;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow:auto';
+    m.innerHTML='<div style="background:var(--cream);border-radius:16px;max-width:900px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);margin:auto"><div class="vt-head"><b style="flex:1;font-family:var(--serif);font-size:19px;color:var(--vinho)">📥 Pedidos de orçamento do site</b>'
+     +'<a class="btn-ghost btn-sm" href="https://lolabar.com.br/orcamento-evento.html" target="_blank" style="text-decoration:none">Abrir a página</a><button class="btn-ghost btn-sm" onclick="pdCopiarLink()">Copiar link</button><button class="btn-ghost btn-sm" onclick="closePedidosSite()">Fechar ✕</button></div><div id="pdBody" style="padding:14px 18px 20px"><div class="loading">Carregando…</div></div></div>';
+    m.addEventListener('click',function(e){if(e.target===m)closePedidosSite();});document.body.appendChild(m);}
+  m.style.display='flex'; await pdCarregar();
+};
+window.closePedidosSite=function(){var m=document.getElementById('pdOverlay');if(m)m.style.display='none';contarPedidos();};
+window.pdCopiarLink=function(){var u='https://lolabar.com.br/orcamento-evento.html';try{navigator.clipboard.writeText(u);showFlash('Link copiado ✓');}catch(e){prompt('Link da página:',u);}};
+async function pdCarregar(){
+  var el=document.getElementById('pdBody');
+  var r=await sb.from('lola_eventos_pedidos').select('*').order('created_at',{ascending:false}).limit(200);
+  if(r.error){PD.ok=false;el.innerHTML='<div class="vt-aviso">Os pedidos ainda não estão sendo guardados no sistema: falta rodar no Supabase o arquivo <code>eventos/sql/2026-11-08-orcamento-site.sql</code>. Enquanto isso, a página do site manda o pedido pelo WhatsApp do Lola.</div>';return;}
+  PD.ok=true;PD.lista=r.data||[];pdRender();
+}
+window.pdFiltro=function(f){PD.filtro=f;pdRender();};
+function pdRender(){
+  var el=document.getElementById('pdBody');if(!el)return;
+  var cont={novo:0,convertido:0,arquivado:0};PD.lista.forEach(function(p){cont[p.status]=(cont[p.status]||0)+1;});
+  var l=PD.lista.filter(function(p){return p.status===PD.filtro;});
+  var h='<div class="vt-chips">'+[['novo','Novos'],['convertido','Viraram evento'],['arquivado','Arquivados']].map(function(f){return '<button class="vt-chip'+(PD.filtro===f[0]?' on':'')+'" onclick="pdFiltro(\''+f[0]+'\')">'+f[1]+' ('+(cont[f[0]]||0)+')</button>';}).join('')+'</div>';
+  if(!l.length){el.innerHTML=h+'<div class="intro">Nenhum pedido aqui.</div>';return;}
+  h+=l.map(function(p){
+    var loc=(LOCAL_SITE[p.local]||[,,p.local||''])[2];
+    var tel=String(p.telefone||'').replace(/\D/g,''); if(tel&&tel.length<=11)tel='55'+tel;
+    var itens=(p.itens||[]).map(function(x){return '<tr><td>'+esc(x.nome)+'</td><td style="color:var(--muted)">'+esc(x.secao||'')+'</td><td style="text-align:right">'+(x.per_pax?esc(p.pax)+' pax':esc(x.qtd)+' '+esc(x.unidade||'un'))+'</td><td style="text-align:right">'+fmt((Number(x.preco)||0)*(x.per_pax?(Number(p.pax)||0):(Number(x.qtd)||0)))+'</td></tr>';}).join('');
+    return '<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px">'
+     +'<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div style="font-family:var(--serif);font-weight:700;font-size:17px;color:var(--vinho-deep)">'+esc(p.ocasiao||'Evento')+' — '+esc(p.nome)+'</div>'
+     +'<div class="vt-meta" style="margin-top:3px">📅 '+dtBR(p.data)+(p.horario?' às '+esc(p.horario):'')+' · 👥 '+esc(p.pax||'?')+' pessoas · 📍 '+esc(loc)+' · '+esc(p.formato||'')+'</div>'
+     +'<div class="vt-meta">📞 '+esc(p.telefone||'—')+(p.email?' · ✉️ '+esc(p.email):'')+' · recebido em '+new Date(p.created_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})+'</div></div>'
+     +'<div style="text-align:right"><div class="vt-meta">estimativa no site</div><div style="font-family:var(--serif);font-weight:800;font-size:20px;color:var(--vinho)">'+fmt(p.estimativa)+'</div></div></div>'
+     +(itens?'<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px">'+itens+'</table>':'')
+     +(p.obs?'<div style="margin-top:8px;font-size:13px;background:var(--warm);border-radius:8px;padding:8px 10px">💬 '+esc(p.obs)+'</div>':'')
+     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
+     +(p.status==='novo'?'<button class="btn-primary btn-sm" onclick="pdCriarEvento(\''+p.id+'\')">✓ Criar pré-reserva</button>':'')
+     +(p.evento_id?'<button class="btn-ghost btn-sm" onclick="pdAbrirEvento(\''+p.evento_id+'\')">Abrir evento →</button>':'')
+     +(tel?'<a class="btn-ghost btn-sm" style="text-decoration:none" target="_blank" href="https://wa.me/'+tel+'">WhatsApp do cliente</a>':'')
+     +(p.status==='novo'?'<button class="btn-ghost btn-sm" onclick="pdStatus(\''+p.id+'\',\'arquivado\')">Arquivar</button>':'')
+     +(p.status==='arquivado'?'<button class="btn-ghost btn-sm" onclick="pdStatus(\''+p.id+'\',\'novo\')">Voltar pra novos</button>':'')
+     +(p.atendido_por?'<span class="vt-meta">por '+esc(p.atendido_por)+'</span>':'')
+     +'</div></div>';
+  }).join('');
+  el.innerHTML=h;
+}
+window.pdStatus=async function(id,st){
+  var r=await sb.from('lola_eventos_pedidos').update({status:st,atendido_por:currentUserName(),atendido_em:new Date().toISOString()}).eq('id',id);
+  if(r.error){showFlash('Erro: '+r.error.message,true);return;}
+  var p=PD.lista.find(function(x){return x.id===id;});if(p){p.status=st;p.atendido_por=currentUserName();}pdRender();
+};
+window.pdAbrirEvento=function(id){if(typeof getEvent==='function'&&getEvent(id)){closePedidosSite();open_(id);}else location.href='/eventos/?ev='+id;};
+window.pdCriarEvento=async function(id){
+  var p=PD.lista.find(function(x){return x.id===id;});if(!p||p.status!=='novo')return;
+  var loc=LOCAL_SITE[p.local]||['','',''];
+  var ev=blankEvent();
+  ev.nome=(p.ocasiao||'Evento')+' — '+p.nome; ev.cliente=p.nome; ev.contato=[p.telefone,p.email].filter(Boolean).join(' · ');
+  ev.tipo='personalizado'; ev.status='pre'; ev.local=loc[0]; ev.cupula=loc[1];
+  ev.data=p.data||''; ev.horario=p.horario||''; ev.duracao=p.duracao||''; ev.ocasiao=p.ocasiao||'';
+  ev.pax=p.pax!=null?String(p.pax):''; ev.paxIn=ev.pax; ev.responsavel=currentUserName()==='portal'?'':currentUserName();
+  ev.obs='Pedido pelo site em '+new Date(p.created_at).toLocaleDateString('pt-BR')+' · formato: '+(p.formato||'—')+' · estimativa mostrada ao cliente: '+fmt(p.estimativa)+(p.obs?'\nCliente escreveu: '+p.obs:'');
+  ev.menu=(p.itens||[]).map(function(x){
+    var c=itens().find(function(k){return String(k.id)===String(x.id);})||{};
+    return {nome:x.nome_catalogo||x.nome,qtd:x.per_pax?1:(Number(x.qtd)||0),preco:Math.round((Number(x.preco)||0)*100)/100,un:x.unidade||'',perPax:!!x.per_pax,ficha:null,
+      cat:x.secao==='Bebidas'?'B':'C',secao:x.secao||'',desc:c.descricao||'',louca:c.louca||'',unCompra:'',tamCompra:''};
+  });
+  var r=await sb.from('lola_eventos').insert(toRow(ev)).select().single();
+  if(r.error){showFlash('Não consegui criar o evento: '+r.error.message,true);return;}
+  var e=fromRow(r.data);DB.events.push(e);
+  var u=await sb.from('lola_eventos_pedidos').update({status:'convertido',evento_id:e.id,atendido_por:currentUserName(),atendido_em:new Date().toISOString()}).eq('id',id);
+  if(u.error)showFlash('Evento criado, mas não marquei o pedido como atendido: '+u.error.message,true);
+  p.status='convertido';p.evento_id=e.id;
+  closePedidosSite();if(typeof renderList==='function')renderList();open_(e.id);showFlash('Pré-reserva criada a partir do pedido ✓');
+};
+setTimeout(contarPedidos,2500);
+
 })();
