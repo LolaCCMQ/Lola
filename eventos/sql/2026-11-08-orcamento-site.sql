@@ -71,8 +71,10 @@ create table if not exists public.lola_eventos_pacotes (
   grupos jsonb not null default '[]'::jsonb,    -- [{"titulo":"Salgados","secoes":["Comidinhas"],"itens":[],"escolher":3,"qtd_pp_h":1.5}]
   min_pax int not null default 10,
   servico_pct numeric not null default 10,
-  estilo_servico text                           -- vai pro campo "Estilo de serviço" do evento (volante, ilhas, brunch, coquetel, buffet_quente…)
+  estilo_servico text,                          -- vai pro campo "Estilo de serviço" do evento (volante, ilhas, brunch, coquetel, buffet_quente…)
+  hora_extra_pp numeric                         -- preço por pessoa de cada hora além do maior tempo base (o cliente digita as horas)
 );
+alter table public.lola_eventos_pacotes add column if not exists hora_extra_pp numeric;
 alter table public.lola_eventos_pacotes enable row level security;
 drop policy if exists "todos leem pacotes" on public.lola_eventos_pacotes;
 create policy "todos leem pacotes" on public.lola_eventos_pacotes for select to anon, authenticated using (true);
@@ -89,13 +91,16 @@ select * from (values
   ('Brunch', 'Manhã ou começo de tarde sem pressa, com coisas boas pra beliscar.', 'Café, chás, sucos e água. Louça e serviço.', 2,
     array['ccmq','mac','outro'], '[{"horas":2,"preco_pp":null},{"horas":3,"preco_pp":null}]'::jsonb,
     '[{"titulo":"Salgados","secoes":["Comidinhas"],"itens":[],"escolher":4,"qtd_pp_h":2},{"titulo":"Mini porções","secoes":["Mini porção"],"itens":[],"escolher":1,"qtd_pp_h":0.4},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":2,"qtd_pp_h":0.75}]'::jsonb, 15, 'brunch'),
-  ('Feijoada', 'A feijoada do Lola, com tudo o que acompanha, pra reunir a turma.', 'Feijoada completa com acompanhamentos, água e serviço.', 3,
+  ('Almoço', 'Almoço servido pra equipe, família ou convidados: entrada, prato principal e sobremesa.', 'Água, louça e serviço.', 3,
+    array['ccmq','mac','outro'], '[{"horas":2,"preco_pp":null},{"horas":3,"preco_pp":null}]'::jsonb,
+    '[{"titulo":"Pra começar","secoes":["Comidinhas"],"itens":[],"escolher":2,"qtd_pp_h":0.7},{"titulo":"Prato principal","secoes":["Mini porção"],"itens":[],"escolher":2,"qtd_pp_h":0.5},{"titulo":"Sobremesa","secoes":["Sobremesa"],"itens":[],"escolher":1,"qtd_pp_h":0.5}]'::jsonb, 10, 'jantar'),
+  ('Feijoada', 'A feijoada do Lola, com tudo o que acompanha, pra reunir a turma.', 'Feijoada completa com acompanhamentos, água e serviço.', 4,
     array['ccmq','mac','outro'], '[{"horas":3,"preco_pp":null},{"horas":4,"preco_pp":null}]'::jsonb,
     '[{"titulo":"Pra começar","secoes":["Comidinhas"],"itens":[],"escolher":2,"qtd_pp_h":0.7},{"titulo":"Sobremesa","secoes":["Sobremesa"],"itens":[],"escolher":1,"qtd_pp_h":0.35},{"titulo":"Bebidas","secoes":["Bebidas"],"itens":[],"escolher":2,"qtd_pp_h":0.7}]'::jsonb, 20, 'buffet_quente'),
-  ('Coquetel + jantar', 'Comidinhas passando, mini porções quentes e doces no fim: festa de pé sem ninguém ir pra casa com fome.', 'Equipe de serviço, louça e montagem.', 4,
+  ('Coquetel + jantar', 'Comidinhas passando, mini porções quentes e doces no fim: festa de pé sem ninguém ir pra casa com fome.', 'Equipe de serviço, louça e montagem.', 5,
     array['ccmq','mac','outro'], '[{"horas":3,"preco_pp":null},{"horas":4,"preco_pp":null}]'::jsonb,
     '[{"titulo":"Comidinhas","secoes":["Comidinhas"],"itens":[],"escolher":5,"qtd_pp_h":4},{"titulo":"Mini porções","secoes":["Mini porção"],"itens":[],"escolher":2,"qtd_pp_h":0.35},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":2,"qtd_pp_h":0.5},{"titulo":"Bebidas","secoes":["Bebidas"],"itens":[],"escolher":3,"qtd_pp_h":1}]'::jsonb, 20, 'coquetel'),
-  ('Premium completo', 'O Lola inteiro no seu evento: mais opções, estações e bebida liberada.', 'Equipe completa, louça, montagem, estação de destaque e bebidas.', 5,
+  ('Premium completo', 'O Lola inteiro no seu evento: mais opções, estações e bebida liberada.', 'Equipe completa, louça, montagem, estação de destaque e bebidas.', 6,
     array['ccmq','mac','outro'], '[{"horas":4,"preco_pp":null},{"horas":5,"preco_pp":null}]'::jsonb,
     '[{"titulo":"Comidinhas","secoes":["Comidinhas"],"itens":[],"escolher":7,"qtd_pp_h":4.5},{"titulo":"Mini porções","secoes":["Mini porção"],"itens":[],"escolher":3,"qtd_pp_h":0.4},{"titulo":"Doces","secoes":["Sobremesa"],"itens":[],"escolher":3,"qtd_pp_h":0.6},{"titulo":"Bebidas","secoes":["Bebidas"],"itens":[],"escolher":4,"qtd_pp_h":1.2}]'::jsonb, 30, 'coquetel')
 ) as v(nome, descricao, inclui, ordem, locais, duracoes, grupos, min_pax, estilo_servico)
