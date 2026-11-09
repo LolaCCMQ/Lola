@@ -328,7 +328,7 @@ window.openPedidosSite=async function(){
     m.innerHTML='<div style="background:var(--cream);border-radius:16px;max-width:900px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);margin:auto"><div class="vt-head"><b style="flex:1;font-family:var(--serif);font-size:19px;color:var(--vinho)">📥 Pedidos de orçamento do site</b>'
      +'<a class="btn-ghost btn-sm" href="https://lolabar.com.br/orcamento-evento.html" target="_blank" style="text-decoration:none">Abrir a página</a><button class="btn-ghost btn-sm" onclick="pdCopiarLink()">Copiar link</button><button class="btn-ghost btn-sm" onclick="closePedidosSite()">Fechar ✕</button></div><div id="pdBody" style="padding:14px 18px 20px"><div class="loading">Carregando…</div></div></div>';
     m.addEventListener('click',function(e){if(e.target===m)closePedidosSite();});document.body.appendChild(m);}
-  m.style.display='flex'; await pdCarregar();
+  m.style.display='flex'; try{await carregar();}catch(e){} await pdCarregar();
 };
 window.closePedidosSite=function(){var m=document.getElementById('pdOverlay');if(m)m.style.display='none';contarPedidos();};
 window.pdCopiarLink=function(){var u='https://lolabar.com.br/orcamento-evento.html';try{navigator.clipboard.writeText(u);showFlash('Link copiado ✓');}catch(e){prompt('Link da página:',u);}};
@@ -336,22 +336,23 @@ async function pdCarregar(){
   var el=document.getElementById('pdBody');
   var r=await sb.from('lola_eventos_pedidos').select('*').order('created_at',{ascending:false}).limit(200);
   if(r.error){PD.ok=false;el.innerHTML='<div class="vt-aviso">Os pedidos ainda não estão sendo guardados no sistema: falta rodar no Supabase o arquivo <code>eventos/sql/2026-11-08-orcamento-site.sql</code>. Enquanto isso, a página do site manda o pedido pelo WhatsApp do Lola.</div>';return;}
-  PD.ok=true;PD.lista=r.data||[];pdRender();
+  PD.ok=true;PD.lista=r.data||[];if(!PD.lista.some(function(p){return p.status==='novo';}))PD.filtro='convertido';pdRender();
 }
 window.pdFiltro=function(f){PD.filtro=f;pdRender();};
 function pdRender(){
   var el=document.getElementById('pdBody');if(!el)return;
   var cont={novo:0,convertido:0,arquivado:0};PD.lista.forEach(function(p){cont[p.status]=(cont[p.status]||0)+1;});
   var l=PD.lista.filter(function(p){return p.status===PD.filtro;});
-  var h='<div class="vt-chips">'+[['novo','Novos'],['convertido','Viraram evento'],['arquivado','Arquivados']].map(function(f){return '<button class="vt-chip'+(PD.filtro===f[0]?' on':'')+'" onclick="pdFiltro(\''+f[0]+'\')">'+f[1]+' ('+(cont[f[0]]||0)+')</button>';}).join('')+'</div>';
+  var h='<div class="vt-chips">'+[['convertido','Viraram pré-reserva'],['novo','Precisam de atenção'],['arquivado','Arquivados']].map(function(f){return '<button class="vt-chip'+(PD.filtro===f[0]?' on':'')+'" onclick="pdFiltro(\''+f[0]+'\')">'+f[1]+' ('+(cont[f[0]]||0)+')</button>';}).join('')+'</div>';
   if(!l.length){el.innerHTML=h+'<div class="intro">Nenhum pedido aqui.</div>';return;}
   h+=l.map(function(p){
     var loc=(LOCAL_SITE[p.local]||[,,p.local||''])[2];
     var tel=String(p.telefone||'').replace(/\D/g,''); if(tel&&tel.length<=11)tel='55'+tel;
-    var itens=(p.itens||[]).map(function(x){return '<tr><td>'+esc(x.nome)+'</td><td style="color:var(--muted)">'+esc(x.secao||'')+'</td><td style="text-align:right">'+(x.per_pax?esc(p.pax)+' pax':esc(x.qtd)+' '+esc(x.unidade||'un'))+'</td><td style="text-align:right">'+fmt((Number(x.preco)||0)*(x.per_pax?(Number(p.pax)||0):(Number(x.qtd)||0)))+'</td></tr>';}).join('');
+    var itens=(p.itens||[]).map(function(x){return '<tr><td>'+esc(x.nome)+'</td><td style="color:var(--muted)">'+esc(x.grupo||x.secao||'')+'</td><td style="text-align:right">'+esc(x.qtd)+'</td></tr>';}).join('');
     return '<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px">'
      +'<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div style="font-family:var(--serif);font-weight:700;font-size:17px;color:var(--vinho-deep)">'+esc(p.ocasiao||'Evento')+' — '+esc(p.nome)+'</div>'
-     +'<div class="vt-meta" style="margin-top:3px">📅 '+dtBR(p.data)+(p.horario?' às '+esc(p.horario):'')+' · 👥 '+esc(p.pax||'?')+' pessoas · 📍 '+esc(loc)+' · '+esc(p.formato||'')+'</div>'
+     +'<div class="vt-meta" style="margin-top:3px">📅 '+dtBR(p.data)+(p.horario?' às '+esc(p.horario):'')+' · 👥 '+esc(p.pax||'?')+' pessoas · 📍 '+esc(loc)+' · '+esc(p.formato||'')+(p.duracao?' · '+esc(p.duracao):'')+(p.preco_pp?' · '+fmt(p.preco_pp)+'/pessoa':'')+'</div>'
+     +(function(d){d=d||{};var t=[d.exclusividade?'espaço '+d.exclusividade:'',d.nota==='sim'?'precisa de nota':'',d.som||'',d.decoracao?'decoração: '+d.decoracao:'',d.restricoes?'restrições: '+d.restricoes:'',d.endereco?'local: '+d.endereco:''].filter(Boolean);return t.length?'<div class="vt-meta">'+esc(t.join(' · '))+'</div>':'';})(p.detalhes)
      +'<div class="vt-meta">📞 '+esc(p.telefone||'—')+(p.email?' · ✉️ '+esc(p.email):'')+' · recebido em '+new Date(p.created_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})+'</div></div>'
      +'<div style="text-align:right"><div class="vt-meta">estimativa no site</div><div style="font-family:var(--serif);font-weight:800;font-size:20px;color:var(--vinho)">'+fmt(p.estimativa)+'</div></div></div>'
      +(itens?'<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px">'+itens+'</table>':'')
@@ -381,11 +382,16 @@ window.pdCriarEvento=async function(id){
   ev.tipo='personalizado'; ev.status='pre'; ev.local=loc[0]; ev.cupula=loc[1];
   ev.data=p.data||''; ev.horario=p.horario||''; ev.duracao=p.duracao||''; ev.ocasiao=p.ocasiao||'';
   ev.pax=p.pax!=null?String(p.pax):''; ev.paxIn=ev.pax; ev.responsavel=currentUserName()==='portal'?'':currentUserName();
-  ev.obs='Pedido pelo site em '+new Date(p.created_at).toLocaleDateString('pt-BR')+' · formato: '+(p.formato||'—')+' · estimativa mostrada ao cliente: '+fmt(p.estimativa)+(p.obs?'\nCliente escreveu: '+p.obs:'');
+  var d=p.detalhes||{};
+  ev.exclusividade=d.exclusividade||''; ev.nota=d.nota==='sim'?'sim':'nao';
+  if(p.local==='ccmq'){ev.local='ccmq';ev.cupula=d.espaco_ccmq||'';}else if(p.local==='outro'){ev.local='catering';ev.cupula='externo';}
+  ev.obs='PEDIDO PELO SITE em '+new Date(p.created_at).toLocaleDateString('pt-BR')+'\nPacote: '+(p.formato||'—')+(p.duracao?' · '+p.duracao:'')+(p.preco_pp?' · '+fmt(p.preco_pp)+' por pessoa':'')+' · estimativa mostrada ao cliente: '+fmt(p.estimativa)
+    +(d.endereco?'\nEndereço/local: '+d.endereco:'')+(d.som?'\nSom/DJ/banda: '+d.som:'')+(d.decoracao?'\nDecoração: '+d.decoracao:'')+(d.restricoes?'\nRestrições alimentares: '+d.restricoes:'')+(p.obs?'\nCliente escreveu: '+p.obs:'')+'\n(Data e horário sujeitos à disponibilidade — conferir agenda.)';
   ev.menu=(p.itens||[]).map(function(x){
     var c=itens().find(function(k){return String(k.id)===String(x.id);})||{};
-    return {nome:x.nome_catalogo||x.nome,qtd:x.per_pax?1:(Number(x.qtd)||0),preco:Math.round((Number(x.preco)||0)*100)/100,un:x.unidade||'',perPax:!!x.per_pax,ficha:null,
-      cat:x.secao==='Bebidas'?'B':'C',secao:x.secao||'',desc:c.descricao||'',louca:c.louca||'',unCompra:'',tamCompra:''};
+    var pp=c.id?(c.per_pax!==false):!!x.per_pax, f=c.id?fichaDoItem(c):null;
+    return {nome:c.nome||x.nome_catalogo||x.nome,qtd:pp?1:(Number(x.qtd)||0),preco:Math.round((Number(c.id?c.preco:x.preco)||0)*100)/100,un:c.unidade||x.unidade||'',perPax:pp,ficha:f?f.nome:null,
+      cat:(c.secao||x.secao)==='Bebidas'?'B':'C',secao:c.secao||x.secao||'',desc:c.descricao||'',louca:c.louca||'',unCompra:'',tamCompra:'',grupoSite:x.grupo||''};
   });
   var r=await sb.from('lola_eventos').insert(toRow(ev)).select().single();
   if(r.error){showFlash('Não consegui criar o evento: '+r.error.message,true);return;}
@@ -396,5 +402,103 @@ window.pdCriarEvento=async function(id){
   closePedidosSite();if(typeof renderList==='function')renderList();open_(e.id);showFlash('Pré-reserva criada a partir do pedido ✓');
 };
 setTimeout(contarPedidos,2500);
+
+
+/* ---------- 📦 Pacotes do site (tipos de evento do funil lolabar.com.br/orcamento-evento.html) ---------- */
+var PK={lista:[],ed:null,ok:null};
+var ESTILOS=[['','—'],['volante','Volante'],['ilhas','Ilhas'],['jantar','Jantar'],['miniporcoes','Mini porções'],['brunch','Brunch'],['coquetel','Coquetel'],['buffet_quente','Buffet (quente)'],['outro','Outro']];
+var LOC_PK=[['ccmq','Lola CCMQ'],['mac','Lola MAC'],['outro','Outro local']];
+window.openPacotesSite=async function(){
+  css(); await carregar();
+  var m=document.getElementById('pkOverlay');
+  if(!m){m=document.createElement('div');m.id='pkOverlay';m.style.cssText='position:fixed;inset:0;background:rgba(30,10,10,.55);z-index:9998;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow:auto';
+    m.innerHTML='<div style="background:var(--cream);border-radius:16px;max-width:980px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);margin:auto"><div class="vt-head"><b style="flex:1;font-family:var(--serif);font-size:19px;color:var(--vinho)">📦 Pacotes do site — tipos de evento</b>'
+     +'<a class="btn-ghost btn-sm" href="https://lolabar.com.br/orcamento-evento.html" target="_blank" style="text-decoration:none">Ver no site</a><button class="btn-ghost btn-sm" onclick="closePacotesSite()">Fechar ✕</button></div><div id="pkBody" style="padding:14px 18px 22px"></div></div>';
+    m.addEventListener('click',function(e){if(e.target===m)closePacotesSite();});document.body.appendChild(m);}
+  m.style.display='flex'; PK.ed=null; await pkCarregar();
+};
+window.closePacotesSite=function(){var m=document.getElementById('pkOverlay');if(m)m.style.display='none';};
+async function pkCarregar(){
+  var el=document.getElementById('pkBody');el.innerHTML='<div class="loading">Carregando…</div>';
+  var r=await sb.from('lola_eventos_pacotes').select('*').order('ordem');
+  if(r.error){PK.ok=false;el.innerHTML='<div class="vt-aviso">Falta rodar no Supabase o arquivo <code>eventos/sql/2026-11-08-orcamento-site.sql</code> — ele cria os pacotes (coffee break, brunch, feijoada, coquetel + jantar, premium completo) e liga o site ao Portal.</div>';return;}
+  PK.ok=true;PK.lista=r.data||[];pkLista();
+}
+function pkOpcoes(g){var ids=(g.itens||[]).map(String);return itens().filter(function(c){return c.publico&&(ids.length?ids.indexOf(String(c.id))>=0:(g.secoes||[]).indexOf(c.secao)>=0);});}
+function pkLista(){
+  var el=document.getElementById('pkBody');
+  var h='<div class="intro" style="margin-bottom:10px">Cada pacote é um <b>tipo de evento</b> no funil do site. O cliente escolhe local → data → tipo → pessoas → tempo → detalhes → opções do menu (com foto, sem quantidade). O preço é <b>por pessoa</b>, por tempo de serviço. As quantidades de cada item são calculadas aqui: <i>pessoas × unidades por pessoa por hora × horas</i>, divididas entre as opções escolhidas — e o evento já nasce como <b>Pré-reserva</b> na lista, com o menu ligado às fichas técnicas.</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">'+PK.lista.map(function(p){
+    var dur=(p.duracoes||[]).map(function(d){return d.horas+'h '+(Number(d.preco_pp)>0?fmt(d.preco_pp):'<span style="color:var(--vinho)">sem preço</span>');}).join(' · ');
+    var gs=(p.grupos||[]).map(function(g){var n=pkOpcoes(g).length;return esc(g.titulo)+' ('+g.escolher+' de '+n+(n<g.escolher?' ⚠️':'')+')';}).join(' · ');
+    return '<div class="vt-card" style="padding:12px 14px;gap:6px'+(p.ativo?'':';opacity:.55')+'"><div class="vt-nome">'+esc(p.nome)+(p.ativo?'':' <span class="vt-meta">(oculto)</span>')+'</div><div class="vt-meta">⏱ '+dur+'</div><div class="vt-meta">🍽 '+(gs||'sem grupos')+'</div><div class="vt-meta">📍 '+(p.locais||[]).map(function(l){var x=LOC_PK.find(function(y){return y[0]===l;});return x?x[1]:l;}).join(', ')+'</div><div class="vt-acts"><button class="btn-primary btn-sm" onclick="pkEditar(\''+p.id+'\')">Editar</button></div></div>';
+  }).join('')+'</div><div style="margin-top:12px"><button class="btn-ghost btn-sm" onclick="pkEditar(null)">+ Novo tipo de evento</button></div>'
+  +'<div class="vt-meta" style="margin-top:10px">⚠️ = menos opções no site do que o cliente precisa escolher. Marque itens como 🌐 no site na 📸 Vitrine.</div>';
+  el.innerHTML=h;
+}
+window.pkEditar=function(id){
+  var p=id?PK.lista.find(function(x){return x.id===id;}):{nome:'',descricao:'',inclui:'',ordem:(PK.lista.length+1),ativo:true,locais:['ccmq','mac','outro'],duracoes:[{horas:2,preco_pp:null}],grupos:[],min_pax:10,servico_pct:10,estilo_servico:''};
+  PK.ed=JSON.parse(JSON.stringify(p));PK.ed._arq=null;pkForm();
+};
+function pkForm(){
+  var p=PK.ed,el=document.getElementById('pkBody');var secs=secoes();
+  var h='<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px">'
+   +'<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px"><div class="field"><label>Nome (aparece pro cliente)</label><input value="'+esc(p.nome)+'" oninput="PKset(\'nome\',this.value)"></div>'
+   +'<div class="field"><label>Estilo de serviço no evento</label><select onchange="PKset(\'estilo_servico\',this.value)">'+ESTILOS.map(function(e){return '<option value="'+e[0]+'"'+(p.estilo_servico===e[0]?' selected':'')+'>'+e[1]+'</option>';}).join('')+'</select></div>'
+   +'<div class="field"><label>Ordem</label><input type="number" value="'+esc(p.ordem)+'" oninput="PKset(\'ordem\',Number(this.value)||0)"></div></div>'
+   +'<div class="field"><label>Descrição pro cliente</label><textarea style="width:100%;min-height:54px;font:inherit;padding:8px;border:1px solid var(--border);border-radius:10px" oninput="PKset(\'descricao\',this.value)">'+esc(p.descricao||'')+'</textarea></div>'
+   +'<div class="field"><label>Já incluso (aparece pro cliente)</label><input value="'+esc(p.inclui||'')+'" oninput="PKset(\'inclui\',this.value)" placeholder="ex.: café, chás, água e suco; louça e reposição"></div>'
+   +'<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">'
+   +'<div class="field"><label>Onde é oferecido</label><div style="display:flex;gap:10px">'+LOC_PK.map(function(l){return '<label style="display:flex;gap:4px;align-items:center;font-size:12.5px;margin:0;white-space:nowrap"><input type="checkbox" style="width:auto;margin:0" '+((p.locais||[]).indexOf(l[0])>=0?'checked':'')+' onchange="PKloc(\''+l[0]+'\',this.checked)"> '+l[1]+'</label>';}).join('')+'</div></div>'
+   +'<div class="field" style="max-width:120px"><label>Mín. pessoas</label><input type="number" value="'+esc(p.min_pax)+'" oninput="PKset(\'min_pax\',Number(this.value)||0)"></div>'
+   +'<div class="field" style="max-width:120px"><label>Serviço %</label><input type="number" value="'+esc(p.servico_pct)+'" oninput="PKset(\'servico_pct\',Number(this.value)||0)"></div>'
+   +'<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;white-space:nowrap"><input type="checkbox" style="width:auto;margin:0" '+(p.ativo?'checked':'')+' onchange="PKset(\'ativo\',this.checked)"> aparece no site</label></div>'
+   +'<div class="field"><label>Foto do tipo de evento</label><div style="display:flex;gap:10px;align-items:center">'+((p._arq||p.foto_url)?'<div style="width:120px;height:68px;border-radius:8px;background:#eee center/cover;background-image:url(&quot;'+esc(p._arq||p.foto_url)+'&quot;)"></div>':'')+'<label class="btn-ghost btn-sm" style="cursor:pointer;margin:0">📷 '+((p._arq||p.foto_url)?'Trocar':'Enviar')+' foto<input type="file" accept="image/*" style="display:none" onchange="PKfoto(this)"></label></div></div>'
+   +'<h4 style="margin:16px 0 6px;font-family:var(--serif);color:var(--vinho-deep)">Tempo de serviço e preço por pessoa</h4>'
+   +(p.duracoes||[]).map(function(d,i){return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="number" step="0.5" style="width:90px" value="'+esc(d.horas)+'" oninput="PKdur('+i+',\'horas\',this.value)"> horas · R$ <input type="number" step="0.01" style="width:120px" value="'+(d.preco_pp==null?'':esc(d.preco_pp))+'" placeholder="por pessoa" oninput="PKdur('+i+',\'preco_pp\',this.value)"> por pessoa <button class="btn-ghost btn-sm" onclick="PKdurDel('+i+')">✕</button></div>';}).join('')
+   +'<button class="btn-ghost btn-sm" onclick="PKdurAdd()">+ tempo</button>'
+   +'<h4 style="margin:16px 0 6px;font-family:var(--serif);color:var(--vinho-deep)">Grupos de escolha do menu</h4>'
+   +'<div class="vt-meta" style="margin-bottom:8px">Sem itens marcados, o grupo mostra todos os itens 🌐 no site das seções escolhidas. Marcando itens, só eles aparecem.</div>'
+   +(p.grupos||[]).map(function(g,i){var ops=pkOpcoes(g),ids=(g.itens||[]).map(String);
+     var cand=itens().filter(function(c){return (g.secoes||[]).indexOf(c.secao)>=0||ids.indexOf(String(c.id))>=0;});
+     return '<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:var(--cream)">'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end"><div class="field" style="flex:1;min-width:160px"><label>Título</label><input value="'+esc(g.titulo)+'" oninput="PKg('+i+',\'titulo\',this.value)"></div>'
+      +'<div class="field" style="max-width:110px"><label>Cliente escolhe</label><input type="number" min="1" value="'+esc(g.escolher)+'" oninput="PKg('+i+',\'escolher\',Number(this.value)||1)"></div>'
+      +'<div class="field" style="max-width:150px"><label>Unid. por pessoa/hora</label><input type="number" step="0.05" value="'+esc(g.qtd_pp_h)+'" oninput="PKg('+i+',\'qtd_pp_h\',Number(this.value)||0)"></div>'
+      +'<button class="btn-ghost btn-sm" onclick="PKgDel('+i+')">Remover grupo</button></div>'
+      +'<div class="vt-meta" style="margin:4px 0">Seções: '+secs.map(function(s){return '<label style="display:inline-flex;gap:3px;align-items:center;margin:0 8px 0 0;font-size:12px;white-space:nowrap"><input type="checkbox" style="width:auto;margin:0" '+((g.secoes||[]).indexOf(s)>=0?'checked':'')+' onchange="PKgSec('+i+',\''+esc(s)+'\',this.checked)"> '+esc(s)+'</label>';}).join('')+'</div>'
+      +'<div class="vt-meta">'+ops.length+' opções no site'+(ops.length<g.escolher?' <b style="color:var(--vinho)">— menos do que o cliente precisa escolher</b>':'')+' · exemplo com 50 pessoas e '+((p.duracoes||[])[0]||{horas:2}).horas+'h: '+Math.round(50*(Number(g.qtd_pp_h)||0)*(Number(((p.duracoes||[])[0]||{horas:2}).horas)||0))+' unidades no total</div>'
+      +'<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px">Escolher itens específicos ('+ids.length+' marcados)</summary><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 10px;margin-top:6px">'
+      +cand.map(function(c){var f=fichaDoItem(c);return '<label style="display:flex;gap:5px;align-items:center;font-size:12px;margin:0"><input type="checkbox" style="width:auto;margin:0" '+(ids.indexOf(String(c.id))>=0?'checked':'')+' onchange="PKgIt('+i+',\''+c.id+'\',this.checked)"> '+esc(c.nome)+(c.publico?' 🌐':'')+(f?' <span style="color:var(--muted)" title="ficha técnica ligada">· 📋 '+esc(f.nome)+'</span>':'')+'</label>';}).join('')
+      +'</div></details></div>';}).join('')
+   +'<button class="btn-ghost btn-sm" onclick="PKgAdd()">+ grupo</button>'
+   +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button class="btn-ghost" onclick="pkLista()">Cancelar</button><button class="btn-primary" id="pkSalvar" onclick="pkSalvar()">Salvar pacote</button></div></div>';
+  el.innerHTML=h;
+}
+window.PKset=function(k,v){PK.ed[k]=v;};
+window.PKloc=function(l,on){var a=PK.ed.locais=PK.ed.locais||[];var i=a.indexOf(l);if(on&&i<0)a.push(l);if(!on&&i>=0)a.splice(i,1);};
+window.PKdur=function(i,k,v){PK.ed.duracoes[i][k]=(v===''?null:Number(String(v).replace(',','.')));};
+window.PKdurAdd=function(){PK.ed.duracoes=PK.ed.duracoes||[];PK.ed.duracoes.push({horas:3,preco_pp:null});pkForm();};
+window.PKdurDel=function(i){PK.ed.duracoes.splice(i,1);pkForm();};
+window.PKg=function(i,k,v){PK.ed.grupos[i][k]=v;};
+window.PKgAdd=function(){PK.ed.grupos=PK.ed.grupos||[];PK.ed.grupos.push({titulo:'Novo grupo',secoes:['Comidinhas'],itens:[],escolher:2,qtd_pp_h:1});pkForm();};
+window.PKgDel=function(i){PK.ed.grupos.splice(i,1);pkForm();};
+window.PKgSec=function(i,s,on){var g=PK.ed.grupos[i];g.secoes=g.secoes||[];var k=g.secoes.indexOf(s);if(on&&k<0)g.secoes.push(s);if(!on&&k>=0)g.secoes.splice(k,1);pkForm();};
+window.PKgIt=function(i,id,on){var g=PK.ed.grupos[i];g.itens=(g.itens||[]).map(String);var k=g.itens.indexOf(String(id));if(on&&k<0)g.itens.push(String(id));if(!on&&k>=0)g.itens.splice(k,1);};
+window.PKfoto=function(inp){var f=inp.files&&inp.files[0];if(!f)return;reduzir(f,function(d){PK.ed._arq=d;pkForm();});};
+window.pkSalvar=async function(){
+  var p=PK.ed;if(!(p.nome||'').trim()){showFlash('Dê um nome ao pacote.',true);return;}
+  var b=document.getElementById('pkSalvar');if(b){b.disabled=true;b.textContent='Salvando…';}
+  try{
+    if(p._arq){var blob=await (await fetch(p._arq)).blob();var path='eventos-pacotes/'+norm(p.nome).replace(/ /g,'-').slice(0,40)+'-'+Date.now()+'.jpg';
+      var up=await sb.storage.from('anexos').upload(path,blob,{upsert:true,contentType:'image/jpeg'});if(up.error)throw up.error;p.foto_url=sb.storage.from('anexos').getPublicUrl(path).data.publicUrl;}
+    var row={nome:p.nome.trim(),descricao:p.descricao||null,inclui:p.inclui||null,foto_url:p.foto_url||null,ordem:Number(p.ordem)||0,ativo:!!p.ativo,locais:p.locais||[],
+      duracoes:(p.duracoes||[]).filter(function(d){return Number(d.horas)>0;}).sort(function(a,b){return a.horas-b.horas;}),
+      grupos:(p.grupos||[]).map(function(g){return {titulo:g.titulo,secoes:g.secoes||[],itens:(g.itens||[]).map(String),escolher:Number(g.escolher)||1,qtd_pp_h:Number(g.qtd_pp_h)||0};}),
+      min_pax:Number(p.min_pax)||0,servico_pct:Number(p.servico_pct)||0,estilo_servico:p.estilo_servico||null,updated_at:new Date().toISOString()};
+    var r=p.id?await sb.from('lola_eventos_pacotes').update(row).eq('id',p.id):await sb.from('lola_eventos_pacotes').insert(row);
+    if(r.error)throw r.error;showFlash('Pacote salvo ✓');await pkCarregar();
+  }catch(e){showFlash('Erro ao salvar: '+((e&&e.message)||e),true);if(b){b.disabled=false;b.textContent='Salvar pacote';}}
+};
 
 })();
