@@ -3730,7 +3730,11 @@ function viewEntrada(){
   if(ST.buscaN){ const b=norm(ST.buscaN); base=base.filter(n=>norm(n.emitente||'').includes(b)); }
   base=base.slice().sort((a,b)=>String(b.data_emissao||'').localeCompare(String(a.data_emissao||'')));
   let h=`<div class="note">Cada nota da Central vira <b>entrada de estoque</b>. Confira o insumo de cada item (o sistema já sugere) e confirme — o saldo sobe sozinho. A etiqueta mostra as que <b>já foram inseridas</b>.</div>`;
-  h+=`<button class="btn sec" id="btnManual" style="margin-bottom:12px"><i class="ph-duotone ph-plus-circle"></i> Lançar entrada manual (sem nota)</button>`;
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">`
+    +`<button class="btn sec" id="btnManual"><i class="ph-duotone ph-plus-circle"></i> Lançar entrada manual (sem nota)</button>`
+    +`<button class="btn sec" id="btnXml"><i class="ph-duotone ph-upload-simple"></i> Importar XML da nota</button>`
+    +`<input type="file" id="xmlInput" accept=".xml,text/xml,application/xml" multiple style="display:none">`
+    +`</div>`;
   h+=`<div class="monthsel"><span>Competência</span>
       <select id="selComp"><option value="all">Todas as competências (${todas.length})</option>
       ${meses.map(m=>`<option value="${m}"${ST.comp===m?' selected':''}>${compLabel(m)} (${todas.filter(n=>mesDe(n)===m).length})</option>`).join('')}</select></div>`;
@@ -3765,10 +3769,77 @@ function viewEntrada(){
 }
 function wireEntrada(){
   $('#btnManual')&&($('#btnManual').onclick=abrirManual);
+  $('#btnXml')&&($('#btnXml').onclick=()=>{ const fi=$('#xmlInput'); if(fi) fi.click(); });
+  $('#xmlInput')&&($('#xmlInput').onchange=e=>{ const fs=e.target.files; if(fs&&fs.length) importarXMLFiles(fs); e.target.value=''; });
   $('#selComp')&&($('#selComp').onchange=e=>{ST.comp=e.target.value;render();});
   $$('#app .tabs .chip[data-f]').forEach(b=>b.onclick=()=>{ST.entFiltro=b.dataset.f;render();});
   const bq=$('#bqn'); if(bq){ bq.oninput=()=>{ST.buscaN=bq.value; const p=bq.selectionStart; render(); const n=$('#bqn'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
   $$('.nrowc').forEach(c=>c.onclick=()=>{ const ch=c.dataset.ch; const mn=(ST.manuaisNotas||[]).find(x=>x.chave===ch); if(mn) openManualDetailCentral(mn); else abrirNota(ch); });
+}
+
+/* 10/11 (Bianca): Importar XML da nota manualmente — pra notas que o espião não pegou
+   os itens a tempo (ex.: certificado vencido passou do prazo de 10 dias na SEFAZ).
+   Lê o XML da NF-e, extrai itens/totais no MESMO formato do espião e casa pela chave. */
+function _xnum(v){ if(v==null) return 0; const n=parseFloat(String(v).replace(',','.')); return isNaN(n)?0:n; }
+function _xtxt(root,tag){ if(!root) return ''; const e=root.getElementsByTagName(tag)[0]; return e?e.textContent.trim():''; }
+function _parseNfeXml(txt){
+  let doc; try{ doc=new DOMParser().parseFromString(txt,'text/xml'); }catch(e){ return {erro:'não consegui ler o XML'}; }
+  if(!doc || doc.getElementsByTagName('parsererror').length) return {erro:'arquivo não é um XML válido'};
+  const inf=doc.getElementsByTagName('infNFe')[0];
+  if(!inf) return {erro:'não parece uma NF-e (sem infNFe)'};
+  let chave=(inf.getAttribute('Id')||'').replace(/\D/g,'');
+  if(chave.length<44){ const c=_xtxt(doc,'chNFe').replace(/\D/g,''); if(c.length>=44) chave=c; }
+  chave=chave.slice(-44);
+  if(chave.length!==44) return {erro:'sem chave de acesso'};
+  const emit=doc.getElementsByTagName('emit')[0], dest=doc.getElementsByTagName('dest')[0], ide=doc.getElementsByTagName('ide')[0];
+  const itens=[]; const dets=doc.getElementsByTagName('det');
+  for(let k=0;k<dets.length;k++){
+    const prod=dets[k].getElementsByTagName('prod')[0]; if(!prod) continue;
+    const vbruto=_xnum(_xtxt(prod,'vProd')), vdesc=_xnum(_xtxt(prod,'vDesc'));
+    const ipiEl=dets[k].getElementsByTagName('vIPI')[0], vipi=ipiEl?_xnum(ipiEl.textContent):0;
+    itens.push({ un:_xtxt(prod,'uCom'), qtd:_xnum(_xtxt(prod,'qCom')), desc:_xtxt(prod,'xProd'),
+      vipi:vipi, vdesc:vdesc, vunit:_xnum(_xtxt(prod,'vUnCom')), vbruto:vbruto,
+      vtotal:+(vbruto - vdesc + vipi).toFixed(2) });
+  }
+  const tot=doc.getElementsByTagName('ICMSTot')[0];
+  const totais= tot? { vnf:_xnum(_xtxt(tot,'vNF')), vst:_xnum(_xtxt(tot,'vST')), vipi:_xnum(_xtxt(tot,'vIPI')),
+      vseg:_xnum(_xtxt(tot,'vSeg')), vdesc:_xnum(_xtxt(tot,'vDesc')), vicms:_xnum(_xtxt(tot,'vICMS')),
+      vprod:_xnum(_xtxt(tot,'vProd')), vfrete:_xnum(_xtxt(tot,'vFrete')), voutro:_xnum(_xtxt(tot,'vOutro')) } : null;
+  const dEmi=(_xtxt(ide,'dhEmi')||_xtxt(ide,'dEmi')||'').slice(0,10)||null;
+  return { chave:chave, emitente:_xtxt(emit,'xNome'), cnpj:_xtxt(emit,'CNPJ'),
+    dest_cnpj:_xtxt(dest,'CNPJ'), numero:_xtxt(ide,'nNF'), data_emissao:dEmi,
+    valor_total: totais? totais.vnf : itens.reduce((s,i)=>s+i.vtotal,0), itens:itens, totais:totais };
+}
+const CENTRAL_CNPJ='15103938000538';
+async function importarXMLFiles(files){
+  toast('Lendo '+files.length+' arquivo(s)…', 4000);
+  let ok=0, novas=0; const erros=[];
+  for(const f of files){
+    let txt=''; try{ txt=await f.text(); }catch(e){ erros.push(f.name+': não consegui ler'); continue; }
+    const p=_parseNfeXml(txt);
+    if(p.erro){ erros.push(f.name+': '+p.erro); continue; }
+    if(!p.itens.length){ erros.push(f.name+': XML sem itens'); continue; }
+    if(p.dest_cnpj && p.dest_cnpj.replace(/\D/g,'')!==CENTRAL_CNPJ){ erros.push((p.emitente||f.name)+': essa nota não é da Central (destinatário diferente)'); continue; }
+    const patch={ itens:p.itens, totais:p.totais, valor_total:p.valor_total, xml_indisponivel:false, xml_motivo:null, manifestado_em:new Date().toISOString() };
+    try{
+      await lolaEnsure(); const h=lolaHeaders({'Prefer':'return=representation'}); h['Content-Type']='application/json';
+      const r=await fetch(SB_URL+'/rest/v1/financeiro_notas?chave=eq.'+encodeURIComponent(p.chave),{method:'PATCH',headers:h,body:JSON.stringify(patch)});
+      if(!r.ok) throw new Error(await r.text());
+      const rows=await r.json().catch(()=>[]);
+      if(rows && rows.length){
+        const n=ST.notas.find(x=>x.chave===p.chave); if(n) Object.assign(n, patch);
+        ok++;
+      } else {
+        const row=Object.assign({ chave:p.chave, unit:'central', emitente:p.emitente, cnpj:p.cnpj, numero:p.numero, data_emissao:p.data_emissao }, patch);
+        await post('financeiro_notas',[row],'return=minimal'); ST.notas.push(row); novas++;
+      }
+    }catch(e){ erros.push((p.emitente||f.name)+': erro ao salvar'); }
+  }
+  render();
+  let msg=(ok+novas)+' nota(s) importada(s)'+(novas?(' ('+novas+' nova(s))'):'')+' ✓';
+  if(erros.length) msg+=' · '+erros.length+' com problema';
+  toast(msg, 6000);
+  if(erros.length) console.warn('Importar XML — problemas:', erros);
 }
 
 function viewSaldo(){
