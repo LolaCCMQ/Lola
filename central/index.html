@@ -3747,7 +3747,7 @@ function viewEntrada(){
     +`<colgroup><col style="width:78px"><col style="width:44px"><col><col style="width:34px"><col style="width:80px"></colgroup>`
     +`<thead><tr><th style="${_th}">Status</th><th style="${_th}">Data</th><th style="${_th}">Fornecedor</th><th style="${_th};text-align:center">Itens</th><th style="${_th};text-align:right">Valor</th></tr></thead><tbody>`;
   base.forEach(n=>{
-    const its=n.itens||[]; const tot=its.reduce((s,i)=>s+(+i.vtotal||0),0);
+    const its=n.itens||[]; const tot=its.length ? its.reduce((s,i)=>s+(+i.vtotal||0),0) : (+n.valor_total||0);
     const manual=!!n._manual; const done=feita(n);
     const barra=manual?'#2C5AA0':(done?'var(--okFg)':'#E0A93B'), txt=manual?'#2C5AA0':(done?'var(--okFg)':'#9A6B1E'), rot=manual?'manual':(done?'inserida':'a lançar'), bg=manual?'#EAF1FB':(done?'var(--okBg)':'var(--card)');
     const tdc='padding:9px 8px;border-bottom:1px solid var(--fio);font-size:12.5px;vertical-align:middle;background:'+bg;
