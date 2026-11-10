@@ -24,7 +24,7 @@ function fichaDoItem(c){
   return cand[0];
 }
 function toks(n){return n.split(' ').filter(Boolean).map(function(w){return w.length>4?w.replace(/s$/,''):w;});}
-function semelhanca(A,B){if(!A.length||!B.length)return 0;var m=0;A.forEach(function(a){if(B.some(function(b){return a===b||(a.length>=4&&b.length>=4&&(a.indexOf(b)===0||b.indexOf(a)===0));}))m++;});if(m<Math.min(A.length,B.length))return 0;return m/Math.max(A.length,B.length);}
+function semelhanca(A,B){if(!A.length||!B.length)return 0;var m=0;A.forEach(function(a){if(B.some(function(b){return a===b||(a.length>=4&&b.length>=4&&(a.indexOf(b)===0||b.indexOf(a)===0));}))m++;});if(m<Math.min(A.length,B.length))return 0;var L=A.length>=B.length?A:B,Sm=L===A?B:A;if(L.length>Sm.length&&!Sm.some(function(b){var a=L[0];return a===b||(a.length>=4&&b.length>=4&&(a.indexOf(b)===0||b.indexOf(a)===0));}))return 0;return m/Math.max(A.length,B.length);}
 function fotoDoItem(c){
   if(c.foto_url)return {url:c.foto_url,origem:'própria'};
   var f=fichaDoItem(c); if(f&&VT.fichasComFoto.has(f.id))return {ficha:f.id,origem:'ficha "'+f.nome+'"'+(c.ficha_id?'':' (achada pelo nome)')};
