@@ -3770,7 +3770,7 @@ function viewEntrada(){
 function wireEntrada(){
   $('#btnManual')&&($('#btnManual').onclick=abrirManual);
   $('#btnXml')&&($('#btnXml').onclick=()=>{ const fi=$('#xmlInput'); if(fi) fi.click(); });
-  $('#xmlInput')&&($('#xmlInput').onchange=e=>{ const fs=e.target.files; if(fs&&fs.length) importarXMLFiles(fs); e.target.value=''; });
+  $('#xmlInput')&&($('#xmlInput').onchange=e=>{ const fs=Array.from(e.target.files||[]); if(fs.length) importarXMLFiles(fs); e.target.value=''; });
   $('#selComp')&&($('#selComp').onchange=e=>{ST.comp=e.target.value;render();});
   $$('#app .tabs .chip[data-f]').forEach(b=>b.onclick=()=>{ST.entFiltro=b.dataset.f;render();});
   const bq=$('#bqn'); if(bq){ bq.oninput=()=>{ST.buscaN=bq.value; const p=bq.selectionStart; render(); const n=$('#bqn'); if(n){n.focus();n.setSelectionRange(p,p);} }; }
