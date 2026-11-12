@@ -185,3 +185,11 @@ create trigger trg_pedido_site_cria_evento after insert on public.lola_eventos_p
   for each row execute function public.lola_pedido_site_cria_evento();
 
 notify pgrst, 'reload schema';
+
+-- Fotos de eventos enviadas pela Mahara em 11/11 (guardadas no site, em img/eventos/)
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/cesta-de-paes.jpg'
+ where id = 'a27af8ac-d624-431b-958c-0890794f7ecb' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/chips-pao-sirio.jpg'
+ where id = '06c77d0d-dc0b-4910-ab28-795d05628514' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/grissinis.jpg'
+ where id = '14cf1cff-249e-4701-a0f3-741871ffee0c' and coalesce(foto_url,'') = '';
