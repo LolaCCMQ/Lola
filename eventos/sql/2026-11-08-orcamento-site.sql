@@ -205,3 +205,5 @@ update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/even
  where id = '103a4a41-15ca-495d-bfb2-fd72df66e7f8' and coalesce(foto_url,'') = '';
 update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/mini-croissant-ovos.webp'
  where id = '0c7c1ef4-3ea9-47d2-b6de-d00a497a553e' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/brie-brulee.webp'
+ where id = '3fbe92de-5be8-4b1d-8bbd-b16c7301682a' and coalesce(foto_url,'') = '';
