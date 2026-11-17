@@ -186,10 +186,18 @@ create trigger trg_pedido_site_cria_evento after insert on public.lola_eventos_p
 
 notify pgrst, 'reload schema';
 
--- Fotos de eventos enviadas pela Mahara em 11/11 (guardadas no site, em img/eventos/)
-update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/cesta-de-paes.jpg'
+-- Fotos de eventos enviadas pela Mahara (11/11 e 17/11), guardadas no site em img/eventos/ (fundo transparente)
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/cesta-de-paes.webp'
  where id = 'a27af8ac-d624-431b-958c-0890794f7ecb' and coalesce(foto_url,'') = '';
-update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/chips-pao-sirio.jpg'
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/chips-pao-sirio.webp'
  where id = '06c77d0d-dc0b-4910-ab28-795d05628514' and coalesce(foto_url,'') = '';
-update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/grissinis.jpg'
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/grissinis.webp'
  where id = '14cf1cff-249e-4701-a0f3-741871ffee0c' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/pao-de-queijo.webp'
+ where id = 'ec7b5b42-a8cf-49cd-a128-0a0f7dcd0f2d' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/frios.webp'
+ where id = '070f1e17-02be-421b-9702-d50d21dc5a9d' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/geleia-figo.webp'
+ where id = 'bc96493d-7018-4710-b012-1f2f9e6b0e9e' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/geleia-frutas-vermelhas.webp'
+ where id = '12daa6ee-d314-411d-bab5-399eca220941' and coalesce(foto_url,'') = '';
