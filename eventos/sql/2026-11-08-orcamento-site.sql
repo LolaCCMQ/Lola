@@ -201,3 +201,7 @@ update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/even
  where id = 'bc96493d-7018-4710-b012-1f2f9e6b0e9e' and coalesce(foto_url,'') = '';
 update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/geleia-frutas-vermelhas.webp'
  where id = '12daa6ee-d314-411d-bab5-399eca220941' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/doce-de-leite.webp'
+ where id = '103a4a41-15ca-495d-bfb2-fd72df66e7f8' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/mini-croissant-ovos.webp'
+ where id = '0c7c1ef4-3ea9-47d2-b6de-d00a497a553e' and coalesce(foto_url,'') = '';
