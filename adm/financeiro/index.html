@@ -238,6 +238,7 @@ section.view{display:none} section.view.on{display:block}
     <div class="tab on" data-v="lanc">Lançamentos</div>
     <div class="tab" data-v="dre">DRE</div>
     <div class="tab" data-v="relatorio">Relatório</div>
+    <div class="tab" data-v="cruz">Venda × Compra</div>
     <div class="tab" data-v="notas">Notas (XML)</div>
     <div class="tab" data-v="regras">Regras</div>
     <div class="tab" data-v="categorias">Categorias</div>
@@ -302,6 +303,22 @@ section.view{display:none} section.view.on{display:block}
         <button class="btn o" id="relPrint" style="flex:1;min-width:180px"><i class="ph-duotone ph-list-checks"></i> PDF — totais por conta</button>
         <button class="btn o" id="relPrintDet" style="flex:1;min-width:180px"><i class="ph-duotone ph-list-bullets"></i> PDF — gastos destrinchados</button>
       </div>
+    </section>
+
+    <!-- VENDA × COMPRA (23/11) — cruza vendas do Bitbar com fichas técnicas, compras e pedidos à Central -->
+    <section class="view" id="v-cruz">
+      <div class="note"><b>Venda × Compra.</b> Pega o que foi vendido no Bitbar, aplica as fichas técnicas e compara com o que entrou de compras (notas + entradas manuais) e com o que veio da Central. <b>Fator 1,00×</b> = comprou exatamente o que as vendas explicam; acima de 1,3× merece olhar.</div>
+      <div class="lancFilters">
+        <div class="monthsel"><span class="lblcap">De</span><input type="date" id="cruzIni" style="border:1px solid var(--border);border-radius:var(--r-btn);padding:9px 11px;font-weight:600;flex:1;min-height:44px;background:#fff"></div>
+        <div class="monthsel"><span class="lblcap">Até</span><input type="date" id="cruzFim" style="border:1px solid var(--border);border-radius:var(--r-btn);padding:9px 11px;font-weight:600;flex:1;min-height:44px;background:#fff"></div>
+      </div>
+      <div class="filters" id="cruzAtalhos">
+        <button class="chip" data-cp="1">Mês passado</button>
+        <button class="chip" data-cp="2">Últimos 2 meses</button>
+        <button class="chip" data-cp="3">Últimos 3 meses</button>
+        <button class="chip on" data-cp="go" style="color:#fff"><i class="ph-duotone ph-arrows-clockwise"></i> Calcular</button>
+      </div>
+      <div id="cruzBody"><div class="note">Escolha o período e toque em <b>Calcular</b>.</div></div>
     </section>
 
     <!-- NOTAS -->
@@ -2687,10 +2704,77 @@ function switchView(v){
   $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
   $('#fabTxt').textContent = v==='notas'?'Importar XML':'Lançar / importar';
   $('#fab').style.display = (v==='lanc'||v==='notas')?'inline-flex':'none';
-  if(v==='lanc')renderLanc(); if(v==='dre')renderDRE(); if(v==='relatorio')renderRelatorio(); if(v==='notas')renderNotas(); if(v==='regras')renderRegras(); if(v==='categorias')renderCategorias();
+  if(v==='lanc')renderLanc(); if(v==='dre')renderDRE(); if(v==='relatorio')renderRelatorio(); if(v==='notas')renderNotas(); if(v==='regras')renderRegras(); if(v==='categorias')renderCategorias(); if(v==='cruz')cruzInit();
 }
 function renderAll(){renderLanc();renderDRE();renderNotas();
   const rv=document.getElementById('v-relatorio'); if(rv&&rv.classList.contains('on')) renderRelatorio();}
+
+
+/* ========================= VENDA × COMPRA (23/11) ========================= */
+function cruzFmtN(v,un){ if(v==null)return '—'; const n=+v; const d=(Math.abs(n)<10&&n%1)?1:0;
+  return n.toLocaleString('pt-BR',{maximumFractionDigits:d})+(un?' '+un:''); }
+function cruzQtd(v,un){ un=(un||'').toLowerCase();
+  if(un==='g'&&Math.abs(v)>=1000) return cruzFmtN(v/1000,'kg'); if(un==='ml'&&Math.abs(v)>=1000) return cruzFmtN(v/1000,'L');
+  return cruzFmtN(v,un); }
+function cruzRazaoChip(r){ if(r==null) return '';
+  const c = r>=1.3?['var(--neg)','var(--negBg)'] : r<0.8?['var(--amber)','var(--amberBg)'] : ['var(--pos)','var(--posBg)'];
+  return `<span class="compchip" style="color:${c[0]};background:${c[1]};border-color:transparent">${(+r).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}×</span>`; }
+function cruzRow(o,opts){ opts=opts||{};
+  const exc=o.excesso; const excTxt = exc==null?'':(exc>0?`<div class="amt neg">+${brl(exc)}</div><div class="date" style="text-align:right">a mais</div>`:(exc<-50?`<div class="amt" style="color:var(--amber)">${brl(exc)}</div><div class="date" style="text-align:right">faltou</div>`:`<div class="amt pos">ok</div>`));
+  return `<div class="lc"><div class="r1"><div style="min-width:0">
+      <div class="memo">${esc(o.nome)} ${cruzRazaoChip(o.razao)}</div>
+      <div class="date">Vendas explicam <b>${cruzQtd(o.teo,o.un)}</b> · ${opts.realLbl||'entrou'} <b>${cruzQtd(o.real,o.un)}</b>${o.transf>0?` · ${cruzQtd(o.transf,o.un)} transferido p/ outra unidade (já descontado)`:''}${o.valor?` · gasto ${brl(o.valor)}`:''}${o.sem_conv>0?' · <span style="color:var(--amber)">unidade da ficha difere do cadastro</span>':''}</div>
+    </div><div style="flex-shrink:0">${excTxt}</div></div></div>`; }
+function cruzBloco(titulo,sub,itens,opts,limite){ limite=limite||15;
+  if(!itens||!itens.length) return '';
+  const tot=itens.reduce((s,x)=>s+(x.excesso>0?x.excesso:0),0);
+  const id='cz'+Math.random().toString(36).slice(2,8);
+  const vis=itens.slice(0,limite).map(x=>cruzRow(x,opts)).join('');
+  const resto=itens.length>limite?`<div id="${id}" style="display:none">${itens.slice(limite).map(x=>cruzRow(x,opts)).join('')}</div><button class="btn g" style="width:100%;margin-bottom:12px" onclick="document.getElementById('${id}').style.display='block';this.remove()">Ver mais ${itens.length-limite}</button>`:'';
+  return `<h3 class="fr" style="margin:22px 0 4px;font-size:17px">${titulo} <span style="font-size:13px;color:var(--neg);font-family:inherit">${tot>0?'· '+brl(tot)+' a mais':''}</span></h3>
+    <div class="date" style="margin-bottom:10px">${sub}</div>${vis}${resto}`; }
+function cruzPeriodo(meses){ const d=new Date(); const fim=new Date(d.getFullYear(),d.getMonth(),0); const ini=new Date(fim.getFullYear(),fim.getMonth()-(meses-1),1);
+  const f=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  $('#cruzIni').value=f(ini); $('#cruzFim').value=f(fim); }
+function cruzInit(){ if(!$('#cruzIni').value) cruzPeriodo(1);
+  if(ST.unit!=='ccmq'){ $('#cruzBody').innerHTML='<div class="note">Por enquanto o cruzamento só existe para o <b>Lola CCMQ</b> — é a única unidade com as vendas por produto do Bitbar. MAC e Central entram numa próxima etapa.</div>'; } }
+async function cruzCalcular(){
+  if(ST.unit!=='ccmq'){ cruzInit(); return; }
+  const ini=$('#cruzIni').value, fim=$('#cruzFim').value; if(!ini||!fim||fim<ini){ toast('Confira o período'); return; }
+  $('#cruzBody').innerHTML='<div class="note">Calculando… (pode levar alguns segundos)</div>';
+  let r; try{ r=await api('rpc/fin_cruzamento',{method:'POST',body:JSON.stringify({p_unit:ST.unit,p_ini:ini,p_fim:fim})}); }
+  catch(e){ $('#cruzBody').innerHTML=`<div class="note" style="color:var(--neg)">Não consegui calcular: ${esc(String(e.message||e)).slice(0,200)}</div>`; return; }
+  if(r&&r.erro){ $('#cruzBody').innerHTML=`<div class="note">${esc(r.erro)}</div>`; return; }
+  const s=r.resumo||{}; const cob=s.venda?Math.round(100*((s.venda_ficha||0)+(s.venda_direta||0))/s.venda):0;
+  const cmvT=s.venda_ficha?(100*s.cmv_teorico_fichas/s.venda_ficha):null;
+  const aviso = (s.dias_venda && s.dias_produto/s.dias_venda<0.8)
+    ? `<div class="note" style="background:var(--amberBg);border-color:#ecd9ac;color:var(--amber)"><b>Atenção:</b> só ${s.dias_produto} de ${s.dias_venda} dias têm venda por produto importada do Bitbar. Os outros dias foram estimados pela proporção dos dias importados. Para números firmes, importe o relatório de produtos todo dia.</div>`:'';
+  let h = aviso + `<div class="sum">
+      <div><div class="v">${brl(s.venda||0)}</div><div class="k">Venda no período</div></div>
+      <div><div class="v">${cob}%</div><div class="k">da venda com ficha</div></div>
+      <div><div class="v">${cmvT!=null?cmvT.toFixed(1)+'%':'—'}</div><div class="k">CMV teórico (fichas)</div></div>
+      <div><div class="v">${brl(s.compras||0)}</div><div class="k">Compras (entradas)</div></div>
+      <div><div class="v">${brl(s.central||0)}</div><div class="k">Recebido da Central</div></div>
+      <div><div class="v">${s.venda?(100*((s.compras||0)+(s.central||0))/s.venda).toFixed(1)+'%':'—'}</div><div class="k">Compras ÷ venda</div></div>
+    </div>`;
+  h += cruzBloco('Vendidos como chegam','Bebidas, vinhos e itens de revenda: 1 vendido = 1 comprado. É o cruzamento mais confiável.', r.direto, {realLbl:'entrou'});
+  h += cruzBloco('Pré-preparos da Central','O que o CCMQ recebeu da Central × o que as fichas dos pratos vendidos pedem.', r.central, {realLbl:'recebeu'});
+  h += cruzBloco('Insumos das receitas','Compras × consumo pelas fichas. Atenção: se um insumo também é usado em produto sem ficha (cafés, sucos, taças), o fator aparece mais alto do que é.', r.insumos, {}, 20);
+  if(r.sem_compra&&r.sem_compra.length){
+    h += `<h3 class="fr" style="margin:22px 0 4px;font-size:17px">Na ficha, mas sem compra no período</h3><div class="date" style="margin-bottom:10px">Normalmente é cadastro duplicado: a ficha aponta para um insumo e a nota entra em outro. Unificar resolve.</div>`+
+      r.sem_compra.slice(0,25).map(o=>`<div class="lc"><div class="memo">${esc(o.nome)}</div><div class="date">Fichas pedem ${cruzQtd(o.teo,o.un)}${o.teo_rs?' (~'+brl(o.teo_rs)+')':''}${o.parecido?` · compras entraram como <b>${esc(o.parecido)}</b>?`:''}</div></div>`).join('');
+  }
+  if(r.sem_ficha&&r.sem_ficha.length){
+    h += `<h3 class="fr" style="margin:22px 0 4px;font-size:17px">Vendidos sem ficha</h3><div class="date" style="margin-bottom:10px">Esses produtos ficam fora da conta. Criar a ficha (ou ligar ao insumo, se é revenda) aumenta a cobertura.</div>`+
+      r.sem_ficha.slice(0,25).map(o=>`<div class="lc"><div class="r1"><div><div class="memo">${esc(o.produto)}</div><div class="date">${esc(o.grupo||'')} · ~${cruzFmtN(o.qtd)} vendidos</div></div><div class="amt">${brl(o.valor||0)}</div></div></div>`).join('');
+  }
+  if(r.compra_sem_uso&&r.compra_sem_uso.length){
+    h += `<h3 class="fr" style="margin:22px 0 4px;font-size:17px">Comprados sem venda que explique</h3><div class="date" style="margin-bottom:10px">Insumos que entraram mas nenhuma ficha nem venda usa. Pode ser limpeza/consumo interno, produto sem ficha ou cadastro duplicado.</div>`+
+      r.compra_sem_uso.slice(0,25).map(o=>`<div class="lc"><div class="r1"><div><div class="memo">${esc(o.nome)}</div><div class="date">${esc(o.categoria||'')} · ${cruzQtd(o.real,o.un)}</div></div><div class="amt neg">${brl(o.valor||0)}</div></div></div>`).join('');
+  }
+  $('#cruzBody').innerHTML=h;
+}
+$$('#cruzAtalhos .chip').forEach(c=>c.onclick=()=>{ const v=c.dataset.cp; if(v==='go'){ cruzCalcular(); return; } cruzPeriodo(+v); cruzCalcular(); });
 
 /* ========================= PRINT ========================= */
 function printDRE(){
