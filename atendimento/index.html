@@ -586,7 +586,7 @@ const CH={
   ig_ccmq:{label:"Instagram · Lola CCMQ",curto:"CCMQ",cor:"#a4242f",fg:"#a4242f",bg:"#fbe9ea"},
   ig_mac:{label:"Instagram · Lola MAC",curto:"MAC",cor:"#1f8a5b",fg:"#1f8a5b",bg:"#e7f6ee"}
 };
-function canalKey(c){ c=(c||'').toLowerCase(); if(c==='instagram'||c==='ig'||c==='ig_ccmq') return 'ig_ccmq'; if(c==='ig_mac') return 'ig_mac'; if(c==='google') return 'google'; return 'wa'; }
+function canalKey(c,u){ c=(c||'').toLowerCase(); if(c==='instagram'||c==='ig') return (String(u||'').toUpperCase()==='MAC')?'ig_mac':'ig_ccmq'; if(c==='ig_ccmq') return 'ig_ccmq'; if(c==='ig_mac') return 'ig_mac'; if(c==='google') return 'google'; return 'wa'; }
 const ST={
   'respondido':{label:"Respondido",cor:"#1f8a5b"},
   'aguardando-retorno':{label:"Aguardando retorno",cor:"#c98a1e"},
@@ -659,7 +659,7 @@ async function loadConversas(){
   if(error){ console.error(error); toast('Erro ao carregar conversas'); return; }
   convos=(data||[]).map(row=>{
     const ct=row.wa_contatos||{};
-    const k=canalKey(row.canal);
+    const k=canalKey(row.canal,row.unidade); // 23/11: Instagram do MAC aparecia como CCMQ
     const name= ct.nome || ct.instagram_handle || ct.telefone || ct.wa_id || 'Sem nome';
     return {
       id:row.id, contato_id:row.contato_id, canal:k,
