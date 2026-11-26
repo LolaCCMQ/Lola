@@ -213,3 +213,7 @@ update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/even
  where id = '590f2923-df1e-45a8-87c5-d4521099949f' and coalesce(foto_url,'') = '';
 update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/manteiga-saborizada.webp'
  where id = '7f302bcd-674c-44ea-93d9-3c015c1e820a' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/quark-pesto.webp'
+ where id = '44a4123c-591e-481a-aec3-5ee4477f7ee6' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/waffle-frutas.webp'
+ where id = 'bf07ae35-a8fe-47c0-8843-cdfcf297a7fd' and coalesce(foto_url,'') = '';
