@@ -207,3 +207,5 @@ update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/even
  where id = '0c7c1ef4-3ea9-47d2-b6de-d00a497a553e' and coalesce(foto_url,'') = '';
 update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/brie-brulee.webp'
  where id = '3fbe92de-5be8-4b1d-8bbd-b16c7301682a' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/waffle-frutas.webp'
+ where id = '609dcd0c-d295-4964-97a7-1e0d25fbb8f2' and coalesce(foto_url,'') = '';
