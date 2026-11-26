@@ -209,3 +209,7 @@ update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/even
  where id = '3fbe92de-5be8-4b1d-8bbd-b16c7301682a' and coalesce(foto_url,'') = '';
 update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/waffle-frutas.webp'
  where id = '609dcd0c-d295-4964-97a7-1e0d25fbb8f2' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/homus.webp'
+ where id = '590f2923-df1e-45a8-87c5-d4521099949f' and coalesce(foto_url,'') = '';
+update public.lola_eventos_itens set foto_url = 'https://lolabar.com.br/img/eventos/manteiga-saborizada.webp'
+ where id = '7f302bcd-674c-44ea-93d9-3c015c1e820a' and coalesce(foto_url,'') = '';
