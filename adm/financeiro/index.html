@@ -318,6 +318,12 @@ section.view{display:none} section.view.on{display:block}
         <button class="chip" data-cp="3">Últimos 3 meses</button>
         <button class="chip on" data-cp="go" style="color:#fff"><i class="ph-duotone ph-arrows-clockwise"></i> Calcular</button>
       </div>
+      <div class="note" id="bbBox" style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center">
+        <div style="flex:1;min-width:220px"><b>Vendas por produto (Bitbar)</b><br><span id="bbCob">—</span></div>
+        <button class="chip" id="bbBtn" style="color:var(--vinho);border-color:var(--vinho);font-weight:700"><i class="ph-duotone ph-file-arrow-up"></i> Importar relatório de produtos (PDF)</button>
+        <input type="file" id="bbFile" accept=".pdf,application/pdf" multiple style="display:none">
+        <div id="bbLog" style="flex-basis:100%;font-size:12px"></div>
+      </div>
       <div id="cruzBody"><div class="note">Escolha o período e toque em <b>Calcular</b>.</div></div>
     </section>
 
@@ -2736,26 +2742,26 @@ function cruzBloco(titulo,sub,itens,opts,limite){ limite=limite||15;
 function cruzPeriodo(meses){ const d=new Date(); const fim=new Date(d.getFullYear(),d.getMonth(),0); const ini=new Date(fim.getFullYear(),fim.getMonth()-(meses-1),1);
   const f=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
   $('#cruzIni').value=f(ini); $('#cruzFim').value=f(fim); }
-function cruzInit(){ if(!$('#cruzIni').value) cruzPeriodo(1);
+function cruzInit(){ if(!$('#cruzIni').value) cruzPeriodo(1); bbCobertura();
   if(ST.unit!=='ccmq'){ $('#cruzBody').innerHTML='<div class="note">Por enquanto o cruzamento só existe para o <b>Lola CCMQ</b> — é a única unidade com as vendas por produto do Bitbar. MAC e Central entram numa próxima etapa.</div>'; } }
 async function cruzCalcular(){
   if(ST.unit!=='ccmq'){ cruzInit(); return; }
   const ini=$('#cruzIni').value, fim=$('#cruzFim').value; if(!ini||!fim||fim<ini){ toast('Confira o período'); return; }
-  $('#cruzBody').innerHTML='<div class="note">Calculando… (pode levar alguns segundos)</div>';
+  $('#cruzBody').innerHTML='<div class="note">Calculando… (pode levar alguns segundos)</div>'; bbCobertura();
   let r; try{ r=await api('rpc/fin_cruzamento',{method:'POST',body:JSON.stringify({p_unit:ST.unit,p_ini:ini,p_fim:fim})}); }
   catch(e){ $('#cruzBody').innerHTML=`<div class="note" style="color:var(--neg)">Não consegui calcular: ${esc(String(e.message||e)).slice(0,200)}</div>`; return; }
   if(r&&r.erro){ $('#cruzBody').innerHTML=`<div class="note">${esc(r.erro)}</div>`; return; }
   const s=r.resumo||{}; const cob=s.venda?Math.round(100*((s.venda_ficha||0)+(s.venda_direta||0))/s.venda):0;
   const cmvT=s.venda_ficha?(100*s.cmv_teorico_fichas/s.venda_ficha):null;
   const aviso = (s.dias_venda && s.dias_produto/s.dias_venda<0.8)
-    ? `<div class="note" style="background:var(--amberBg);border-color:#ecd9ac;color:var(--amber)"><b>Atenção:</b> só ${s.dias_produto} de ${s.dias_venda} dias têm venda por produto importada do Bitbar. Os outros dias foram estimados pela proporção dos dias importados. Para números firmes, importe o relatório de produtos todo dia.</div>`:'';
+    ? `<div class="note" style="background:var(--amberBg);border-color:#ecd9ac;color:var(--amber)"><b>Atenção:</b> só ${s.dias_produto} de ${s.dias_venda} dias têm venda por produto importada do Bitbar. Os outros dias foram estimados pela proporção dos dias importados. Use o botão <b>Importar relatório de produtos</b> acima para subir os PDFs que faltam (o “VendaProdutos.pdf” que o Bitbar manda por e-mail todo dia).</div>`:'';
   let h = aviso + `<div class="sum">
       <div><div class="v">${brl(s.venda||0)}</div><div class="k">Venda no período</div></div>
       <div><div class="v">${cob}%</div><div class="k">da venda com ficha</div></div>
       <div><div class="v">${cmvT!=null?cmvT.toFixed(1)+'%':'—'}</div><div class="k">CMV teórico (fichas)</div></div>
       <div><div class="v">${brl(s.compras||0)}</div><div class="k">Compras (entradas)</div></div>
       <div><div class="v">${brl(s.central||0)}</div><div class="k">Recebido da Central</div></div>
-      <div><div class="v">${s.venda?(100*((s.compras||0)+(s.central||0))/s.venda).toFixed(1)+'%':'—'}</div><div class="k">Compras ÷ venda</div></div>
+      <div><div class="v">${s.venda?(100*((s.compras||0)+(s.central||0))/s.venda).toFixed(1)+'%':'—'}</div><div class="k">Compras / venda</div></div>
     </div>`;
   h += cruzBloco('Vendidos como chegam','Bebidas, vinhos e itens de revenda: 1 vendido = 1 comprado. É o cruzamento mais confiável.', r.direto, {realLbl:'entrou'});
   h += cruzBloco('Pré-preparos da Central','O que o CCMQ recebeu da Central × o que as fichas dos pratos vendidos pedem.', r.central, {realLbl:'recebeu'});
@@ -2775,6 +2781,98 @@ async function cruzCalcular(){
   $('#cruzBody').innerHTML=h;
 }
 $$('#cruzAtalhos .chip').forEach(c=>c.onclick=()=>{ const v=c.dataset.cp; if(v==='go'){ cruzCalcular(); return; } cruzPeriodo(+v); cruzCalcular(); });
+
+
+/* ===== Importar VendaProdutos.pdf do Bitbar (27/11) ===== */
+// Parser do VendaProdutos.pdf (Bitbar) — usa itens de texto do pdf.js (x,y,str)
+function bbNum(s){ return parseFloat(String(s).replace(/\./g,'').replace(',','.')); }
+async function bbParsePdf(pdf){
+  const linhas=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const pg=await pdf.getPage(p); const tc=await pg.getTextContent();
+    const its=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({x:i.transform[4],y:Math.round(i.transform[5]),s:i.str.trim(),w:i.width}));
+    const byY={}; its.forEach(i=>{ const k=Object.keys(byY).find(y=>Math.abs(y-i.y)<=2); (byY[k!==undefined?k:i.y]=byY[k!==undefined?k:i.y]||[]).push(i); });
+    Object.keys(byY).map(Number).sort((a,b)=>b-a).forEach(y=>linhas.push(byY[y].sort((a,b)=>a.x-b.x)));
+  }
+  const txt=linhas.map(l=>l.map(i=>i.s).join(' ')).join('\n');
+  const m=txt.match(/de (\d\d)\/(\d\d)\/(\d{4}) até (\d\d)\/(\d\d)\/(\d{4})/);
+  if(!m) throw new Error('não achei o período do relatório (é o "Venda de Produtos - Analítico" do Bitbar?)');
+  if(m[1]+m[2]+m[3]!==m[4]+m[5]+m[6]) throw new Error('o relatório cobre mais de um dia ('+m[1]+'/'+m[2]+' a '+m[4]+'/'+m[5]+') — gere um PDF por dia');
+  const data=m[3]+'-'+m[2]+'-'+m[1];
+  const unidade=/Lola CCMQ/i.test(txt)?'CCMQ':(/MAC/i.test(txt)?'MAC':'CCMQ');
+  let cols=null, grupo=null; const itens=[], subt={}; const NUM=/^-?\d[\d.]*(,\d+)?$/;
+  for(const l of linhas){
+    const s=l.map(i=>i.s).join(' ');
+    const mh=s.match(/^(\d+) - (.+?)\s+Peso\b/); if(mh){ grupo=mh[1]+' - '+mh[2].trim(); continue; }
+    if(/^Cód\b/.test(s)){ // cabeçalho de cada grupo (algumas colunas só aparecem quando o grupo tem valor)
+      const h=l.filter(i=>/^(Qtde|Valor|Grupo|Total|Custo|Venda Média)$/.test(i.s)).map(i=>({n:i.s,xe:i.x+i.w}));
+      const nomesDir=['total','grupo','vcV','vcQ','vV','vQ']; cols=[];
+      const dir=h.slice(-6); dir.forEach((c,ix)=>cols.push({k:nomesDir[5-ix],xe:c.xe}));
+      const vQx=dir[0].xe;
+      h.slice(0,-6).forEach(c=>{ let k=c.n==='Custo'?'custo':c.n==='Venda Média'?'media':(c.xe<318?'peso':c.xe<340?'cancel':'cortes'); if(c.n==='Qtde'&&c.xe>=vQx) return; cols.push({k,xe:c.xe}); });
+      continue; }
+    if(!grupo||!cols) continue;
+    const ms=s.match(/^(\d+) - (.+?)\s+-?\d/); 
+    if(ms && (ms[1]+' - '+ms[2].trim())===grupo){ const nums=l.filter(i=>NUM.test(i.s)).slice(1); // tira o número do grupo
+      if(nums.length>=3) subt[grupo]={q:bbNum(nums[nums.length-3].s),v:bbNum(nums[nums.length-2].s)}; continue; }
+    const cod=l[0]&&/^\d{1,5}$/.test(l[0].s)?parseInt(l[0].s,10):null; if(cod===null) continue;
+    // nome = textos não numéricos depois do código
+    let k=1, nome=[]; while(k<l.length && !NUM.test(l[k].s)){ nome.push(l[k].s); k++; }
+    const nums=l.slice(k).filter(i=>NUM.test(i.s)); if(nums.length<5) continue;
+    // cada número vai para a coluna cujo fim (x direito) está mais perto do fim do número
+    const val={};
+    nums.forEach(n=>{ const xe=n.x+n.w; let best=null,bd=1e9; cols.forEach(c=>{const d=Math.abs(c.xe-xe); if(d<bd){bd=d;best=c.k;}}); val[best]=bbNum(n.s); });
+    const g=k=>val[k]==null?0:val[k];
+    const it={cod, produto:nome.join(' ').trim(), grupo, canc:g('cancel'), cort:g('cortes'), vendaQ:g('vQ'), vendaV:g('vV'), vcQ:g('vcQ'), vcV:g('vcV')};
+    itens.push(it);
+  }
+  if(!itens.length) throw new Error('não encontrei produtos no PDF');
+  const erros=[];
+  Object.entries(subt).forEach(([gr,t])=>{ const sq=itens.filter(i=>i.grupo===gr).reduce((s,i)=>s+i.vcQ,0), sv=itens.filter(i=>i.grupo===gr).reduce((s,i)=>s+i.vcV,0);
+    if(Math.abs(sq-t.q)>1.01||Math.abs(sv-t.v)>1.01) erros.push(gr+': lido '+sq.toFixed(2)+'/'+sv.toFixed(2)+' × PDF '+t.q+'/'+t.v); });
+  return {data, unidade, itens, grupos:Object.keys(subt).length, erros};
+}
+
+let _pdfjsP=null;
+function bbLoadPdfJs(){ if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(_pdfjsP) return _pdfjsP;
+  _pdfjsP=new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    sc.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; ok(window.pdfjsLib); };
+    sc.onerror=()=>{ _pdfjsP=null; ko(new Error('não consegui carregar o leitor de PDF (sem internet?)')); }; document.head.appendChild(sc); });
+  return _pdfjsP; }
+function bbDataBR(d){ const [y,m,dd]=d.split('-'); return dd+'/'+m; }
+async function bbCobertura(){
+  const el=$('#bbCob'); if(!el) return;
+  if(ST.unit!=='ccmq'){ el.textContent='Só existe para o Lola CCMQ por enquanto.'; $('#bbBtn').style.display='none'; return; }
+  $('#bbBtn').style.display='';
+  const ini=$('#cruzIni').value, fim=$('#cruzFim').value; if(!ini||!fim){ el.textContent='—'; return; }
+  try{ const r=await api('rpc/bitbar_dias_sem_produto',{method:'POST',body:JSON.stringify({p_unidade:'CCMQ',p_ini:ini,p_fim:fim})});
+    const falt=(r&&r.sem_produto)||[];
+    el.innerHTML = `${r.com_produto||0} de ${r.dias_venda||0} dias do período têm os produtos importados.` +
+      (falt.length?` <span style="color:var(--amber)">Faltam: ${falt.slice(0,25).map(bbDataBR).join(', ')}${falt.length>25?' …':''}</span>`:' <span style="color:var(--pos)">Período completo ✓</span>');
+  }catch(e){ el.textContent='Não consegui verificar os dias: '+String(e.message||e).slice(0,120); } }
+async function bbImportar(files){
+  const log=$('#bbLog'); const linhas=[]; const pr=m=>{ linhas.push(m); log.innerHTML=linhas.join('<br>'); };
+  if(ST.unit!=='ccmq'){ toast('Só para o Lola CCMQ'); return; }
+  let lib; try{ lib=await bbLoadPdfJs(); }catch(e){ pr('<span style="color:var(--neg)">'+esc(e.message)+'</span>'); return; }
+  let ok=0;
+  for(const f of files){
+    try{
+      pr('Lendo <b>'+esc(f.name)+'</b>…');
+      const pdf=await lib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;
+      const r=await bbParsePdf(pdf);
+      if(r.unidade!=='CCMQ') throw new Error('esse relatório é de outra unidade ('+r.unidade+')');
+      if(r.erros.length) throw new Error('a soma de algum grupo não bateu com o total do PDF, não gravei: '+r.erros.join('; '));
+      const itens=r.itens.map(i=>({cod:i.cod,produto:i.produto,grupo:i.grupo,qtde:i.vendaQ,valor:i.vendaV,qtde_cortesia:Math.max(0,+(i.vcQ-i.vendaQ).toFixed(3)),qtde_cancelada:i.canc}));
+      const res=await api('rpc/bitbar_importar_produtos',{method:'POST',body:JSON.stringify({p_data:r.data,p_unidade:'CCMQ',p_itens:itens,p_fonte:'upload-pdf'})});
+      linhas.pop(); pr(`✓ <b>${bbDataBR(r.data)}</b>: ${itens.length} produtos, ${brl(res.total_produtos||0)} em vendas`+(res.atualizados?` (${res.atualizados} já existiam e foram atualizados)`:'')+(res.dia_criado?' · dia criado':''));
+      ok++;
+    }catch(e){ linhas.pop(); pr('<span style="color:var(--neg)">✗ '+esc(f.name)+': '+esc(String(e.message||e)).slice(0,240)+'</span>'); }
+  }
+  if(ok){ toast(ok+' relatório(s) importado(s) ✓'); bbCobertura(); }
+}
+$('#bbBtn').onclick=()=>$('#bbFile').click();
+$('#bbFile').onchange=e=>{ const fs=Array.from(e.target.files||[]); e.target.value=''; if(fs.length) bbImportar(fs); };
 
 /* ========================= PRINT ========================= */
 function printDRE(){
